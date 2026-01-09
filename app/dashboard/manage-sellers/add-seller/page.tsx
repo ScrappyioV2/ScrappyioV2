@@ -1,11 +1,15 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '../../../../lib/supabaseClient'
-import * as XLSX from 'xlsx'
-import Toast from '@/components/Toast'
-import ConfirmDialog from '@/components/ConfirmDialog'
+export const dynamic = "force-dynamic";
+
+import { Suspense } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../../../../lib/supabaseClient";
+import * as XLSX from "xlsx";
+import Toast from "@/components/Toast";
+import ConfirmDialog from "@/components/ConfirmDialog";
+
 
 interface SellerRow {
   id: string
@@ -31,8 +35,14 @@ interface GeneratedLink {
   profile_link: string
   badge?: string
 }
-
-export default function AddSeller() {
+export default function AddSellerPage() {
+  return (
+    <Suspense fallback={<div className="p-4">Loading seller page...</div>}>
+      <AddSeller />
+    </Suspense>
+  );
+}
+function AddSeller() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const countryParam = searchParams.get('country') || ''
@@ -288,91 +298,91 @@ export default function AddSeller() {
 
 
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
-  if (!countryCode) return
+    if (!countryCode) return
 
-  try {
-    setLoadingLinks(true)
+    try {
+      setLoadingLinks(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (user) {
-      const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
+      if (user) {
+        const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
 
-      // ✅ BATCH LOADING - Load ALL 5956 links in chunks of 1000
-      let allLinks: GeneratedLink[] = []
-      let from = 0
-      const batchSize = 1000
-      let hasMore = true
+        // ✅ BATCH LOADING - Load ALL 5956 links in chunks of 1000
+        let allLinks: GeneratedLink[] = []
+        let from = 0
+        const batchSize = 1000
+        let hasMore = true
 
-      console.log(`🔄 Starting batch load from ${tableName}...`)
+        console.log(`🔄 Starting batch load from ${tableName}...`)
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('user_id', user.id)
-          .order('seller_name', { ascending: true })
-          .order('page_number', { ascending: true })
-          .range(from, from + batchSize - 1) // ✅ THIS IS THE KEY FIX
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .eq('user_id', user.id)
+            .order('seller_name', { ascending: true })
+            .order('page_number', { ascending: true })
+            .range(from, from + batchSize - 1) // ✅ THIS IS THE KEY FIX
 
-        if (error) throw error
+          if (error) throw error
 
-        if (data && data.length > 0) {
-          const FILTER_LABELS: Record<string, string> = {
-            'default': 'Default',
-            'price-asc': 'Price: Low to High',
-            'price-desc': 'Price: High to Low',
-            'review': 'Avg. Customer Review',
-            'new-arrival': 'New Arrivals',
-            'best-seller': 'Best Sellers'
+          if (data && data.length > 0) {
+            const FILTER_LABELS: Record<string, string> = {
+              'default': 'Default',
+              'price-asc': 'Price: Low to High',
+              'price-desc': 'Price: High to Low',
+              'review': 'Avg. Customer Review',
+              'new-arrival': 'New Arrivals',
+              'best-seller': 'Best Sellers'
+            }
+
+            const formattedLinks = data.map(link => ({
+              id: link.id,
+              seller_name: link.seller_name,
+              merchant_token: link.merchant_token,
+              page_number: link.page_number,
+              filter_type: link.filter_type,
+              profile_link: link.profile_link,
+              badge: link.badge || null,
+              filter_label: FILTER_LABELS[link.filter_type] || link.filter_type
+            }))
+
+            allLinks = [...allLinks, ...formattedLinks]
+            console.log(`✅ Loaded batch ${from}-${from + data.length} (Total so far: ${allLinks.length})`)
+
+            from += batchSize
+            hasMore = data.length === batchSize // Continue if we got a full batch
+          } else {
+            hasMore = false
           }
-
-          const formattedLinks = data.map(link => ({
-            id: link.id,
-            seller_name: link.seller_name,
-            merchant_token: link.merchant_token,
-            page_number: link.page_number,
-            filter_type: link.filter_type,
-            profile_link: link.profile_link,
-            badge: link.badge || null,
-            filter_label: FILTER_LABELS[link.filter_type] || link.filter_type
-          }))
-
-          allLinks = [...allLinks, ...formattedLinks]
-          console.log(`✅ Loaded batch ${from}-${from + data.length} (Total so far: ${allLinks.length})`)
-          
-          from += batchSize
-          hasMore = data.length === batchSize // Continue if we got a full batch
-        } else {
-          hasMore = false
         }
+
+        console.log(`✅ FINAL: Loaded ${allLinks.length} links from database`)
+        setGeneratedLinks(allLinks)
+        setLoadingLinks(false)
+        return
       }
 
-      console.log(`✅ FINAL: Loaded ${allLinks.length} links from database`)
-      setGeneratedLinks(allLinks)
-      setLoadingLinks(false)
-      return
-    }
+      // Fallback to localStorage
+      const storedLinks = localStorage.getItem('generatedLinks')
+      const storedCountry = localStorage.getItem('generatedLinksCountry')
 
-    // Fallback to localStorage
-    const storedLinks = localStorage.getItem('generatedLinks')
-    const storedCountry = localStorage.getItem('generatedLinksCountry')
-
-    if (storedLinks && storedCountry === countryCode) {
-      const parsedLinks = JSON.parse(storedLinks)
-      setGeneratedLinks(parsedLinks)
-    } else {
+      if (storedLinks && storedCountry === countryCode) {
+        const parsedLinks = JSON.parse(storedLinks)
+        setGeneratedLinks(parsedLinks)
+      } else {
+        setGeneratedLinks([])
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error loading links:', error)
+      }
       setGeneratedLinks([])
+    } finally {
+      setLoadingLinks(false)
     }
-  } catch (error: any) {
-    if (error.name !== 'AbortError') {
-      console.error('Error loading links:', error)
-    }
-    setGeneratedLinks([])
-  } finally {
-    setLoadingLinks(false)
   }
-}
 
 
 

@@ -1,6 +1,6 @@
 'use client'
-
-import { useEffect, useState } from 'react'
+export const dynamic = "force-dynamic"
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
@@ -13,8 +13,14 @@ interface GeneratedLink {
   profile_link: string
   badge?: string
 }
-
 export default function GeneratedLinksPage() {
+  return (
+    <Suspense fallback={<div className="p-4">Loading generated links…</div>}>
+      <GeneratedLinks />
+    </Suspense>
+  )
+}
+function GeneratedLinks() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [links, setLinks] = useState<GeneratedLink[]>([])
@@ -43,88 +49,88 @@ export default function GeneratedLinksPage() {
   // Try database first, then localStorage
   // Try database first, then localStorage
   // Try database first, then localStorage
-const loadGeneratedLinks = async (countryCode: string) => {
-  try {
-    setLoading(true)
+  const loadGeneratedLinks = async (countryCode: string) => {
+    try {
+      setLoading(true)
 
-    // Try to get from database first
-    const { data: { user } } = await supabase.auth.getUser()
+      // Try to get from database first
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (user) {
-      const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
+      if (user) {
+        const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
 
-      // ✅ V1 BATCH LOADING LOGIC
-      let allLinks: GeneratedLink[] = []
-      let from = 0
-      const batchSize = 1000
-      let hasMore = true
+        // ✅ V1 BATCH LOADING LOGIC
+        let allLinks: GeneratedLink[] = []
+        let from = 0
+        const batchSize = 1000
+        let hasMore = true
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('user_id', user.id)
-          .order('seller_name', { ascending: true })
-          .order('page_number', { ascending: true })
-          .range(from, from + batchSize - 1)
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .eq('user_id', user.id)
+            .order('seller_name', { ascending: true })
+            .order('page_number', { ascending: true })
+            .range(from, from + batchSize - 1)
 
-        if (error) throw error
+          if (error) throw error
 
-        if (data && data.length > 0) {
-          const FILTER_LABELS: Record<string, string> = {
-            'default': 'Default',
-            'price-asc': 'Price: Low to High',
-            'price-desc': 'Price: High to Low',
-            'review': 'Avg. Customer Review',
-            'new-arrival': 'New Arrivals',
-            'best-seller': 'Best Sellers'
+          if (data && data.length > 0) {
+            const FILTER_LABELS: Record<string, string> = {
+              'default': 'Default',
+              'price-asc': 'Price: Low to High',
+              'price-desc': 'Price: High to Low',
+              'review': 'Avg. Customer Review',
+              'new-arrival': 'New Arrivals',
+              'best-seller': 'Best Sellers'
+            }
+
+            const formattedLinks = data.map(link => ({
+              seller_name: link.seller_name,
+              merchant_token: link.merchant_token,
+              page_number: link.page_number,
+              filter_type: link.filter_type,
+              profile_link: link.profile_link,
+              badge: link.badge || null,
+              filter_label: FILTER_LABELS[link.filter_type] || link.filter_type
+            }))
+
+            allLinks = [...allLinks, ...formattedLinks]
+            from += batchSize
+            hasMore = data.length === batchSize
+          } else {
+            hasMore = false
           }
-
-          const formattedLinks = data.map(link => ({
-            seller_name: link.seller_name,
-            merchant_token: link.merchant_token,
-            page_number: link.page_number,
-            filter_type: link.filter_type,
-            profile_link: link.profile_link,
-            badge: link.badge || null,
-            filter_label: FILTER_LABELS[link.filter_type] || link.filter_type
-          }))
-
-          allLinks = [...allLinks, ...formattedLinks]
-          from += batchSize
-          hasMore = data.length === batchSize
-        } else {
-          hasMore = false
         }
+
+        console.log(`✅ Loaded ${allLinks.length} links from database`)
+        setLinks(allLinks)
+        setSource('database')
+        setLoading(false)
+        return
       }
 
-      console.log(`✅ Loaded ${allLinks.length} links from database`)
-      setLinks(allLinks)
-      setSource('database')
-      setLoading(false)
-      return
-    }
+      // Fallback to localStorage
+      const storedLinks = localStorage.getItem('generatedLinks')
+      const storedCountry = localStorage.getItem('generatedLinksCountry')
 
-    // Fallback to localStorage
-    const storedLinks = localStorage.getItem('generatedLinks')
-    const storedCountry = localStorage.getItem('generatedLinksCountry')
-
-    if (storedLinks && storedCountry === countryCode) {
-      const parsedLinks = JSON.parse(storedLinks)
-      setLinks(parsedLinks)
-      setSource('localStorage')
-    } else {
+      if (storedLinks && storedCountry === countryCode) {
+        const parsedLinks = JSON.parse(storedLinks)
+        setLinks(parsedLinks)
+        setSource('localStorage')
+      } else {
+        setLinks([])
+        setSource('none')
+      }
+    } catch (error) {
+      console.error('Error loading links:', error)
       setLinks([])
       setSource('none')
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    console.error('Error loading links:', error)
-    setLinks([])
-    setSource('none')
-  } finally {
-    setLoading(false)
   }
-}
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -296,16 +302,15 @@ const loadGeneratedLinks = async (countryCode: string) => {
                   {visibleLinks.map((link, visIndex) => {
                     const absoluteIndex = startIndex + visIndex
                     const isFocused = focusedRowIndex === absoluteIndex
-                    
+
                     return (
                       <tr
                         key={visIndex}
                         onClick={() => setFocusedRowIndex(absoluteIndex)}
-                        className={`border-b border-gray-200 transition-all duration-150 cursor-pointer ${
-                          isFocused 
-                            ? 'bg-blue-50 ring-2 ring-inset ring-blue-400 shadow-sm' 
+                        className={`border-b border-gray-200 transition-all duration-150 cursor-pointer ${isFocused
+                            ? 'bg-blue-50 ring-2 ring-inset ring-blue-400 shadow-sm'
                             : 'hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <td className="px-6 py-4 text-sm text-gray-700 font-medium border-r border-gray-200">
                           {absoluteIndex + 1}
@@ -358,7 +363,7 @@ const loadGeneratedLinks = async (countryCode: string) => {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Footer Info */}
             <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-sm text-gray-600">
               Displaying rows {startIndex + 1}-{Math.min(endIndex, links.length)} of {links.length.toLocaleString()} total links

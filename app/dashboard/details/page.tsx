@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 type Product = {
@@ -11,7 +13,17 @@ type Product = {
   status: string;
 };
 
+/* 🔹 REQUIRED SUSPENSE WRAPPER */
 export default function DashboardDetailsPage() {
+  return (
+    <Suspense fallback={<div className="p-4">Loading details...</div>}>
+      <DashboardDetailsContent />
+    </Suspense>
+  );
+}
+
+/* 🔹 ACTUAL PAGE CONTENT */
+function DashboardDetailsContent() {
   const params = useSearchParams();
   const router = useRouter();
 
