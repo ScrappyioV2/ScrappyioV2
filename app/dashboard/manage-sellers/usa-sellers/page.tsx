@@ -4,7 +4,7 @@ import {
   filterDuplicateASINs,
 } from '@/lib/utils/master-table/dataHelpers'
 import { useState, useEffect } from 'react';
-import supabase from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabaseClient'
 import toast, { Toaster } from 'react-hot-toast';
 import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
 import UploadModal from '@/components/shared/master-table/UploadModal';
@@ -73,6 +73,8 @@ export default function UsaSellersPage() {
   }, []);
 
   const loadColumnPreferences = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -96,6 +98,8 @@ export default function UsaSellersPage() {
   };
 
   const saveColumnPreferences = async (columns: string[], widths?: Record<string, number>) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -140,6 +144,8 @@ export default function UsaSellersPage() {
   };
 
   const handleUpload = async (file: File) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     const toastId = toast.loading('Uploading file...');
 
     try {
@@ -205,9 +211,9 @@ export default function UsaSellersPage() {
     }
   };
 
-
-
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       setIsExporting(true);
       setExportProgress({ current: 0, total: 0 });

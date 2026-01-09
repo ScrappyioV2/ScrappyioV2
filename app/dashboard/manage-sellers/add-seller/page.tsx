@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../../../../lib/supabaseClient";
+import { getSupabaseClient } from '@/lib/supabaseClient'
 import * as XLSX from "xlsx";
 import Toast from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -36,6 +36,7 @@ interface GeneratedLink {
   badge?: string
 }
 export default function AddSellerPage() {
+  const supabase = getSupabaseClient()
   return (
     <Suspense fallback={<div className="p-4">Loading seller page...</div>}>
       <AddSeller />
@@ -107,6 +108,8 @@ function AddSeller() {
 
   // ADD fetchSellerCounts function HERE (from my previous instructions)
   const fetchSellerCounts = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -230,7 +233,8 @@ function AddSeller() {
   }, [])
   const fetchSellersFromDB = async (country: string) => {
     if (!country) return
-
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -299,10 +303,10 @@ function AddSeller() {
 
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
     if (!countryCode) return
-
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       setLoadingLinks(true)
-
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
@@ -417,6 +421,8 @@ function AddSeller() {
       showToast('At least one row is required!', 'warning')
       return
     }
+    const supabase = getSupabaseClient()
+    if (!supabase) return
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -439,6 +445,8 @@ function AddSeller() {
   }
 
   const clearAllSellers = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     setConfirmDialog({
       title: 'Clear All Sellers?',
       message: 'Are you sure you want to clear all sellers? This action cannot be undone.',
@@ -636,6 +644,8 @@ function AddSeller() {
   }
 
   const handleGenerateLinks = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     if (!selectedCountry) {
       showToast('Please select a country first!', 'warning')
       return
@@ -713,7 +723,6 @@ function AddSeller() {
         setCurrentView('links')
         return
       }
-
       const { data: { user }, error: userError } = await supabase.auth.getUser()
 
       if (userError || !user) {
@@ -779,6 +788,8 @@ function AddSeller() {
 
 
   const deleteLink = async (index: number) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     setConfirmDialog({
       title: 'Delete Link?',
       message: 'Are you sure you want to delete this link? This action cannot be undone.',
@@ -787,7 +798,6 @@ function AddSeller() {
 
         try {
           const linkToDelete = generatedLinks[index]
-
           const { data: { user } } = await supabase.auth.getUser()
           if (user && linkToDelete.id) {
             const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
@@ -862,6 +872,8 @@ function AddSeller() {
   }
 
   const handleBulkDelete = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     if (selectedLinks.size === 0) {
       showToast('Please select at least one link to delete!', 'warning')
       return

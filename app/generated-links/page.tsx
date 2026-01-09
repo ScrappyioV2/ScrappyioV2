@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabaseClient'
 
 interface GeneratedLink {
   seller_name: string
@@ -32,10 +33,15 @@ function GeneratedLinks() {
   const [endIndex, setEndIndex] = useState(200)
   const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null)
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const getSupabaseClient = () => {
+    if (typeof window === 'undefined') return null
+
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+
 
   useEffect(() => {
     const countryParam = searchParams.get('country') || ''
@@ -50,6 +56,8 @@ function GeneratedLinks() {
   // Try database first, then localStorage
   // Try database first, then localStorage
   const loadGeneratedLinks = async (countryCode: string) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       setLoading(true)
 
@@ -308,8 +316,8 @@ function GeneratedLinks() {
                         key={visIndex}
                         onClick={() => setFocusedRowIndex(absoluteIndex)}
                         className={`border-b border-gray-200 transition-all duration-150 cursor-pointer ${isFocused
-                            ? 'bg-blue-50 ring-2 ring-inset ring-blue-400 shadow-sm'
-                            : 'hover:bg-gray-50'
+                          ? 'bg-blue-50 ring-2 ring-inset ring-blue-400 shadow-sm'
+                          : 'hover:bg-gray-50'
                           }`}
                       >
                         <td className="px-6 py-4 text-sm text-gray-700 font-medium border-r border-gray-200">

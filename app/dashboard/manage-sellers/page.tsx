@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-
+import { getSupabaseClient } from '@/lib/supabaseClient'
 interface CountryProgress {
   country: string
   totalLinks: number
@@ -12,7 +12,7 @@ interface CountryProgress {
 
 export default function ManageSellersPage() {
   const router = useRouter()
-  
+
   const [progress, setProgress] = useState<Record<string, CountryProgress>>({
     usa: { country: 'usa', totalLinks: 0, copiedLinks: 0 },
     india: { country: 'india', totalLinks: 0, copiedLinks: 0 },
@@ -34,7 +34,7 @@ export default function ManageSellersPage() {
 
   useEffect(() => {
     fetchProgress()
-    
+
     // Set up real-time updates
     const interval = setInterval(() => {
       fetchProgress()
@@ -44,6 +44,8 @@ export default function ManageSellersPage() {
   }, [])
 
   const fetchProgress = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -76,6 +78,8 @@ export default function ManageSellersPage() {
   }
 
   const resetAllCopied = async (country: string) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -101,7 +105,7 @@ export default function ManageSellersPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Left Side - No of Sellers Cards */}
           <div className="lg:col-span-1">
             <h1 className="text-2xl font-bold mb-6">No of Sellers</h1>
