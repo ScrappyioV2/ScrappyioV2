@@ -1,5 +1,8 @@
 'use client';
-
+import {
+  normalizeDataForDB,
+  filterDuplicateASINs,
+} from '@/lib/utils/master-table/dataHelpers'
 import { useState, useEffect } from 'react';
 import supabase from '@/lib/supabase';
 import toast, { Toaster } from 'react-hot-toast';
@@ -7,8 +10,10 @@ import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
 import UploadModal from '@/components/shared/master-table/UploadModal';
 import ExportButton from '@/components/shared/master-table/ExportButton';
 import UsaMasterTable from './components/UsaMasterTable';
-import { parseUploadedFile, normalizeDataForDB, filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
-import { exportData } from '@/lib/utils/master-table/exportHelpers';
+import {
+  parseFile as parseUploadedFile
+} from '@/lib/utils/master-table/uploadHelpers'
+import { exportData } from '@/lib/utils/exportHelpers'
 
 const TABLE_NAME = 'usa_master_sellers';
 
@@ -135,70 +140,70 @@ export default function UsaSellersPage() {
   };
 
   const handleUpload = async (file: File) => {
-  const toastId = toast.loading('Uploading file...');
-  
-  try {
-    // Parse file
-    const { data, errors } = await parseUploadedFile(file);
-    
-    if (errors.length > 0) {
-      toast.error(`Errors: ${errors.join(', ')}`, { id: toastId });
-      return;
-    }
+    const toastId = toast.loading('Uploading file...');
 
-    if (data.length === 0) {
-      toast.error('No data found in file', { id: toastId });
-      return;
-    }
+    try {
+      // Parse file
+      const { data, errors } = await parseUploadedFile(file);
 
-    // Normalize data
-    const normalizedData = normalizeDataForDB(data);
+      if (errors.length > 0) {
+        toast.error(`Errors: ${errors.join(', ')}`, { id: toastId });
+        return;
+      }
 
-    // Filter duplicate ASINs
-    toast.loading(`Checking ${normalizedData.length} products for duplicates...`, { id: toastId });
-    
-    const { newProducts, duplicateCount } = await filterDuplicateASINs(
-      normalizedData,
-      TABLE_NAME,
-      supabase
-    );
+      if (data.length === 0) {
+        toast.error('No data found in file', { id: toastId });
+        return;
+      }
 
-    // If all products are duplicates
-    if (newProducts.length === 0) {
-      toast.error(
-        `All ${duplicateCount} products are duplicates. No new data uploaded.`,
-        { id: toastId, duration: 5000 }
+      // Normalize data
+      const normalizedData = normalizeDataForDB(data);
+
+      // Filter duplicate ASINs
+      toast.loading(`Checking ${normalizedData.length} products for duplicates...`, { id: toastId });
+
+      const { newProducts, duplicateCount } = await filterDuplicateASINs(
+        normalizedData,
+        TABLE_NAME,
+        supabase
       );
-      return;
+
+      // If all products are duplicates
+      if (newProducts.length === 0) {
+        toast.error(
+          `All ${duplicateCount} products are duplicates. No new data uploaded.`,
+          { id: toastId, duration: 5000 }
+        );
+        return;
+      }
+
+      // Insert only new products
+      toast.loading(`Inserting ${newProducts.length} new products...`, { id: toastId });
+      const { error } = await supabase.from(TABLE_NAME).insert(newProducts);
+
+      if (error) throw error;
+
+      // Show success message
+      if (duplicateCount > 0) {
+        toast.success(
+          `✅ Added ${newProducts.length} new products\n⚠️ Skipped ${duplicateCount} duplicate ASINs`,
+          { id: toastId, duration: 6000 }
+        );
+      } else {
+        toast.success(
+          `✅ Successfully uploaded ${newProducts.length} products!`,
+          { id: toastId, duration: 4000 }
+        );
+      }
+
+      // Refresh table
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      const errorMessage = error?.message || 'Failed to upload data. Please try again.';
+      toast.error(errorMessage, { id: toastId, duration: 5000 });
     }
-
-    // Insert only new products
-    toast.loading(`Inserting ${newProducts.length} new products...`, { id: toastId });
-    const { error } = await supabase.from(TABLE_NAME).insert(newProducts);
-
-    if (error) throw error;
-
-    // Show success message
-    if (duplicateCount > 0) {
-      toast.success(
-        `✅ Added ${newProducts.length} new products\n⚠️ Skipped ${duplicateCount} duplicate ASINs`,
-        { id: toastId, duration: 6000 }
-      );
-    } else {
-      toast.success(
-        `✅ Successfully uploaded ${newProducts.length} products!`,
-        { id: toastId, duration: 4000 }
-      );
-    }
-
-    // Refresh table
-    setRefreshTrigger((prev) => prev + 1);
-  } catch (error: any) {
-    console.error('Upload error:', error);
-    const errorMessage = error?.message || 'Failed to upload data. Please try again.';
-    toast.error(errorMessage, { id: toastId, duration: 5000 });
-  }
-};
+  };
 
 
 
@@ -337,35 +342,35 @@ export default function UsaSellersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-    {/* Toast Notifications */}
-    <Toaster
-      position="top-right"
-      toastOptions={{
-        success: {
-          style: {
-            background: '#10B981',
-            color: '#fff',
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          success: {
+            style: {
+              background: '#10B981',
+              color: '#fff',
+            },
+            iconTheme: {
+              primary: '#fff',
+              secondary: '#10B981',
+            },
           },
-          iconTheme: {
-            primary: '#fff',
-            secondary: '#10B981',
+          error: {
+            style: {
+              background: '#EF4444',
+              color: '#fff',
+            },
           },
-        },
-        error: {
-          style: {
-            background: '#EF4444',
-            color: '#fff',
+          loading: {
+            style: {
+              background: '#3B82F6',
+              color: '#fff',
+            },
           },
-        },
-        loading: {
-          style: {
-            background: '#3B82F6',
-            color: '#fff',
-          },
-        },
-      }}
-    />
-  
+        }}
+      />
+
       {/* Export Loading Modal */}
       {isExporting && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">

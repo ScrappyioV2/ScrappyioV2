@@ -230,65 +230,67 @@ export default function UsaMasterTable({
   };
 
   const handleSelectAll = async (checked: boolean) => {
-    if (checked) {
-      try {
-        setIsSelectingAll(true);
-        let allProducts: MasterData[] = [];
-        let page = 1;
-        let hasMore = true;
+  if (!checked) {
+    onSelectedIdsChange(new Set());
+    return;
+  }
 
-        while (hasMore) {
-          let query: any = supabase.from('usa_master_sellers').select('*');
+  try {
+    setIsSelectingAll(true);
+    const BATCH_SIZE = 1000;
+    let page = 0;
+    let hasMore = true;
+    const allIds = new Set<string>();
 
-          if (searchTerm) {
-            query = query.or(`asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
-          }
+    while (hasMore) {
+      let query: any = supabase
+        .from('usa_master_sellers')
+        .select('id')
+        .range(page * BATCH_SIZE, page * BATCH_SIZE + BATCH_SIZE - 1);
 
-          Object.entries(localFilters).forEach(([columnKey, filterData]) => {
-            if (!filterData) return;
-            if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
-              query = query.in(columnKey, filterData.values);
-            }
-            if (filterData.type === 'numeric' && filterData.value != null) {
-              const value = parseFloat(filterData.value);
-              if (!isNaN(value)) {
-                switch (filterData.operator) {
-                  case 'eq': query = query.eq(columnKey, value); break;
-                  case 'gt': query = query.gt(columnKey, value); break;
-                  case 'lt': query = query.lt(columnKey, value); break;
-                  case 'gte': query = query.gte(columnKey, value); break;
-                  case 'lte': query = query.lte(columnKey, value); break;
-                }
-              }
-            }
-          });
+      if (searchTerm) {
+        query = query.or(
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
+        );
+      }
 
-          const from = (page - 1) * 1000;
-          const to = from + 999;
-          const { data: result, error } = await query.range(from, to);
+      Object.entries(localFilters).forEach(([column, filter]) => {
+        if (!filter) return;
 
-          if (error) throw error;
-          if (result && result.length > 0) {
-            allProducts.push(...result);
-            setSelectAllProgress({ current: allProducts.length, total: allProducts.length });
-            hasMore = result.length === 1000;
-            page++;
-          } else {
-            hasMore = false;
-          }
+        if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
+          query = query.in(column, filter.values);
         }
 
-        const allIds = new Set(allProducts.map((p: MasterData) => p.id));
-        onSelectedIdsChange(allIds);
-      } catch (error) {
-        console.error('Select all error:', error);
-      } finally {
-        setIsSelectingAll(false);
+        if (filter.type === 'numeric' && filter.value !== null) {
+          const v = parseFloat(filter.value);
+          if (!isNaN(v)) {
+            query = query[filter.operator](column, v);
+          }
+        }
+      });
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
       }
-    } else {
-      onSelectedIdsChange(new Set());
+
+      data.forEach((row: any) => allIds.add(row.id));
+
+      hasMore = data.length === BATCH_SIZE;
+      page++;
     }
-  };
+
+    onSelectedIdsChange(allIds);
+  } catch (err) {
+    console.error('Select all failed:', err);
+  } finally {
+    setIsSelectingAll(false);
+  }
+};
+
 
   const handleSelectRow = (id: string, checked: boolean) => {
     const newSelected = new Set(selectedIds);
@@ -383,82 +385,51 @@ const fetchUniqueValuesForFilter = async (columnKey: string) => {
     let offset = 0;
     let hasMore = true;
 
-    // Fetch all unique values in batches
     while (hasMore) {
       let query: any = supabase
         .from('usa_master_sellers')
-        .select(columnKey);
+        .select(columnKey)
+        .range(offset, offset + BATCH_SIZE - 1);
 
-      // Apply search filter
       if (searchTerm) {
         query = query.or(
           `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
         );
       }
 
-      // Apply all existing filters EXCEPT the column being filtered
-      if (Object.keys(localFilters).length > 0) {
-        Object.entries(localFilters).forEach(([column, filter]) => {
-          // Skip the column we're currently filtering
-          if (column === columnKey) return;
+      Object.entries(localFilters).forEach(([column, filter]) => {
+        if (column === columnKey || !filter) return;
 
-          if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length > 0) {
-            query = query.in(column, filter.values);
-          } else if (filter.type === 'numeric' && filter.value !== null) {
-            const value = parseFloat(filter.value);
-            if (!isNaN(value)) {
-              switch (filter.operator) {
-                case 'gte':
-                  query = query.gte(column, value);
-                  break;
-                case 'lte':
-                  query = query.lte(column, value);
-                  break;
-                case 'gt':
-                  query = query.gt(column, value);
-                  break;
-                case 'lt':
-                  query = query.lt(column, value);
-                  break;
-                case 'eq':
-                  query = query.eq(column, value);
-                  break;
-              }
-            }
+        if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
+          query = query.in(column, filter.values);
+        }
+
+        if (filter.type === 'numeric' && filter.value !== null) {
+          const v = parseFloat(filter.value);
+          if (!isNaN(v)) {
+            query = query[filter.operator](column, v);
           }
-        });
-      }
-
-      // Add pagination
-      query = query.range(offset, offset + BATCH_SIZE - 1);
+        }
+      });
 
       const { data, error } = await query;
-
-      if (error) {
-        console.error('Supabase error:', error);
-        break;
-      }
+      if (error) throw error;
 
       if (!data || data.length === 0) {
         hasMore = false;
         break;
       }
 
-      // Count values in this batch (including NULL/empty as "Unknown Brand" for brand column)
-      data.forEach((item: any) => {
-        let value = item[columnKey];
-        
-        // Special handling for brand column - treat null/empty as "Unknown Brand"
+      data.forEach((row: any) => {
+        let value = row[columnKey];
         if (columnKey === 'brand' && (!value || value.trim() === '')) {
           value = 'Unknown Brand';
         }
-        
         if (value) {
           valueCounts[value] = (valueCounts[value] || 0) + 1;
         }
       });
 
-      // Check if we have more data
       if (data.length < BATCH_SIZE) {
         hasMore = false;
       } else {
@@ -466,15 +437,15 @@ const fetchUniqueValuesForFilter = async (columnKey: string) => {
       }
     }
 
-    // Convert to array and sort by count
     return Object.entries(valueCounts)
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => b.count - a.count);
-  } catch (error) {
-    console.error(`Failed to fetch unique values for ${columnKey}:`, error);
+  } catch (err) {
+    console.error(`Failed to fetch filter values for ${columnKey}`, err);
     return [];
   }
 };
+
 
 const fetchUniqueValues = async (columnKey: string) => {
   try {
