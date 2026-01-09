@@ -11,7 +11,7 @@ export default function Sidebar() {
 
   // 👇 Submenu items for "Manage Sellers"
   const manageSellerSubmenu = [
-    { label: "Add Seller", href: "/dashboard/manage-sellers/add-seller" },
+    { label: "Link Generator", href: "/dashboard/manage-sellers/add-seller" },
     { label: "USA Sellers", href: "/dashboard/manage-sellers/usa-sellers" },
     { label: "India Sellers", href: "/dashboard/manage-sellers/india-sellers" },
     { label: "UK Sellers", href: "/dashboard/manage-sellers/uk-sellers" },
