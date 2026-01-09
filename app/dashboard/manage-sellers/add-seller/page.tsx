@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../../../../lib/supabaseClient'
 import * as XLSX from 'xlsx'
 import Toast from '@/components/Toast'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -86,10 +86,10 @@ export default function AddSeller() {
     }
   ])
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // const supabase = createClient(
+  //   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  // )
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setToast({ message, type })
@@ -288,24 +288,36 @@ export default function AddSeller() {
 
 
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
-    if (!countryCode) return
+  if (!countryCode) return
 
-    try {
-      setLoadingLinks(true)
+  try {
+    setLoadingLinks(true)
 
-      const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
-      if (user) {
-        const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
+    if (user) {
+      const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
 
+      // ✅ BATCH LOADING - Load ALL 5956 links in chunks of 1000
+      let allLinks: GeneratedLink[] = []
+      let from = 0
+      const batchSize = 1000
+      let hasMore = true
+
+      console.log(`🔄 Starting batch load from ${tableName}...`)
+
+      while (hasMore) {
         const { data, error } = await supabase
           .from(tableName)
           .select('*')
           .eq('user_id', user.id)
           .order('seller_name', { ascending: true })
           .order('page_number', { ascending: true })
+          .range(from, from + batchSize - 1) // ✅ THIS IS THE KEY FIX
 
-        if (!error && data && data.length > 0) {
+        if (error) throw error
+
+        if (data && data.length > 0) {
           const FILTER_LABELS: Record<string, string> = {
             'default': 'Default',
             'price-asc': 'Price: Low to High',
@@ -326,31 +338,42 @@ export default function AddSeller() {
             filter_label: FILTER_LABELS[link.filter_type] || link.filter_type
           }))
 
-          setGeneratedLinks(formattedLinks)
-          setLoadingLinks(false)
-          return
+          allLinks = [...allLinks, ...formattedLinks]
+          console.log(`✅ Loaded batch ${from}-${from + data.length} (Total so far: ${allLinks.length})`)
+          
+          from += batchSize
+          hasMore = data.length === batchSize // Continue if we got a full batch
+        } else {
+          hasMore = false
         }
       }
 
-      const storedLinks = localStorage.getItem('generatedLinks')
-      const storedCountry = localStorage.getItem('generatedLinksCountry')
-
-      if (storedLinks && storedCountry === countryCode) {
-        const parsedLinks = JSON.parse(storedLinks)
-        setGeneratedLinks(parsedLinks)
-      } else {
-        setGeneratedLinks([])
-      }
-    } catch (error: any) {
-      // Ignore abort errors
-      if (error.name !== 'AbortError') {
-        console.error('Error loading links:', error)
-      }
-      setGeneratedLinks([])
-    } finally {
+      console.log(`✅ FINAL: Loaded ${allLinks.length} links from database`)
+      setGeneratedLinks(allLinks)
       setLoadingLinks(false)
+      return
     }
+
+    // Fallback to localStorage
+    const storedLinks = localStorage.getItem('generatedLinks')
+    const storedCountry = localStorage.getItem('generatedLinksCountry')
+
+    if (storedLinks && storedCountry === countryCode) {
+      const parsedLinks = JSON.parse(storedLinks)
+      setGeneratedLinks(parsedLinks)
+    } else {
+      setGeneratedLinks([])
+    }
+  } catch (error: any) {
+    if (error.name !== 'AbortError') {
+      console.error('Error loading links:', error)
+    }
+    setGeneratedLinks([])
+  } finally {
+    setLoadingLinks(false)
   }
+}
+
 
 
   const FILTER_TYPES = [
