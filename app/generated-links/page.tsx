@@ -2,7 +2,6 @@
 export const dynamic = "force-dynamic"
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/lib/supabaseClient'
 
 interface GeneratedLink {
@@ -32,16 +31,9 @@ function GeneratedLinks() {
   const [startIndex, setStartIndex] = useState(0)
   const [endIndex, setEndIndex] = useState(200)
   const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null)
-
-  const getSupabaseClient = () => {
-    if (typeof window === 'undefined') return null
-
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  }
-
+  useEffect(() => {
+    setVisibleLinks(links.slice(startIndex, endIndex))
+  }, [links, startIndex, endIndex])
 
   useEffect(() => {
     const countryParam = searchParams.get('country') || ''

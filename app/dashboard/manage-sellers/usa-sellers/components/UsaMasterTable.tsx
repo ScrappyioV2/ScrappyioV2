@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import supabase from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabaseClient'
 import { Filter, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import FilterDropdown from '@/components/shared/master-table/FilterDropdown';
 import NumericFilter from '@/components/shared/master-table/NumericFilter';
@@ -120,6 +120,8 @@ export default function UsaMasterTable({
   }, [searchTerm, refreshTrigger, filters, currentPage, sortConfig]);
 
   const fetchData = async () => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     try {
       setLoading(true);
 
@@ -230,66 +232,68 @@ export default function UsaMasterTable({
   };
 
   const handleSelectAll = async (checked: boolean) => {
-  if (!checked) {
-    onSelectedIdsChange(new Set());
-    return;
-  }
-
-  try {
-    setIsSelectingAll(true);
-    const BATCH_SIZE = 1000;
-    let page = 0;
-    let hasMore = true;
-    const allIds = new Set<string>();
-
-    while (hasMore) {
-      let query: any = supabase
-        .from('usa_master_sellers')
-        .select('id')
-        .range(page * BATCH_SIZE, page * BATCH_SIZE + BATCH_SIZE - 1);
-
-      if (searchTerm) {
-        query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-        );
-      }
-
-      Object.entries(localFilters).forEach(([column, filter]) => {
-        if (!filter) return;
-
-        if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
-          query = query.in(column, filter.values);
-        }
-
-        if (filter.type === 'numeric' && filter.value !== null) {
-          const v = parseFloat(filter.value);
-          if (!isNaN(v)) {
-            query = query[filter.operator](column, v);
-          }
-        }
-      });
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      data.forEach((row: any) => allIds.add(row.id));
-
-      hasMore = data.length === BATCH_SIZE;
-      page++;
+    const supabase = getSupabaseClient()
+    if (!supabase) return
+    if (!checked) {
+      onSelectedIdsChange(new Set());
+      return;
     }
 
-    onSelectedIdsChange(allIds);
-  } catch (err) {
-    console.error('Select all failed:', err);
-  } finally {
-    setIsSelectingAll(false);
-  }
-};
+    try {
+      setIsSelectingAll(true);
+      const BATCH_SIZE = 1000;
+      let page = 0;
+      let hasMore = true;
+      const allIds = new Set<string>();
+
+      while (hasMore) {
+        let query: any = supabase
+          .from('usa_master_sellers')
+          .select('id')
+          .range(page * BATCH_SIZE, page * BATCH_SIZE + BATCH_SIZE - 1);
+
+        if (searchTerm) {
+          query = query.or(
+            `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
+          );
+        }
+
+        Object.entries(localFilters).forEach(([column, filter]) => {
+          if (!filter) return;
+
+          if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
+            query = query.in(column, filter.values);
+          }
+
+          if (filter.type === 'numeric' && filter.value !== null) {
+            const v = parseFloat(filter.value);
+            if (!isNaN(v)) {
+              query = query[filter.operator](column, v);
+            }
+          }
+        });
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        data.forEach((row: any) => allIds.add(row.id));
+
+        hasMore = data.length === BATCH_SIZE;
+        page++;
+      }
+
+      onSelectedIdsChange(allIds);
+    } catch (err) {
+      console.error('Select all failed:', err);
+    } finally {
+      setIsSelectingAll(false);
+    }
+  };
 
 
   const handleSelectRow = (id: string, checked: boolean) => {
@@ -371,119 +375,123 @@ export default function UsaMasterTable({
       <ArrowDown className="w-3 h-3 text-blue-600" />
     );
   };
-  
+
   /**
  * Fetch unique values for a filter, respecting OTHER active filters
  */
-/**
- * Fetch unique values for a filter, respecting OTHER active filters
- */
-const fetchUniqueValuesForFilter = async (columnKey: string) => {
-  try {
-    const BATCH_SIZE = 1000;
-    const valueCounts: Record<string, number> = {};
-    let offset = 0;
-    let hasMore = true;
+  /**
+   * Fetch unique values for a filter, respecting OTHER active filters
+   */
+  const fetchUniqueValuesForFilter = async (columnKey: string) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
+    try {
+      const BATCH_SIZE = 1000;
+      const valueCounts: Record<string, number> = {};
+      let offset = 0;
+      let hasMore = true;
 
-    while (hasMore) {
-      let query: any = supabase
-        .from('usa_master_sellers')
-        .select(columnKey)
-        .range(offset, offset + BATCH_SIZE - 1);
+      while (hasMore) {
+        let query: any = supabase
+          .from('usa_master_sellers')
+          .select(columnKey)
+          .range(offset, offset + BATCH_SIZE - 1);
 
-      if (searchTerm) {
-        query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-        );
-      }
-
-      Object.entries(localFilters).forEach(([column, filter]) => {
-        if (column === columnKey || !filter) return;
-
-        if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
-          query = query.in(column, filter.values);
+        if (searchTerm) {
+          query = query.or(
+            `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
+          );
         }
 
-        if (filter.type === 'numeric' && filter.value !== null) {
-          const v = parseFloat(filter.value);
-          if (!isNaN(v)) {
-            query = query[filter.operator](column, v);
+        Object.entries(localFilters).forEach(([column, filter]) => {
+          if (column === columnKey || !filter) return;
+
+          if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
+            query = query.in(column, filter.values);
           }
+
+          if (filter.type === 'numeric' && filter.value !== null) {
+            const v = parseFloat(filter.value);
+            if (!isNaN(v)) {
+              query = query[filter.operator](column, v);
+            }
+          }
+        });
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+          break;
         }
-      });
 
-      const { data, error } = await query;
-      if (error) throw error;
+        data.forEach((row: any) => {
+          let value = row[columnKey];
+          if (columnKey === 'brand' && (!value || value.trim() === '')) {
+            value = 'Unknown Brand';
+          }
+          if (value) {
+            valueCounts[value] = (valueCounts[value] || 0) + 1;
+          }
+        });
 
-      if (!data || data.length === 0) {
-        hasMore = false;
-        break;
+        if (data.length < BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          offset += BATCH_SIZE;
+        }
       }
 
-      data.forEach((row: any) => {
-        let value = row[columnKey];
-        if (columnKey === 'brand' && (!value || value.trim() === '')) {
-          value = 'Unknown Brand';
-        }
-        if (value) {
-          valueCounts[value] = (valueCounts[value] || 0) + 1;
-        }
-      });
-
-      if (data.length < BATCH_SIZE) {
-        hasMore = false;
-      } else {
-        offset += BATCH_SIZE;
-      }
+      return Object.entries(valueCounts)
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count);
+    } catch (err) {
+      console.error(`Failed to fetch filter values for ${columnKey}`, err);
+      return [];
     }
-
-    return Object.entries(valueCounts)
-      .map(([value, count]) => ({ value, count }))
-      .sort((a, b) => b.count - a.count);
-  } catch (err) {
-    console.error(`Failed to fetch filter values for ${columnKey}`, err);
-    return [];
-  }
-};
+  };
 
 
-const fetchUniqueValues = async (columnKey: string) => {
-  try {
-    const values = await fetchUniqueValuesForFilter(columnKey);
-    // Convert to simple string array for text filters
-    setFilterValues((prev) => ({ 
-      ...prev, 
-      [columnKey]: values.map(v => v.value) 
-    }));
-  } catch (error) {
-    console.error('Error fetching unique values:', error);
-    setFilterValues((prev) => ({ ...prev, [columnKey]: [] }));
-  }
-};
+  const fetchUniqueValues = async (columnKey: string) => {
+    try {
+      const values =
+        (await fetchUniqueValuesForFilter(columnKey)) ?? [];
+      // Convert to simple string array for text filters
+      setFilterValues((prev) => ({
+        ...prev,
+        [columnKey]: values.map(v => v.value)
+      }));
+    } catch (error) {
+      console.error('Error fetching unique values:', error);
+      setFilterValues((prev) => ({ ...prev, [columnKey]: [] }));
+    }
+  };
 
-const fetchCategoryValues = async () => {
-  return await fetchUniqueValuesForFilter('category');
-};
+  const fetchCategoryValues = async (): Promise<{ value: string; count: number }[]> => {
+    return (await fetchUniqueValuesForFilter('category')) ?? [];
+  };
 
-const fetchBrandValues = async () => {
-  return await fetchUniqueValuesForFilter('brand');
-};
 
-const handleOpenFilter = async (columnKey: string, columnType: string) => {
-  setActiveFilterColumn(columnKey);
-  
-  if (columnKey === 'category') {
-    // Fetch category with counts
-    const categoryValues = await fetchCategoryValues();
-    setFilterValues((prev) => ({ ...prev, [columnKey]: categoryValues }));
-  } else if (columnKey === 'brand') {
-    // Fetch brand with counts
-    const brandValues = await fetchBrandValues();
-    setFilterValues((prev) => ({ ...prev, [columnKey]: brandValues }));
-  } else if (columnType === 'text' && !filterValues[columnKey]) {
-    fetchUniqueValues(columnKey);
-  }
-};
+  const fetchBrandValues = async (): Promise<{ value: string; count: number }[]> => {
+    return (await fetchUniqueValuesForFilter('brand')) ?? [];
+  };
+
+  const handleOpenFilter = async (columnKey: string, columnType: string) => {
+    setActiveFilterColumn(columnKey);
+
+    if (columnKey === 'category') {
+      // Fetch category with counts
+      const categoryValues = await fetchCategoryValues();
+      setFilterValues((prev) => ({ ...prev, [columnKey]: categoryValues }));
+    } else if (columnKey === 'brand') {
+      // Fetch brand with counts
+      const brandValues = await fetchBrandValues();
+      setFilterValues((prev) => ({ ...prev, [columnKey]: brandValues }));
+    } else if (columnType === 'text' && !filterValues[columnKey]) {
+      fetchUniqueValues(columnKey);
+    }
+  };
 
 
   const handleApplyFilter = (columnKey: string, filterData: any) => {
@@ -580,95 +588,93 @@ const handleOpenFilter = async (columnKey: string, columnType: string) => {
                 </th>
 
                 {visibleColumns.map((column) => (
-  <th
-    key={column}
-    className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-tight relative select-none"
-    style={{
-      width: `${columnWidths[column] || 100}px`,
-      minWidth: `${columnWidths[column] || 100}px`,
-      maxWidth: `${columnWidths[column] || 100}px`,
-    }}
-  >
-    {/* Remove overflow-hidden from main container */}
-    <div className="flex items-center gap-1 pr-2">
-      {/* Wrap text+sort in overflow container */}
-      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-        <button
-          onClick={() => handleSort(column)}
-          className={`flex items-center gap-1 min-w-0 ${
-            SORTABLE_COLUMNS.includes(column) ? 'cursor-pointer hover:text-gray-700' : ''
-          }`}
-          disabled={!SORTABLE_COLUMNS.includes(column)}
-        >
-          <span className="truncate block">{formatColumnHeader(column)}</span>
-          <span className="flex-shrink-0">{getSortIcon(column)}</span>
-        </button>
-      </div>
-      
-      {/* Filter button outside overflow container */}
-      {column !== 's_no' && column !== 'link' && (
-        <div className="relative flex-shrink-0">
-          <button
-            onClick={() => handleOpenFilter(column, getColumnType(column))}
-            className={`p-0.5 rounded hover:bg-gray-200 transition ${
-              hasActiveFilter(column) ? 'text-blue-600' : 'text-gray-400'
-            }`}
-            title="Filter"
-          >
-            <Filter className="w-3.5 h-3.5" />
-          </button>
+                  <th
+                    key={column}
+                    className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-tight relative select-none"
+                    style={{
+                      width: `${columnWidths[column] || 100}px`,
+                      minWidth: `${columnWidths[column] || 100}px`,
+                      maxWidth: `${columnWidths[column] || 100}px`,
+                    }}
+                  >
+                    {/* Remove overflow-hidden from main container */}
+                    <div className="flex items-center gap-1 pr-2">
+                      {/* Wrap text+sort in overflow container */}
+                      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+                        <button
+                          onClick={() => handleSort(column)}
+                          className={`flex items-center gap-1 min-w-0 ${SORTABLE_COLUMNS.includes(column) ? 'cursor-pointer hover:text-gray-700' : ''
+                            }`}
+                          disabled={!SORTABLE_COLUMNS.includes(column)}
+                        >
+                          <span className="truncate block">{formatColumnHeader(column)}</span>
+                          <span className="flex-shrink-0">{getSortIcon(column)}</span>
+                        </button>
+                      </div>
 
-          {activeFilterColumn === column && (
-            <FilterDropdown
-              isOpen={true}
-              onClose={() => setActiveFilterColumn(null)}
-              title={`Filter ${formatColumnHeader(column)}`}
-            >
-              {column === 'category' || column === 'brand' ? (
-                <MultiSelectFilter
-                  values={filterValues[column] as { value: string; count: number }[] || []}
-                  selectedValues={localFilters[column]?.values || []}
-                  onApply={(values) => {
-                    handleApplyFilter(column, values.length > 0 ? { type: 'multiselect', values } : null);
-                    setActiveFilterColumn(null);
-                  }}
-                  placeholder={`Search ${formatColumnHeader(column)}...`}
-                  loading={!filterValues[column]}
-                />
-              ) : getColumnType(column) === 'numeric' ? (
-                <NumericFilter
-                  currentFilter={localFilters[column]}
-                  onApply={(filterData) => {
-                    handleApplyFilter(column, filterData);
-                    setActiveFilterColumn(null);
-                  }}
-                  columnName={formatColumnHeader(column)}
-                />
-              ) : (
-                <TextFilter
-                  values={filterValues[column] as string[] || []}
-                  selectedValues={localFilters[column]?.values || []}
-                  onApply={(values) => {
-                    handleApplyFilter(column, values.length > 0 ? { type: 'text', values } : null);
-                    setActiveFilterColumn(null);
-                  }}
-                  placeholder={`Search ${formatColumnHeader(column)}...`}
-                />
-              )}
-            </FilterDropdown>
-          )}
-        </div>
-      )}
-    </div>
+                      {/* Filter button outside overflow container */}
+                      {column !== 's_no' && column !== 'link' && (
+                        <div className="relative flex-shrink-0">
+                          <button
+                            onClick={() => handleOpenFilter(column, getColumnType(column))}
+                            className={`p-0.5 rounded hover:bg-gray-200 transition ${hasActiveFilter(column) ? 'text-blue-600' : 'text-gray-400'
+                              }`}
+                            title="Filter"
+                          >
+                            <Filter className="w-3.5 h-3.5" />
+                          </button>
 
-    {/* Resize handle */}
-    <div
-      onMouseDown={(e) => handleResizeStart(e, column)}
-      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 hover:w-1.5 transition-all"
-      style={{ zIndex: 20 }}
-    />
-  </th>
-))}
+                          {activeFilterColumn === column && (
+                            <FilterDropdown
+                              isOpen={true}
+                              onClose={() => setActiveFilterColumn(null)}
+                              title={`Filter ${formatColumnHeader(column)}`}
+                            >
+                              {column === 'category' || column === 'brand' ? (
+                                <MultiSelectFilter
+                                  values={filterValues[column] as { value: string; count: number }[] || []}
+                                  selectedValues={localFilters[column]?.values || []}
+                                  onApply={(values) => {
+                                    handleApplyFilter(column, values.length > 0 ? { type: 'multiselect', values } : null);
+                                    setActiveFilterColumn(null);
+                                  }}
+                                  placeholder={`Search ${formatColumnHeader(column)}...`}
+                                  loading={!filterValues[column]}
+                                />
+                              ) : getColumnType(column) === 'numeric' ? (
+                                <NumericFilter
+                                  currentFilter={localFilters[column]}
+                                  onApply={(filterData) => {
+                                    handleApplyFilter(column, filterData);
+                                    setActiveFilterColumn(null);
+                                  }}
+                                  columnName={formatColumnHeader(column)}
+                                />
+                              ) : (
+                                <TextFilter
+                                  values={filterValues[column] as string[] || []}
+                                  selectedValues={localFilters[column]?.values || []}
+                                  onApply={(values) => {
+                                    handleApplyFilter(column, values.length > 0 ? { type: 'text', values } : null);
+                                    setActiveFilterColumn(null);
+                                  }}
+                                  placeholder={`Search ${formatColumnHeader(column)}...`}
+                                />
+                              )}
+                            </FilterDropdown>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Resize handle */}
+                    <div
+                      onMouseDown={(e) => handleResizeStart(e, column)}
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 hover:w-1.5 transition-all"
+                      style={{ zIndex: 20 }}
+                    />
+                  </th>
+                ))}
 
               </tr>
             </thead>
@@ -696,9 +702,8 @@ const handleOpenFilter = async (columnKey: string, columnType: string) => {
                     {visibleColumns.map((column) => (
                       <td
                         key={column}
-                        className={`px-2 py-2 text-xs text-gray-900 ${
-                          column === 'product_name' ? 'truncate' : 'whitespace-nowrap'
-                        }`}
+                        className={`px-2 py-2 text-xs text-gray-900 ${column === 'product_name' ? 'truncate' : 'whitespace-nowrap'
+                          }`}
                         style={{
                           width: `${columnWidths[column] || 100}px`,
                           maxWidth: `${columnWidths[column] || 100}px`,

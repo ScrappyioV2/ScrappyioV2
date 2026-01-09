@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/lib/supabaseClient'
 interface CountryProgress {
   country: string
@@ -19,11 +18,6 @@ export default function ManageSellersPage() {
     uae: { country: 'uae', totalLinks: 0, copiedLinks: 0 },
     uk: { country: 'uk', totalLinks: 0, copiedLinks: 0 }
   })
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
 
   const sellerCards = [
     { country: 'usa', label: 'Add USA Seller', code: 'US', flag: '🇺🇸', count: progress.usa.totalLinks, color: 'bg-blue-500' },

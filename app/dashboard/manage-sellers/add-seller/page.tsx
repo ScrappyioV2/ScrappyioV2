@@ -36,7 +36,6 @@ interface GeneratedLink {
   badge?: string
 }
 export default function AddSellerPage() {
-  const supabase = getSupabaseClient()
   return (
     <Suspense fallback={<div className="p-4">Loading seller page...</div>}>
       <AddSeller />
@@ -44,6 +43,14 @@ export default function AddSellerPage() {
   );
 }
 function AddSeller() {
+  const safeLocalStorageSet = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value)
+    } catch (e) {
+      console.warn('LocalStorage unavailable:', e)
+    }
+  }
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const countryParam = searchParams.get('country') || ''
@@ -96,11 +103,6 @@ function AddSeller() {
       bestSellers: false
     }
   ])
-
-  // const supabase = createClient(
-  //   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  // )
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
     setToast({ message, type })
