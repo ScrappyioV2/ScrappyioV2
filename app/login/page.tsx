@@ -1,8 +1,9 @@
 'use client'
-
+export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,13 +13,10 @@ export default function LoginPage() {
   const [message, setMessage] = useState({ type: '', text: '' })
   const router = useRouter()
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
   // Check if user is already logged in
   useEffect(() => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
@@ -29,6 +27,8 @@ export default function LoginPage() {
   }, [router])
 
   const handleAuth = async (e: React.FormEvent) => {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
     e.preventDefault()
     setLoading(true)
     setMessage({ type: '', text: '' })
@@ -50,7 +50,7 @@ export default function LoginPage() {
           password,
         })
         if (error) throw error
-        
+
         // Auto-redirect to dashboard
         router.push('/dashboard')
       }
@@ -83,11 +83,10 @@ export default function LoginPage() {
 
           {/* Message Display */}
           {message.text && (
-            <div className={`mb-4 p-3 rounded-lg text-sm ${
-              message.type === 'success' 
-                ? 'bg-green-100 text-green-800 border border-green-300' 
-                : 'bg-red-100 text-red-800 border border-red-300'
-            }`}>
+            <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success'
+              ? 'bg-green-100 text-green-800 border border-green-300'
+              : 'bg-red-100 text-red-800 border border-red-300'
+              }`}>
               {message.text}
             </div>
           )}
@@ -160,8 +159,8 @@ export default function LoginPage() {
               disabled={loading}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSignUp 
-                ? '← Already have an account? Sign In' 
+              {isSignUp
+                ? '← Already have an account? Sign In'
                 : "Don't have an account? Sign Up →"
               }
             </button>
