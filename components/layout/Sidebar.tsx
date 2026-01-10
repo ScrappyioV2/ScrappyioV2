@@ -31,7 +31,7 @@ export default function Sidebar() {
 
   const menuItems = [
     { label: "Dashboard", href: "/dashboard", submenu: null },
-    { label: "Manage Sellers", href: "/dashboard/manage-sellers", submenu: manageSellerSubmenu }, // 👈 Added href
+    { label: "Manage Sellers", href: "/dashboard/manage-sellers/add-seller?country=usa", submenu: manageSellerSubmenu }, // 👈 Added href
     { label: "USA Selling", href: "/dashboard/usa-selling", submenu: null },
     { label: "India Selling", href: "/dashboard/india-selling", submenu: null },
     { label: "UAE Selling", href: "/dashboard/uae-selling", submenu: null },
