@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-import { getSupabaseClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -15,7 +15,6 @@ export default function LoginPage() {
 
   // Check if user is already logged in
   useEffect(() => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -27,7 +26,6 @@ export default function LoginPage() {
   }, [router])
 
   const handleAuth = async (e: React.FormEvent) => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     e.preventDefault()
     setLoading(true)

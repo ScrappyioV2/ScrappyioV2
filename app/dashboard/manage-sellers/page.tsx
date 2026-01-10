@@ -1,8 +1,7 @@
 'use client'
-
+import { supabase } from '@/lib/supabaseClient'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSupabaseClient } from '@/lib/supabaseClient'
 interface CountryProgress {
   country: string
   totalLinks: number
@@ -38,7 +37,6 @@ export default function ManageSellersPage() {
   }, [])
 
   const fetchProgress = async () => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -72,7 +70,6 @@ export default function ManageSellersPage() {
   }
 
   const resetAllCopied = async (country: string) => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()

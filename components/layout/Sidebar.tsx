@@ -29,18 +29,12 @@ export default function Sidebar() {
 
 
   // 👇 Submenu items for "Manage Sellers"
-  // 👇 Submenu items for "Manage Sellers"
 const manageSellerSubmenu: SubMenuItem[] = [
   { label: "Link Generator", href: "/dashboard/manage-sellers/add-seller" },
   { label: "USA Sellers", href: "/dashboard/manage-sellers/usa-sellers" },
   { label: "India Sellers", href: "/dashboard/manage-sellers/india-sellers" },
   { label: "UK Sellers", href: "/dashboard/manage-sellers/uk-sellers" },
   { label: "UAE Sellers", href: "/dashboard/manage-sellers/uae-sellers" },
-  { label: "Canada Sellers", href: "/dashboard/manage-sellers/canada-sellers" },
-  { label: "Australia Sellers", href: "/dashboard/manage-sellers/australia-sellers" },
-  { label: "Germany Sellers", href: "/dashboard/manage-sellers/germany-sellers" },
-  { label: "France Sellers", href: "/dashboard/manage-sellers/france-sellers" },
-  { label: "Japan Sellers", href: "/dashboard/manage-sellers/japan-sellers" },
 ];
 
 const brandCheckingSellers: NestedMenuItem[] = [

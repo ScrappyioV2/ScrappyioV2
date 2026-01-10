@@ -1,11 +1,11 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
+import { supabase } from '@/lib/supabaseClient'
 import { Suspense } from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getSupabaseClient } from '@/lib/supabaseClient'
+
 import * as XLSX from "xlsx";
 import Toast from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -43,6 +43,7 @@ export default function AddSellerPage() {
   );
 }
 function AddSeller() {
+  const linksScrollRef = useRef<HTMLDivElement | null>(null);
   const safeLocalStorageSet = (key: string, value: string) => {
     try {
       localStorage.setItem(key, value)
@@ -50,7 +51,16 @@ function AddSeller() {
       console.warn('LocalStorage unavailable:', e)
     }
   }
+  // ===== Virtual + Batch loading config =====
+  const BATCH_SIZE = 200
+  const ROW_HEIGHT = 56 // px (table row height)
 
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [isFetchingMore, setIsFetchingMore] = useState(false)
+
+  // Virtual scroll
+  const [scrollTop, setScrollTop] = useState(0)
   const router = useRouter()
   const searchParams = useSearchParams()
   const countryParam = searchParams.get('country') || ''
@@ -61,6 +71,9 @@ function AddSeller() {
   const [loadingLinks, setLoadingLinks] = useState(false)
   const [selectedLinks, setSelectedLinks] = useState<Set<number>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
+  const [selectAllInDB, setSelectAllInDB] = useState(false)
+  const [totalLinksCount, setTotalLinksCount] = useState(0)
+
 
   // Search and copy state
   const [searchQuery, setSearchQuery] = useState('')
@@ -110,17 +123,29 @@ function AddSeller() {
 
   // ADD fetchSellerCounts function HERE (from my previous instructions)
   const fetchSellerCounts = async () => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setGeneratedLinks([])      // or setSellers([]) depending on function
+        setLoadingLinks(false)     // or setLoading(false)
+        return
+      }
 
       const countries = ['usa', 'india', 'uae', 'uk']
       const counts: any = { usa: 0, india: 0, uae: 0, uk: 0, new: 0 }
 
       for (const country of countries) {
         const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
+        const { count: totalCount } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        if (totalCount !== null) {
+          setTotalLinksCount(totalCount)
+        }
 
         const { count, error } = await supabase
           .from(tableName)
@@ -155,22 +180,27 @@ function AddSeller() {
 
 
   useEffect(() => {
-    let isMounted = true
+    if (!countryParam) return
 
-    const loadData = async () => {
-      if (countryParam && isMounted) {
-        setSelectedCountry(countryParam)
-        await fetchSellersFromDB(countryParam)
-        await loadGeneratedLinksFromDB(countryParam)
-      }
-    }
+    setSelectedCountry(countryParam)
 
-    loadData()
+    // reset pagination state
+    setGeneratedLinks([])
+    setOffset(0)
+    setHasMore(true)
+    setLoadingLinks(true)
+    setIsFetchingMore(false)
 
-    return () => {
-      isMounted = false
-    }
   }, [countryParam])
+
+
+  useEffect(() => {
+    if (!selectedCountry) return
+    if (!loadingLinks) return
+    if (generatedLinks.length > 0) return
+
+    loadGeneratedLinksFromDB(selectedCountry)
+  }, [selectedCountry, loadingLinks])
 
 
   // NEW: Keyboard navigation listener
@@ -184,7 +214,7 @@ function AddSeller() {
         e.preventDefault()
         setFocusedRowIndex(prev => {
           if (prev === null) return 0
-          return Math.min(prev + 1, filteredLinks.length - 1)
+          return Math.min(prev + 1, generatedLinks.length - 1)
         })
       }
 
@@ -222,20 +252,35 @@ function AddSeller() {
 
   // NEW: Auto-scroll to focused row
   useEffect(() => {
-    if (focusedRowIndex !== null) {
-      const rowElement = document.getElementById(`link-row-${focusedRowIndex}`)
-      if (rowElement) {
-        rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      }
+    if (focusedRowIndex === null) return;
+    if (isFetchingMore) return;
+
+    const row = document.getElementById(`link-row-${focusedRowIndex}`)
+    const container = linksScrollRef.current
+
+    if (!row || !container) return;
+
+    const rowTop = row.offsetTop
+    const rowBottom = rowTop + row.offsetHeight
+
+    const viewTop = container.scrollTop
+    const viewBottom = viewTop + container.clientHeight
+
+    if (rowTop < viewTop) {
+      container.scrollTop = rowTop - 8
+    } else if (rowBottom > viewBottom) {
+      container.scrollTop = rowBottom - container.clientHeight + 8
     }
-  }, [focusedRowIndex])
+
+  }, [focusedRowIndex, generatedLinks.length])
+
   // ADD THIS ↓
   useEffect(() => {
     fetchSellerCounts()
   }, [])
   const fetchSellersFromDB = async (country: string) => {
     if (!country) return
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -253,6 +298,8 @@ function AddSeller() {
           newArrivals: false,
           bestSellers: false
         }])
+        setGeneratedLinks([])      // or setSellers([]) depending on function
+        setLoadingLinks(false)
         return
       }
 
@@ -304,93 +351,73 @@ function AddSeller() {
 
 
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
-    if (!countryCode) return
-    const supabase = getSupabaseClient()
+    if (!countryCode || isFetchingMore || !hasMore) return
+
+
     if (!supabase) return
+
     try {
-      setLoadingLinks(true)
+      setIsFetchingMore(true)
+
       const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-      if (user) {
-        const tableName = countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
+      const tableName =
+        countryCode === 'usa' ? 'us_sellers' : `${countryCode}_sellers`
 
-        // ✅ BATCH LOADING - Load ALL 5956 links in chunks of 1000
-        let allLinks: GeneratedLink[] = []
-        let from = 0
-        const batchSize = 1000
-        let hasMore = true
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('user_id', user.id)
+        .order('seller_name', { ascending: true })
+        .order('page_number', { ascending: true })
+        .range(offset, offset + BATCH_SIZE - 1)
 
-        console.log(`🔄 Starting batch load from ${tableName}...`)
+      if (error) throw error
 
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from(tableName)
-            .select('*')
-            .eq('user_id', user.id)
-            .order('seller_name', { ascending: true })
-            .order('page_number', { ascending: true })
-            .range(from, from + batchSize - 1) // ✅ THIS IS THE KEY FIX
-
-          if (error) throw error
-
-          if (data && data.length > 0) {
-            const FILTER_LABELS: Record<string, string> = {
-              'default': 'Default',
-              'price-asc': 'Price: Low to High',
-              'price-desc': 'Price: High to Low',
-              'review': 'Avg. Customer Review',
-              'new-arrival': 'New Arrivals',
-              'best-seller': 'Best Sellers'
-            }
-
-            const formattedLinks = data.map(link => ({
-              id: link.id,
-              seller_name: link.seller_name,
-              merchant_token: link.merchant_token,
-              page_number: link.page_number,
-              filter_type: link.filter_type,
-              profile_link: link.profile_link,
-              badge: link.badge || null,
-              filter_label: FILTER_LABELS[link.filter_type] || link.filter_type
-            }))
-
-            allLinks = [...allLinks, ...formattedLinks]
-            console.log(`✅ Loaded batch ${from}-${from + data.length} (Total so far: ${allLinks.length})`)
-
-            from += batchSize
-            hasMore = data.length === batchSize // Continue if we got a full batch
-          } else {
-            hasMore = false
-          }
-        }
-
-        console.log(`✅ FINAL: Loaded ${allLinks.length} links from database`)
-        setGeneratedLinks(allLinks)
-        setLoadingLinks(false)
+      if (!data || data.length === 0) {
+        setHasMore(false)
         return
       }
 
-      // Fallback to localStorage
-      const storedLinks = localStorage.getItem('generatedLinks')
-      const storedCountry = localStorage.getItem('generatedLinksCountry')
+      const FILTER_LABELS: Record<string, string> = {
+        default: 'Default',
+        'price-asc': 'Price: Low to High',
+        'price-desc': 'Price: High to Low',
+        review: 'Avg. Customer Review',
+        'new-arrival': 'New Arrivals',
+        'best-seller': 'Best Sellers',
+      }
 
-      if (storedLinks && storedCountry === countryCode) {
-        const parsedLinks = JSON.parse(storedLinks)
-        setGeneratedLinks(parsedLinks)
-      } else {
-        setGeneratedLinks([])
+      const formatted = data.map(link => ({
+        id: link.id,
+        seller_name: link.seller_name,
+        merchant_token: link.merchant_token,
+        page_number: link.page_number,
+        filter_type: link.filter_type,
+        profile_link: link.profile_link,
+        badge: link.badge || null,
+        filter_label: FILTER_LABELS[link.filter_type] || link.filter_type,
+      }))
+
+      // ✅ APPEND (NOT REPLACE)
+      setGeneratedLinks(prev => {
+        const existingIds = new Set(prev.map(item => item.id))
+        const uniqueNew = formatted.filter(item => !existingIds.has(item.id))
+        return [...prev, ...uniqueNew]
+      })
+      setOffset(prev => prev + BATCH_SIZE)
+
+      if (data.length < BATCH_SIZE) {
+        setHasMore(false)
       }
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
-        console.error('Error loading links:', error)
-      }
-      setGeneratedLinks([])
+    } catch (err) {
+      console.error('Error loading links:', err)
     } finally {
+      setIsFetchingMore(false)
       setLoadingLinks(false)
     }
   }
-
-
 
   const FILTER_TYPES = [
     { id: 'default', label: 'Default', param: '' },
@@ -423,7 +450,7 @@ function AddSeller() {
       showToast('At least one row is required!', 'warning')
       return
     }
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
 
     try {
@@ -447,7 +474,7 @@ function AddSeller() {
   }
 
   const clearAllSellers = async () => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     setConfirmDialog({
       title: 'Clear All Sellers?',
@@ -646,7 +673,7 @@ function AddSeller() {
   }
 
   const handleGenerateLinks = async () => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     if (!selectedCountry) {
       showToast('Please select a country first!', 'warning')
@@ -777,20 +804,33 @@ function AddSeller() {
 
 
   const handleCountryCardClick = (countryId: string) => {
+    // ✅ If clicking the same country again, do nothing
+    if (countryId === selectedCountry) return
+
     setSelectedCountry(countryId)
     setCurrentView('links')
+
+    // reset only selection-related UI
     setSelectedLinks(new Set())
     setSelectAll(false)
+    setSelectAllInDB(false)
     setSearchQuery('')
     setFocusedRowIndex(null)
-    setGeneratedLinks([]) // Clear links immediately
-    setLoadingLinks(true) // Show loading state
-    router.push(`/dashboard/manage-sellers/add-seller?country=${countryId}`, { scroll: false })
+
+    // ✅ reset data ONLY because country actually changed
+    setGeneratedLinks([])
+    setOffset(0)
+    setHasMore(true)
+    setLoadingLinks(true)
+
+    router.push(
+      `/dashboard/manage-sellers/add-seller?country=${countryId}`,
+      { scroll: false }
+    )
   }
 
-
   const deleteLink = async (index: number) => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     setConfirmDialog({
       title: 'Delete Link?',
@@ -834,23 +874,50 @@ function AddSeller() {
   }
 
 
-  const handleSelectAll = () => {
-    if (selectAll) {
+  const handleSelectAll = async () => {
+    if (!supabase) return
+
+    // UNSELECT EVERYTHING
+    if (selectAllInDB) {
       setSelectedLinks(new Set())
-    } else {
-      // Select only filtered links (search results)
-      const filteredIndexes = filteredLinks.map(link =>
-        generatedLinks.findIndex(l =>
-          l.seller_name === link.seller_name &&
-          l.merchant_token === link.merchant_token &&
-          l.page_number === link.page_number &&
-          l.filter_type === link.filter_type
-        )
-      )
-      setSelectedLinks(new Set(filteredIndexes))
+      setSelectAll(false)
+      setSelectAllInDB(false)
+      return
     }
-    setSelectAll(!selectAll)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const tableName =
+        selectedCountry === 'usa'
+          ? 'us_sellers'
+          : `${selectedCountry}_sellers`
+
+      // ⚠️ FETCH ONLY IDS (FAST)
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('id')
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      const allIndexes = data
+        .map(row =>
+          generatedLinks.findIndex(link => link.id === row.id)
+        )
+        .filter(i => i !== -1)
+
+      setSelectedLinks(new Set(allIndexes))
+      setSelectAll(true)
+      setSelectAllInDB(true)
+
+    } catch (err) {
+      console.error('Select all failed:', err)
+      showToast('Failed to select all links', 'error')
+    }
   }
+
 
   const handleCheckboxChange = (index: number) => {
     const newSelected = new Set(selectedLinks)
@@ -874,7 +941,7 @@ function AddSeller() {
   }
 
   const handleBulkDelete = async () => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     if (selectedLinks.size === 0) {
       showToast('Please select at least one link to delete!', 'warning')
@@ -971,7 +1038,6 @@ function AddSeller() {
     { id: 'india', name: 'India', count: sellerCounts.india, flag: 'IN', color: 'from-orange-500 to-orange-600' },
     { id: 'uae', name: 'UAE', count: sellerCounts.uae, flag: 'AE', color: 'from-green-500 to-green-600' },
     { id: 'uk', name: 'UK', count: sellerCounts.uk, flag: 'UK', color: 'from-purple-500 to-purple-600' },
-    { id: 'new', name: 'New Seller', count: sellerCounts.new, flag: '✨', color: 'from-gray-500 to-gray-600' }
   ]
 
   return (
@@ -1135,7 +1201,21 @@ function AddSeller() {
                   </div>
                 ) : filteredLinks.length > 0 ? (
                   <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-                    <div className="overflow-x-auto">
+                    <div
+                      ref={linksScrollRef}
+                      className="overflow-x-auto overflow-y-auto"
+                      style={{ maxHeight: '70vh' }}
+                      onScroll={(e) => {
+
+                        const el = e.currentTarget
+                        if (
+                          el.scrollTop + el.clientHeight >=
+                          el.scrollHeight - 300
+                        ) {
+                          loadGeneratedLinksFromDB(selectedCountry)
+                        }
+                      }}
+                    >
                       <table className="w-full border-collapse min-w-[1000px]">
                         <thead>
                           <tr className="bg-gray-100 border-b border-gray-200">
@@ -1167,11 +1247,11 @@ function AddSeller() {
 
                             return (
                               <tr
-                                key={originalIndex}
-                                id={`link-row-${filteredIndex}`}
-                                onClick={() => setFocusedRowIndex(filteredIndex)}
+                                key={link.id}
+                                id={`link-row-${originalIndex}`}
+                                onClick={() => setFocusedRowIndex(originalIndex)}
                                 className={`border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors ${selectedLinks.has(originalIndex) ? 'bg-blue-50' : ''
-                                  } ${focusedRowIndex === filteredIndex ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                                  } ${focusedRowIndex === originalIndex ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
                               >
                                 <td className="px-3 py-3 text-center border-r border-gray-200">
                                   <input
@@ -1310,7 +1390,7 @@ function AddSeller() {
                 </div>
 
                 <div className="bg-white rounded-lg border border-gray-300 overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto links-scroll-container">
                     <table className="w-full border-collapse" style={{ minWidth: '1200px' }}>
                       <thead className="sticky top-0 bg-white z-10">
                         <tr className="border-b-2 border-gray-300">
