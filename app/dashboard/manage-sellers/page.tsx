@@ -251,17 +251,33 @@ export default function ManageSellersPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* Left Side - No of Sellers Cards */}
+        {/* Header Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-1">
-            <h2 className="text-2xl font-bold mb-6">No of Sellers</h2>
-            <div className="space-y-4">
-              {sellerCards.map((card) => (
+            <h2 className="text-2xl font-bold">No of Sellers</h2>
+          </div>
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold">Seller Scraping Progress Bar</h2>
+          </div>
+        </div>
+
+        {/* Country Rows - Each card aligned with its progress bar */}
+        <div className="space-y-4">
+          {sellerCards.map((card) => {
+            const countryProgress = progress[card.country]
+            const percentage = countryProgress.totalLinks > 0
+              ? Math.round((countryProgress.copiedLinks / countryProgress.totalLinks) * 100)
+              : 0
+
+            return (
+              <div
+                key={card.country}
+                className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center"
+              >
+                {/* Left: Country Card */}
                 <div
-                  key={card.country}
                   onClick={() => handleCardClick(card.country)}
-                  className={`${card.color} text-white p-6 rounded-lg cursor-pointer hover:opacity-90 transition-all hover:scale-105 shadow-lg`}
+                  className={`${card.color} text-white p-6 rounded-xl cursor-pointer hover:opacity-90 transition-all hover:scale-105 shadow-lg`}
                 >
                   <p className="text-sm mb-2 opacity-90">{card.label}</p>
                   <div className="flex justify-between items-center">
@@ -269,62 +285,74 @@ export default function ManageSellersPage() {
                     <span className="text-5xl">{card.flag}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Right Side - Progress Bars */}
-          <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold mb-6">Seller Scraping Progress bar</h2>
-            <div className="space-y-6">
-              {sellerCards.map((card) => {
-                const countryProgress = progress[card.country]
-                const percentage = countryProgress.totalLinks > 0
-                  ? Math.round((countryProgress.copiedLinks / countryProgress.totalLinks) * 100)
-                  : 0
+                {/* Right: Progress Bar */}
+                <div className="lg:col-span-2">
+                  <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-6 shadow-xl border border-gray-700">
+                    {/* Header with Icon and Reset Button */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        {/* Icon */}
+                        <div className="bg-gray-700 rounded-lg p-2.5">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
 
-                return (
-                  <div
-                    key={card.country}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-                  >
-                    {/* Progress Header */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Copy Progress</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {countryProgress.copiedLinks} Copied / {countryProgress.totalLinks} total
-                        </p>
+                        {/* Text */}
+                        <div>
+                          <h3 className="text-white font-semibold text-lg">
+                            Copy Progress <span className="ml-2">{card.code}</span>
+                          </h3>
+                          <p className="text-sm mt-1">
+                            <span className="text-green-400 font-bold text-lg">
+                              {countryProgress.copiedLinks.toLocaleString()} copied
+                            </span>
+                            <span className="text-gray-400 mx-2">/</span>
+                            <span className="text-gray-300 font-semibold">
+                              {countryProgress.totalLinks.toLocaleString()} total
+                            </span>
+                          </p>
+                        </div>
                       </div>
+
+                      {/* Reset Button */}
                       <button
                         onClick={() => resetAllCopied(card.country)}
                         disabled={countryProgress.copiedLinks === 0}
-                        className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 text-gray-300 hover:text-white font-semibold rounded-lg transition-all border border-gray-600 hover:border-gray-500"
                       >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
                         Reset All Copied
                       </button>
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="relative">
-                      <div className="w-full bg-gray-200 rounded-full h-8 overflow-hidden">
-                        <div
-                          className={`h-full ${card.color} transition-all duration-500 flex items-center justify-center`}
-                          style={{ width: `${percentage}%` }}
-                        >
-                          <span className="text-white text-sm font-bold">
-                            {percentage > 0 && `${percentage}% Complete`}
-                          </span>
-                        </div>
-                      </div>
+                    <div className="relative w-full h-3 bg-gray-700 rounded-full overflow-hidden shadow-inner">
+                      <div
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 transition-all duration-700 ease-out rounded-full shadow-lg"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+
+                    {/* Percentage Text */}
+                    <div className="mt-3 flex justify-between items-center">
+                      <span className="text-gray-400 text-sm font-medium uppercase">
+                        {card.country}
+                      </span>
+                      <span className="text-gray-300 text-sm font-bold">
+                        {percentage}% Complete
+                      </span>
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          </div>
-
+                </div>
+              </div>
+            )
+          })}
         </div>
+
       </div>
 
       {/* ✅ LOGIN MODAL */}

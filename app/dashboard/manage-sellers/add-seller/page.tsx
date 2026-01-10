@@ -104,6 +104,8 @@ function AddSeller() {
     uk: 0,
     new: 0
   })
+  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null)
+  const [editingRowData, setEditingRowData] = useState<GeneratedLink | null>(null)
 
   const [sellers, setSellers] = useState<SellerRow[]>([
     {
@@ -1185,14 +1187,17 @@ function AddSeller() {
     try {
       // Copy to clipboard
       await navigator.clipboard.writeText(text)
-      setCopiedLinks(prev => new Set(prev).add(index))
 
-      // ✅ UPDATE DATABASE - Mark as copied
+      // Update local state immediately
+      setGeneratedLinks(prev => prev.map((link, i) =>
+        i === index ? { ...link, is_copied: true } : link
+      ))
+
+      // UPDATE DATABASE - Mark as copied
       if (supabase) {
         const linkToUpdate = generatedLinks[index]
         if (linkToUpdate?.id) {
           const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
-
           const { error } = await supabase
             .from(tableName)
             .update({ is_copied: true })
@@ -1211,6 +1216,49 @@ function AddSeller() {
       console.error('Copy failed:', error)
       showToast('Failed to copy link', 'error')
     }
+  }
+  const handleEditLink = (index: number) => {
+    const link = generatedLinks[index]
+    setEditingRowIndex(index)
+    setEditingRowData({ ...link })
+  }
+
+  const handleSaveEdit = async () => {
+    if (editingRowIndex === null || !editingRowData || !supabase) return
+
+    try {
+      const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
+
+      const { error } = await supabase
+        .from(tableName)
+        .update({
+          seller_name: editingRowData.seller_name,
+          merchant_token: editingRowData.merchant_token,
+          page_number: editingRowData.page_number,
+          filter_type: editingRowData.filter_type,
+          profile_link: editingRowData.profile_link
+        })
+        .eq('id', editingRowData.id)
+
+      if (error) throw error
+
+      // Update local state
+      setGeneratedLinks(prev => prev.map((link, i) =>
+        i === editingRowIndex ? editingRowData : link
+      ))
+
+      setEditingRowIndex(null)
+      setEditingRowData(null)
+      showToast('Link updated successfully!', 'success')
+    } catch (error) {
+      console.error('Error updating link:', error)
+      showToast('Failed to update link', 'error')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingRowIndex(null)
+    setEditingRowData(null)
   }
 
   const copyAllLinks = () => {
@@ -1269,7 +1317,7 @@ function AddSeller() {
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
-                    <div className={`text-xs font-medium mb-1 ${selectedCountry === card.id ? 'text-white' : 'text-gray-600'}`}>
+                    <div className={`text-xs font-medium mb-1 ${selectedCountry === card.id ? 'text-white' : 'text-gray-900'}`}>
                       Add {card.name} Seller
                     </div>
                     <div className={`text-3xl font-bold ${selectedCountry === card.id ? 'text-white' : 'text-gray-900'}`}>
@@ -1473,10 +1521,12 @@ function AddSeller() {
                               <tr
                                 key={link.id}
                                 id={`link-row-${originalIndex}`}
-                                onClick={() => setFocusedRowIndex(originalIndex)}
+                                onClick={() => editingRowIndex !== originalIndex && setFocusedRowIndex(originalIndex)}
                                 className={`border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors ${selectedLinks.has(originalIndex) ? 'bg-blue-50' : ''
-                                  } ${focusedRowIndex === originalIndex ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                                  } ${focusedRowIndex === originalIndex ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${editingRowIndex === originalIndex ? 'bg-yellow-50 ring-2 ring-orange-400' : ''
+                                  }`}
                               >
+                                {/* Checkbox */}
                                 <td className="px-3 py-3 text-center border-r border-gray-200">
                                   <input
                                     type="checkbox"
@@ -1485,58 +1535,173 @@ function AddSeller() {
                                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                                   />
                                 </td>
-                                <td className="px-4 py-3 text-sm text-gray-700 font-medium border-r border-gray-200">{filteredIndex + 1}</td>
-                                <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">{link.seller_name}</td>
-                                <td className="px-4 py-3 text-sm font-mono text-gray-700 border-r border-gray-200">{link.merchant_token}</td>
-                                <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
-                                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs">
-                                    {link.page_number}
-                                  </span>
+
+                                {/* No. */}
+                                <td className="px-4 py-3 text-sm text-gray-700 font-medium border-r border-gray-200">
+                                  {filteredIndex + 1}
                                 </td>
+
+                                {/* Seller Name - EDITABLE */}
+                                <td className="px-4 py-3 text-sm text-gray-900 font-medium border-r border-gray-200">
+                                  {editingRowIndex === originalIndex ? (
+                                    <input
+                                      type="text"
+                                      value={editingRowData?.seller_name || ''}
+                                      onChange={(e) => setEditingRowData(prev => prev ? { ...prev, seller_name: e.target.value } : null)}
+                                      className="w-full px-2 py-1 border border-orange-300 rounded focus:ring-2 focus:ring-orange-500"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    link.seller_name
+                                  )}
+                                </td>
+
+                                {/* Merchant Token - EDITABLE */}
+                                <td className="px-4 py-3 text-sm font-mono text-gray-700 border-r border-gray-200">
+                                  {editingRowIndex === originalIndex ? (
+                                    <input
+                                      type="text"
+                                      value={editingRowData?.merchant_token || ''}
+                                      onChange={(e) => setEditingRowData(prev => prev ? { ...prev, merchant_token: e.target.value } : null)}
+                                      className="w-full px-2 py-1 border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 font-mono"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    link.merchant_token
+                                  )}
+                                </td>
+
+                                {/* Page Number - EDITABLE */}
+                                <td className="px-4 py-3 text-sm text-center border-r border-gray-200">
+                                  {editingRowIndex === originalIndex ? (
+                                    <input
+                                      type="number"
+                                      value={editingRowData?.page_number || 1}
+                                      onChange={(e) => setEditingRowData(prev => prev ? { ...prev, page_number: parseInt(e.target.value) || 1 } : null)}
+                                      className="w-20 px-2 py-1 border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 text-center"
+                                      onClick={(e) => e.stopPropagation()}
+                                      min="1"
+                                      max="20"
+                                    />
+                                  ) : (
+                                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs">
+                                      {link.page_number}
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Filter Type */}
                                 <td className="px-4 py-3 text-sm border-r border-gray-200">
                                   <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
                                     {link.filter_label}
                                   </span>
                                 </td>
+
+                                {/* Profile Link */}
                                 <td className="px-4 py-3 text-sm text-blue-600 border-r border-gray-200">
-                                  <a href={link.profile_link} target="_blank" rel="noopener noreferrer" className="hover:underline truncate block max-w-[250px]">
+                                  <a
+                                    href={link.profile_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:underline truncate block max-w-[250px]"
+                                  >
                                     {link.profile_link}
                                   </a>
                                 </td>
+
+                                {/* Action Column */}
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      onClick={() => copyToClipboard(link.profile_link, originalIndex)}
-                                      disabled={copiedLinks.has(originalIndex)}
-                                      className={`px-3 py-1.5 text-white text-xs font-semibold rounded transition ${copiedLinks.has(originalIndex)
-                                        ? 'bg-green-600 cursor-default'
-                                        : 'bg-blue-600 hover:bg-blue-700'
-                                        }`}
-                                      title="Copy link"
-                                    >
-                                      {copiedLinks.has(originalIndex) ? (
-                                        <span className="flex items-center gap-1">
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {editingRowIndex === originalIndex ? (
+                                      <>
+                                        {/* Save Button */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleSaveEdit()
+                                          }}
+                                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                           </svg>
-                                          Copied
-                                        </span>
-                                      ) : (
-                                        'Copy'
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => deleteLink(originalIndex)}
-                                      className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded transition"
-                                      title="Delete link"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                    </button>
+                                          Save
+                                        </button>
+
+                                        {/* Cancel Button */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCancelEdit()
+                                          }}
+                                          className="px-3 py-1.5 border-2 border-gray-400 text-gray-700 hover:bg-gray-100 hover:border-gray-500 text-xs font-semibold rounded-lg transition-all"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {/* Copy Button - Solid Indigo */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            copyToClipboard(link.profile_link, originalIndex)
+                                          }}
+                                          disabled={link.is_copied}
+                                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 shadow-sm ${link.is_copied
+                                              ? 'bg-green-600 text-white cursor-default'
+                                              : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md'
+                                            }`}
+                                          title={link.is_copied ? 'Copied ✓' : 'Copy link'}
+                                        >
+                                          {link.is_copied ? (
+                                            <>
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              </svg>
+                                              Copied
+                                            </>
+                                          ) : (
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                          )}
+                                        </button>
+
+                                        {/* Edit Button - Outline Amber with Fill on Hover */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleEditLink(originalIndex)
+                                          }}
+                                          className="p-2 border-2 border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                                          title="Edit link"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                          </svg>
+                                        </button>
+
+                                        {/* Delete Button - Outline Rose with Fill on Hover */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            deleteLink(originalIndex)
+                                          }}
+                                          className="p-2 border-2 border-rose-500 text-rose-600 hover:bg-rose-500 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                                          title="Delete link"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                          </svg>
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 </td>
+
                               </tr>
+
                             )
                           })}
                         </tbody>
