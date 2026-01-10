@@ -1619,91 +1619,35 @@ function AddSeller() {
                                 {/* Action Column */}
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex items-center justify-center gap-2">
-                                    {editingRowIndex === originalIndex ? (
-                                      <>
-                                        {/* Save Button */}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleSaveEdit()
-                                          }}
-                                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1"
-                                        >
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <button
+                                      onClick={() => copyToClipboard(link.profile_link, originalIndex)}
+                                      disabled={copiedLinks.has(originalIndex)}
+                                      className={`px-3 py-1.5 text-white text-xs font-semibold rounded transition ${copiedLinks.has(originalIndex)
+                                        ? 'bg-green-600 cursor-default'
+                                        : 'bg-blue-600 hover:bg-blue-700'
+                                        }`}
+                                      title="Copy link"
+                                    >
+                                      {copiedLinks.has(originalIndex) ? (
+                                        <span className="flex items-center gap-1">
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                           </svg>
-                                          Save
-                                        </button>
-
-                                        {/* Cancel Button */}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleCancelEdit()
-                                          }}
-                                          className="px-3 py-1.5 border-2 border-gray-400 text-gray-700 hover:bg-gray-100 hover:border-gray-500 text-xs font-semibold rounded-lg transition-all"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        {/* Copy Button - Solid Indigo */}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            copyToClipboard(link.profile_link, originalIndex)
-                                          }}
-                                          disabled={link.is_copied}
-                                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 shadow-sm ${link.is_copied
-                                            ? 'bg-green-600 text-white cursor-default'
-                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md'
-                                            }`}
-                                          title={link.is_copied ? 'Copied ✓' : 'Copy link'}
-                                        >
-                                          {link.is_copied ? (
-                                            <>
-                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                              </svg>
-                                              Copied
-                                            </>
-                                          ) : (
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                            </svg>
-                                          )}
-                                        </button>
-
-                                        {/* Edit Button - Outline Amber with Fill on Hover */}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleEditLink(originalIndex)
-                                          }}
-                                          className="p-2 border-2 border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
-                                          title="Edit link"
-                                        >
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                          </svg>
-                                        </button>
-
-                                        {/* Delete Button - Outline Rose with Fill on Hover */}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            deleteLink(originalIndex)
-                                          }}
-                                          className="p-2 border-2 border-rose-500 text-rose-600 hover:bg-rose-500 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
-                                          title="Delete link"
-                                        >
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                          </svg>
-                                        </button>
-                                      </>
-                                    )}
+                                          Copied
+                                        </span>
+                                      ) : (
+                                        'Copy'
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => deleteLink(originalIndex)}
+                                      className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded transition"
+                                      title="Delete link"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
                                   </div>
                                 </td>
 
