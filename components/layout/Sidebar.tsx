@@ -11,16 +11,22 @@ export default function Sidebar() {
 
   // 👇 Submenu items for "Manage Sellers"
   const manageSellerSubmenu = [
-    { label: "Link Generator", href: "/dashboard/manage-sellers/add-seller" },
-    { label: "USA Sellers", href: "/dashboard/manage-sellers/usa-sellers" },
-    { label: "India Sellers", href: "/dashboard/manage-sellers/india-sellers" },
-    { label: "UK Sellers", href: "/dashboard/manage-sellers/uk-sellers" },
-    { label: "UAE Sellers", href: "/dashboard/manage-sellers/uae-sellers" },
-    { label: "Canada Sellers", href: "/dashboard/manage-sellers/canada-sellers" },
-    { label: "Australia Sellers", href: "/dashboard/manage-sellers/australia-sellers" },
-    { label: "Germany Sellers", href: "/dashboard/manage-sellers/germany-sellers" },
-    { label: "France Sellers", href: "/dashboard/manage-sellers/france-sellers" },
-    { label: "Japan Sellers", href: "/dashboard/manage-sellers/japan-sellers" },
+    {
+      label: "USA Sellers",
+      href: "/dashboard/manage-sellers/add-seller?country=usa",
+    },
+    {
+      label: "India Sellers",
+      href: "/dashboard/manage-sellers/add-seller?country=india",
+    },
+    {
+      label: "UK Sellers",
+      href: "/dashboard/manage-sellers/add-seller?country=uk",
+    },
+    {
+      label: "UAE Sellers",
+      href: "/dashboard/manage-sellers/add-seller?country=uae",
+    },
   ];
 
   const menuItems = [
@@ -63,11 +69,10 @@ export default function Sidebar() {
               {/* Main Menu Item */}
               {item.submenu ? (
                 <div
-                  className={`flex items-center justify-between rounded-lg cursor-pointer transition-all duration-200 ${
-                    pathname === item.href || pathname.startsWith(item.href + "/")
+                  className={`flex items-center justify-between rounded-lg cursor-pointer transition-all duration-200 ${pathname === item.href || pathname.startsWith(item.href + "/")
                       ? "bg-blue-600 text-white"
                       : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
+                    }`}
                 >
                   {/* Clickable area for navigation */}
                   <button
@@ -76,16 +81,15 @@ export default function Sidebar() {
                   >
                     {item.label}
                   </button>
-                  
+
                   {/* Arrow button - only toggles dropdown */}
                   <button
                     onClick={(e) => toggleMenu(item.label, e)}
                     className="px-3 py-2.5"
                   >
                     <svg
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        expandedMenu === item.label ? "rotate-180" : ""
-                      }`}
+                      className={`w-4 h-4 transition-transform duration-200 ${expandedMenu === item.label ? "rotate-180" : ""
+                        }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -97,11 +101,10 @@ export default function Sidebar() {
               ) : (
                 <Link
                   href={item.href || "#"}
-                  className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    pathname === item.href
+                  className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${pathname === item.href
                       ? "bg-green-600 text-white"
                       : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </Link>
@@ -116,11 +119,10 @@ export default function Sidebar() {
                         <Link
                           key={subItem.label}
                           href={subItem.href}
-                          className={`block px-3 py-2 rounded-md text-sm transition-all duration-200 ${
-                            pathname === subItem.href
+                          className={`block px-3 py-2 rounded-md text-sm transition-all duration-200 ${pathname === subItem.href
                               ? "bg-blue-500 text-white font-medium"
                               : "text-gray-400 hover:bg-gray-700 hover:text-white"
-                          }`}
+                            }`}
                         >
                           {subItem.label}
                         </Link>
