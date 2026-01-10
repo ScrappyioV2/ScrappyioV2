@@ -1,6 +1,5 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import { Filter, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import FilterDropdown from '@/components/shared/master-table/FilterDropdown';
@@ -99,6 +98,7 @@ export default function UsaMasterTable({
   const [loading, setLoading] = useState(true);
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string[] | { value: string; count: number }[]>>({});
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
   const localFilters = filters; // Use parent's filters directly
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
     key: 'display_number',
@@ -115,10 +115,18 @@ export default function UsaMasterTable({
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const visibleColumns = ALL_COLUMNS.filter((col) => !hiddenColumns.includes(col));
+  const isAllCurrentPageSelected = data.length > 0 && data.every((row) => selectedIds.has(row.id));
+  const isSomeSelected = selectedIds.size > 0 && !isAllCurrentPageSelected;
 
   useEffect(() => {
     fetchData();
   }, [searchTerm, refreshTrigger, filters, currentPage, sortConfig]);
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isSomeSelected;
+    }
+  }, [isSomeSelected]);
 
   const fetchData = async () => {
     if (!supabase) return
@@ -305,9 +313,6 @@ export default function UsaMasterTable({
     onSelectedIdsChange(newSelected);
   };
 
-  // FIX: Check if all visible items on current page are selected
-  const isAllCurrentPageSelected = data.length > 0 && data.every((row) => selectedIds.has(row.id));
-  const isSomeSelected = selectedIds.size > 0 && !isAllCurrentPageSelected;
 
   // Column resize handlers
   const handleResizeStart = (e: React.MouseEvent, columnKey: string) => {
@@ -575,11 +580,9 @@ export default function UsaMasterTable({
                 {/* Checkbox column */}
                 <th className="px-2 py-2 w-12 sticky left-0 bg-gray-50 z-10">
                   <input
+                    ref={selectAllCheckboxRef}
                     type="checkbox"
                     checked={isAllCurrentPageSelected}
-                    ref={(input) => {
-                      if (input) input.indeterminate = isSomeSelected;
-                    }}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />

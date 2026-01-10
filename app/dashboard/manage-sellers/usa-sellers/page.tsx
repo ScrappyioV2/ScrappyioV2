@@ -205,10 +205,13 @@ export default function UsaSellersPage() {
       // Refresh table
       setRefreshTrigger((prev) => prev + 1);
     } catch (error: any) {
-      console.error('Upload error:', error);
-      const errorMessage = error?.message || 'Failed to upload data. Please try again.';
-      toast.error(errorMessage, { id: toastId, duration: 5000 });
-    }
+  console.error('Upload error:', error);
+  console.error('Error details:', error?.message);
+  console.error('Error hint:', error?.hint);
+  console.error('Error details full:', JSON.stringify(error, null, 2));
+  const errorMessage = error?.message || 'Failed to upload data. Please try again.';
+  toast.error(errorMessage, { id: toastId, duration: 5000 });
+}
   };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
