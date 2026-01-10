@@ -33,6 +33,7 @@ interface GeneratedLink {
   filter_label?: string
   profile_link: string
   badge?: string
+  is_copied?: boolean
 }
 export default function AddSellerPage() {
   return (
@@ -397,13 +398,25 @@ function AddSeller() {
         profile_link: link.profile_link,
         badge: link.badge || null,
         filter_label: FILTER_LABELS[link.filter_type] || link.filter_type,
+        is_copied: link.is_copied || false,
       }))
 
       // ✅ APPEND (NOT REPLACE)
       setGeneratedLinks(prev => {
         const existingIds = new Set(prev.map(item => item.id))
         const uniqueNew = formatted.filter(item => !existingIds.has(item.id))
-        return [...prev, ...uniqueNew]
+        const newLinks = [...prev, ...uniqueNew]
+
+        // ✅ Restore copied state from database
+        const newCopiedSet = new Set<number>()
+        newLinks.forEach((link, index) => {
+          if (link.is_copied) {
+            newCopiedSet.add(index)
+          }
+        })
+        setCopiedLinks(newCopiedSet)
+
+        return newLinks
       })
       setOffset(prev => prev + BATCH_SIZE)
 
