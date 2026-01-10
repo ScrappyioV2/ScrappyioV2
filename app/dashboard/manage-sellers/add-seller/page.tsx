@@ -71,6 +71,9 @@ function AddSeller() {
   const [loadingLinks, setLoadingLinks] = useState(false)
   const [selectedLinks, setSelectedLinks] = useState<Set<number>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
+  const [selectAllInDB, setSelectAllInDB] = useState(false)
+  const [totalLinksCount, setTotalLinksCount] = useState(0)
+
 
   // Search and copy state
   const [searchQuery, setSearchQuery] = useState('')
@@ -135,6 +138,14 @@ function AddSeller() {
 
       for (const country of countries) {
         const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
+        const { count: totalCount } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        if (totalCount !== null) {
+          setTotalLinksCount(totalCount)
+        }
 
         const { count, error } = await supabase
           .from(tableName)
@@ -173,15 +184,23 @@ function AddSeller() {
 
     setSelectedCountry(countryParam)
 
-    // 🔴 RESET PAGINATION STATE
+    // reset pagination state
     setGeneratedLinks([])
     setOffset(0)
     setHasMore(true)
     setLoadingLinks(true)
+    setIsFetchingMore(false)
 
-    fetchSellersFromDB(countryParam)
-    loadGeneratedLinksFromDB(countryParam)
   }, [countryParam])
+
+
+  useEffect(() => {
+    if (!selectedCountry) return
+    if (!loadingLinks) return
+    if (generatedLinks.length > 0) return
+
+    loadGeneratedLinksFromDB(selectedCountry)
+  }, [selectedCountry, loadingLinks])
 
 
   // NEW: Keyboard navigation listener
@@ -261,7 +280,7 @@ function AddSeller() {
   }, [])
   const fetchSellersFromDB = async (country: string) => {
     if (!country) return
-    
+
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -334,7 +353,7 @@ function AddSeller() {
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
     if (!countryCode || isFetchingMore || !hasMore) return
 
-    
+
     if (!supabase) return
 
     try {
@@ -431,7 +450,7 @@ function AddSeller() {
       showToast('At least one row is required!', 'warning')
       return
     }
-  
+
     if (!supabase) return
 
     try {
@@ -455,7 +474,7 @@ function AddSeller() {
   }
 
   const clearAllSellers = async () => {
-  
+
     if (!supabase) return
     setConfirmDialog({
       title: 'Clear All Sellers?',
@@ -654,7 +673,7 @@ function AddSeller() {
   }
 
   const handleGenerateLinks = async () => {
-    
+
     if (!supabase) return
     if (!selectedCountry) {
       showToast('Please select a country first!', 'warning')
@@ -785,20 +804,33 @@ function AddSeller() {
 
 
   const handleCountryCardClick = (countryId: string) => {
+    // ✅ If clicking the same country again, do nothing
+    if (countryId === selectedCountry) return
+
     setSelectedCountry(countryId)
     setCurrentView('links')
+
+    // reset only selection-related UI
     setSelectedLinks(new Set())
     setSelectAll(false)
+    setSelectAllInDB(false)
     setSearchQuery('')
     setFocusedRowIndex(null)
-    setGeneratedLinks([]) // Clear links immediately
-    setLoadingLinks(true) // Show loading state
-    router.push(`/dashboard/manage-sellers/add-seller?country=${countryId}`, { scroll: false })
+
+    // ✅ reset data ONLY because country actually changed
+    setGeneratedLinks([])
+    setOffset(0)
+    setHasMore(true)
+    setLoadingLinks(true)
+
+    router.push(
+      `/dashboard/manage-sellers/add-seller?country=${countryId}`,
+      { scroll: false }
+    )
   }
 
-
   const deleteLink = async (index: number) => {
-    
+
     if (!supabase) return
     setConfirmDialog({
       title: 'Delete Link?',
@@ -842,23 +874,50 @@ function AddSeller() {
   }
 
 
-  const handleSelectAll = () => {
-    if (selectAll) {
+  const handleSelectAll = async () => {
+    if (!supabase) return
+
+    // UNSELECT EVERYTHING
+    if (selectAllInDB) {
       setSelectedLinks(new Set())
-    } else {
-      // Select only filtered links (search results)
-      const filteredIndexes = filteredLinks.map(link =>
-        generatedLinks.findIndex(l =>
-          l.seller_name === link.seller_name &&
-          l.merchant_token === link.merchant_token &&
-          l.page_number === link.page_number &&
-          l.filter_type === link.filter_type
-        )
-      )
-      setSelectedLinks(new Set(filteredIndexes))
+      setSelectAll(false)
+      setSelectAllInDB(false)
+      return
     }
-    setSelectAll(!selectAll)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const tableName =
+        selectedCountry === 'usa'
+          ? 'us_sellers'
+          : `${selectedCountry}_sellers`
+
+      // ⚠️ FETCH ONLY IDS (FAST)
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('id')
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      const allIndexes = data
+        .map(row =>
+          generatedLinks.findIndex(link => link.id === row.id)
+        )
+        .filter(i => i !== -1)
+
+      setSelectedLinks(new Set(allIndexes))
+      setSelectAll(true)
+      setSelectAllInDB(true)
+
+    } catch (err) {
+      console.error('Select all failed:', err)
+      showToast('Failed to select all links', 'error')
+    }
   }
+
 
   const handleCheckboxChange = (index: number) => {
     const newSelected = new Set(selectedLinks)
@@ -979,7 +1038,6 @@ function AddSeller() {
     { id: 'india', name: 'India', count: sellerCounts.india, flag: 'IN', color: 'from-orange-500 to-orange-600' },
     { id: 'uae', name: 'UAE', count: sellerCounts.uae, flag: 'AE', color: 'from-green-500 to-green-600' },
     { id: 'uk', name: 'UK', count: sellerCounts.uk, flag: 'UK', color: 'from-purple-500 to-purple-600' },
-    { id: 'new', name: 'New Seller', count: sellerCounts.new, flag: '✨', color: 'from-gray-500 to-gray-600' }
   ]
 
   return (
