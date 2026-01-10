@@ -1,11 +1,11 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
+import { supabase } from '@/lib/supabaseClient'
 import { Suspense } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getSupabaseClient } from '@/lib/supabaseClient'
+
 import * as XLSX from "xlsx";
 import Toast from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -120,7 +120,7 @@ function AddSeller() {
 
   // ADD fetchSellerCounts function HERE (from my previous instructions)
   const fetchSellerCounts = async () => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -261,7 +261,7 @@ function AddSeller() {
   }, [])
   const fetchSellersFromDB = async (country: string) => {
     if (!country) return
-    const supabase = getSupabaseClient()
+    
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -334,7 +334,7 @@ function AddSeller() {
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
     if (!countryCode || isFetchingMore || !hasMore) return
 
-    const supabase = getSupabaseClient()
+    
     if (!supabase) return
 
     try {
@@ -431,7 +431,7 @@ function AddSeller() {
       showToast('At least one row is required!', 'warning')
       return
     }
-    const supabase = getSupabaseClient()
+  
     if (!supabase) return
 
     try {
@@ -455,7 +455,7 @@ function AddSeller() {
   }
 
   const clearAllSellers = async () => {
-    const supabase = getSupabaseClient()
+  
     if (!supabase) return
     setConfirmDialog({
       title: 'Clear All Sellers?',
@@ -654,7 +654,7 @@ function AddSeller() {
   }
 
   const handleGenerateLinks = async () => {
-    const supabase = getSupabaseClient()
+    
     if (!supabase) return
     if (!selectedCountry) {
       showToast('Please select a country first!', 'warning')
@@ -798,7 +798,7 @@ function AddSeller() {
 
 
   const deleteLink = async (index: number) => {
-    const supabase = getSupabaseClient()
+    
     if (!supabase) return
     setConfirmDialog({
       title: 'Delete Link?',
@@ -882,7 +882,7 @@ function AddSeller() {
   }
 
   const handleBulkDelete = async () => {
-    const supabase = getSupabaseClient()
+
     if (!supabase) return
     if (selectedLinks.size === 0) {
       showToast('Please select at least one link to delete!', 'warning')

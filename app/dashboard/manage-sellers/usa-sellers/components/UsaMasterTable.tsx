@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getSupabaseClient } from '@/lib/supabaseClient'
+
 import { Filter, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import FilterDropdown from '@/components/shared/master-table/FilterDropdown';
 import NumericFilter from '@/components/shared/master-table/NumericFilter';
 import TextFilter from '@/components/shared/master-table/TextFilter';
 import MultiSelectFilter from '@/components/shared/master-table/MultiSelectFilter';
 import ActiveFilters from '@/components/shared/master-table/ActiveFilters';
+import { supabase } from '@/lib/supabaseClient'
 
 interface MasterData {
   id: string;
@@ -120,7 +121,6 @@ export default function UsaMasterTable({
   }, [searchTerm, refreshTrigger, filters, currentPage, sortConfig]);
 
   const fetchData = async () => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     try {
       setLoading(true);
@@ -232,7 +232,6 @@ export default function UsaMasterTable({
   };
 
   const handleSelectAll = async (checked: boolean) => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     if (!checked) {
       onSelectedIdsChange(new Set());
@@ -382,8 +381,7 @@ export default function UsaMasterTable({
   /**
    * Fetch unique values for a filter, respecting OTHER active filters
    */
-  const fetchUniqueValuesForFilter = async (columnKey: string) => {
-    const supabase = getSupabaseClient()
+  const fetchUniqueValuesForFilter = async (columnKey: string) => {   
     if (!supabase) return
     try {
       const BATCH_SIZE = 1000;

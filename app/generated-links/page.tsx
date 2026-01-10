@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic"
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { getSupabaseClient } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 
 interface GeneratedLink {
   seller_name: string
@@ -48,7 +48,6 @@ function GeneratedLinks() {
   // Try database first, then localStorage
   // Try database first, then localStorage
   const loadGeneratedLinks = async (countryCode: string) => {
-    const supabase = getSupabaseClient()
     if (!supabase) return
     try {
       setLoading(true)
