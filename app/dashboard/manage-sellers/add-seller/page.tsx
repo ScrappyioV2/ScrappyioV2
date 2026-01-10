@@ -1074,11 +1074,38 @@ function AddSeller() {
     })
   }
 
-  // Then your next function (copyToClipboard, etc.)
-  const copyToClipboard = (text: string, index: number) => {
-    navigator.clipboard.writeText(text)
-    setCopiedLinks(prev => new Set(prev).add(index))
+  const copyToClipboard = async (text: string, index: number) => {
+    try {
+      // Copy to clipboard
+      await navigator.clipboard.writeText(text)
+      setCopiedLinks(prev => new Set(prev).add(index))
+
+      // ✅ UPDATE DATABASE - Mark as copied
+      if (supabase) {
+        const linkToUpdate = generatedLinks[index]
+        if (linkToUpdate?.id) {
+          const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
+
+          const { error } = await supabase
+            .from(tableName)
+            .update({ is_copied: true })
+            .eq('id', linkToUpdate.id)
+
+          if (error) {
+            console.error('Error updating is_copied:', error)
+          } else {
+            console.log('✅ Link marked as copied in database!')
+          }
+        }
+      }
+
+      showToast('Link copied and marked!', 'success')
+    } catch (error) {
+      console.error('Copy failed:', error)
+      showToast('Failed to copy link', 'error')
+    }
   }
+
   const copyAllLinks = () => {
     const allLinks = generatedLinks.map(link => link.profile_link).join('\n')
     navigator.clipboard.writeText(allLinks)

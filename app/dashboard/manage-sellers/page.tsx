@@ -56,12 +56,64 @@ export default function ManageSellersPage() {
   useEffect(() => {
     fetchProgress()
 
-    const interval = setInterval(() => {
-      fetchProgress()
-    }, 3000)
+    // ✅ SET UP REAL-TIME SUBSCRIPTIONS
+    if (!supabase) return
 
-    return () => clearInterval(interval)
+    const subscriptions: any[] = []
+    const countries = ['usa', 'india', 'uae', 'uk']
+
+    countries.forEach((country) => {
+      const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
+
+      const subscription = supabase
+        .channel(`${country}_realtime_copy`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: tableName,
+          },
+          (payload) => {
+            console.log(`✅ Real-time: ${country} link copied!`, payload)
+            fetchProgress() // Refresh progress immediately
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: tableName,
+          },
+          () => {
+            console.log(`➕ Real-time: New ${country} link added`)
+            fetchProgress()
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: tableName,
+          },
+          () => {
+            console.log(`🗑️ Real-time: ${country} link deleted`)
+            fetchProgress()
+          }
+        )
+        .subscribe()
+
+      subscriptions.push(subscription)
+    })
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe())
+    }
   }, [])
+
 
   const fetchProgress = async () => {
     if (!supabase) return
