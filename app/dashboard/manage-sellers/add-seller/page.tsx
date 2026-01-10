@@ -1,5 +1,9 @@
 "use client";
-
+declare global {
+  interface Window {
+    autoSaveTimeout?: NodeJS.Timeout
+  }
+}
 export const dynamic = "force-dynamic";
 import { supabase } from '@/lib/supabaseClient'
 import { Suspense } from "react";
@@ -278,6 +282,15 @@ function AddSeller() {
   useEffect(() => {
     fetchSellerCounts()
   }, [])
+  useEffect(() => {
+    if (!selectedCountry) return
+
+    const loadSellers = async () => {
+      await fetchSellersFromDB(selectedCountry)
+    }
+
+    loadSellers()
+  }, [selectedCountry])
   const fetchSellersFromDB = async (country: string) => {
     if (!country) return
 
@@ -298,8 +311,8 @@ function AddSeller() {
           newArrivals: false,
           bestSellers: false
         }])
-        setGeneratedLinks([])      // or setSellers([]) depending on function
-        setLoadingLinks(false)
+        // setGeneratedLinks([])      // or setSellers([]) depending on function
+        // setLoadingLinks(false)
         return
       }
 
@@ -348,7 +361,74 @@ function AddSeller() {
       }
     }
   }
+  const saveSellersToDatabase = async (sellersToSave: SellerRow[]) => {
+    if (!supabase || !selectedCountry) return
 
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.log('No user logged in, skipping save')
+        return
+      }
+
+      // Filter out empty rows
+      const validSellers = sellersToSave.filter(
+        seller => seller.sellerName.trim() !== '' && seller.merchantToken.trim() !== ''
+      )
+
+      if (validSellers.length === 0) {
+        console.log('No valid sellers to save')
+        return
+      }
+
+      // Delete existing sellers for this country
+      const { error: deleteError } = await supabase
+        .from('sellers_upload')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('country', selectedCountry)
+
+      if (deleteError) {
+        console.error('Error deleting old sellers:', deleteError)
+      }
+
+      // Prepare data for database
+      const dbSellers = validSellers.map(seller => ({
+        user_id: user.id,
+        country: selectedCountry,
+        seller_name: seller.sellerName,
+        merchant_token: seller.merchantToken,
+        pages: parseInt(seller.page) || 0,
+        total_products: parseInt(seller.totalProducts) || 0,
+        filter_default: seller.default,
+        filter_low_to_high: seller.lowToHigh,
+        filter_high_to_low: seller.highToLow,
+        filter_avg_review: seller.avgReview,
+        filter_new_arrivals: seller.newArrivals,
+        filter_best_sellers: seller.bestSellers
+      }))
+
+      // Insert new sellers
+      const { error } = await supabase
+        .from('sellers_upload')
+        .insert(dbSellers)
+
+      if (error) {
+        console.error('Error saving sellers:', error)
+        showToast('Failed to save sellers to database', 'error')
+        return
+      }
+
+      console.log(`✅ Auto-saved ${dbSellers.length} sellers to database`)
+
+      // Reload sellers to get database IDs
+      await fetchSellersFromDB(selectedCountry)
+      await fetchSellerCounts()
+
+    } catch (error: any) {
+      console.error('Error in saveSellersToDatabase:', error)
+    }
+  }
 
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
     if (!countryCode || isFetchingMore || !hasMore) return
@@ -528,17 +608,15 @@ function AddSeller() {
   }
 
   const updateCell = (id: string, field: keyof SellerRow, value: any) => {
-    setSellers(sellers.map(seller => {
+    const updatedSellers = sellers.map(seller => {
       if (seller.id === id) {
         const updated = { ...seller, [field]: value }
 
         if (field === 'totalProducts') {
           const total = parseInt(value) || 0
-
-          // Calculate pages: Every 32 products = 1 page (for both filters)
+          // Calculate pages: Every 32 products = 1 page for both filters
           const calculatedPages = Math.ceil(total / 32)
           const pages = Math.min(calculatedPages, 20) // Cap at 20 pages
-
           updated.page = pages > 0 ? pages.toString() : '0'
 
           if (total >= 640) {
@@ -569,12 +647,20 @@ function AddSeller() {
           }
         }
 
-
         return updated
       }
       return seller
-    }))
+    })
+
+    setSellers(updatedSellers)
+
+    // ✅ Auto-save after edit (debounced by 1 second)
+    if (window.autoSaveTimeout) clearTimeout(window.autoSaveTimeout)
+    window.autoSaveTimeout = setTimeout(() => {
+      saveSellersToDatabase(updatedSellers)
+    }, 1000)
   }
+
 
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -657,6 +743,10 @@ function AddSeller() {
 
         setSellers(newSellers)
         showToast(`Successfully uploaded ${newSellers.length} sellers!`, 'success')
+        // ✅ Auto-save to database immediately after upload
+        setTimeout(() => {
+          saveSellersToDatabase(newSellers)
+        }, 500)
       } catch (error) {
         console.error('Error reading file:', error)
         showToast('Error reading Excel file. Please check the format.', 'error')
@@ -834,7 +924,11 @@ function AddSeller() {
     setOffset(0)
     setHasMore(true)
     setLoadingLinks(true)
+
+    // ✅ Sellers will be loaded automatically by the useEffect
+    // (no need to reset sellers here)
   }
+
 
   const deleteLink = async (index: number) => {
 
@@ -1574,7 +1668,7 @@ function AddSeller() {
                                 value={seller.totalProducts}
                                 onChange={(e) => updateCell(seller.id, 'totalProducts', e.target.value)}
                                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="250"
+                                placeholder="0"
                                 min="0"
                               />
                             </td>

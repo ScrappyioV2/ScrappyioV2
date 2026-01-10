@@ -21,9 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <div className="flex">
+        <div className="flex h-screen w-full overflow-hidden">
           <Sidebar />
-          <main className="flex-1" style={{ backgroundColor: '#f2f2f2' }}>
+          <main
+            className="flex-1 h-screen overflow-x-hidden overflow-y-auto"
+            style={{ backgroundColor: '#f2f2f2' }}
+          >
             {children}
           </main>
         </div>
