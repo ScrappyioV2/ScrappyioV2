@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabaseClient'
 import { Suspense } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
 import * as XLSX from "xlsx";
 import Toast from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -822,11 +821,6 @@ function AddSeller() {
     setOffset(0)
     setHasMore(true)
     setLoadingLinks(true)
-
-    router.push(
-      `/dashboard/manage-sellers/add-seller?country=${countryId}`,
-      { scroll: false }
-    )
   }
 
   const deleteLink = async (index: number) => {
@@ -874,47 +868,39 @@ function AddSeller() {
   }
 
 
-  const handleSelectAll = async () => {
-    if (!supabase) return
-
-    // UNSELECT EVERYTHING
-    if (selectAllInDB) {
+  // ✅ ULTIMATE FIX: Select ALL filtered links (with correct property names)
+  const handleSelectAll = () => {
+    if (selectAll) {
+      // Unselect all
       setSelectedLinks(new Set())
       setSelectAll(false)
-      setSelectAllInDB(false)
-      return
-    }
+    } else {
+      // Select ALL by iterating generatedLinks and checking against search
+      const allIndexes = new Set<number>()
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const query = searchQuery.toLowerCase()
 
-      const tableName =
-        selectedCountry === 'usa'
-          ? 'us_sellers'
-          : `${selectedCountry}_sellers`
+      generatedLinks.forEach((link, index) => {
+        // Apply same filter logic as filteredLinks
+        if (!searchQuery.trim()) {
+          // No search - select all
+          allIndexes.add(index)
+        } else {
+          // Has search - check if matches (use correct property names with underscores)
+          const matches =
+            link.seller_name?.toLowerCase().includes(query) ||
+            link.merchant_token?.toLowerCase().includes(query) ||
+            link.filter_label?.toLowerCase().includes(query) ||
+            link.filter_type?.toLowerCase().includes(query)
 
-      // ⚠️ FETCH ONLY IDS (FAST)
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('id')
-        .eq('user_id', user.id)
+          if (matches) {
+            allIndexes.add(index)
+          }
+        }
+      })
 
-      if (error) throw error
-
-      const allIndexes = data
-        .map(row =>
-          generatedLinks.findIndex(link => link.id === row.id)
-        )
-        .filter(i => i !== -1)
-
-      setSelectedLinks(new Set(allIndexes))
+      setSelectedLinks(allIndexes)
       setSelectAll(true)
-      setSelectAllInDB(true)
-
-    } catch (err) {
-      console.error('Select all failed:', err)
-      showToast('Failed to select all links', 'error')
     }
   }
 
@@ -941,22 +927,66 @@ function AddSeller() {
   }
 
   const handleBulkDelete = async () => {
-
     if (!supabase) return
     if (selectedLinks.size === 0) {
       showToast('Please select at least one link to delete!', 'warning')
       return
     }
+    // ✅ NEW: Delete ALL links from database for current country
+    const handleDeleteAll = async () => {
+      if (!supabase) return
+      if (!selectedCountry) return
+
+      setConfirmDialog({
+        title: '⚠️ Delete ALL Links?',
+        message: `Are you sure you want to delete ALL links for ${selectedCountry.toUpperCase()}? This will delete all links from the database permanently. This action cannot be undone.`,
+        onConfirm: async () => {
+          setConfirmDialog(null)
+          try {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
+              showToast('Please login to delete links', 'error')
+              return
+            }
+
+            const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
+
+            // Delete ALL links for this user and country
+            const { error } = await supabase
+              .from(tableName)
+              .delete()
+              .eq('user_id', user.id)
+
+            if (error) throw error
+
+            // Reset all states
+            setGeneratedLinks([])
+            setSelectedLinks(new Set())
+            setSelectAll(false)
+            setCopiedLinks(new Set())
+            setOffset(0)
+            setHasMore(false)
+            setLoadingLinks(false)
+
+            showToast(`All links deleted successfully for ${selectedCountry.toUpperCase()}!`, 'success')
+
+            // Update seller counts
+            await fetchSellerCounts()
+          } catch (error) {
+            console.error('Error deleting all links:', error)
+            showToast('Error deleting all links', 'error')
+          }
+        }
+      })
+    }
 
     setConfirmDialog({
       title: 'Delete Links?',
-      message: `Are you sure you want to delete ${selectedLinks.size} selected link(s)? This action cannot be undone.`,
+      message: `Are you sure you want to delete ${selectedLinks.size} selected links? This action cannot be undone.`,
       onConfirm: async () => {
         setConfirmDialog(null)
-
         try {
           const { data: { user } } = await supabase.auth.getUser()
-
           if (user) {
             const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
 
@@ -973,21 +1003,21 @@ function AddSeller() {
             }
           }
 
-          const updatedLinks = generatedLinks.filter((_, index) => !selectedLinks.has(index))
-          setGeneratedLinks(updatedLinks)
-          localStorage.setItem('generatedLinks', JSON.stringify(updatedLinks))
-
-          // Clear copied state for all deleted links
-          setCopiedLinks(prev => {
-            const newSet = new Set(prev)
-            selectedLinks.forEach(index => newSet.delete(index))
-            return newSet
-          })
-
+          // ✅ FIXED: Reset pagination and reload from database
+          setGeneratedLinks([])
           setSelectedLinks(new Set())
           setSelectAll(false)
+          setCopiedLinks(new Set())
 
-          showToast(`Successfully deleted ${selectedLinks.size} link(s)!`, 'success')
+          // Reset pagination state to reload fresh data
+          setOffset(0)
+          setHasMore(true)
+          setLoadingLinks(true)
+
+          showToast(`Successfully deleted ${selectedLinks.size} links!`, 'success')
+
+          // Reload data from database
+          await loadGeneratedLinksFromDB(selectedCountry)
           await fetchSellerCounts()
         } catch (error) {
           console.error('Error bulk deleting:', error)
@@ -997,12 +1027,58 @@ function AddSeller() {
     })
   }
 
+  const handleDeleteAll = async () => {
+    if (!supabase) return
+    if (!selectedCountry) return
 
+    setConfirmDialog({
+      title: '⚠️ Delete ALL Links?',
+      message: `Are you sure you want to delete ALL links for ${selectedCountry.toUpperCase()}? This will delete all links from the database permanently. This action cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmDialog(null)
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) {
+            showToast('Please login to delete links', 'error')
+            return
+          }
+
+          const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
+
+          // Delete ALL links for this user and country
+          const { error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('user_id', user.id)
+
+          if (error) throw error
+
+          // Reset all states
+          setGeneratedLinks([])
+          setSelectedLinks(new Set())
+          setSelectAll(false)
+          setCopiedLinks(new Set())
+          setOffset(0)
+          setHasMore(false)
+          setLoadingLinks(false)
+
+          showToast(`All links deleted successfully for ${selectedCountry.toUpperCase()}!`, 'success')
+
+          // Update seller counts
+          await fetchSellerCounts()
+        } catch (error) {
+          console.error('Error deleting all links:', error)
+          showToast('Error deleting all links', 'error')
+        }
+      }
+    })
+  }
+
+  // Then your next function (copyToClipboard, etc.)
   const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text)
     setCopiedLinks(prev => new Set(prev).add(index))
   }
-
   const copyAllLinks = () => {
     const allLinks = generatedLinks.map(link => link.profile_link).join('\n')
     navigator.clipboard.writeText(allLinks)
@@ -1120,7 +1196,21 @@ function AddSeller() {
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-md text-sm"
                     >
                       + Add New Seller
+
                     </button>
+                    {/* ✅ NEW: Delete All Button */}
+                    {generatedLinks.length > 0 && (
+                      <button
+                        onClick={handleDeleteAll}
+                        className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm border-2 border-red-900"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete All
+                      </button>
+                    )}
+
                     <button
                       onClick={downloadAsCSV}
                       disabled={generatedLinks.length === 0}
