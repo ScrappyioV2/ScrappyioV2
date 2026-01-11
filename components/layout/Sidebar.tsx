@@ -38,12 +38,12 @@ export default function Sidebar() {
   ];
 
   const brandCheckingSellers: NestedMenuItem[] = [
-    { label: "Seller 1", href: "/dashboard/usa-selling/brand-checking/seller-1" },
-    { label: "Seller 2", href: "/dashboard/usa-selling/brand-checking/seller-2" },
-    { label: "Seller 3", href: "/dashboard/usa-selling/brand-checking/seller-3" },
-    { label: "Seller 4", href: "/dashboard/usa-selling/brand-checking/seller-4" },
-    { label: "Seller 5", href: "/dashboard/usa-selling/brand-checking/seller-5" },
+    { label: "Golden Aura", href: "/dashboard/usa-selling/brand-checking/golden-aura" },
+    { label: "Rudra Retail", href: "/dashboard/usa-selling/brand-checking/rudra-retail" },
+    { label: "UBeauty", href: "/dashboard/usa-selling/brand-checking/ubeauty" },
+    { label: "Velvet Vista", href: "/dashboard/usa-selling/brand-checking/velvet-vista" },
   ];
+
 
   const usaSellingSubmenu: SubMenuItem[] = [
     { label: "Brand Checking", href: "/dashboard/usa-selling/brand-checking", submenu: brandCheckingSellers },
@@ -108,11 +108,10 @@ export default function Sidebar() {
               {/* Main Menu Item */}
               {item.submenu ? (
                 <div
-                  className={`flex items-center justify-between rounded-lg cursor-pointer transition-all duration-200 ${
-                    pathname === item.href || pathname.startsWith(item.href + "/")
+                  className={`flex items-center justify-between rounded-lg cursor-pointer transition-all duration-200 ${pathname === item.href || pathname.startsWith(item.href + "/")
                       ? "bg-blue-600 text-white"
                       : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
+                    }`}
                 >
                   {/* Clickable area for navigation */}
                   <button
@@ -121,16 +120,15 @@ export default function Sidebar() {
                   >
                     {item.label}
                   </button>
-                  
+
                   {/* Arrow button - only toggles dropdown */}
                   <button
                     onClick={(e) => toggleMenu(item.label, e)}
                     className="px-3 py-2.5"
                   >
                     <svg
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        expandedMenu === item.label ? "rotate-180" : ""
-                      }`}
+                      className={`w-4 h-4 transition-transform duration-200 ${expandedMenu === item.label ? "rotate-180" : ""
+                        }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -142,11 +140,10 @@ export default function Sidebar() {
               ) : (
                 <Link
                   href={item.href || "#"}
-                  className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    pathname === item.href
+                  className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${pathname === item.href
                       ? "bg-green-600 text-white"
                       : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </Link>
@@ -163,8 +160,8 @@ export default function Sidebar() {
                             // Item with nested submenu (Brand Checking)
                             <div>
                               <div className={`flex items-center justify-between rounded-md text-sm transition-all duration-200 ${pathname === subItem.href || pathname.startsWith(subItem.href + "/")
-                                  ? "bg-blue-500 text-white font-medium"
-                                  : "text-gray-400 hover:bg-gray-700 hover:text-white"
+                                ? "bg-blue-500 text-white font-medium"
+                                : "text-gray-400 hover:bg-gray-700 hover:text-white"
                                 }`}>
                                 <button
                                   onClick={() => handleSubMenuClick(subItem.href, true, subItem.label)}
@@ -187,8 +184,8 @@ export default function Sidebar() {
                                         href={nestedItem.href}
                                         onClick={(e) => e.stopPropagation()}
                                         className={`block px-3 py-1.5 rounded-md text-xs transition-all duration-200 ${pathname === nestedItem.href
-                                            ? "bg-green-500 text-white font-medium"
-                                            : "text-gray-400 hover:bg-gray-700 hover:text-white"
+                                          ? "bg-green-500 text-white font-medium"
+                                          : "text-gray-400 hover:bg-gray-700 hover:text-white"
                                           }`}
                                       >
                                         {nestedItem.label}
@@ -206,8 +203,8 @@ export default function Sidebar() {
                                 e.stopPropagation();
                               }}
                               className={`block px-3 py-2 rounded-md text-sm transition-all duration-200 ${pathname === subItem.href
-                                  ? "bg-blue-500 text-white font-medium"
-                                  : "text-gray-400 hover:bg-gray-700 hover:text-white"
+                                ? "bg-blue-500 text-white font-medium"
+                                : "text-gray-400 hover:bg-gray-700 hover:text-white"
                                 }`}
                             >
                               {subItem.label}
