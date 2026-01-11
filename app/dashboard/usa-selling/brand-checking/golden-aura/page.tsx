@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
+import Toast from '@/components/Toast'
 
 interface ProductRow {
     id: string
@@ -34,6 +35,8 @@ export default function GoldenAuraPage() {
         amz_link: true,
     })
     const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false)
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
+
 
     const SELLER_ID = '1' // Golden Aura is seller 1
 
@@ -90,7 +93,7 @@ export default function GoldenAuraPage() {
 
             if (insertError) {
                 console.error('Error inserting product:', insertError)
-                alert(`Failed to move product: ${insertError.message}`)
+                setToast({ message: `Failed to move product: ${insertError.message}`, type: 'error' })
                 return
             }
 
@@ -103,7 +106,7 @@ export default function GoldenAuraPage() {
 
             if (deleteError) {
                 console.error('Error deleting product:', deleteError)
-                alert(`Failed to delete product from current table: ${deleteError.message}`)
+                setToast({ message: 'Failed to delete product from current table', type: 'error' })
                 return
             }
 
@@ -112,11 +115,11 @@ export default function GoldenAuraPage() {
 
             // Show success message
             const actionText = action === 'approved' ? 'Validation' : action === 'not_approved' ? 'Not Approved' : 'Reject'
-            alert(`Product moved to ${actionText} successfully!`)
+            setToast({ message: `Product moved to ${actionText} successfully!`, type: 'success' })
 
         } catch (err) {
             console.error('Move product error:', err)
-            alert('An error occurred while moving the product')
+            setToast({ message: 'An error occurred while moving the product', type: 'error' })
         } finally {
             setProcessingId(null)
         }
@@ -353,6 +356,15 @@ export default function GoldenAuraPage() {
                         <p>Showing {products.length} products | {selectedIds.size} selected</p>
                     </div>
                 </div>
+
+                {/* Toast Notification */}
+                {toast && (
+                    <Toast
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => setToast(null)}
+                    />
+                )}
             </div>
         </PageTransition>
     )
