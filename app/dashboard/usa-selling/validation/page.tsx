@@ -7,6 +7,17 @@ import Toast from '@/components/Toast'
 import * as XLSX from 'xlsx'
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
 
+const formatUSD = (value: number | null) =>
+    value !== null ? `$${value.toFixed(2)}` : ''
+
+const formatINR = (value: number | null) =>
+    value !== null
+        ? `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+        : ''
+
+const parseCurrency = (value: string) =>
+    Number(value.replace(/[^0-9.]/g, '')) || null
+
 interface ValidationProduct {
     id: string
     asin: string
@@ -40,9 +51,14 @@ interface Filters {
     funnel: string
 }
 
-type FileTab = 'main_file' | 'pass_file' | 'faild_file' | 'pending'
+type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending'
 
 export default function ValidationPage() {
+    const [editingValue, setEditingValue] = useState<{
+        id: string
+        field: string
+        value: string
+    } | null>(null)
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
     const [products, setProducts] = useState<ValidationProduct[]>([])
     const [filteredProducts, setFilteredProducts] = useState<ValidationProduct[]>([])
@@ -87,7 +103,7 @@ export default function ValidationPage() {
                 fetchProducts()
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_pass_file' }, () => fetchStats())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_failed_file' }, () => fetchStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_fail_file' }, () => fetchStats())
             .subscribe()
 
         return () => {
@@ -187,7 +203,7 @@ export default function ValidationPage() {
                 if (activeTab === 'pass_file') {
                     // Show only PASS judgement products
                     filteredData = filteredData.filter(p => p.judgement === 'PASS')
-                } else if (activeTab === 'faild_file') {
+                } else if (activeTab === 'fail_file') {
                     // Show only FAIL judgement products
                     filteredData = filteredData.filter(p => p.judgement === 'FAIL')
                 } else if (activeTab === 'pending') {
@@ -222,18 +238,23 @@ export default function ValidationPage() {
                 return
             }
 
-            // Get updated product
-            const updatedProduct = products.find(p => p.id === id)
-            if (updatedProduct) {
-                const updatedProductData = { ...updatedProduct, [field]: value }
+            // Build latest product snapshot manually ✅
+            const existingProduct = products.find(p => p.id === id)
 
-                // Auto-calculate if all required fields are present
-                if (activeTab === 'main_file') {
-                    await autoCalculateAndUpdate(id, updatedProductData)
+            if (existingProduct && activeTab === 'main_file') {
+                const latestProduct: ValidationProduct = {
+                    ...existingProduct,
+                    [field]: value, // 👈 force latest value
                 }
+
+                await autoCalculateAndUpdate(id, latestProduct)
             }
 
-            setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+
+            setProducts(prev =>
+                prev.map(p => p.id === id ? { ...p, [field]: value } : p)
+            )
+
             setToast({ message: 'Updated successfully', type: 'success' })
         } catch (err) {
             console.error('Update error:', err)
@@ -280,7 +301,7 @@ export default function ValidationPage() {
                 judgement: result.judgement
             }
 
-            const targetTable = result.judgement === 'PASS' ? 'usa_validation_pass_file' : 'usa_validation_failed_file'
+            const targetTable = result.judgement === 'PASS' ? 'usa_validation_pass_file' : 'usa_validation_fail_file'
 
             // Check if product already exists in target table
             const { data: existingData } = await supabase
@@ -302,6 +323,21 @@ export default function ValidationPage() {
 
             fetchStats()
         }
+        setProducts(prev =>
+            prev.map(p =>
+                p.id === id
+                    ? {
+                        ...p,
+                        purchase_rate_inr: result.purchase_rate_inr,
+                        cargo_charge: result.cargo_charge,
+                        final_purchase_rate: result.final_purchase_rate,
+                        india_price: result.india_price,
+                        judgement: result.judgement,
+                    }
+                    : p
+            )
+        )
+
     }
 
     const handleUploadCSV = () => {
@@ -448,8 +484,8 @@ export default function ValidationPage() {
 
     return (
         <PageTransition>
-            <div className="min-h-screen bg-gray-50 p-6">
-                <div className="max-w-full mx-auto">
+            <div className="h-screen overflow-hidden bg-gray-50 p-6">
+                <div className="max-w-full mx-auto flex flex-col h-full">
                     <div className="mb-6">
                         <h1 className="text-3xl font-bold text-gray-900">USA Selling - Validation</h1>
                         <p className="text-gray-600 mt-1">Manage validation files and product status</p>
@@ -497,8 +533,8 @@ export default function ValidationPage() {
                             Pass File
                         </button>
                         <button
-                            onClick={() => setActiveTab('faild_file')}
-                            className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'faild_file'
+                            onClick={() => setActiveTab('fail_file')}
+                            className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'fail_file'
                                 ? 'bg-red-500 text-white shadow-lg'
                                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                                 }`}
@@ -633,7 +669,7 @@ export default function ValidationPage() {
                     </div>
 
                     {/* Table */}
-                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div className="bg-white rounded-lg shadow-lg flex-1 flex flex-col min-h-0">
                         {loading ? (
                             <div className="p-8 text-center">
                                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
@@ -644,7 +680,7 @@ export default function ValidationPage() {
                                 <p className="text-lg">No products found in {
                                     activeTab === 'main_file' ? 'Main File' :
                                         activeTab === 'pass_file' ? 'Pass File' :
-                                            activeTab === 'faild_file' ? 'Failed File' :
+                                            activeTab === 'fail_file' ? 'Failed File' :
                                                 'Pending'
                                 }</p>
                                 <p className="text-sm mt-2">
@@ -652,134 +688,196 @@ export default function ValidationPage() {
                                         ? 'Products with incomplete data will appear here'
                                         : activeTab === 'pass_file'
                                             ? 'Products with PASS judgement will appear here'
-                                            : activeTab === 'faild_file'
+                                            : activeTab === 'fail_file'
                                                 ? 'Products with FAIL judgement will appear here'
                                                 : 'All products will appear here'
                                     }
                                 </p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-gray-100 border-b-2 border-gray-300">
-                                        <tr>
-                                            <th className="p-3 text-left">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
-                                                    onChange={(e) => handleSelectAll(e.target.checked)}
-                                                    className="rounded"
-                                                />
-                                            </th>
-                                            {visibleColumns.asin && <th className="p-3 text-left font-semibold text-gray-700">ASIN</th>}
-                                            {visibleColumns.product_name && <th className="p-3 text-left font-semibold text-gray-700">Product Name</th>}
-                                            {visibleColumns.brand && <th className="p-3 text-left font-semibold text-gray-700">Brand</th>}
-                                            {visibleColumns.seller_tag && <th className="p-3 text-left font-semibold text-gray-700">Seller Tag</th>}
-                                            {visibleColumns.funnel && <th className="p-3 text-left font-semibold text-gray-700">Funnel</th>}
-                                            {visibleColumns.no_of_seller && <th className="p-3 text-left font-semibold text-gray-700">No. OF seller</th>}
-                                            {visibleColumns.usa_link && <th className="p-3 text-left font-semibold text-gray-700">USA Link</th>}
-                                            {visibleColumns.product_weight && <th className="p-3 text-left font-semibold text-gray-700">Weight (g)</th>}
-                                            {visibleColumns.usd_price && <th className="p-3 text-left font-semibold text-gray-700">USD Price</th>}
-                                            {visibleColumns.inr_sold && <th className="p-3 text-left font-semibold text-gray-700">INR Sold</th>}
-                                            {visibleColumns.inr_purchase && <th className="p-3 text-left font-semibold text-gray-700">INR Purchase</th>}
-                                            {visibleColumns.india_price && <th className="p-3 text-left font-semibold text-gray-700">India Price</th>}
-                                            {visibleColumns.judgement && <th className="p-3 text-left font-semibold text-gray-700">Judgement</th>}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredProducts.map((product, index) => (
-                                            <tr key={product.id} className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                                <td className="p-3">
+                            <div className="overflow-x-auto flex-1 min-h-0">
+                                <div className="overflow-y-auto h-full">
+                                    <table className="w-full">
+                                        <thead className="bg-gray-100 border-b-2 border-gray-30 sticky top-0 z-10">
+                                            <tr>
+                                                <th className="p-3 text-left">
                                                     <input
                                                         type="checkbox"
-                                                        checked={selectedIds.has(product.id)}
-                                                        onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                        checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
+                                                        onChange={(e) => handleSelectAll(e.target.checked)}
                                                         className="rounded"
                                                     />
-                                                </td>
-                                                {visibleColumns.asin && <td className="p-3 font-mono text-sm">{product.asin}</td>}
-                                                {visibleColumns.product_name && <td className="p-3">{product.product_name || '-'}</td>}
-                                                {visibleColumns.brand && <td className="p-3">{product.brand || '-'}</td>}
-                                                {visibleColumns.seller_tag && <td className="p-3">{product.seller_tag || '-'}</td>}
-                                                {visibleColumns.funnel && <td className="p-3">{product.funnel || '-'}</td>}
-                                                {visibleColumns.no_of_seller && <td className="p-3">{product.no_of_seller || '-'}</td>}
-                                                {visibleColumns.usa_link && (
-                                                    <td className="p-3">
-                                                        {product.usa_link ? (
-                                                            <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View</a>
-                                                        ) : '-'}
-                                                    </td>
-                                                )}
-                                                {visibleColumns.product_weight && (
-                                                    <td className="p-3">
-                                                        <input
-                                                            type="number"
-                                                            value={product.product_weight || ''}
-                                                            onChange={(e) => handleCellEdit(product.id, 'product_weight', parseFloat(e.target.value) || null)}
-                                                            className="w-20 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500"
-                                                            placeholder="0"
-                                                            disabled={activeTab !== 'main_file'}
-                                                        />
-                                                    </td>
-                                                )}
-                                                {visibleColumns.usd_price && (
-                                                    <td className="p-3">
-                                                        <input
-                                                            type="number"
-                                                            value={product.usd_price || ''}
-                                                            onChange={(e) => handleCellEdit(product.id, 'usd_price', parseFloat(e.target.value) || null)}
-                                                            className="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500"
-                                                            placeholder="0.00"
-                                                            step="0.01"
-                                                            disabled={activeTab !== 'main_file'}
-                                                        />
-                                                    </td>
-                                                )}
-                                                {visibleColumns.inr_sold && (
-                                                    <td className="p-3">
-                                                        <input
-                                                            type="number"
-                                                            value={product.inr_sold || ''}
-                                                            onChange={(e) => handleCellEdit(product.id, 'inr_sold', parseFloat(e.target.value) || null)}
-                                                            className="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-green-500"
-                                                            placeholder="0.00"
-                                                            step="0.01"
-                                                            disabled={activeTab !== 'main_file'}
-                                                        />
-                                                    </td>
-                                                )}
-                                                {visibleColumns.inr_purchase && (
-                                                    <td className="p-3">
-                                                        <input
-                                                            type="number"
-                                                            value={product.inr_purchase || ''}
-                                                            onChange={(e) => handleCellEdit(product.id, 'inr_purchase', parseFloat(e.target.value) || null)}
-                                                            className="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-purple-500"
-                                                            placeholder="0.00"
-                                                            step="0.01"
-                                                            disabled={activeTab !== 'main_file'}
-                                                        />
-                                                    </td>
-                                                )}
-                                                {visibleColumns.india_price && <td className="p-3">{product.india_price || '-'}</td>}
-                                                {visibleColumns.judgement && (
-                                                    <td className="p-3">
-                                                        {product.judgement ? (
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.judgement === 'PASS' ? 'bg-green-500 text-white' :
-                                                                product.judgement === 'FAIL' ? 'bg-red-500 text-white' :
-                                                                    'bg-gray-400 text-white'
-                                                                }`}>
-                                                                {product.judgement}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-gray-400 text-sm">Auto-calculating...</span>
-                                                        )}
-                                                    </td>
-                                                )}
+                                                </th>
+                                                {visibleColumns.asin && <th className="p-3 text-left font-semibold text-gray-700">ASIN</th>}
+                                                {visibleColumns.product_name && <th className="p-3 text-left font-semibold text-gray-700">Product Name</th>}
+                                                {visibleColumns.brand && <th className="p-3 text-left font-semibold text-gray-700">Brand</th>}
+                                                {visibleColumns.seller_tag && <th className="p-3 text-left font-semibold text-gray-700">Seller Tag</th>}
+                                                {visibleColumns.funnel && <th className="p-3 text-left font-semibold text-gray-700">Funnel</th>}
+                                                {visibleColumns.no_of_seller && <th className="p-3 text-left font-semibold text-gray-700">No. OF seller</th>}
+                                                {visibleColumns.usa_link && <th className="p-3 text-left font-semibold text-gray-700">USA Link</th>}
+                                                {visibleColumns.product_weight && <th className="p-3 text-left font-semibold text-gray-700">Weight (g)</th>}
+                                                {visibleColumns.usd_price && <th className="p-3 text-left font-semibold text-gray-700">USD Price</th>}
+                                                {visibleColumns.inr_sold && <th className="p-3 text-left font-semibold text-gray-700">INR Sold</th>}
+                                                {visibleColumns.inr_purchase && <th className="p-3 text-left font-semibold text-gray-700">INR Purchase</th>}
+                                                {visibleColumns.india_price && <th className="p-3 text-left font-semibold text-gray-700">India Price</th>}
+                                                {visibleColumns.judgement && <th className="p-3 text-left font-semibold text-gray-700">Judgement</th>}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {filteredProducts.map((product, index) => (
+                                                <tr key={product.id} className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                                    <td className="p-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(product.id)}
+                                                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                            className="rounded"
+                                                        />
+                                                    </td>
+                                                    {visibleColumns.asin && <td className="p-3 font-mono text-sm">{product.asin}</td>}
+                                                    {visibleColumns.product_name && <td className="p-3">{product.product_name || '-'}</td>}
+                                                    {visibleColumns.brand && <td className="p-3">{product.brand || '-'}</td>}
+                                                    {visibleColumns.seller_tag && <td className="p-3">{product.seller_tag || '-'}</td>}
+                                                    {visibleColumns.funnel && <td className="p-3">{product.funnel || '-'}</td>}
+                                                    {visibleColumns.no_of_seller && <td className="p-3">{product.no_of_seller || '-'}</td>}
+                                                    {visibleColumns.usa_link && (
+                                                        <td className="p-3">
+                                                            {product.usa_link ? (
+                                                                <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View</a>
+                                                            ) : '-'}
+                                                        </td>
+                                                    )}
+                                                    {visibleColumns.product_weight && (
+                                                        <td className="p-3">
+                                                            <input
+                                                                type="number"
+                                                                value={product.product_weight || ''}
+                                                                onChange={(e) => handleCellEdit(product.id, 'product_weight', parseFloat(e.target.value) || null)}
+                                                                className="w-20 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500"
+                                                                placeholder="0"
+                                                                disabled={activeTab !== 'main_file'}
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    {visibleColumns.usd_price && (
+                                                        <td className="p-3">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    editingValue?.id === product.id && editingValue.field === 'usd_price'
+                                                                        ? editingValue.value
+                                                                        : formatUSD(product.usd_price)
+                                                                }
+                                                                onFocus={() =>
+                                                                    setEditingValue({
+                                                                        id: product.id,
+                                                                        field: 'usd_price',
+                                                                        value: product.usd_price?.toString() || ''
+                                                                    })
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setEditingValue({
+                                                                        id: product.id,
+                                                                        field: 'usd_price',
+                                                                        value: e.target.value
+                                                                    })
+                                                                }
+                                                                onBlur={() => {
+                                                                    const parsed = parseCurrency(editingValue?.value || '')
+                                                                    handleCellEdit(product.id, 'usd_price', parsed)
+                                                                    setEditingValue(null)
+                                                                }}
+                                                                className="w-28 px-2 py-1 border rounded"
+                                                                disabled={activeTab !== 'main_file'}
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    {visibleColumns.inr_sold && (
+                                                        <td className="p-3">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    editingValue?.id === product.id && editingValue.field === 'inr_sold'
+                                                                        ? editingValue.value
+                                                                        : formatINR(product.inr_sold)
+                                                                }
+                                                                onFocus={() =>
+                                                                    setEditingValue({
+                                                                        id: product.id,
+                                                                        field: 'inr_sold',
+                                                                        value: product.inr_sold?.toString() || ''
+                                                                    })
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setEditingValue({
+                                                                        id: product.id,
+                                                                        field: 'inr_sold',
+                                                                        value: e.target.value
+                                                                    })
+                                                                }
+                                                                onBlur={() => {
+                                                                    const parsed = parseCurrency(editingValue?.value || '')
+                                                                    handleCellEdit(product.id, 'inr_sold', parsed)
+                                                                    setEditingValue(null)
+                                                                }}
+                                                                className="w-32 px-2 py-1 border rounded"
+                                                                disabled={activeTab !== 'main_file'}
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    {visibleColumns.inr_purchase && (
+                                                        <td className="p-3">
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    editingValue?.id === product.id && editingValue.field === 'inr_purchase'
+                                                                        ? editingValue.value
+                                                                        : formatINR(product.inr_purchase)
+                                                                }
+                                                                onFocus={() =>
+                                                                    setEditingValue({
+                                                                        id: product.id,
+                                                                        field: 'inr_purchase',
+                                                                        value: product.inr_purchase?.toString() || ''
+                                                                    })
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setEditingValue({
+                                                                        id: product.id,
+                                                                        field: 'inr_purchase',
+                                                                        value: e.target.value
+                                                                    })
+                                                                }
+                                                                onBlur={() => {
+                                                                    const parsed = parseCurrency(editingValue?.value || '')
+                                                                    handleCellEdit(product.id, 'inr_purchase', parsed)
+                                                                    setEditingValue(null)
+                                                                }}
+                                                                className="w-32 px-2 py-1 border rounded"
+                                                                disabled={activeTab !== 'main_file'}
+                                                            />
+                                                        </td>
+                                                    )}
+                                                    {visibleColumns.india_price && <td className="p-3 font-semibold">{formatINR(product.india_price)}</td>}
+                                                    {visibleColumns.judgement && (
+                                                        <td className="p-3">
+                                                            {product.judgement ? (
+                                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.judgement === 'PASS' ? 'bg-green-500 text-white' :
+                                                                    product.judgement === 'FAIL' ? 'bg-red-500 text-white' :
+                                                                        'bg-gray-400 text-white'
+                                                                    }`}>
+                                                                    {product.judgement}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-400 text-sm">Auto-calculating...</span>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
                     </div>

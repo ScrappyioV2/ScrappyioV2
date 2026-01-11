@@ -57,18 +57,25 @@ export function calculateProductValues(
         const finalPurchaseRate = purchaseRateINR + cargoCharge + packingCost + commission
 
         // D) India Price = same as INR Purchase (user-entered)
-        const indiaPrice = inrPurchase
+        const indiaPrice = finalPurchaseRate
 
         // E) Judgement = INR Sold > INR Purchase
-        const judgement = soldPriceINR > inrPurchase ? 'PASS' : 'FAIL'
+        // E) Judgement = INR Sold > Final Purchase Rate (V1 logic)
+        let judgement: 'PASS' | 'FAIL' | 'PENDING' = 'PENDING'
+
+        if (purchaseRateUSD > 0 && expectedWt > 0 && soldPriceINR > 0) {
+            judgement = soldPriceINR > finalPurchaseRate ? 'PASS' : 'FAIL'
+        }
+
 
         return {
             purchase_rate_inr: parseFloat(purchaseRateINR.toFixed(2)),
             cargo_charge: parseFloat(cargoCharge.toFixed(2)),
             final_purchase_rate: parseFloat(finalPurchaseRate.toFixed(2)),
-            india_price: indiaPrice,
+            india_price: parseFloat(finalPurchaseRate.toFixed(2)),
             judgement
         }
+
     }
 
     // Return pending if not all values present
