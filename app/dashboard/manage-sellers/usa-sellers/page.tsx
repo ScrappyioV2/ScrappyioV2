@@ -1,11 +1,12 @@
 'use client';
+
 export const dynamic = 'force-dynamic'
+
 import {
   normalizeDataForDB,
-  filterDuplicateASINs,
+  // filterDuplicateASINs,
 } from '@/lib/utils/master-table/dataHelpers'
-import { useState, useEffect } from 'react';
-
+import { useState, useEffect, useCallback } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
 import UploadModal from '@/components/shared/master-table/UploadModal';
@@ -35,7 +36,6 @@ const ALL_COLUMNS = [
   'weight',
 ];
 
-// Default column widths
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   s_no: 60,
   asin: 120,
@@ -67,9 +67,12 @@ export default function UsaSellersPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
 
+  // Upload progress state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
+
   const ITEMS_PER_PAGE = 50;
 
-  // Load column preferences
   useEffect(() => {
     loadColumnPreferences();
   }, []);
@@ -99,7 +102,6 @@ export default function UsaSellersPage() {
   };
 
   const saveColumnPreferences = async (columns: string[], widths?: Record<string, number>) => {
-  
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -141,77 +143,150 @@ export default function UsaSellersPage() {
 
   const handleFiltersChange = (newFilters: Record<string, any>) => {
     setFilters(newFilters);
-    setCurrentPage(1); // Reset to page 1 when filters change
+    setCurrentPage(1);
   };
 
-  const handleUpload = async (file: File) => {
-    if (!supabase) return
-    const toastId = toast.loading('Uploading file...');
+  // Auto-generate Amazon link from ASIN
+  const generateAmazonLink = (asin: string, country: 'usa' | 'india'): string => {
+    if (!asin) return '';
+    const domain = country === 'usa' ? 'amazon.com' : 'amazon.in';
+    return `https://www.${domain}/dp/${asin}`;
+  };
+
+  // FIXED: Handle multiple file uploads with batch insert
+  const handleUpload = async (files: File[]) => {
+    if (!supabase) return;
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    const toastId = toast.loading(`Processing ${files.length} file(s)...`);
 
     try {
-      // Parse file
-      const { data, errors } = await parseUploadedFile(file);
+      let allNewProducts: any[] = [];
+      let totalDuplicates = 0;
 
-      if (errors.length > 0) {
-        toast.error(`Errors: ${errors.join(', ')}`, { id: toastId });
-        return;
+      // Step 1: Parse all files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        toast.loading(`Parsing file ${i + 1}/${files.length}: ${file.name}`, { id: toastId });
+
+        const { data, errors } = await parseUploadedFile(file);
+
+        if (errors.length > 0) {
+          toast.error(`Errors in ${file.name}: ${errors.join(', ')}`, { id: toastId });
+          continue;
+        }
+
+        if (data.length === 0) {
+          toast.error(`No data found in ${file.name}`, { id: toastId });
+          continue;
+        }
+
+        // Normalize data and conditionally generate links
+        const normalizedData = normalizeDataForDB(data)
+  .map((product) => {
+    if (product && !product.link && product.asin) {
+      product.link = generateAmazonLink(product.asin, 'usa');
+    }
+    return product;
+  })
+  .filter(Boolean);
+
+// ✅ THIS IS STEP 2 (ONLY THIS LINE)
+allNewProducts.push(...normalizedData);
+ // Remove null products
+
+        // Filter duplicates
+        // toast.loading(`Checking duplicates in ${file.name}...`, { id: toastId });
+        // const { newProducts, duplicateCount } = await filterDuplicateASINs(
+        //   normalizedData,
+        //   TABLE_NAME,
+        //   supabase
+        // );
+
+        // allNewProducts.push(...newProducts);
+        // totalDuplicates += duplicateCount;
       }
 
-      if (data.length === 0) {
-        toast.error('No data found in file', { id: toastId });
-        return;
-      }
-
-      // Normalize data
-      const normalizedData = normalizeDataForDB(data);
-
-      // Filter duplicate ASINs
-      toast.loading(`Checking ${normalizedData.length} products for duplicates...`, { id: toastId });
-
-      const { newProducts, duplicateCount } = await filterDuplicateASINs(
-        normalizedData,
-        TABLE_NAME,
-        supabase
-      );
-
-      // If all products are duplicates
-      if (newProducts.length === 0) {
+      // If no new products after processing all files
+      if (allNewProducts.length === 0) {
         toast.error(
-          `All ${duplicateCount} products are duplicates. No new data uploaded.`,
+          `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
           { id: toastId, duration: 5000 }
         );
+        setIsUploading(false);
         return;
       }
 
-      // Insert only new products
-      toast.loading(`Inserting ${newProducts.length} new products...`, { id: toastId });
-      const { error } = await supabase.from(TABLE_NAME).insert(newProducts);
+      // Step 2: Batch insert with progress tracking
+      const batchSize = 1000;
+      const totalBatches = Math.ceil(allNewProducts.length / batchSize);
+      let successCount = 0;
+      let failedBatches = 0;
 
-      if (error) throw error;
+      setUploadProgress({ current: 0, total: allNewProducts.length, batch: 0, totalBatches });
 
-      // Show success message
-      if (duplicateCount > 0) {
-        toast.success(
-          `✅ Added ${newProducts.length} new products\n⚠️ Skipped ${duplicateCount} duplicate ASINs`,
-          { id: toastId, duration: 6000 }
+      for (let i = 0; i < allNewProducts.length; i += batchSize) {
+        const batch = allNewProducts.slice(i, i + batchSize);
+        const batchNumber = Math.floor(i / batchSize) + 1;
+
+        toast.loading(
+          `Inserting batch ${batchNumber}/${totalBatches}...`,
+          { id: toastId }
         );
-      } else {
-        toast.success(
-          `✅ Successfully uploaded ${newProducts.length} products!`,
-          { id: toastId, duration: 4000 }
-        );
+
+        setUploadProgress({
+          current: i + batch.length,
+          total: allNewProducts.length,
+          batch: batchNumber,
+          totalBatches
+        });
+
+        try {
+          const { error } = await supabase.from(TABLE_NAME).insert(batch);
+
+          if (error) {
+            console.error(`❌ Batch ${batchNumber} failed:`, error);
+            failedBatches++;
+          } else {
+            successCount += batch.length;
+          }
+        } catch (err) {
+          console.error(`❌ Batch ${batchNumber} exception:`, err);
+          failedBatches++;
+        }
       }
 
-      // Refresh table
-      setRefreshTrigger((prev) => prev + 1);
+      // Step 3: Show final summary
+      const summaryLines = [];
+      
+      if (successCount > 0) {
+        summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
+      }
+      
+      if (totalDuplicates > 0) {
+        summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
+      }
+      
+      if (failedBatches > 0) {
+        summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
+      }
+
+      if (successCount > 0) {
+        toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
+        setRefreshTrigger((prev) => prev + 1);
+      } else {
+        toast.error('Upload failed. Please try again.', { id: toastId, duration: 5000 });
+      }
+
     } catch (error: any) {
-  console.error('Upload error:', error);
-  console.error('Error details:', error?.message);
-  console.error('Error hint:', error?.hint);
-  console.error('Error details full:', JSON.stringify(error, null, 2));
-  const errorMessage = error?.message || 'Failed to upload data. Please try again.';
-  toast.error(errorMessage, { id: toastId, duration: 5000 });
-}
+      console.error('Upload error:', error);
+      const errorMessage = error?.message || 'Failed to upload data. Please try again.';
+      toast.error(errorMessage, { id: toastId, duration: 5000 });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
+    }
   };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
@@ -220,7 +295,6 @@ export default function UsaSellersPage() {
       setIsExporting(true);
       setExportProgress({ current: 0, total: 0 });
 
-      // Build base query
       let baseQuery: any = supabase.from(TABLE_NAME).select('*', { count: 'exact', head: true });
 
       if (searchTerm) {
@@ -232,7 +306,6 @@ export default function UsaSellersPage() {
       Object.entries(filters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
 
-        // Handle text, multiselect filters
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           baseQuery = baseQuery.in(columnKey, filterData.values);
         }
@@ -241,27 +314,16 @@ export default function UsaSellersPage() {
           const value = parseFloat(filterData.value);
           if (!isNaN(value)) {
             switch (filterData.operator) {
-              case 'eq':
-                baseQuery = baseQuery.eq(columnKey, value);
-                break;
-              case 'gt':
-                baseQuery = baseQuery.gt(columnKey, value);
-                break;
-              case 'lt':
-                baseQuery = baseQuery.lt(columnKey, value);
-                break;
-              case 'gte':
-                baseQuery = baseQuery.gte(columnKey, value);
-                break;
-              case 'lte':
-                baseQuery = baseQuery.lte(columnKey, value);
-                break;
+              case 'eq': baseQuery = baseQuery.eq(columnKey, value); break;
+              case 'gt': baseQuery = baseQuery.gt(columnKey, value); break;
+              case 'lt': baseQuery = baseQuery.lt(columnKey, value); break;
+              case 'gte': baseQuery = baseQuery.gte(columnKey, value); break;
+              case 'lte': baseQuery = baseQuery.lte(columnKey, value); break;
             }
           }
         }
       });
 
-      // Get total count
       const { count } = await baseQuery;
       const totalCount = count || 0;
 
@@ -273,7 +335,6 @@ export default function UsaSellersPage() {
 
       setExportProgress({ current: 0, total: totalCount });
 
-      // Fetch all data in batches
       let allData: any[] = [];
       let offset = 0;
       const batchSize = 1000;
@@ -291,7 +352,6 @@ export default function UsaSellersPage() {
         Object.entries(filters).forEach(([columnKey, filterData]) => {
           if (!filterData) return;
 
-          // Handle text, multiselect filters
           if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
             query = query.in(columnKey, filterData.values);
           }
@@ -300,21 +360,11 @@ export default function UsaSellersPage() {
             const value = parseFloat(filterData.value);
             if (!isNaN(value)) {
               switch (filterData.operator) {
-                case 'eq':
-                  query = query.eq(columnKey, value);
-                  break;
-                case 'gt':
-                  query = query.gt(columnKey, value);
-                  break;
-                case 'lt':
-                  query = query.lt(columnKey, value);
-                  break;
-                case 'gte':
-                  query = query.gte(columnKey, value);
-                  break;
-                case 'lte':
-                  query = query.lte(columnKey, value);
-                  break;
+                case 'eq': query = query.eq(columnKey, value); break;
+                case 'gt': query = query.gt(columnKey, value); break;
+                case 'lt': query = query.lt(columnKey, value); break;
+                case 'gte': query = query.gte(columnKey, value); break;
+                case 'lte': query = query.lte(columnKey, value); break;
               }
             }
           }
@@ -349,117 +399,164 @@ export default function UsaSellersPage() {
   const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalProducts);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Toast Notifications */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          success: {
-            style: {
-              background: '#10B981',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#10B981',
-            },
-          },
-          error: {
-            style: {
-              background: '#EF4444',
-              color: '#fff',
-            },
-          },
-          loading: {
-            style: {
-              background: '#3B82F6',
-              color: '#fff',
-            },
-          },
-        }}
-      />
+    <div className="p-6 space-y-6">
+      <Toaster position="top-right" />
 
-      {/* Export Loading Modal */}
-      {isExporting && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+      {/* Upload Progress Modal */}
+      {isUploading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto mb-4"></div>
-              <h3 className="text-xl font-bold mb-4">Exporting Data...</h3>
-              {exportProgress.total > 0 && (
-                <div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-2">
+              <div className="flex justify-center mb-4">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+              </div>
+
+              <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                Uploading Products...
+              </h3>
+
+              {uploadProgress.total > 0 && (
+                <>
+                  <p className="text-gray-600 mb-2">
+                    Batch {uploadProgress.batch} of {uploadProgress.totalBatches}
+                  </p>
+                  
+                  <p className="text-2xl font-bold text-blue-600 mb-4">
+                    {uploadProgress.current.toLocaleString()} / {uploadProgress.total.toLocaleString()}
+                  </p>
+
+                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
                     <div
-                      className="bg-green-600 h-3 transition-all duration-300"
-                      style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
+                      className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-out"
+                      style={{
+                        width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%`
+                      }}
                     ></div>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    {exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} products
+
+                  <p className="text-sm text-gray-500">
+                    {Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete
                   </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {Math.round((exportProgress.current / exportProgress.total) * 100)}% complete
-                  </p>
-                </div>
+                </>
               )}
             </div>
           </div>
         </div>
       )}
 
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search by ASIN, Product Name, or Brand..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsColumnToggleOpen(true)}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              Columns
-            </button>
-
-            <ExportButton onExport={handleExport} />
-
-            <button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              Upload
-            </button>
+      {/* Export Loading Modal */}
+      {isExporting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center">
+              <div className="flex justify-center mb-4">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600"></div>
+              </div>
+              <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                Exporting Data...
+              </h3>
+              {exportProgress.total > 0 && (
+                <>
+                  <p className="text-2xl font-bold text-green-600 mb-4">
+                    {exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} products
+                  </p>
+                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
+                    <div
+                      className="bg-green-600 h-4 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%`
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {Math.round((exportProgress.current / exportProgress.total) * 100)}% complete
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="mb-4 text-sm text-gray-600">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <svg
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by ASIN, Product Name, or Brand..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsColumnToggleOpen(true)}
+            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            Columns
+          </button>
+
+          <ExportButton
+            onExport={handleExport}
+            // selectedCount={selectedIds.size}
+          />
+
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Upload
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <UsaMasterTable
+  searchTerm={searchTerm}
+  hiddenColumns={hiddenColumns}  // ADD THIS
+  columnWidths={columnWidths}
+  onColumnWidthChange={handleColumnWidthChange}
+  filters={filters}
+  onFiltersChange={handleFiltersChange}
+  // tableName={TABLE_NAME}
+  refreshTrigger={refreshTrigger}
+  currentPage={currentPage}
+  itemsPerPage={ITEMS_PER_PAGE}
+  onTotalProductsChange={setTotalProducts}
+  onTotalPagesChange={setTotalPages}
+  selectedIds={selectedIds}
+  onSelectedIdsChange={setSelectedIds}
+/>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600">
           Showing {totalProducts > 0 ? startItem : 0}-{endItem} of {totalProducts.toLocaleString()}
         </div>
 
-        <UsaMasterTable
-          searchTerm={searchTerm}
-          hiddenColumns={hiddenColumns}
-          columnWidths={columnWidths}
-          onColumnWidthChange={handleColumnWidthChange}
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          refreshTrigger={refreshTrigger}
-          currentPage={currentPage}
-          itemsPerPage={ITEMS_PER_PAGE}
-          onTotalProductsChange={setTotalProducts}
-          onTotalPagesChange={setTotalPages}
-          selectedIds={selectedIds}
-          onSelectedIdsChange={setSelectedIds}
-        />
-
         {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
@@ -467,11 +564,9 @@ export default function UsaSellersPage() {
             >
               &lt; Previous
             </button>
-
             <span className="text-sm text-gray-600">
               Page {currentPage} of {totalPages}
             </span>
-
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
@@ -481,21 +576,23 @@ export default function UsaSellersPage() {
             </button>
           </div>
         )}
-
-        <ColumnToggle
-          isOpen={isColumnToggleOpen}
-          onClose={() => setIsColumnToggleOpen(false)}
-          columns={ALL_COLUMNS}
-          hiddenColumns={hiddenColumns}
-          onToggleColumn={handleToggleColumn}
-        />
-
-        <UploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          onUpload={handleUpload}
-        />
       </div>
+
+      {/* Modals */}
+      <ColumnToggle
+        isOpen={isColumnToggleOpen}
+        onClose={() => setIsColumnToggleOpen(false)}
+        columns={ALL_COLUMNS}
+        hiddenColumns={hiddenColumns}
+        onToggleColumn={handleToggleColumn}
+      />
+
+      <UploadModal
+  isOpen={isUploadModalOpen}
+  onClose={() => setIsUploadModalOpen(false)}
+  onUpload={handleUpload}
+  multiple={true}
+/>
     </div>
   );
 }
