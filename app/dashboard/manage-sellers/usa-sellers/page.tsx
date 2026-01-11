@@ -596,3 +596,6 @@ allNewProducts.push(...normalizedData);
     </div>
   );
 }
+
+
+
