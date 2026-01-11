@@ -39,6 +39,17 @@ export default function GoldenAuraPage() {
 
   const SELLER_ID = '2' // Rudra retail is seller 2
 
+  // ADD THIS HELPER FUNCTION
+  const getSellerName = (sellerId: string) => {
+    const sellerNames: { [key: string]: string } = {
+      '1': 'Golden Aura',
+      '2': 'Rudra Retail',
+      '3': 'UBeauty',
+      '4': 'Velvet Vista'
+    }
+    return sellerNames[sellerId] || 'Unknown'
+  }
+
   useEffect(() => {
     fetchProducts()
   }, [activeTab])
@@ -72,27 +83,42 @@ export default function GoldenAuraPage() {
 
     try {
       let targetTable = ''
+      let dataToInsert: any = {}
 
-      // Determine target table based on action
+      // Prepare data based on action
+      const { id, working, ...productData } = product
+
       if (action === 'approved') {
-        targetTable = `usa_seller_${SELLER_ID}_validation`
+        // Move to validation main_file with proper column mapping
+        targetTable = 'usa_validation_main_file'
+        dataToInsert = {
+          asin: product.asin,
+          product_name: product.product_name,
+          brand: product.brand,
+          seller_tag: getSellerName(SELLER_ID),
+          funnel: product.funnel,
+          no_of_seller: 1,
+          usa_link: product.amz_link,
+          india_price: null,
+          product_weight: null,
+          judgement: null
+        }
       } else if (action === 'not_approved') {
         targetTable = `usa_seller_${SELLER_ID}_not_approved`
+        dataToInsert = productData
       } else if (action === 'reject') {
         targetTable = `usa_seller_${SELLER_ID}_reject`
+        dataToInsert = productData
       }
-
-      // Prepare data (remove id and working fields)
-      const { id, working, ...productData } = product
 
       // Insert into target table
       const { error: insertError } = await supabase
         .from(targetTable)
-        .insert([productData])
+        .insert([dataToInsert])
 
       if (insertError) {
         console.error('Error inserting product:', insertError)
-        setToast({ message: 'Failed to delete product from current table', type: 'error' })
+        setToast({ message: `Failed to move product: ${insertError.message}`, type: 'error' })
         return
       }
 
@@ -105,15 +131,15 @@ export default function GoldenAuraPage() {
 
       if (deleteError) {
         console.error('Error deleting product:', deleteError)
-        alert(`Failed to delete product from current table: ${deleteError.message}`)
+        setToast({ message: 'Failed to delete product from current table', type: 'error' })
         return
       }
 
       // Refresh the list
       await fetchProducts()
 
-      // Show success message
-      const actionText = action === 'approved' ? 'Validation' : action === 'not_approved' ? 'Not Approved' : 'Reject'
+      // Show success toast
+      const actionText = action === 'approved' ? 'Validation Main File' : action === 'not_approved' ? 'Not Approved' : 'Reject'
       setToast({ message: `Product moved to ${actionText} successfully!`, type: 'success' })
 
     } catch (err) {
@@ -123,6 +149,7 @@ export default function GoldenAuraPage() {
       setProcessingId(null)
     }
   }
+
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
