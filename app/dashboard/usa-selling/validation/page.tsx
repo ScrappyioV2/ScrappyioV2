@@ -425,8 +425,44 @@ export default function ValidationPage() {
     }
 
     const bulkUSAPriceUpdate = async () => {
-        setToast({ message: 'Bulk USA Price Update feature coming soon with Keepa API!', type: 'info' })
-    }
+        try {
+            const targetProducts =
+                selectedIds.size > 0
+                    ? products.filter(p => selectedIds.has(p.id))
+                    : products;
+
+            const asins = targetProducts
+                .map((p) => p.asin)
+                .filter(Boolean)
+                .slice(0, 1); // ✅ ONLY ONE ASIN
+
+            if (asins.length === 0) {
+                setToast({ message: 'No ASINs available for update', type: 'warning' });
+                return;
+            }
+
+            setToast({ message: 'Updating USA prices via Keepa...', type: 'info' });
+
+            const res = await fetch(
+                "/api/usa-selling/bulk-keepa-update",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ asins }),
+                }
+            );
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Keepa update failed");
+            }
+
+            setToast({ message: 'USA prices updated successfully!', type: 'success' });
+        } catch (err) {
+            console.error(err);
+            setToast({ message: 'Bulk USA price update failed', type: 'error' });
+        }
+    };
 
     const openConstantsModal = () => {
         setIsConstantsModalOpen(true)
