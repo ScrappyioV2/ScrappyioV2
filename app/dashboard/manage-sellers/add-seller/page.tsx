@@ -433,9 +433,8 @@ function AddSeller() {
   }
 
   const loadGeneratedLinksFromDB = async (countryCode: string) => {
-    if (!countryCode || isFetchingMore || !hasMore) return
-
-
+    if (!countryCode) return;  // ✅ Simplified check
+    if (isFetchingMore || (!hasMore && offset > 0)) return;  // Only block if actually loading or no more data
     if (!supabase) return
 
     try {
@@ -901,9 +900,17 @@ function AddSeller() {
       showToast(`Generated ${generatedLinksArray.length} links (saved locally only)`, 'warning')
     }
 
-    await loadGeneratedLinksFromDB(selectedCountry)
-    setCurrentView('links')
-    await fetchSellerCounts()
+    // ✅ COMPLETE RESET before reloading
+    setGeneratedLinks([]);
+    setOffset(0);
+    setHasMore(true);
+    setLoadingLinks(true);
+    setIsFetchingMore(false);
+
+    // Now load fresh data from beginning
+    await loadGeneratedLinksFromDB(selectedCountry);
+    setCurrentView("links");
+    await fetchSellerCounts();
   }
 
 
@@ -1649,8 +1656,8 @@ function AddSeller() {
                                           }}
                                           disabled={link.is_copied}
                                           className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 shadow-sm ${link.is_copied
-                                              ? 'bg-green-600 text-white cursor-default'
-                                              : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md'
+                                            ? 'bg-green-600 text-white cursor-default'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md'
                                             }`}
                                           title={link.is_copied ? 'Copied ✓' : 'Copy link'}
                                         >
