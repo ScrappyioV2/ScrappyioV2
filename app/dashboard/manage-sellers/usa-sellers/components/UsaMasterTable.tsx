@@ -573,9 +573,9 @@ export default function UsaMasterTable({
       />
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[calc(105vh-250px)] overflow-y-auto">
           <table className="min-w-full divide-y divide-gray-200 text-xs">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-20">
               <tr>
                 {/* Checkbox column */}
                 <th className="px-2 py-2 w-12 sticky left-0 bg-gray-50 z-10">
@@ -703,34 +703,34 @@ export default function UsaMasterTable({
                     {visibleColumns.map((column) => (
                       <td
                         key={column}
-                        className={`px-2 py-2 text-xs text-gray-900 ${column === 'product_name' ? 'truncate' : 'whitespace-nowrap'
-                          }`}
+                        className="px-2 py-2 text-xs text-gray-900"
                         style={{
                           width: `${columnWidths[column] || 100}px`,
                           maxWidth: `${columnWidths[column] || 100}px`,
                         }}
-                        title={column === 'product_name' ? (row[column as keyof MasterData] as string) : undefined}
                       >
-                        {column === 's_no' ? (
-                          <span className="font-medium">{row.display_number}</span>
-                        ) : column === 'asin' ? (
-                          <span className="font-mono text-xs">{row.asin}</span>
-                        ) : column === 'link' ? (
-                          <a
-                            href={row.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-xs"
-                          >
-                            Link
-                          </a>
-                        ) : column === 'weight' ? (
-                          `${row.weight} ${row.weight_unit}`
-                        ) : column === 'price' || column === 'monthly_sales' ? (
-                          `$${row[column as keyof MasterData]?.toLocaleString()}`
-                        ) : (
-                          (row[column as keyof MasterData] as any) || '-'
-                        )}
+                        <div className="truncate" title={String(row[column as keyof MasterData] || '')}>
+                          {column === 's_no' ? (
+                            <span className="font-medium">{row.display_number}</span>
+                          ) : column === 'asin' ? (
+                            <span className="font-mono text-xs">{row.asin}</span>
+                          ) : column === 'link' ? (
+                            <a
+                              href={row.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-xs"
+                            >
+                              Link
+                            </a>
+                          ) : column === 'weight' ? (
+                            `${row.weight} ${row.weight_unit}`
+                          ) : column === 'price' || column === 'monthly_sales' ? (
+                            row[column as keyof MasterData]?.toLocaleString() || '-'
+                          ) : (
+                            (row[column as keyof MasterData] as any) || '-'
+                          )}
+                        </div>
                       </td>
                     ))}
                   </tr>

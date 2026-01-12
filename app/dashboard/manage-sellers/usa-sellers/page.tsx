@@ -530,6 +530,9 @@ allNewProducts.push(...normalizedData);
           </button>
         </div>
       </div>
+      <div className="text-sm text-gray-600">
+        Showing {totalProducts > 0 ? startItem : 0}-{endItem} of {totalProducts.toLocaleString()}
+      </div>
 
       {/* Table */}
       <UsaMasterTable
@@ -551,10 +554,6 @@ allNewProducts.push(...normalizedData);
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          Showing {totalProducts > 0 ? startItem : 0}-{endItem} of {totalProducts.toLocaleString()}
-        </div>
-
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <button

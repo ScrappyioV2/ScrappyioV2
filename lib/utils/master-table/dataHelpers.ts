@@ -62,34 +62,26 @@ const parseWeight = (value: any): { weight: number | null; unit: string } => {
     return { weight: null, unit: 'kg' };
   }
 
-  const text = value.toLowerCase().trim();
-
+  const text = value.trim();
+  
+  // Extract number
   const numMatch = text.match(/[\d.]+/);
   if (!numMatch) {
     return { weight: null, unit: 'kg' };
   }
 
-  let weight = parseFloat(numMatch[0]);
-
-  // grams → kg
-  if (
-    text.includes('g') ||
-    text.includes('gm') ||
-    text.includes('gram')
-  ) {
-    weight = weight / 1000;
-  }
-
-  // kg stays kg
-  if (text.includes('kg')) {
-    weight = weight;
-  }
+  const weight = parseFloat(numMatch[0]);
+  
+  // Extract unit (everything after the number, trimmed)
+  const unitMatch = text.replace(/[\d.\s]+/, '').trim();
+  const unit = unitMatch || 'kg'; // Use extracted unit or default to 'kg'
 
   return {
     weight: isNaN(weight) ? null : Number(weight.toFixed(3)),
-    unit: 'kg',
+    unit: unit,
   };
 };
+
 
 
 /* =========================
@@ -108,6 +100,7 @@ export const normalizeDataForDB = (rows: any[]) => {
 
         if (dbKey === 'monthly_units') dbKey = 'monthly_unit';
         if (dbKey === 'seller_count') dbKey = 'seller';
+        if (dbKey === 'sellers') dbKey = 'seller';
 
         if (BLOCKED_COLUMNS.has(dbKey)) return;
         if (!DB_COLUMNS.has(dbKey)) return;
@@ -138,15 +131,21 @@ export const normalizeDataForDB = (rows: any[]) => {
             : String(value).trim();
       });
 
-      // ASIN REQUIRED
-      if (!normalizedRow.asin) return null;
+          // ASIN REQUIRED
+    if (!normalizedRow.asin) return null;
 
-      // DEFAULT UNIT
-      if (!normalizedRow.weight_unit) {
-        normalizedRow.weight_unit = 'kg';
-      }
+    // DEFAULT UNIT
+    if (!normalizedRow.weight_unit) {
+      normalizedRow.weight_unit = 'kg';
+    }
 
-      return normalizedRow;
+    // AUTO-GENERATE LINK IF EMPTY
+    if (!normalizedRow.link || normalizedRow.link.trim() === '') {
+      normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
+    }
+
+    return normalizedRow;
+
     })
     .filter(Boolean);
 };
