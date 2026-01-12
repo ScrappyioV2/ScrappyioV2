@@ -59,7 +59,7 @@ export default function GoldenAuraPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Column widths state with localStorage
+  // Column widths state
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('golden_aura_column_widths');
@@ -86,7 +86,7 @@ export default function GoldenAuraPage() {
     };
   });
 
-  // Column order state with localStorage
+  // Column order state
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('golden_aura_column_order');
@@ -126,6 +126,14 @@ export default function GoldenAuraPage() {
     return sellerNames[sellerId] || 'Unknown';
   };
 
+  // Sanitize search term to avoid Supabase query errors
+  const sanitizeSearchTerm = (term: string): string => {
+    // Escape special characters that break Supabase queries
+    return term
+      .replace(/'/g, "''")  // Escape single quotes by doubling them
+      .trim();
+  };
+
   // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -160,18 +168,18 @@ export default function GoldenAuraPage() {
     setLoading(true);
     try {
       const tableName = `usa_seller_${SELLER_ID}_${activeTab}`;
-
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
       let query = supabase.from(tableName).select('*', { count: 'exact' });
 
+      // Apply search filter with proper escaping
       if (debouncedSearch.trim()) {
+        const searchTerm = sanitizeSearchTerm(debouncedSearch);
+        
+        // Use textSearch or individual filters
         query = query.or(
-          `asin.ilike.%${debouncedSearch}%,` +
-            `product_name.ilike.%${debouncedSearch}%,` +
-            `brand.ilike.%${debouncedSearch}%,` +
-            `funnel.ilike.%${debouncedSearch}%`
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
         );
       }
 
@@ -179,16 +187,27 @@ export default function GoldenAuraPage() {
         .range(start, end)
         .order('id', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        setToast({
+          message: 'Search failed. Try using simpler keywords without special characters.',
+          type: 'error',
+        });
+        setProducts([]);
+        setTotalCount(0);
+        return;
+      }
 
       setProducts(data || []);
       setTotalCount(count || 0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching products:', error);
       setToast({
-        message: 'Error loading products',
+        message: error?.message || 'Error loading products',
         type: 'error',
       });
+      setProducts([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -421,21 +440,18 @@ export default function GoldenAuraPage() {
     );
   };
 
-  // Auto-fit column width on double-click
   const handleColumnDoubleClick = (columnKey: string) => {
     if (!tableRef.current) return;
 
-    // Find all cells in this column
-    const columnIndex = columnOrder.indexOf(columnKey) + 1; // +1 for checkbox column
+    const columnIndex = columnOrder.indexOf(columnKey) + 1;
     const cells = tableRef.current.querySelectorAll(`tr td:nth-child(${columnIndex + 1}), tr th:nth-child(${columnIndex + 1})`);
     
-    let maxWidth = 80; // Minimum width
+    let maxWidth = 80;
     cells.forEach((cell) => {
-      const width = cell.scrollWidth + 20; // Add padding
+      const width = cell.scrollWidth + 20;
       if (width > maxWidth) maxWidth = width;
     });
 
-    // Cap at 500px max
     maxWidth = Math.min(maxWidth, 500);
 
     const newWidths = { ...columnWidths, [columnKey]: maxWidth };
@@ -448,7 +464,6 @@ export default function GoldenAuraPage() {
     });
   };
 
-  // Handle column drag and drop
   const handleDragStart = (columnName: string) => {
     setDraggedColumn(columnName);
   };
@@ -542,150 +557,155 @@ export default function GoldenAuraPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-full mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Golden Aura - Brand Checking
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage products across different categories
-            </p>
-          </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* STICKY HEADER SECTION */}
+        <div className="sticky top-0 z-50 bg-gray-50 pb-4">
+          <div className="max-w-full mx-auto p-6 pb-0">
+            {/* Title Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900">
+                Golden Aura - Brand Checking
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Manage products across different categories
+              </p>
+            </div>
 
-          {/* Horizontal Tabs */}
-          <div className="flex gap-3 mb-6">
-            <button
-              onClick={() => setActiveTab('high_demand')}
-              className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                activeTab === 'high_demand'
-                  ? 'bg-green-400 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              High Demand
-            </button>
-            <button
-              onClick={() => setActiveTab('low_demand')}
-              className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                activeTab === 'low_demand'
-                  ? 'bg-blue-400 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Low Demand
-            </button>
-            <button
-              onClick={() => setActiveTab('dropshipping')}
-              className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                activeTab === 'dropshipping'
-                  ? 'bg-yellow-400 text-gray-900 shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Dropshipping
-            </button>
-            <button
-              onClick={() => setActiveTab('not_approved')}
-              className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                activeTab === 'not_approved'
-                  ? 'bg-red-400 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Not Approved
-            </button>
-            <button
-              onClick={() => setActiveTab('reject')}
-              className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                activeTab === 'reject'
-                  ? 'bg-gray-400 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Reject
-            </button>
-          </div>
+            {/* Horizontal Tabs */}
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={() => setActiveTab('high_demand')}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
+                  activeTab === 'high_demand'
+                    ? 'bg-green-400 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                High Demand
+              </button>
+              <button
+                onClick={() => setActiveTab('low_demand')}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
+                  activeTab === 'low_demand'
+                    ? 'bg-blue-400 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Low Demand
+              </button>
+              <button
+                onClick={() => setActiveTab('dropshipping')}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
+                  activeTab === 'dropshipping'
+                    ? 'bg-yellow-400 text-gray-900 shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Dropshipping
+              </button>
+              <button
+                onClick={() => setActiveTab('not_approved')}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
+                  activeTab === 'not_approved'
+                    ? 'bg-red-400 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Not Approved
+              </button>
+              <button
+                onClick={() => setActiveTab('reject')}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
+                  activeTab === 'reject'
+                    ? 'bg-gray-400 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Reject
+              </button>
+            </div>
 
-          {/* Action Buttons */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-3">
-                <div className="relative">
-                  <button
-                    onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                  >
-                    Columns
+            {/* Action Buttons */}
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex gap-3">
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    >
+                      Columns
+                    </button>
+                    {isColumnDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setIsColumnDropdownOpen(false)}
+                        />
+                        <div className="absolute top-full left-0 mt-2 bg-white border rounded-lg shadow-lg p-3 z-20 w-48">
+                          {Object.keys(visibleColumns).map((col) => (
+                            <label
+                              key={col}
+                              className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={
+                                  visibleColumns[col as keyof typeof visibleColumns]
+                                }
+                                onChange={() =>
+                                  toggleColumn(col as keyof typeof visibleColumns)
+                                }
+                                className="rounded"
+                              />
+                              <span className="text-sm capitalize">
+                                {col.replace('_', ' ')}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                    Manage Statuse
                   </button>
-                  {isColumnDropdownOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setIsColumnDropdownOpen(false)}
-                      />
-                      <div className="absolute top-full left-0 mt-2 bg-white border rounded-lg shadow-lg p-3 z-20 w-48">
-                        {Object.keys(visibleColumns).map((col) => (
-                          <label
-                            key={col}
-                            className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={
-                                visibleColumns[col as keyof typeof visibleColumns]
-                              }
-                              onChange={() =>
-                                toggleColumn(col as keyof typeof visibleColumns)
-                              }
-                              className="rounded"
-                            />
-                            <span className="text-sm capitalize">
-                              {col.replace('_', ' ')}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
+                    Manage Master Badges
+                  </button>
                 </div>
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-                  Manage Statuse
-                </button>
-                <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
-                  Manage Master Badges
-                </button>
-              </div>
 
-              <div className="flex gap-3 items-center">
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="px-4 py-2 bg-white text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 w-64"
-                />
-                <button
-                  onClick={handleRollBack}
-                  disabled={!hasRollback}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-                  title="Roll Back last action from this tab (Ctrl+Z)"
-                >
-                  ↶ Roll Back
-                </button>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="px-4 py-2 bg-white text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 w-64"
+                  />
+                  <button
+                    onClick={handleRollBack}
+                    disabled={!hasRollback}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                    title="Roll Back last action from this tab (Ctrl+Z)"
+                  >
+                    ↶ Roll Back
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Product count */}
-          <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg shadow-sm">
-            <strong>Total:</strong> {totalCount} products | <strong>Showing:</strong>{' '}
-            {products.length} | <strong>Selected:</strong> {selectedIds.size}
-            <span className="ml-4 text-xs text-blue-600">💡 Tip: Double-click column headers to auto-fit width</span>
+            {/* Product count */}
+            <div className="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg shadow-sm">
+              <strong>Total:</strong> {totalCount} products | <strong>Showing:</strong>{' '}
+              {products.length} | <strong>Selected:</strong> {selectedIds.size}
+              <span className="ml-4 text-xs text-blue-600">💡 Tip: Double-click column headers to auto-fit width</span>
+            </div>
           </div>
+        </div>
 
-          {/* Table */}
+        {/* SCROLLABLE TABLE SECTION */}
+        <div className="max-w-full mx-auto px-6">
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
             {loading ? (
               <div className="p-8 text-center">
@@ -702,7 +722,7 @@ export default function GoldenAuraPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full" ref={tableRef}>
-                  <thead className="bg-gray-100 border-b-2 border-gray-300">
+                  <thead className="bg-gray-100 border-b-2 border-gray-300 sticky top-0 z-10">
                     <tr>
                       <th className="p-3 text-left bg-gray-100">
                         <input
