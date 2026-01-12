@@ -596,5 +596,3 @@ allNewProducts.push(...normalizedData);
   );
 }
 
-
-

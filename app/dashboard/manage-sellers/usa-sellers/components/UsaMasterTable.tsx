@@ -743,3 +743,4 @@ export default function UsaMasterTable({
     </div>
   );
 }
+
