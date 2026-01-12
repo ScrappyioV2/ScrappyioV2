@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
+
 import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
-import * as XLSX from 'xlsx'
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
 
 const formatUSD = (value: number | null) =>
@@ -69,6 +71,8 @@ export default function ValidationPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const usaPriceCSVInputRef = useRef<HTMLInputElement>(null)
+
 
     // Constants Modal
     const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false)
@@ -378,6 +382,60 @@ export default function ValidationPage() {
         }
     }
 
+    const handleUSAPriceCSVUpload = async (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const rows = results.data as {
+                        asin?: string
+                        usd_price?: string
+                    }[]
+
+                    const updates = rows
+                        .filter(r => r.asin && r.usd_price)
+                        .map(r => ({
+                            asin: r.asin!.trim(),
+                            usd_price: Number(r.usd_price)
+                        }))
+
+                    if (updates.length === 0) {
+                        setToast({ message: 'CSV has no valid ASIN / usd_price', type: 'warning' })
+                        return
+                    }
+
+                    for (const row of updates) {
+                        const { data } = await supabase
+                            .from('usa_validation_main_file')
+                            .select('*')
+                            .eq('asin', row.asin)
+                            .single()
+
+                        if (data) {
+                            await handleCellEdit(data.id, 'usd_price', row.usd_price)
+                        }
+                    }
+
+                    setToast({ message: 'USA prices updated via CSV', type: 'success' })
+                    fetchProducts()
+                    fetchStats()
+                } catch (err) {
+                    console.error(err)
+                    setToast({ message: 'USA price CSV update failed', type: 'error' })
+                } finally {
+                    e.target.value = ''
+                }
+            }
+        })
+    }
+
+
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             setSelectedIds(new Set(filteredProducts.map(p => p.id)))
@@ -423,46 +481,6 @@ export default function ValidationPage() {
 
         setToast({ message: 'CSV downloaded successfully!', type: 'success' })
     }
-
-    const bulkUSAPriceUpdate = async () => {
-        try {
-            const targetProducts =
-                selectedIds.size > 0
-                    ? products.filter(p => selectedIds.has(p.id))
-                    : products;
-
-            const asins = targetProducts
-                .map((p) => p.asin)
-                .filter(Boolean)
-                .slice(0, 1); // ✅ ONLY ONE ASIN
-
-            if (asins.length === 0) {
-                setToast({ message: 'No ASINs available for update', type: 'warning' });
-                return;
-            }
-
-            setToast({ message: 'Updating USA prices via Keepa...', type: 'info' });
-
-            const res = await fetch(
-                "/api/usa-selling/bulk-keepa-update",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ asins }),
-                }
-            );
-
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || "Keepa update failed");
-            }
-
-            setToast({ message: 'USA prices updated successfully!', type: 'success' });
-        } catch (err) {
-            console.error(err);
-            setToast({ message: 'Bulk USA price update failed', type: 'error' });
-        }
-    };
 
     const openConstantsModal = () => {
         setIsConstantsModalOpen(true)
@@ -683,11 +701,18 @@ export default function ValidationPage() {
                                 />
 
                                 <button
-                                    onClick={bulkUSAPriceUpdate}
+                                    onClick={() => usaPriceCSVInputRef.current?.click()}
                                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
                                 >
                                     Bulk USA Price Update
                                 </button>
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    ref={usaPriceCSVInputRef}
+                                    onChange={handleUSAPriceCSVUpload}
+                                    className="hidden"
+                                />
 
                                 {/* Hidden Button - Constants Configuration */}
                                 <button
