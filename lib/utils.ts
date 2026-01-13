@@ -47,9 +47,3 @@ export const determineCategory = (monthlyUnit: number | null): {
 export const getTableName = (sellerId: number, category: string): string => {
   return `usa_seller_${sellerId}_${category.replace('-', '_')}`;
 };
-
-
-
-
-
-
