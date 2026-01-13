@@ -1,6 +1,7 @@
 'use client'
+
 import { supabase } from '@/lib/supabaseClient'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface CountryProgress {
@@ -19,7 +20,6 @@ export default function ManageSellersPage() {
   const [password, setPassword] = useState('')
   const [isLogin, setIsLogin] = useState(true)
   const [authMessage, setAuthMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
-
   const [progress, setProgress] = useState<Record<string, CountryProgress>>({
     usa: { country: 'usa', totalLinks: 0, copiedLinks: 0 },
     india: { country: 'india', totalLinks: 0, copiedLinks: 0 },
@@ -33,6 +33,58 @@ export default function ManageSellersPage() {
     { country: 'uae', label: 'Add UAE Seller', code: 'AE', flag: '🇦🇪', count: progress.uae.totalLinks, color: 'bg-green-500' },
     { country: 'uk', label: 'Add UK Seller', code: 'GB', flag: '🇬🇧', count: progress.uk.totalLinks, color: 'bg-red-500' },
   ]
+
+  // ✅ DEBOUNCE REF
+  const debouncedFetchProgressRef = useRef<NodeJS.Timeout | null>(null)
+
+  // ✅ FETCH PROGRESS FUNCTION (OPTIMIZED)
+  const fetchProgress = async () => {
+    if (!supabase) return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const countries = ['usa', 'india', 'uae', 'uk']
+      const progressData: Record<string, CountryProgress> = {}
+
+      for (const country of countries) {
+        const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
+
+        const { count: totalCount } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        const { count: copiedCount } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_copied', true)
+
+        progressData[country] = {
+          country,
+          totalLinks: totalCount || 0,
+          copiedLinks: copiedCount || 0
+        }
+      }
+
+      setProgress(progressData)
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching progress:', error)
+      }
+    }
+  }
+
+  // ✅ DEBOUNCED VERSION
+  const debouncedFetchProgress = () => {
+    if (debouncedFetchProgressRef.current) {
+      clearTimeout(debouncedFetchProgressRef.current)
+    }
+    debouncedFetchProgressRef.current = setTimeout(() => {
+      fetchProgress()
+    }, 500)
+  }
 
   // ✅ AUTH CHECK
   useEffect(() => {
@@ -56,7 +108,6 @@ export default function ManageSellersPage() {
   useEffect(() => {
     fetchProgress()
 
-    // ✅ SET UP REAL-TIME SUBSCRIPTIONS
     if (!supabase) return
 
     const subscriptions: any[] = []
@@ -76,7 +127,7 @@ export default function ManageSellersPage() {
           },
           (payload) => {
             console.log(`✅ Real-time: ${country} link copied!`, payload)
-            fetchProgress() // Refresh progress immediately
+            debouncedFetchProgress()
           }
         )
         .on(
@@ -88,7 +139,7 @@ export default function ManageSellersPage() {
           },
           () => {
             console.log(`➕ Real-time: New ${country} link added`)
-            fetchProgress()
+            debouncedFetchProgress()
           }
         )
         .on(
@@ -100,7 +151,7 @@ export default function ManageSellersPage() {
           },
           () => {
             console.log(`🗑️ Real-time: ${country} link deleted`)
-            fetchProgress()
+            debouncedFetchProgress()
           }
         )
         .subscribe()
@@ -108,46 +159,12 @@ export default function ManageSellersPage() {
       subscriptions.push(subscription)
     })
 
-    // Cleanup subscriptions on unmount
     return () => {
       subscriptions.forEach(sub => sub.unsubscribe())
     }
   }, [])
 
-
-  const fetchProgress = async () => {
-    if (!supabase) return
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const countries = ['usa', 'india', 'uae', 'uk']
-      const progressData: Record<string, CountryProgress> = {}
-
-      for (const country of countries) {
-        const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
-
-        const { data: allLinks } = await supabase
-          .from(tableName)
-          .select('id, is_copied')
-          .eq('user_id', user.id)
-
-        const totalLinks = allLinks?.length || 0
-        const copiedLinks = allLinks?.filter(link => link.is_copied).length || 0
-
-        progressData[country] = {
-          country,
-          totalLinks,
-          copiedLinks
-        }
-      }
-
-      setProgress(progressData)
-    } catch (error) {
-      console.error('Error fetching progress:', error)
-    }
-  }
-
+  // ✅ RESET ALL COPIED (WITH BATCHING)
   const resetAllCopied = async (country: string) => {
     if (!supabase) return
     try {
@@ -156,12 +173,37 @@ export default function ManageSellersPage() {
 
       const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
 
-      await supabase
-        .from(tableName)
-        .update({ is_copied: false })
-        .eq('user_id', user.id)
+      const BATCH_SIZE = 1000
+      let offset = 0
+      let hasMore = true
 
-      fetchProgress()
+      while (hasMore) {
+        const { data: links } = await supabase
+          .from(tableName)
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_copied', true)
+          .range(offset, offset + BATCH_SIZE - 1)
+
+        if (!links || links.length === 0) {
+          hasMore = false
+          break
+        }
+
+        const ids = links.map(link => link.id)
+        await supabase
+          .from(tableName)
+          .update({ is_copied: false })
+          .in('id', ids)
+
+        offset += BATCH_SIZE
+
+        if (links.length < BATCH_SIZE) {
+          hasMore = false
+        }
+      }
+
+      await fetchProgress()
       setAuthMessage({ text: `Reset completed for ${country.toUpperCase()}!`, type: 'success' })
       setTimeout(() => setAuthMessage(null), 3000)
     } catch (error) {
@@ -174,7 +216,6 @@ export default function ManageSellersPage() {
   // ✅ AUTH FUNCTIONS
   const handleAuth = async () => {
     if (!supabase) return
-
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -185,6 +226,7 @@ export default function ManageSellersPage() {
         if (error) throw error
         setAuthMessage({ text: 'Account created! Check your email to verify.', type: 'success' })
       }
+
       setShowLoginModal(false)
       setEmail('')
       setPassword('')
@@ -211,161 +253,110 @@ export default function ManageSellersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-
-        {/* ✅ HEADER WITH LOGIN */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Manage Sellers</h1>
-
-          {user ? (
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-sm font-medium text-gray-900">{user.email}</div>
-                <div className="text-xs text-gray-500">Logged in</div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition shadow-md"
-              >
-                Logout
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
+      {/* ✅ HEADER WITH LOGIN */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-bold text-white">Manage Sellers</h1>
+        {user ? (
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm text-gray-400">{user.email}</p>
+              <p className="text-xs text-green-400">Logged in</p>
             </div>
-          ) : (
             <button
-              onClick={() => setShowLoginModal(true)}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition shadow-md flex items-center gap-2"
+              onClick={handleLogout}
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition shadow-md"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-              </svg>
-              Login / Sign Up
+              Logout
             </button>
-          )}
-        </div>
-
-        {/* ✅ AUTH MESSAGE */}
-        {authMessage && (
-          <div className={`mb-6 p-4 rounded-lg ${authMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-            {authMessage.text}
           </div>
+        ) : (
+          <button
+            onClick={() => setShowLoginModal(true)}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition shadow-md flex items-center gap-2"
+          >
+            Login / Sign Up
+          </button>
         )}
+      </div>
 
-        {/* Header Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-1">
-            <h2 className="text-2xl font-bold">No of Sellers</h2>
-          </div>
-          <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold">Seller Scraping Progress Bar</h2>
-          </div>
+      {/* ✅ AUTH MESSAGE */}
+      {authMessage && (
+        <div className={`mb-6 p-4 rounded-lg ${authMessage.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+          {authMessage.text}
         </div>
+      )}
 
-        {/* Country Rows - Each card aligned with its progress bar */}
-        <div className="space-y-4">
-          {sellerCards.map((card) => {
-            const countryProgress = progress[card.country]
-            const percentage = countryProgress.totalLinks > 0
-              ? Math.round((countryProgress.copiedLinks / countryProgress.totalLinks) * 100)
-              : 0
+      <div className="grid grid-cols-2 gap-8">
+        {/* Header Row */}
+        <h2 className="text-2xl font-semibold text-white">No of Sellers</h2>
+        <h2 className="text-2xl font-semibold text-white">Seller Scraping Progress Bar</h2>
 
-            return (
+        {/* Country Rows */}
+        {sellerCards.map((card) => {
+          const countryProgress = progress[card.country]
+          const percentage = countryProgress.totalLinks > 0
+            ? Math.round((countryProgress.copiedLinks / countryProgress.totalLinks) * 100)
+            : 0
+
+          return (
+            <div key={card.country} className="contents">
+              {/* Left: Country Card */}
               <div
-                key={card.country}
-                className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center"
+                onClick={() => handleCardClick(card.country)}
+                className={`${card.color} text-white p-6 rounded-xl cursor-pointer hover:opacity-90 transition-all hover:scale-105 shadow-lg`}
               >
-                {/* Left: Country Card */}
-                <div
-                  onClick={() => handleCardClick(card.country)}
-                  className={`${card.color} text-white p-6 rounded-xl cursor-pointer hover:opacity-90 transition-all hover:scale-105 shadow-lg`}
-                >
-                  <p className="text-sm mb-2 opacity-90">{card.label}</p>
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-5xl font-bold">{card.count}</h2>
-                    <span className="text-5xl">{card.flag}</span>
+                <h3 className="text-xl font-semibold">{card.label}</h3>
+                <p className="text-3xl font-bold mt-2">{card.count}</p>
+                <div className="text-4xl mt-4">{card.flag}</div>
+              </div>
+
+              {/* Right: Progress Bar */}
+              <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">{card.flag}</div>
+                    <div>
+                      <h4 className="text-white font-semibold">Copy Progress {card.code}</h4>
+                      <p className="text-sm text-gray-400">
+                        {countryProgress.copiedLinks.toLocaleString()} copied
+                        <span className="mx-2">•</span>
+                        {countryProgress.totalLinks.toLocaleString()} total
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => resetAllCopied(card.country)}
+                    disabled={countryProgress.copiedLinks === 0}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 text-gray-300 hover:text-white font-semibold rounded-lg transition-all border border-gray-600 hover:border-gray-500"
+                  >
+                    Reset All Copied
+                  </button>
                 </div>
 
-                {/* Right: Progress Bar */}
-                <div className="lg:col-span-2">
-                  <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-6 shadow-xl border border-gray-700">
-                    {/* Header with Icon and Reset Button */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        {/* Icon */}
-                        <div className="bg-gray-700 rounded-lg p-2.5">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-
-                        {/* Text */}
-                        <div>
-                          <h3 className="text-white font-semibold text-lg">
-                            Copy Progress <span className="ml-2">{card.code}</span>
-                          </h3>
-                          <p className="text-sm mt-1">
-                            <span className="text-green-400 font-bold text-lg">
-                              {countryProgress.copiedLinks.toLocaleString()} copied
-                            </span>
-                            <span className="text-gray-400 mx-2">/</span>
-                            <span className="text-gray-300 font-semibold">
-                              {countryProgress.totalLinks.toLocaleString()} total
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Reset Button */}
-                      <button
-                        onClick={() => resetAllCopied(card.country)}
-                        disabled={countryProgress.copiedLinks === 0}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 text-gray-300 hover:text-white font-semibold rounded-lg transition-all border border-gray-600 hover:border-gray-500"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Reset All Copied
-                      </button>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="relative w-full h-3 bg-gray-700 rounded-full overflow-hidden shadow-inner">
-                      <div
-                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 transition-all duration-700 ease-out rounded-full shadow-lg"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-
-                    {/* Percentage Text */}
-                    <div className="mt-3 flex justify-between items-center">
-                      <span className="text-gray-400 text-sm font-medium uppercase">
-                        {card.country}
-                      </span>
-                      <span className="text-gray-300 text-sm font-bold">
-                        {percentage}% Complete
-                      </span>
-                    </div>
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-700 rounded-full h-6 overflow-hidden">
+                  <div
+                    className={`${card.color} h-full transition-all duration-500 flex items-center justify-end px-2`}
+                    style={{ width: `${percentage}%` }}
+                  >
+                    <span className="text-white text-xs font-bold">{percentage}% Complete</span>
                   </div>
                 </div>
               </div>
-            )
-          })}
-        </div>
-
+            </div>
+          )
+        })}
       </div>
 
       {/* ✅ LOGIN MODAL */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-2xl font-bold mb-4">
-              {isLogin ? 'Login' : 'Sign Up'}
-            </h2>
-
+          <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">{isLogin ? 'Login' : 'Sign Up'}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">Email</label>
                 <input
                   type="email"
                   value={email}
@@ -374,9 +365,8 @@ export default function ManageSellersPage() {
                   placeholder="your@email.com"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label className="block text-sm font-medium mb-1">Password</label>
                 <input
                   type="password"
                   value={password}
@@ -385,27 +375,23 @@ export default function ManageSellersPage() {
                   placeholder="••••••••"
                 />
               </div>
-
               {authMessage && (
-                <div className={`p-3 rounded-lg text-sm ${authMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <div className={`p-3 rounded-lg ${authMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                   {authMessage.text}
                 </div>
               )}
-
               <button
                 onClick={handleAuth}
                 className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
               >
                 {isLogin ? 'Login' : 'Sign Up'}
               </button>
-
               <button
                 onClick={() => setIsLogin(!isLogin)}
                 className="w-full text-sm text-blue-600 hover:text-blue-700"
               >
                 {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Login'}
               </button>
-
               <button
                 onClick={() => {
                   setShowLoginModal(false)

@@ -38,6 +38,13 @@ interface ValidationProduct {
     cargo_charge: number | null
     final_purchase_rate: number | null
     purchase_rate_inr: number | null
+    status: string | null
+    origin_india: boolean | null
+    origin_china: boolean | null
+    check_brand: boolean | null
+    check_item_expire: boolean | null
+    check_small_size: boolean | null
+    check_multi_seller: boolean | null
 }
 
 interface Stats {
@@ -201,22 +208,22 @@ export default function ValidationPage() {
                 console.error('Error fetching products:', error)
                 setProducts([])
             } else {
-                // Filter based on active tab
+
+                // Filter based on active tab (v2: status-driven)
                 let filteredData = data || []
 
                 if (activeTab === 'pass_file') {
-                    // Show only PASS judgement products
-                    filteredData = filteredData.filter(p => p.judgement === 'PASS')
+                    filteredData = filteredData.filter(p => p.status === 'pass')
                 } else if (activeTab === 'fail_file') {
-                    // Show only FAIL judgement products
+                    // keep legacy FAIL tab for now
                     filteredData = filteredData.filter(p => p.judgement === 'FAIL')
                 } else if (activeTab === 'pending') {
-                    // Show only PENDING/NULL judgement products
+                    // keep legacy pending for now
                     filteredData = filteredData.filter(p => !p.judgement || p.judgement === 'PENDING')
                 }
-                // else main_file shows all products
 
                 setProducts(filteredData)
+
             }
         } catch (err) {
             console.error('Fetch error:', err)
@@ -454,6 +461,91 @@ export default function ValidationPage() {
         setSelectedIds(newSelected)
     }
 
+    const handleOriginToggle = async (
+        id: string,
+        field: 'origin_india' | 'origin_china',
+        value: boolean
+    ) => {
+        // optimistic UI
+        setProducts(prev =>
+            prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
+        )
+
+        const { error } = await supabase
+            .from('usa_validation_main_file')
+            .update({ [field]: value })
+            .eq('id', id)
+
+        if (error) {
+            // rollback on failure
+            setProducts(prev =>
+                prev.map(p => (p.id === id ? { ...p, [field]: !value } : p))
+            )
+            setToast({ message: 'Failed to update origin', type: 'error' })
+        }
+    }
+
+    const handleChecklistToggle = async (
+        id: string,
+        field:
+            | 'check_brand'
+            | 'check_item_expire'
+            | 'check_small_size'
+            | 'check_multi_seller',
+        value: boolean
+    ) => {
+        // optimistic UI
+        setProducts(prev =>
+            prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
+        )
+
+        const { error } = await supabase
+            .from('usa_validation_main_file')
+            .update({ [field]: value })
+            .eq('id', id)
+
+        if (error) {
+            // rollback
+            setProducts(prev =>
+                prev.map(p => (p.id === id ? { ...p, [field]: !value } : p))
+            )
+            setToast({ message: 'Failed to update checklist', type: 'error' })
+        }
+    }
+
+    const handleChecklistOk = async (id: string) => {
+        const confirmed = window.confirm(
+            'Send this item to Admin Validation?'
+        )
+        if (!confirmed) return
+
+        const { error } = await supabase
+            .from('usa_validation_main_file')
+            .update({
+                status: 'admin_validation',
+                sent_to_admin_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+
+        if (error) {
+            setToast({ message: 'Failed to send to admin validation', type: 'error' })
+            return
+        }
+
+        // remove row from Pass File immediately
+        setProducts(prev => prev.filter(p => p.id !== id))
+
+        setToast({ message: 'Sent to Admin Validation', type: 'success' })
+    }
+
+
+    const handleMoveToMainClick = () => {
+        setToast({
+            message: `Move to Main clicked for ${selectedIds.size} item(s)`,
+            type: 'info',
+        })
+    }
+
     const downloadCSV = () => {
         if (filteredProducts.length === 0) {
             setToast({ message: 'No data to download', type: 'warning' })
@@ -538,8 +630,9 @@ export default function ValidationPage() {
 
     return (
         <PageTransition>
-            <div className="h-screen overflow-hidden bg-gray-50 p-6">
-                <div className="max-w-full mx-auto flex flex-col h-full">
+            <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-6">
+                <div className="max-w-full mx-auto flex flex-col flex-1 overflow-hidden">
+                    <div className="flex-none"></div>
                     <div className="mb-6">
                         <h1 className="text-3xl font-bold text-gray-900">USA Selling - Validation</h1>
                         <p className="text-gray-600 mt-1">Manage validation files and product status</p>
@@ -548,26 +641,28 @@ export default function ValidationPage() {
                     {/* Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg p-5 text-white shadow-lg">
-                            <div className="text-sm font-medium opacity-90">Total Products</div>
+                            <div className="text-sm opacity-90">Total Products</div>
                             <div className="text-4xl font-bold mt-2">{stats.total}</div>
                         </div>
+
                         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-5 text-white shadow-lg">
-                            <div className="text-sm font-medium opacity-90">✓ Passed</div>
+                            <div className="text-sm opacity-90">✓ Passed</div>
                             <div className="text-4xl font-bold mt-2">{stats.passed}</div>
                         </div>
+
                         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-5 text-white shadow-lg">
-                            <div className="text-sm font-medium opacity-90">✗ Failed</div>
+                            <div className="text-sm opacity-90">✗ Failed</div>
                             <div className="text-4xl font-bold mt-2">{stats.failed}</div>
                         </div>
+
                         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-5 text-white shadow-lg">
-                            <div className="text-sm font-medium opacity-90">⏳ Pending</div>
+                            <div className="text-sm opacity-90">⏳ Pending</div>
                             <div className="text-4xl font-bold mt-2">{stats.pending}</div>
                         </div>
                     </div>
 
-
                     {/* File Tabs */}
-                    <div className="flex gap-3 mb-6">
+                    <div className="flex gap-2 mb-3">
                         <button
                             onClick={() => setActiveTab('main_file')}
                             className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'main_file'
@@ -673,278 +768,467 @@ export default function ValidationPage() {
                                     )}
                                 </div>
 
-                                <button
-                                    onClick={downloadCSV}
-                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium flex items-center gap-2"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                    </svg>
-                                    Download CSV
-                                </button>
+                                <div className="flex gap-3">
 
-                                <button
-                                    onClick={handleUploadCSV}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                    </svg>
-                                    Upload CSV
-                                </button>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".csv,.xlsx,.xls"
-                                    onChange={processCSVFile}
-                                    className="hidden"
-                                />
+                                    {activeTab === 'pass_file' && (
+                                        <button
+                                            onClick={handleMoveToMainClick}
+                                            disabled={selectedIds.size === 0}
+                                            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition
+                                              ${selectedIds.size === 0
+                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                    : 'bg-slate-800 text-white hover:bg-slate-900'
+                                                }`}
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
+                                            Move to Main
+                                        </button>
+                                    )}
 
-                                <button
-                                    onClick={() => usaPriceCSVInputRef.current?.click()}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
-                                >
-                                    Bulk USA Price Update
-                                </button>
-                                <input
-                                    type="file"
-                                    accept=".csv"
-                                    ref={usaPriceCSVInputRef}
-                                    onChange={handleUSAPriceCSVUpload}
-                                    className="hidden"
-                                />
+                                    <button
+                                        onClick={downloadCSV}
+                                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium flex items-center gap-2"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download CSV
+                                    </button>
 
-                                {/* Hidden Button - Constants Configuration */}
-                                <button
-                                    onClick={openConstantsModal}
-                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    Configure Constants
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                                    <button
+                                        onClick={handleUploadCSV}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                        Upload CSV
+                                    </button>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".csv,.xlsx,.xls"
+                                        onChange={processCSVFile}
+                                        className="hidden"
+                                    />
 
-                    {/* Table */}
-                    <div className="bg-white rounded-lg shadow-lg flex-1 flex flex-col min-h-0">
-                        {loading ? (
-                            <div className="p-8 text-center">
-                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
-                                <p className="mt-2 text-gray-600">Loading products...</p>
-                            </div>
-                        ) : filteredProducts.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">
-                                <p className="text-lg">No products found in {
-                                    activeTab === 'main_file' ? 'Main File' :
-                                        activeTab === 'pass_file' ? 'Pass File' :
-                                            activeTab === 'fail_file' ? 'Failed File' :
-                                                'Pending'
-                                }</p>
-                                <p className="text-sm mt-2">
-                                    {activeTab === 'pending'
-                                        ? 'Products with incomplete data will appear here'
-                                        : activeTab === 'pass_file'
-                                            ? 'Products with PASS judgement will appear here'
-                                            : activeTab === 'fail_file'
-                                                ? 'Products with FAIL judgement will appear here'
-                                                : 'All products will appear here'
-                                    }
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto flex-1 min-h-0">
-                                <div className="overflow-y-auto h-full">
-                                    <table className="w-full">
-                                        <thead className="bg-gray-100 border-b-2 border-gray-30 sticky top-0 z-10">
-                                            <tr>
-                                                <th className="p-3 text-left">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
-                                                        onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded"
-                                                    />
-                                                </th>
-                                                {visibleColumns.asin && <th className="p-3 text-left font-semibold text-gray-700">ASIN</th>}
-                                                {visibleColumns.product_name && <th className="p-3 text-left font-semibold text-gray-700">Product Name</th>}
-                                                {visibleColumns.brand && <th className="p-3 text-left font-semibold text-gray-700">Brand</th>}
-                                                {visibleColumns.seller_tag && <th className="p-3 text-left font-semibold text-gray-700">Seller Tag</th>}
-                                                {visibleColumns.funnel && <th className="p-3 text-left font-semibold text-gray-700">Funnel</th>}
-                                                {visibleColumns.no_of_seller && <th className="p-3 text-left font-semibold text-gray-700">No. OF seller</th>}
-                                                {visibleColumns.usa_link && <th className="p-3 text-left font-semibold text-gray-700">USA Link</th>}
-                                                {visibleColumns.product_weight && <th className="p-3 text-left font-semibold text-gray-700">Weight (g)</th>}
-                                                {visibleColumns.usd_price && <th className="p-3 text-left font-semibold text-gray-700">USD Price</th>}
-                                                {visibleColumns.inr_sold && <th className="p-3 text-left font-semibold text-gray-700">INR Sold</th>}
-                                                {visibleColumns.inr_purchase && <th className="p-3 text-left font-semibold text-gray-700">INR Purchase</th>}
-                                                {visibleColumns.india_price && <th className="p-3 text-left font-semibold text-gray-700">India Price</th>}
-                                                {visibleColumns.judgement && <th className="p-3 text-left font-semibold text-gray-700">Judgement</th>}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredProducts.map((product, index) => (
-                                                <tr key={product.id} className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                                    <td className="p-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedIds.has(product.id)}
-                                                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                            className="rounded"
-                                                        />
-                                                    </td>
-                                                    {visibleColumns.asin && <td className="p-3 font-mono text-sm">{product.asin}</td>}
-                                                    {visibleColumns.product_name && <td className="p-3">{product.product_name || '-'}</td>}
-                                                    {visibleColumns.brand && <td className="p-3">{product.brand || '-'}</td>}
-                                                    {visibleColumns.seller_tag && <td className="p-3">{product.seller_tag || '-'}</td>}
-                                                    {visibleColumns.funnel && <td className="p-3">{product.funnel || '-'}</td>}
-                                                    {visibleColumns.no_of_seller && <td className="p-3">{product.no_of_seller || '-'}</td>}
-                                                    {visibleColumns.usa_link && (
-                                                        <td className="p-3">
-                                                            {product.usa_link ? (
-                                                                <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View</a>
-                                                            ) : '-'}
-                                                        </td>
-                                                    )}
-                                                    {visibleColumns.product_weight && (
-                                                        <td className="p-3">
-                                                            <input
-                                                                type="number"
-                                                                value={product.product_weight || ''}
-                                                                onChange={(e) => handleCellEdit(product.id, 'product_weight', parseFloat(e.target.value) || null)}
-                                                                className="w-20 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500"
-                                                                placeholder="0"
-                                                                disabled={activeTab !== 'main_file'}
-                                                            />
-                                                        </td>
-                                                    )}
-                                                    {visibleColumns.usd_price && (
-                                                        <td className="p-3">
-                                                            <input
-                                                                type="text"
-                                                                value={
-                                                                    editingValue?.id === product.id && editingValue.field === 'usd_price'
-                                                                        ? editingValue.value
-                                                                        : formatUSD(product.usd_price)
-                                                                }
-                                                                onFocus={() =>
-                                                                    setEditingValue({
-                                                                        id: product.id,
-                                                                        field: 'usd_price',
-                                                                        value: product.usd_price?.toString() || ''
-                                                                    })
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setEditingValue({
-                                                                        id: product.id,
-                                                                        field: 'usd_price',
-                                                                        value: e.target.value
-                                                                    })
-                                                                }
-                                                                onBlur={() => {
-                                                                    const parsed = parseCurrency(editingValue?.value || '')
-                                                                    handleCellEdit(product.id, 'usd_price', parsed)
-                                                                    setEditingValue(null)
-                                                                }}
-                                                                className="w-28 px-2 py-1 border rounded"
-                                                                disabled={activeTab !== 'main_file'}
-                                                            />
-                                                        </td>
-                                                    )}
-                                                    {visibleColumns.inr_sold && (
-                                                        <td className="p-3">
-                                                            <input
-                                                                type="text"
-                                                                value={
-                                                                    editingValue?.id === product.id && editingValue.field === 'inr_sold'
-                                                                        ? editingValue.value
-                                                                        : formatINR(product.inr_sold)
-                                                                }
-                                                                onFocus={() =>
-                                                                    setEditingValue({
-                                                                        id: product.id,
-                                                                        field: 'inr_sold',
-                                                                        value: product.inr_sold?.toString() || ''
-                                                                    })
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setEditingValue({
-                                                                        id: product.id,
-                                                                        field: 'inr_sold',
-                                                                        value: e.target.value
-                                                                    })
-                                                                }
-                                                                onBlur={() => {
-                                                                    const parsed = parseCurrency(editingValue?.value || '')
-                                                                    handleCellEdit(product.id, 'inr_sold', parsed)
-                                                                    setEditingValue(null)
-                                                                }}
-                                                                className="w-32 px-2 py-1 border rounded"
-                                                                disabled={activeTab !== 'main_file'}
-                                                            />
-                                                        </td>
-                                                    )}
-                                                    {visibleColumns.inr_purchase && (
-                                                        <td className="p-3">
-                                                            <input
-                                                                type="text"
-                                                                value={
-                                                                    editingValue?.id === product.id && editingValue.field === 'inr_purchase'
-                                                                        ? editingValue.value
-                                                                        : formatINR(product.inr_purchase)
-                                                                }
-                                                                onFocus={() =>
-                                                                    setEditingValue({
-                                                                        id: product.id,
-                                                                        field: 'inr_purchase',
-                                                                        value: product.inr_purchase?.toString() || ''
-                                                                    })
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setEditingValue({
-                                                                        id: product.id,
-                                                                        field: 'inr_purchase',
-                                                                        value: e.target.value
-                                                                    })
-                                                                }
-                                                                onBlur={() => {
-                                                                    const parsed = parseCurrency(editingValue?.value || '')
-                                                                    handleCellEdit(product.id, 'inr_purchase', parsed)
-                                                                    setEditingValue(null)
-                                                                }}
-                                                                className="w-32 px-2 py-1 border rounded"
-                                                                disabled={activeTab !== 'main_file'}
-                                                            />
-                                                        </td>
-                                                    )}
-                                                    {visibleColumns.india_price && <td className="p-3 font-semibold">{formatINR(product.india_price)}</td>}
-                                                    {visibleColumns.judgement && (
-                                                        <td className="p-3">
-                                                            {product.judgement ? (
-                                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.judgement === 'PASS' ? 'bg-green-500 text-white' :
-                                                                    product.judgement === 'FAIL' ? 'bg-red-500 text-white' :
-                                                                        'bg-gray-400 text-white'
-                                                                    }`}>
-                                                                    {product.judgement}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-gray-400 text-sm">Auto-calculating...</span>
-                                                            )}
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    <button
+                                        onClick={() => usaPriceCSVInputRef.current?.click()}
+                                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                                    >
+                                        Bulk USA Price Update
+                                    </button>
+                                    <input
+                                        type="file"
+                                        accept=".csv"
+                                        ref={usaPriceCSVInputRef}
+                                        onChange={handleUSAPriceCSVUpload}
+                                        className="hidden"
+                                    />
+
+                                    {/* Hidden Button - Constants Configuration */}
+                                    <button
+                                        onClick={openConstantsModal}
+                                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Configure Constants
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
 
-                    <div className="mt-4 text-sm text-gray-600">
-                        <p>Showing {filteredProducts.length} of {products.length} products | {selectedIds.size} selected</p>
+                        {/* Table */}
+                        <div className="bg-white rounded-lg shadow-lg flex-1 flex flex-col min-h-0">
+                            {loading ? (
+                                <div className="p-8 text-center">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+                                    <p className="mt-2 text-gray-600">Loading products...</p>
+                                </div>
+                            ) : filteredProducts.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500">
+                                    <p className="text-lg">No products found in {
+                                        activeTab === 'main_file' ? 'Main File' :
+                                            activeTab === 'pass_file' ? 'Pass File' :
+                                                activeTab === 'fail_file' ? 'Failed File' :
+                                                    'Pending'
+                                    }</p>
+                                    <p className="text-sm mt-2">
+                                        {activeTab === 'pending'
+                                            ? 'Products with incomplete data will appear here'
+                                            : activeTab === 'pass_file'
+                                                ? 'Products with PASS judgement will appear here'
+                                                
+                                                : activeTab === 'fail_file'
+                                                    ? 'Products with FAIL judgement will appear here'
+                                                    : 'All products will appear here'
+                                        }
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                                    <div className="overflow-auto max-w-full">
+                                        <table className="min-w-[1400px] w-full">
+                                            <thead className="bg-gray-100 border-b-2 border-gray-30 sticky top-0 z-10">
+                                                <tr>
+                                                    <th className="p-3 text-left">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={
+                                                                selectedIds.size === filteredProducts.length &&
+                                                                filteredProducts.length > 0
+                                                            }
+                                                            onChange={(e) => handleSelectAll(e.target.checked)}
+                                                            className="rounded"
+                                                        />
+                                                    </th>
+
+                                                    {visibleColumns.asin && <th className="p-3">ASIN</th>}
+                                                    {visibleColumns.product_name && <th className="p-3">Product Name</th>}
+                                                    {visibleColumns.brand && <th className="p-3">Brand</th>}
+                                                    {visibleColumns.seller_tag && <th className="p-3">Seller Tag</th>}
+                                                    {visibleColumns.funnel && <th className="p-3">Funnel</th>}
+                                                    {visibleColumns.no_of_seller && <th className="p-3">No. OF seller</th>}
+                                                    {visibleColumns.usa_link && <th className="p-3">USA Link</th>}
+
+                                                    {/* ORIGIN — after USA Link */}
+                                                    {activeTab === 'pass_file' && (
+                                                        <th className="p-3">Origin</th>
+                                                    )}
+
+                                                    {visibleColumns.product_weight && <th className="p-3">Weight (g)</th>}
+                                                    {visibleColumns.usd_price && <th className="p-3">USD Price</th>}
+                                                    {visibleColumns.inr_sold && <th className="p-3">INR Sold</th>}
+                                                    {visibleColumns.inr_purchase && <th className="p-3">INR Purchase</th>}
+                                                    {visibleColumns.india_price && <th className="p-3">India Price</th>}
+
+                                                    {/* CHECKLIST — before Judgement */}
+                                                    {activeTab === 'pass_file' && (
+                                                        <th className="p-3">Checklist</th>
+                                                    )}
+
+                                                    {visibleColumns.judgement && <th className="p-3">Judgement</th>}
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                {filteredProducts.map((product, index) => (
+                                                    <tr
+                                                        key={product.id}
+                                                        className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        {/* Select */}
+                                                        <td className="p-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.has(product.id)}
+                                                                onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                                className="rounded"
+                                                            />
+                                                        </td>
+
+                                                        {visibleColumns.asin && (
+                                                            <td className="p-3 font-mono text-sm">{product.asin}</td>
+                                                        )}
+                                                        {visibleColumns.product_name && (
+                                                            <td className="p-3">{product.product_name || '-'}</td>
+                                                        )}
+                                                        {visibleColumns.brand && (
+                                                            <td className="p-3">{product.brand || '-'}</td>
+                                                        )}
+                                                        {visibleColumns.seller_tag && (
+                                                            <td className="p-3">{product.seller_tag || '-'}</td>
+                                                        )}
+                                                        {visibleColumns.funnel && (
+                                                            <td className="p-3">{product.funnel || '-'}</td>
+                                                        )}
+                                                        {visibleColumns.no_of_seller && (
+                                                            <td className="p-3">{product.no_of_seller || '-'}</td>
+                                                        )}
+
+                                                        {visibleColumns.usa_link && (
+                                                            <td className="p-3">
+                                                                {product.usa_link ? (
+                                                                    <a
+                                                                        href={product.usa_link}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 hover:underline"
+                                                                    >
+                                                                        View
+                                                                    </a>
+                                                                ) : (
+                                                                    '-'
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {/* ORIGIN */}
+                                                        {activeTab === 'pass_file' && (
+                                                            <td className="p-3">
+                                                                <div className="flex flex-col gap-1 text-sm">
+                                                                    <label className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={!!product.origin_india}
+                                                                            onChange={(e) =>
+                                                                                handleOriginToggle(product.id, 'origin_india', e.target.checked)
+                                                                            }
+                                                                        />
+                                                                        India
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={!!product.origin_china}
+                                                                            onChange={(e) =>
+                                                                                handleOriginToggle(product.id, 'origin_china', e.target.checked)
+                                                                            }
+                                                                        />
+                                                                        China
+                                                                    </label>
+                                                                </div>
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.product_weight && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        value={product.product_weight ?? ''}
+                                                                        onChange={(e) =>
+                                                                            handleCellEdit(
+                                                                                product.id,
+                                                                                'product_weight',
+                                                                                Number(e.target.value) || null
+                                                                            )
+                                                                        }
+                                                                        className="w-20 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    product.product_weight ?? '-'
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.usd_price && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={
+                                                                            editingValue?.id === product.id &&
+                                                                                editingValue.field === 'usd_price'
+                                                                                ? editingValue.value
+                                                                                : formatUSD(product.usd_price)
+                                                                        }
+                                                                        onFocus={() =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'usd_price',
+                                                                                value: product.usd_price?.toString() || ''
+                                                                            })
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'usd_price',
+                                                                                value: e.target.value
+                                                                            })
+                                                                        }
+                                                                        onBlur={() => {
+                                                                            const parsed = parseCurrency(editingValue?.value || '')
+                                                                            handleCellEdit(product.id, 'usd_price', parsed)
+                                                                            setEditingValue(null)
+                                                                        }}
+                                                                        className="w-28 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    formatUSD(product.usd_price)
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.inr_sold && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={
+                                                                            editingValue?.id === product.id &&
+                                                                                editingValue.field === 'inr_sold'
+                                                                                ? editingValue.value
+                                                                                : formatINR(product.inr_sold)
+                                                                        }
+                                                                        onFocus={() =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'inr_sold',
+                                                                                value: product.inr_sold?.toString() || ''
+                                                                            })
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'inr_sold',
+                                                                                value: e.target.value
+                                                                            })
+                                                                        }
+                                                                        onBlur={() => {
+                                                                            const parsed = parseCurrency(editingValue?.value || '')
+                                                                            handleCellEdit(product.id, 'inr_sold', parsed)
+                                                                            setEditingValue(null)
+                                                                        }}
+                                                                        className="w-32 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    formatINR(product.inr_sold)
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.inr_purchase && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={
+                                                                            editingValue?.id === product.id &&
+                                                                                editingValue.field === 'inr_purchase'
+                                                                                ? editingValue.value
+                                                                                : formatINR(product.inr_purchase)
+                                                                        }
+                                                                        onFocus={() =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'inr_purchase',
+                                                                                value: product.inr_purchase?.toString() || ''
+                                                                            })
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'inr_purchase',
+                                                                                value: e.target.value
+                                                                            })
+                                                                        }
+                                                                        onBlur={() => {
+                                                                            const parsed = parseCurrency(editingValue?.value || '')
+                                                                            handleCellEdit(product.id, 'inr_purchase', parsed)
+                                                                            setEditingValue(null)
+                                                                        }}
+                                                                        className="w-32 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    formatINR(product.inr_purchase)
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.india_price && (
+                                                            <td className="p-3 font-semibold">
+                                                                {formatINR(product.india_price)}
+                                                            </td>
+                                                        )}
+
+                                                        {/* CHECKLIST */}
+                                                        {activeTab === 'pass_file' && (
+                                                            <td className="p-3">
+                                                                {product.check_brand &&
+                                                                    product.check_item_expire &&
+                                                                    product.check_small_size &&
+                                                                    product.check_multi_seller ? (
+                                                                    <button
+                                                                        onClick={() => handleChecklistOk(product.id)}
+                                                                        className="px-4 py-1.5 bg-green-600 text-white rounded-lg"
+                                                                    >
+                                                                        OK
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-1 text-sm">
+                                                                        <label>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_brand}
+                                                                                onChange={(e) =>
+                                                                                    handleChecklistToggle(product.id, 'check_brand', e.target.checked)
+                                                                                }
+                                                                            /> Brand
+                                                                        </label>
+                                                                        <label>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_item_expire}
+                                                                                onChange={(e) =>
+                                                                                    handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)
+                                                                                }
+                                                                            /> Expire
+                                                                        </label>
+                                                                        <label>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_small_size}
+                                                                                onChange={(e) =>
+                                                                                    handleChecklistToggle(product.id, 'check_small_size', e.target.checked)
+                                                                                }
+                                                                            /> Size
+                                                                        </label>
+                                                                        <label>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_multi_seller}
+                                                                                onChange={(e) =>
+                                                                                    handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)
+                                                                                }
+                                                                            /> Sellers
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.judgement && (
+                                                            <td className="p-3">
+                                                                {product.judgement ? (
+                                                                    <span
+                                                                        className={`px-3 py-1 rounded-full text-xs font-bold ${product.judgement === 'PASS'
+                                                                            ? 'bg-green-500 text-white'
+                                                                            : product.judgement === 'FAIL'
+                                                                                ? 'bg-red-500 text-white'
+                                                                                : 'bg-gray-400 text-white'
+                                                                            }`}
+                                                                    >
+                                                                        {product.judgement}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-400 text-sm">Auto-calculating...</span>
+                                                                )}
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-4 text-sm text-gray-600">
+                            <p>Showing {filteredProducts.length} of {products.length} products | {selectedIds.size} selected</p>
+                        </div>
                     </div>
                 </div>
 
