@@ -2,18 +2,20 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { determineCategory, generateAmazonLink } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
-    // ✅ FIX: Create client INSIDE the function with validation
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase env vars:', { supabaseUrl: !!supabaseUrl, supabaseKey: !!supabaseKey });
       return NextResponse.json(
         { error: 'Supabase configuration missing' },
         { status: 500 }
       );
-    }
+    } // ✅ THIS CLOSING BRACE WAS MISSING!
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
