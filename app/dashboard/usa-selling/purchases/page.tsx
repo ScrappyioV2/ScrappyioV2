@@ -13,7 +13,7 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
+
   // Editing state
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editingValue, setEditingValue] = useState<any>('');
@@ -24,7 +24,10 @@ export default function PurchasesPage() {
       const { data, error } = await supabase
         .from('usa_validation_pass_file')
         .select('*')
-        .eq('checklist_completed', true)
+        .eq('check_brand', true)
+        .eq('check_item_expire', true)
+        .eq('check_small_size', true)
+        .eq('check_multi_seller', true)
         .eq('sent_to_admin', false)
         .order('created_at', { ascending: false });
 
@@ -108,7 +111,7 @@ export default function PurchasesPage() {
   // Handle bulk select
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const ids = activeTab === 'main_file' 
+      const ids = activeTab === 'main_file'
         ? new Set(filteredPassFile.map(p => p.id))
         : new Set(filteredConfirmed.map(p => p.id));
       setSelectedIds(ids);
@@ -179,21 +182,19 @@ export default function PurchasesPage() {
       <div className="flex gap-2 mb-6 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('main_file')}
-          className={`px-6 py-3 font-semibold transition-all ${
-            activeTab === 'main_file'
+          className={`px-6 py-3 font-semibold transition-all ${activeTab === 'main_file'
               ? 'border-b-2 border-blue-600 text-blue-600'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Main File
         </button>
         <button
           onClick={() => setActiveTab('confirmed')}
-          className={`px-6 py-3 font-semibold transition-all ${
-            activeTab === 'confirmed'
+          className={`px-6 py-3 font-semibold transition-all ${activeTab === 'confirmed'
               ? 'border-b-2 border-green-600 text-green-600'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Confirmed
           {confirmedPurchases.length > 0 && (
