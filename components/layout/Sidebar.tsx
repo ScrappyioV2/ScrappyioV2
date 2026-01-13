@@ -50,7 +50,7 @@ export default function Sidebar() {
     { label: "Validation", href: "/dashboard/usa-selling/validation" },
     { label: "Admin Validation", href: "/dashboard/usa-selling/admin-validation" },
     { label: "Listing & Error", href: "/dashboard/usa-selling#listing-error" },
-    { label: "Purchase", href: "/dashboard/usa-selling#purchases" },
+    { label: "Purchase", href: "/dashboard/usa-selling/purchases" },
     { label: "Reorder", href: "/dashboard/usa-selling#reorder" },
   ];
 
