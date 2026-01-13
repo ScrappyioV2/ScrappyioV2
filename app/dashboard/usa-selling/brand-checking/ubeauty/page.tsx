@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import FunnelBadge from '../../../../components/FunnelBadge';mport { generateAmazonLink } from '@/lib/utils';
+import RejectModal from '../../../../components/RejectModal';
+import FunnelBadge from '../../../../components/FunnelBadge';
 
 interface ProductRow {
   id: string;
