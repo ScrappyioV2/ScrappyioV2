@@ -2,13 +2,21 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { determineCategory, generateAmazonLink } from '@/lib/utils';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(request: Request) {
   try {
+    // ✅ FIX: Create client INSIDE the function with validation
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json(
+        { error: 'Supabase configuration missing' },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const { sellerId } = await request.json();
 
     if (!sellerId || ![1, 2, 3].includes(sellerId)) {
@@ -24,6 +32,7 @@ export async function POST(request: Request) {
       .select('*');
 
     if (fetchError) throw fetchError;
+
     if (!products || products.length === 0) {
       return NextResponse.json({ message: 'No products to distribute' });
     }
@@ -54,7 +63,7 @@ export async function POST(request: Request) {
 
       if (!insertError) {
         distributed[category]++;
-        
+
         // Delete from brand checking table
         await supabase
           .from(`usa_brand_checking_seller_${sellerId}`)
