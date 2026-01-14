@@ -24,6 +24,7 @@ const ALL_COLUMNS = [
   's_no',
   'asin',
   'link',
+  'amz_link',
   'product_name',
   'brand',
   'price',
