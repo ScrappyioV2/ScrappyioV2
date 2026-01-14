@@ -21,30 +21,32 @@ const parseCurrency = (value: string) =>
     Number(value.replace(/[^0-9.]/g, '')) || null
 
 interface ValidationProduct {
-    id: string
-    asin: string
-    product_name: string | null
-    brand: string | null
-    seller_tag: string | null
-    funnel: string | null
-    no_of_seller: number | null
-    usa_link: string | null
-    india_price: number | null
-    product_weight: number | null
-    judgement: string | null
-    usd_price: number | null
-    inr_sold: number | null
-    inr_purchase: number | null
-    cargo_charge: number | null
-    final_purchase_rate: number | null
-    purchase_rate_inr: number | null
-    status: string | null
-    origin_india: boolean | null
-    origin_china: boolean | null
-    check_brand: boolean | null
-    check_item_expire: boolean | null
-    check_small_size: boolean | null
-    check_multi_seller: boolean | null
+    id: string;
+    asin: string;
+    product_name: string | null;  // Changed from productname
+    brand: string | null;
+    seller_tag: string | null;    // Changed from sellertag
+    funnel: string | null;
+    no_of_seller: number | null;  // Changed from noofseller
+    usa_link: string | null;      // Changed from usalink
+    india_price: number | null;   // Changed from indiaprice
+    product_weight: number | null; // Changed from productweight
+    judgement: string | null;
+    usd_price: number | null;     // Changed from usdprice
+    inr_sold: number | null;      // Changed from inrsold
+    inr_purchase: number | null;  // Changed from inrpurchase
+    cargo_charge: number | null;  // Changed from cargocharge
+    final_purchase_rate: number | null; // Changed from finalpurchaserate
+    purchase_rate_inr: number | null;   // Changed from purchaserateinr
+    status: string | null;
+    origin_india: boolean | null;
+    origin_china: boolean | null;
+    check_brand: boolean | null;
+    check_item_expire: boolean | null;
+    check_small_size: boolean | null;
+    check_multi_seller: boolean | null;
+    sent_to_purchases?: boolean;
+    sent_to_purchases_at?: string;
 }
 
 interface Stats {
@@ -514,30 +516,61 @@ export default function ValidationPage() {
     }
 
     const handleChecklistOk = async (id: string) => {
-        const confirmed = window.confirm(
-            'Send this item to Admin Validation?'
-        )
-        if (!confirmed) return
+        const confirmed = window.confirm("Send this item to Purchases?");
+        if (!confirmed) return;
 
-        const { error } = await supabase
-            .from('usa_validation_main_file')
-            .update({
-                status: 'admin_validation',
-                sent_to_admin_at: new Date().toISOString(),
-            })
-            .eq('id', id)
+        const product = products.find((p) => p.id === id);
+        if (!product) return;
 
-        if (error) {
-            setToast({ message: 'Failed to send to admin validation', type: 'error' })
-            return
+        // INSERT into usa_purchases table
+        const { error: insertError } = await supabase
+            .from("usa_purchases")
+            .insert({
+                asin: product.asin,
+                product_name: product.product_name,        // ✅ Fixed
+                brand: product.brand,
+                seller_tag: product.seller_tag,            // ✅ Fixed
+                funnel: product.funnel,
+                origin_india: product.origin_india || false,
+                origin_china: product.origin_china || false,
+                product_link: product.usa_link,            // ✅ Fixed
+                target_price: product.usd_price,           // ✅ Fixed
+                target_quantity: 1,
+                funnel_quantity: 1,
+                funnel_seller: product.funnel,
+                buying_price: product.inr_purchase,        // ✅ Fixed
+                buying_quantity: 1,
+                seller_link: "",
+                seller_phone: "",
+                payment_method: "",
+                tracking_details: "",
+                delivery_date: null,
+                status: "pending",
+                admin_confirmed: false,
+            });
+
+        if (insertError) {
+            console.error("Insert error:", insertError);
+            setToast({ message: `Failed: ${insertError.message}`, type: "error" });
+            return;
         }
 
-        // remove row from Pass File immediately
-        setProducts(prev => prev.filter(p => p.id !== id))
+        // Mark as sent in main file
+        const { error } = await supabase
+            .from("usa_validation_main_file")
+            .update({
+                sent_to_purchases: true,
+                sent_to_purchases_at: new Date().toISOString(),
+            })
+            .eq("id", id);
 
-        setToast({ message: 'Sent to Admin Validation', type: 'success' })
-    }
+        if (error) {
+            console.error("Update error:", error);
+        }
 
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        setToast({ message: "Sent to Purchases!", type: "success" });
+    };
 
     const handleMoveToMainClick = () => {
         setToast({
@@ -868,7 +901,7 @@ export default function ValidationPage() {
                                             ? 'Products with incomplete data will appear here'
                                             : activeTab === 'pass_file'
                                                 ? 'Products with PASS judgement will appear here'
-                                                
+
                                                 : activeTab === 'fail_file'
                                                     ? 'Products with FAIL judgement will appear here'
                                                     : 'All products will appear here'
@@ -1351,4 +1384,3 @@ export default function ValidationPage() {
         </PageTransition>
     )
 }
-

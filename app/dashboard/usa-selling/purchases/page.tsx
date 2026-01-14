@@ -1,120 +1,254 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import { useState, useEffect, useRef } from 'react';
-import { PassFileProduct, Purchase } from '@/types/purchases';
+import { useState, useEffect } from 'react';
 
-type TabType = 'main_file' | 'confirmed';
+type PassFileProduct = {
+  id: string;
+  asin: string;
+  product_name: string | null;
+  brand: string | null;
+  seller_tag: string | null;
+  funnel: string | null;
+  origin_india: boolean | null;
+  origin_china: boolean | null;
+  usd_price: number | null;
+  inr_purchase: number | null;
+  usa_link: string | null;
+  product_link: string | null;
+  target_price: number | null;
+  target_quantity: number | null;
+  funnel_quantity: number | null;
+  funnel_seller: string | null;
+  buying_price: number | null;
+  buying_quantity: number | null;
+  seller_link: string | null;
+  seller_phone: string | null;
+  payment_method: string | null;
+  tracking_details: string | null;
+  delivery_date: string | null;
+  status: string | null;
+  move_to: string | null;
+  sent_to_admin: boolean | null;
+  sent_to_admin_at: string | null;
+  admin_confirmed: boolean | null;  // ✅ Match DB column name
+  admin_confirmed_at: string | null;  // ✅ Match DB column name
+  check_brand: boolean | null;
+  check_item_expire: boolean | null;
+  check_small_size: boolean | null;
+  check_multi_seller: boolean | null;
+  created_at: string | null;
+};
+
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
-  const [passFileProducts, setPassFileProducts] = useState<PassFileProduct[]>([]);
-  const [confirmedPurchases, setConfirmedPurchases] = useState<Purchase[]>([]);
+  const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Editing state
-  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
-  const [editingValue, setEditingValue] = useState<any>('');
-
-  // Fetch pass file products
-  const fetchPassFileProducts = async () => {
+  const fetchProducts = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('usa_validation_pass_file')
+        .from('usa_purchases')  // ✅ CORRECT
         .select('*')
-        .eq('check_brand', true)
-        .eq('check_item_expire', true)
-        .eq('check_small_size', true)
-        .eq('check_multi_seller', true)
-        .eq('sent_to_admin', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPassFileProducts(data || []);
+      setProducts(data || []);
     } catch (error) {
-      console.error('Error fetching pass file products:', error);
-    }
-  };
-
-  // Fetch confirmed purchases
-  const fetchConfirmedPurchases = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('usa_purchases')
-        .select('*')
-        .eq('status', 'admin_confirmed')
-        .order('admin_confirmed_at', { ascending: false });
-
-      if (error) throw error;
-      setConfirmedPurchases(data || []);
-    } catch (error) {
-      console.error('Error fetching confirmed purchases:', error);
-    }
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([fetchPassFileProducts(), fetchConfirmedPurchases()]);
+      console.error('Error fetching products:', error);
+    } finally {
       setLoading(false);
-    };
-    loadData();
-  }, []);
+    }
+  };
 
-  // Real-time subscriptions
   useEffect(() => {
-    const passFileChannel = supabase
-      .channel('pass_file_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'usa_validation_pass_file' },
-        () => fetchPassFileProducts()
-      )
-      .subscribe();
+    fetchProducts();
 
-    const purchasesChannel = supabase
+    const channel = supabase
       .channel('purchases_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'usa_purchases' },
-        () => fetchConfirmedPurchases()
+        { event: '*', schema: 'public', table: 'usa_purchases' },  // ✅ CORRECT
+        () => fetchProducts()
       )
       .subscribe();
 
     return () => {
-      passFileChannel.unsubscribe();
-      purchasesChannel.unsubscribe();
+      channel.unsubscribe();
     };
   }, []);
 
-  // Handle sending to admin
-  const handleSendToAdmin = async (product: PassFileProduct, purchaseData: any) => {
+  // Column widths state for resizable columns
+  const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
+    checkbox: 50,
+    asin: 120,
+    product_link: 80,
+    product_name: 200,
+    target_price: 100,
+    target_quantity: 120,
+    funnel_quantity: 120,
+    funnel_seller: 100,
+    buying_price: 100,
+    buying_quantity: 120,
+    seller_link: 100,
+    seller_ph_no: 120,
+    payment_method: 120,
+    tracking_details: 150,
+    delivery_date: 150,
+    move_to: 150,
+  });
+
+  const [resizing, setResizing] = useState<{ column: string, startX: number, startWidth: number } | null>(null);
+
+  // Handle sending to admin validation
+  const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
-      const response = await fetch('/api/usa-purchases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passFileData: product, purchaseData }),
+      const { error: insertError } = await supabase.from('usa_admin_validation').insert({
+        asin: product.asin,
+        product_name: product.product_name,
+        product_link: product.usa_link || product.product_link,
+        funnel_seller: product.funnel || product.funnel_seller,
+        origin_india: product.origin_india,
+        origin_china: product.origin_china,
+        target_price: product.target_price || product.usd_price,
+        target_quantity: product.target_quantity || 1,
+        buying_price: product.buying_price || product.inr_purchase,
+        buying_quantity: product.buying_quantity || 1,
+        funnel_quantity: product.funnel_quantity || 1,
+        seller_link: product.seller_link || '',
+        seller_phone: product.seller_phone || '',
+        payment_method: product.payment_method || '',
+        admin_status: 'pending',
       });
 
-      const result = await response.json();
-      if (result.error) throw new Error(result.error);
+      if (insertError) throw insertError;
 
-      alert('✅ Sent to Admin successfully!');
-      fetchPassFileProducts();
+      const { error: updateError } = await supabase
+        .from('usa_purchases')  // ✅ CORRECT
+        .update({
+          sent_to_admin: true,
+          sent_to_admin_at: new Date().toISOString(),
+        })
+        .eq('id', product.id);  // Use ID not ASIN
+
+      if (updateError) throw updateError;
+
+      alert('✅ Sent to Admin Validation successfully!');
+      fetchProducts();
     } catch (error: any) {
       alert('❌ Error: ' + error.message);
     }
   };
 
-  // Handle bulk select
+  // Handle Price Wait
+  const handlePriceWait = async (product: PassFileProduct) => {
+    try {
+      const { error } = await supabase
+        .from('usa_purchases')
+        .update({ move_to: 'price_wait' })
+        .eq('id', product.id);
+
+      if (error) throw error;
+
+      alert('Moved to Price Wait successfully!');
+      fetchProducts();
+    } catch (error: any) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Handle Not Found
+  const handleNotFound = async (product: PassFileProduct) => {
+    try {
+      const { error } = await supabase
+        .from('usa_purchases')
+        .update({ move_to: 'not_found' })
+        .eq('id', product.id);
+
+      if (error) throw error;
+
+      alert('Marked as Not Found successfully!');
+      fetchProducts();
+    } catch (error: any) {
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Handle column resize
+  const handleMouseDown = (column: string, e: React.MouseEvent) => {
+    setResizing({
+      column,
+      startX: e.clientX,
+      startWidth: columnWidths[column],
+    });
+  };
+
+  // Handle column resize drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (resizing) {
+        const diff = e.clientX - resizing.startX;
+        const newWidth = Math.max(50, resizing.startWidth + diff);
+        setColumnWidths(prev => ({
+          ...prev,
+          [resizing.column]: newWidth,
+        }));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setResizing(null);
+    };
+
+    if (resizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [resizing, columnWidths]);
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
+      !searchQuery ||
+      p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.funnel?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    switch (activeTab) {
+      case 'main_file':
+        return !p.sent_to_admin && !p.move_to;
+      case 'price_wait':
+        return p.move_to === 'price_wait';
+      case 'order_confirmed':
+        return p.admin_confirmed === true;
+      case 'china':
+        return p.origin_china === true;
+      case 'india':
+        return p.origin_india === true;
+      case 'pending':
+        return p.status === 'pending';
+      case 'not_found':
+        return p.move_to === 'not_found';
+      case 'reject':
+        return p.move_to === 'reject';
+      default:
+        return true;
+    }
+  });
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const ids = activeTab === 'main_file'
-        ? new Set(filteredPassFile.map(p => p.id))
-        : new Set(filteredConfirmed.map(p => p.id));
-      setSelectedIds(ids);
+      setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -130,33 +264,15 @@ export default function PurchasesPage() {
     setSelectedIds(newSelected);
   };
 
-  // Filter products
-  const filteredPassFile = passFileProducts.filter(
-    (p) =>
-      p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredConfirmed = confirmedPurchases.filter(
-    (p) =>
-      p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Inline editing for confirmed purchases
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
-      const response = await fetch('/api/usa-purchases', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, updates: { [field]: value } }),
-      });
+      const { error } = await supabase
+        .from("usa_purchases")  // CORRECT!
+        .update({ [field]: value })
+        .eq("id", id);
 
-      const result = await response.json();
-      if (result.error) throw new Error(result.error);
-
-      fetchConfirmedPurchases();
+      if (error) throw error;
+      fetchProducts();
     } catch (error: any) {
       alert('Error updating: ' + error.message);
     }
@@ -170,218 +286,409 @@ export default function PurchasesPage() {
     );
   }
 
+  const tabs = [
+    { key: 'main_file', label: 'Main File', count: products.filter(p => !p.sent_to_admin && !p.move_to).length },
+    { key: 'price_wait', label: 'Price Wait', count: products.filter(p => p.move_to === 'price_wait').length },
+    { key: 'order_confirmed', label: 'Order Confirmed', count: products.filter(p => p.admin_confirmed === true).length, },
+    { key: 'china', label: 'China', count: products.filter(p => p.origin_china).length },
+    { key: 'india', label: 'India', count: products.filter(p => p.origin_india).length },
+    { key: 'pending', label: 'Pending', count: products.filter(p => p.status === 'pending').length },
+    { key: 'not_found', label: 'Not Found', count: products.filter(p => p.move_to === 'not_found').length },
+    { key: 'reject', label: 'Reject', count: products.filter(p => p.move_to === 'reject').length },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Purchases</h1>
-        <p className="text-gray-600 mt-1">Manage purchase orders and track confirmations</p>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header Section - FIXED */}
+      <div className="flex-none px-6 pt-6 pb-4">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Purchases</h1>
+          <p className="text-gray-600 mt-1">Manage purchase orders and track confirmations</p>
+        </div>
+
+        {/* Tabs - FIXED */}
+        <div className="flex gap-2 mb-4 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab("main_file")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "main_file"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            Main File
+          </button>
+          <button
+            onClick={() => setActiveTab("price_wait")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "price_wait"
+              ? "border-yellow-600 text-yellow-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            Price Wait
+          </button>
+          <button
+            onClick={() => setActiveTab("order_confirmed")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "order_confirmed"
+              ? "border-green-600 text-green-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            Order Confirmed
+          </button>
+          <button
+            onClick={() => setActiveTab("china")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "china"
+              ? "border-red-600 text-red-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            China
+          </button>
+          <button
+            onClick={() => setActiveTab("india")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "india"
+              ? "border-orange-600 text-orange-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            India
+          </button>
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "pending"
+              ? "border-purple-600 text-purple-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            Pending
+          </button>
+          <button
+            onClick={() => setActiveTab("reject")}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "reject"
+              ? "border-gray-600 text-gray-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+          >
+            Reject
+          </button>
+          <button
+            onClick={() => setActiveTab('not_found')}
+            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'not_found'
+              ? 'border-gray-600 text-gray-600'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+          >
+            Not Found
+          </button>
+        </div>
+
+        {/* Search - FIXED */}
+        <div>
+          <input
+            type="text"
+            placeholder="Search by ASIN, Product Name, or Funnel..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('main_file')}
-          className={`px-6 py-3 font-semibold transition-all ${activeTab === 'main_file'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
-            }`}
-        >
-          Main File
-        </button>
-        <button
-          onClick={() => setActiveTab('confirmed')}
-          className={`px-6 py-3 font-semibold transition-all ${activeTab === 'confirmed'
-              ? 'border-b-2 border-green-600 text-green-600'
-              : 'text-gray-600 hover:text-gray-900'
-            }`}
-        >
-          Confirmed
-          {confirmedPurchases.length > 0 && (
-            <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-              {confirmedPurchases.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Search by ASIN, Product Name, or Funnel..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      </div>
-
-      {/* Main File Table */}
-      {activeTab === 'main_file' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+      {/* Table Container - SCROLLABLE ONLY */}
+      <div className="flex-1 overflow-hidden px-6 pb-6">
+        <div className="bg-white rounded-lg shadow h-full flex flex-col">
+          {/* Table Wrapper with Scroll */}
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full divide-y divide-gray-200 table-fixed">
               <thead className="bg-gray-100 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === filteredPassFile.length && filteredPassFile.length > 0}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded"
-                    />
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.checkbox}px` }}>
+                    <input type="checkbox" checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0} onChange={(e) => handleSelectAll(e.target.checked)} className="rounded" />
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('checkbox', e)} />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ASIN</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Product Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Brand</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Seller Tag</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Funnel</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Origin</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Move TO</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.asin}px` }}>
+                    ASIN
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_link}px` }}>
+                    Product Link
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_link', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_name}px` }}>
+                    Product Name
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_name', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.target_price}px` }}>
+                    Target Price
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('target_price', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.target_quantity}px` }}>
+                    Target Quantity
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('target_quantity', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
+                    Funnel Quantity
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
+                    Funnel Seller
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_price}px` }}>
+                    Buying Price
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_price', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_quantity}px` }}>
+                    Buying Quantity
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_quantity', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_link}px` }}>
+                    Seller Link
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_link', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_ph_no}px` }}>
+                    Seller Ph No.
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_ph_no', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.payment_method}px` }}>
+                    Payment Method
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('payment_method', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.tracking_details}px` }}>
+                    Tracking Details
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('tracking_details', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.delivery_date}px` }}>
+                    Delivery Date
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('delivery_date', e)} />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.move_to}px` }}>
+                    Move TO
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('move_to', e)} />
+                  </th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-gray-200">
-                {filteredPassFile.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                      No products available in Main File
+                    <td colSpan={16} className="px-4 py-8 text-center text-gray-500">
+                      No products available in {activeTab.replace('_', ' ')}
                     </td>
                   </tr>
                 ) : (
-                  filteredPassFile.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(product.id)}
-                          onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.asin}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.product_name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.brand || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.seller_tag || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.funnel || '-'}</td>
-                      <td className="px-4 py-3">
-                        {product.origin_india && (
-                          <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">India</span>
-                        )}
-                        {product.origin_china && (
-                          <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded ml-1">China</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              const purchaseData = {
-                                product_link: product.usa_link,
-                                target_price: product.usd_price,
-                                target_quantity: 1,
-                                funnel_quantity: 1,
-                                funnel_seller: product.funnel,
-                                buying_price: product.inr_purchase,
-                                buying_quantity: 1,
-                                seller_link: '',
-                                seller_phone: '',
-                                payment_method: '',
-                              };
-                              handleSendToAdmin(product, purchaseData);
-                            }}
-                            className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded"
-                          >
-                            Done
-                          </button>
-                          <button className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded">
-                            Price Wait
-                          </button>
-                          <button className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded">
-                            Not Found
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredProducts.map((product) => {
+                    return (
+                      <tr key={product.id} className="hover:bg-gray-50 group">
+                        {/* Checkbox */}
+                        <td className="px-4 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.checkbox}px` }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(product.id)}
+                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                            className="rounded"
+                          />
+                        </td>
+
+                        {/* ASIN */}
+                        <td className="px-3 py-2 font-mono text-sm overflow-hidden" style={{ width: `${columnWidths.asin}px` }}>
+                          <div className="truncate">{product.asin}</div>
+                        </td>
+
+                        {/* Product Link */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.product_link}px` }}>
+                          {product.usa_link || product.product_link ? (
+                            <a
+                              href={product.usa_link || product.product_link || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs truncate block"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <input
+                              type="text"
+                              defaultValue={product.product_link || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'product_link', e.target.value)}
+                              className="w-full px-2 py-1 border rounded text-xs"
+                              placeholder="Link"
+                            />
+                          )}
+                        </td>
+
+                        {/* Product Name */}
+                        <td className="px-3 py-2 text-sm overflow-hidden" style={{ width: `${columnWidths.product_name}px` }}>
+                          <div className="truncate">{product.product_name || '-'}</div>
+                        </td>
+
+                        {/* Target Price */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.target_price}px` }}>
+                          <input
+                            type="number"
+                            defaultValue={product.target_price || product.usd_price || ""}
+                            onBlur={(e) => handleCellEdit(product.id, 'target_price', parseFloat(e.target.value))}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="$"
+                          />
+                        </td>
+
+                        {/* Target Quantity */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.target_quantity}px` }}>
+                          <input
+                            type="number"
+                            defaultValue={product.target_quantity || 1}
+                            onBlur={(e) => handleCellEdit(product.id, 'target_quantity', parseInt(e.target.value))}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="Qty"
+                          />
+                        </td>
+
+                        {/* Funnel Quantity */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnel_quantity}px` }}>
+                          <input
+                            type="number"
+                            defaultValue={product.funnel_quantity || 1}
+                            onBlur={(e) => handleCellEdit(product.id, 'funnel_quantity', parseInt(e.target.value))}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="Qty"
+                          />
+                        </td>
+
+                        {/* Funnel Seller */}
+                        <td className="px-3 py-2 text-sm overflow-hidden" style={{ width: `${columnWidths.funnel_seller}px` }}>
+                          <div className="truncate">{product.funnel_seller || product.funnel || '-'}</div>
+                        </td>
+
+                        {/* Buying Price */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buying_price}px` }}>
+                          <input
+                            type="number"
+                            defaultValue={product.buying_price || ""}
+                            onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="₹"
+                          />
+                        </td>
+
+                        {/* Buying Quantity */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buying_quantity}px` }}>
+                          <input
+                            type="number"
+                            defaultValue={product.buying_quantity || 1}
+                            onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="Qty"
+                          />
+                        </td>
+
+                        {/* Seller Link */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.seller_link}px` }}>
+                          <input
+                            type="text"
+                            defaultValue={product.seller_link || ""}
+                            onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="Link"
+                          />
+                        </td>
+
+                        {/* Seller Phone */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.seller_ph_no}px` }}>
+                          <input
+                            type="text"
+                            defaultValue={product.seller_phone || ""}
+                            onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="Phone"
+                          />
+                        </td>
+
+                        {/* Payment Method */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.payment_method}px` }}>
+                          <input
+                            type="text"
+                            defaultValue={product.payment_method || ""}
+                            onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-xs"
+                            placeholder="Method"
+                          />
+                        </td>
+
+                        {/* Tracking Details */}
+                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.tracking_details}px` }}>
+                          {activeTab === 'order_confirmed' ? (
+                            <input
+                              type="text"
+                              defaultValue={product.tracking_details || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)}
+                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
+                              placeholder="Tracking #"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">After confirmation</span>
+                          )}
+                        </td>
+
+                        {/* Delivery Date */}
+                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.delivery_date}px` }}>
+                          {activeTab === 'order_confirmed' ? (
+                            <input
+                              type="date"
+                              defaultValue={product.delivery_date || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)}
+                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">After confirmation</span>
+                          )}
+                        </td>
+
+
+                        {/* Move TO Buttons */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.move_to}px` }}>
+                          <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => handleSendToAdmin(product)}
+                              className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0"
+                              title="Done"
+                            >
+                              D
+                            </button>
+                            <button
+                              onClick={() => handlePriceWait(product)}
+                              className="w-8 h-8 bg-yellow-600 text-white text-xs font-bold rounded hover:bg-yellow-700 flex items-center justify-center flex-shrink-0"
+                              title="Price Wait"
+                            >
+                              PW
+                            </button>
+                            <button
+                              onClick={() => handleNotFound(product)}
+                              className="w-8 h-8 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 flex items-center justify-center flex-shrink-0"
+                              title="Not Found"
+                            >
+                              NF
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+
                 )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* Confirmed Table */}
-      {activeTab === 'confirmed' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100 sticky top-0 z-10">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === filteredConfirmed.length && filteredConfirmed.length > 0}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ASIN</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Product Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tracking Details</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Delivery Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredConfirmed.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                      No confirmed purchases yet
-                    </td>
-                  </tr>
-                ) : (
-                  filteredConfirmed.map((purchase) => (
-                    <tr key={purchase.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(purchase.id)}
-                          onChange={(e) => handleSelectRow(purchase.id, e.target.checked)}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{purchase.asin}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{purchase.product_name || '-'}</td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="text"
-                          value={purchase.tracking_details || ''}
-                          onChange={(e) => handleCellEdit(purchase.id, 'tracking_details', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                          placeholder="Enter tracking details"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="date"
-                          value={purchase.delivery_date || ''}
-                          onChange={(e) => handleCellEdit(purchase.id, 'delivery_date', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
-                          {purchase.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          {/* Footer Stats - FIXED */}
+          <div className="flex-none border-t bg-gray-50 px-4 py-3">
+            <div className="text-sm text-gray-600">
+              Showing {filteredProducts.length} of {products.length} products
+              {selectedIds.size > 0 && ` | ${selectedIds.size} selected`}
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
+
 }
