@@ -265,7 +265,7 @@ export default function GoldenAuraPage() {
           seller_tag: getSellerName(SELLER_ID.toString()),
           funnel: product.funnel,
           no_of_seller: 1,
-          usa_link: product.amz_link,
+          usa_link: product.product_link, 
           india_price: null,
           product_weight: null,
           judgement: null,

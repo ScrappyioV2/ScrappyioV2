@@ -11,12 +11,12 @@ import { generateAmazonLink } from '@/lib/utils';
 interface ProductRow {
   id: string;
   asin: string;
-  product_name: string | null;
+  product_name: string | null;    // ✅ Change from: productname
   brand: string | null;
   funnel: string | null;
-  monthly_unit: number | null;
-  product_link: string | null;
-  amz_link: string | null;
+  monthly_unit: number | null;    // ✅ Change from: monthlyunit
+  product_link: string | null;    // ✅ Change from: productlink
+  amz_link: string | null;        // ✅ Change from: amzlink
   working?: boolean;
   reason?: string | null;
 }
@@ -176,7 +176,7 @@ export default function GoldenAuraPage() {
       // Apply search filter with proper escaping
       if (debouncedSearch.trim()) {
         const searchTerm = sanitizeSearchTerm(debouncedSearch);
-        
+
         // Use textSearch or individual filters
         query = query.or(
           `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
@@ -213,22 +213,18 @@ export default function GoldenAuraPage() {
     }
   };
 
-  const saveToHistory = async (
-    product: ProductRow,
-    fromTable: string,
-    toTable: string
-  ) => {
+  const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
       const { error } = await supabase
-        .from('usa_seller_1_golden_aura_movement_history')
+        .from(`usa_seller_1_golden_aura_movement_history`)
         .insert({
           asin: product.asin,
-          product_name: product.product_name,
+          product_name: product.product_name,       // ✅ Fixed
           brand: product.brand,
           funnel: product.funnel,
-          monthly_unit: product.monthly_unit,
-          product_link: product.product_link,
-          amz_link: product.amz_link,
+          monthly_unit: product.monthly_unit,       // ✅ Fixed
+          product_link: product.product_link,       // ✅ Fixed
+          amz_link: product.amz_link,               // ✅ Fixed
           from_table: fromTable,
           to_table: toTable,
         });
@@ -250,15 +246,14 @@ export default function GoldenAuraPage() {
     reason?: string
   ) => {
     setProcessingId(product.id);
-
     try {
-      let targetTable: string = '';
-      let dataToInsert: any = {};
+      let targetTable: string;
+      let dataToInsert: any;
 
       const { id, working, reason: oldReason, ...productData } = product;
 
       if (action === 'approved') {
-        targetTable = 'usa_validation_main_file';
+        targetTable = `usa_validation_main_file`;
         dataToInsert = {
           asin: product.asin,
           product_name: product.product_name,
@@ -266,7 +261,7 @@ export default function GoldenAuraPage() {
           seller_tag: getSellerName(SELLER_ID.toString()),
           funnel: product.funnel,
           no_of_seller: 1,
-          usa_link: product.amz_link,
+          usa_link: product.product_link,
           india_price: null,
           product_weight: null,
           judgement: null,
@@ -322,8 +317,8 @@ export default function GoldenAuraPage() {
         action === 'approved'
           ? 'Validation Main File'
           : action === 'not_approved'
-          ? 'Not Approved'
-          : 'Reject';
+            ? 'Not Approved'
+            : 'Reject';
       setToast({
         message: `Product moved to ${actionText} successfully!`,
         type: 'success',
@@ -357,12 +352,12 @@ export default function GoldenAuraPage() {
 
       const { error: insertError } = await supabase.from(fromTable).insert({
         asin: product.asin,
-        product_name: product.product_name,
+        product_name: product.product_name,       // ✅ Fixed
         brand: product.brand,
         funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.product_link,
-        amz_link: product.amz_link,
+        monthly_unit: product.monthly_unit,       // ✅ Fixed
+        product_link: product.product_link,       // ✅ Fixed
+        amz_link: product.amz_link,               // ✅ Fixed
       });
 
       if (insertError) throw insertError;
@@ -445,7 +440,7 @@ export default function GoldenAuraPage() {
 
     const columnIndex = columnOrder.indexOf(columnKey) + 1;
     const cells = tableRef.current.querySelectorAll(`tr td:nth-child(${columnIndex + 1}), tr th:nth-child(${columnIndex + 1})`);
-    
+
     let maxWidth = 80;
     cells.forEach((cell) => {
       const width = cell.scrollWidth + 20;
@@ -575,51 +570,46 @@ export default function GoldenAuraPage() {
             <div className="flex gap-3 mb-6">
               <button
                 onClick={() => setActiveTab('high_demand')}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === 'high_demand'
-                    ? 'bg-green-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'high_demand'
+                  ? 'bg-green-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
               >
                 High Demand
               </button>
               <button
                 onClick={() => setActiveTab('low_demand')}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === 'low_demand'
-                    ? 'bg-blue-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'low_demand'
+                  ? 'bg-blue-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
               >
                 Low Demand
               </button>
               <button
                 onClick={() => setActiveTab('dropshipping')}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === 'dropshipping'
-                    ? 'bg-yellow-400 text-gray-900 shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'dropshipping'
+                  ? 'bg-yellow-400 text-gray-900 shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
               >
                 Dropshipping
               </button>
               <button
                 onClick={() => setActiveTab('not_approved')}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === 'not_approved'
-                    ? 'bg-red-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'not_approved'
+                  ? 'bg-red-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
               >
                 Not Approved
               </button>
               <button
                 onClick={() => setActiveTab('reject')}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === 'reject'
-                    ? 'bg-gray-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'reject'
+                  ? 'bg-gray-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
               >
                 Reject
               </button>
@@ -781,9 +771,8 @@ export default function GoldenAuraPage() {
                     {products.map((product, index) => (
                       <tr
                         key={product.id}
-                        className={`border-b hover:bg-gray-50 ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                        }`}
+                        className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
                       >
                         <td className="p-3">
                           <input

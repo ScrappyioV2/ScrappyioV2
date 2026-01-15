@@ -1,99 +1,105 @@
 /**
- * Automatic Calculation Engine for V2
+ * Automatic Calculation Engine for V2 - SIMPLIFIED
  * Calculates judgement automatically when fields are filled
  */
 
 export interface ProductCalculationInput {
-    usd_price: number | null
-    product_weight: number | null
-    inr_sold: number | null
-    inr_purchase: number | null
+  usd_price: number | null // USA Selling Rate in Dollar
+  product_weight: number | null // Weight in grams
+  inr_purchase: number | null // Product Purchase Rate in INR
 }
 
 export interface CalculationConstants {
-    dollar_rate: number
-    card_conversion_rate: number
-    cargo_rate_per_kg: number
-    commission_rate: number
-    packing_cost: number
+  dollar_rate: number // Dollar to INR conversion rate
+  bank_conversion_rate: number // Bank fee percentage (as decimal, e.g., 0.02 for 2%)
+  shipping_charge_per_kg: number // Shipping charge per 1000 grams
+  commission_rate: number // Amazon commission percentage (as decimal, e.g., 0.25 for 25%)
+  packing_cost: number // Packing cost per item
 }
 
 export interface CalculationResult {
-    purchase_rate_inr: number
-    cargo_charge: number
-    final_purchase_rate: number
-    india_price: number
-    judgement: 'PASS' | 'FAIL' | 'PENDING'
+  total_cost: number // All expenses combined
+  total_revenue: number // Money received after bank fees
+  profit: number // Revenue - Cost
+  judgement: 'PASS' | 'FAIL' | 'PENDING'
 }
 
 /**
- * Calculate all values automatically
+ * Calculate all values automatically using simplified 3-step logic
  */
 export function calculateProductValues(
-    product: ProductCalculationInput,
-    constants: CalculationConstants
+  product: ProductCalculationInput,
+  constants: CalculationConstants
 ): CalculationResult {
-    const purchaseRateUSD = parseFloat(String(product.usd_price)) || 0
-    const expectedWt = parseFloat(String(product.product_weight)) || 0
-    const soldPriceINR = parseFloat(String(product.inr_sold)) || 0
-    const inrPurchase = parseFloat(String(product.inr_purchase)) || 0
+  const usaSellingRate = parseFloat(String(product.usd_price)) || 0
+  const weight = parseFloat(String(product.product_weight)) || 0
+  const purchaseRate = parseFloat(String(product.inr_purchase)) || 0
 
-    // If all required values are present, calculate
-    if (purchaseRateUSD > 0 && expectedWt > 0 && soldPriceINR > 0 && inrPurchase > 0) {
-        const dollarRate = parseFloat(String(constants.dollar_rate)) || 82
-        const cardConversionRate = parseFloat(String(constants.card_conversion_rate)) || 0.02
-        const cargoRatePerKg = parseFloat(String(constants.cargo_rate_per_kg)) || 950
-        const commissionRate = parseFloat(String(constants.commission_rate)) || 0.25
-        const packingCost = parseFloat(String(constants.packing_cost)) || 10
+  // Check if all required inputs are present
+  if (usaSellingRate > 0 && weight > 0 && purchaseRate > 0) {
+    const dollarRate = parseFloat(String(constants.dollar_rate)) || 90
+    const bankFee = parseFloat(String(constants.bank_conversion_rate)) || 0.02
+    const shippingPerKg = parseFloat(String(constants.shipping_charge_per_kg)) || 950
+    const commissionRate = parseFloat(String(constants.commission_rate)) || 0.25
+    const packingCost = parseFloat(String(constants.packing_cost)) || 25
 
-        // A) Purchase Rate (INR) = Purchase Rate (USD) × Dollar Rate × (1 + Card Conversion Rate)
-        const purchaseRateINR = purchaseRateUSD * dollarRate * (1 + cardConversionRate)
+    // STEP 1: Total Cost (All Expenses Combined)
+    // Formula: Purchase + (Weight × Shipping/1000) + Packing + (USD × Dollar_Rate × Commission%)
+    const shippingCost = (weight * shippingPerKg) / 1000
+    const usdInINR = usaSellingRate * dollarRate
+    const commissionCost = usdInINR * commissionRate
+    const totalCost = purchaseRate + shippingCost + packingCost + commissionCost
 
-        // B) Cargo Charge = (Cargo Rate per KG / 1000) × Expected Weight
-        const cargoCharge = (cargoRatePerKg / 1000) * expectedWt
+    // STEP 2: Total Revenue (Money Received)
+    // Formula: (USD × Dollar_Rate) × (1 - Bank_Fee%)
+    const totalRevenue = usdInINR * (1 - bankFee)
 
-        // C) Final Purchase Rate = Purchase Rate (INR) + Cargo Charge + Packing Cost + (Commission × Sold Price)
-        const commission = commissionRate * soldPriceINR
-        const finalPurchaseRate = purchaseRateINR + cargoCharge + packingCost + commission
+    // STEP 3: Profit & Judgement
+    // Profit = Revenue - Cost
+    // Judgement = Profit > 0 ? "PASS" : "FAIL"
+    const profit = totalRevenue - totalCost
+    const judgement: 'PASS' | 'FAIL' = profit > 0 ? 'PASS' : 'FAIL'
 
-        // D) India Price = same as INR Purchase (user-entered)
-        const indiaPrice = finalPurchaseRate
-
-        // E) Judgement = INR Sold > INR Purchase
-        // E) Judgement = INR Sold > Final Purchase Rate (V1 logic)
-        let judgement: 'PASS' | 'FAIL' | 'PENDING' = 'PENDING'
-
-        if (purchaseRateUSD > 0 && expectedWt > 0 && soldPriceINR > 0) {
-            judgement = soldPriceINR > finalPurchaseRate ? 'PASS' : 'FAIL'
-        }
-
-
-        return {
-            purchase_rate_inr: parseFloat(purchaseRateINR.toFixed(2)),
-            cargo_charge: parseFloat(cargoCharge.toFixed(2)),
-            final_purchase_rate: parseFloat(finalPurchaseRate.toFixed(2)),
-            india_price: parseFloat(finalPurchaseRate.toFixed(2)),
-            judgement
-        }
-
-    }
-
-    // Return pending if not all values present
     return {
-        purchase_rate_inr: 0,
-        cargo_charge: 0,
-        final_purchase_rate: 0,
-        india_price: inrPurchase,
-        judgement: 'PENDING'
+      total_cost: parseFloat(totalCost.toFixed(2)),
+      total_revenue: parseFloat(totalRevenue.toFixed(2)),
+      profit: parseFloat(profit.toFixed(2)),
+      judgement
     }
+  }
+
+  // Return pending if not all values present
+  return {
+    total_cost: 0,
+    total_revenue: 0,
+    profit: 0,
+    judgement: 'PENDING'
+  }
 }
 
+/**
+ * Get default calculation constants (matching Excel values)
+ */
 export function getDefaultConstants(): CalculationConstants {
-    return {
-        dollar_rate: 82.00,
-        card_conversion_rate: 0.02,
-        cargo_rate_per_kg: 950.00,
-        commission_rate: 0.25,
-        packing_cost: 10.00
-    }
+  return {
+    dollar_rate: 90.0, // Dollar Rate in INR
+    bank_conversion_rate: 0.02, // 2% bank fee
+    shipping_charge_per_kg: 950.0, // ₹950 per 1000 grams
+    commission_rate: 0.25, // 25% Amazon commission
+    packing_cost: 25.0 // ₹25 per item
+  }
+}
+
+/**
+ * Check if all required inputs are filled for calculation
+ */
+export function isCalculationReady(product: ProductCalculationInput): boolean {
+  return (
+    product.usd_price !== null &&
+    product.usd_price > 0 &&
+    product.product_weight !== null &&
+    product.product_weight > 0 &&
+    product.inr_purchase !== null &&
+    product.inr_purchase > 0
+  )
 }
