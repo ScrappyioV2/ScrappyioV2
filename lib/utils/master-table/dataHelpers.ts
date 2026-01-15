@@ -7,6 +7,7 @@
 const DB_COLUMNS = new Set([
   'asin',
   'link',
+  'amz_link',
   'product_name',
   'brand',
   'price',
@@ -101,6 +102,7 @@ export const normalizeDataForDB = (rows: any[]) => {
         if (dbKey === 'monthly_units') dbKey = 'monthly_unit';
         if (dbKey === 'seller_count') dbKey = 'seller';
         if (dbKey === 'sellers') dbKey = 'seller';
+        if (dbKey === 'link') dbKey = 'amz_link'; 
 
         if (BLOCKED_COLUMNS.has(dbKey)) return;
         if (!DB_COLUMNS.has(dbKey)) return;
@@ -131,22 +133,33 @@ export const normalizeDataForDB = (rows: any[]) => {
             : String(value).trim();
       });
 
-          // ASIN REQUIRED
-    if (!normalizedRow.asin) return null;
+      // ASIN REQUIRED
+      if (!normalizedRow.asin) return null;
 
-    // DEFAULT UNIT
-    if (!normalizedRow.weight_unit) {
-      normalizedRow.weight_unit = 'kg';
-    }
+      // DEFAULT UNIT
+      if (!normalizedRow.weight_unit) {
+        normalizedRow.weight_unit = 'kg';
+      }
 
-    // AUTO-GENERATE LINK IF EMPTY
-    if (!normalizedRow.link || normalizedRow.link.trim() === '') {
-      normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
-    }
+      // AUTO-GENERATE LINK IF EMPTY
+      if (!normalizedRow.amz_link || normalizedRow.amz_link.trim() === '') {
+  normalizedRow.amz_link = `www.amazon.com/dp/${normalizedRow.asin}`;
+}
 
-    return normalizedRow;
+if (!normalizedRow.link || normalizedRow.link.trim() === '') {
+  normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
+}
+
+      // ✅ EXPLICIT RETURN - Only allowed DB columns
+      const safeRow: any = {};
+      DB_COLUMNS.forEach(col => {
+        if (normalizedRow.hasOwnProperty(col)) {
+          safeRow[col] = normalizedRow[col];
+        }
+      });
+
+      return safeRow;
 
     })
     .filter(Boolean);
 };
-

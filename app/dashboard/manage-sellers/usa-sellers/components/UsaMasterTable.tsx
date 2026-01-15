@@ -13,7 +13,8 @@ interface MasterData {
   id: string;
   asin: string;
   display_number: number;
-  link: string;
+  
+  amz_link: string;
   product_name: string;
   brand: string;
   price: number;
@@ -46,7 +47,8 @@ interface UsaMasterTableProps {
 const ALL_COLUMNS = [
   's_no',
   'asin',
-  'link',
+  // 'link',
+  'amz_link',
   'product_name',
   'brand',
   'price',
@@ -64,7 +66,7 @@ const NUMERIC_COLUMNS = ['price', 'monthly_unit', 'monthly_sales', 'bsr', 'selle
 const COLUMN_LABELS: Record<string, string> = {
   s_no: 'S.No',
   asin: 'ASIN',
-  link: 'Link',
+  'amz_link': 'Link',
   product_name: 'Product Name',
   brand: 'Brand',
   price: 'Price',
@@ -716,7 +718,7 @@ export default function UsaMasterTable({
                             <span className="font-mono text-xs">{row.asin}</span>
                           ) : column === 'link' ? (
                             <a
-                              href={row.link}
+                              href={row.amz_link}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:text-blue-800 text-xs"
