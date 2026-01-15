@@ -67,15 +67,15 @@ export default function VelvetVistaPage() {
       return saved
         ? JSON.parse(saved)
         : {
-            asin: 120,
-            product_name: 250,
-            brand: 150,
-            funnel: 100,
-            monthly_unit: 120,
-            product_link: 100,
-            amz_link: 100,
-            reason: 200,
-          };
+          asin: 120,
+          product_name: 250,
+          brand: 150,
+          funnel: 100,
+          monthly_unit: 120,
+          product_link: 100,
+          amz_link: 100,
+          reason: 200,
+        };
     }
     return {
       asin: 120,
@@ -249,9 +249,10 @@ export default function VelvetVistaPage() {
 
   const moveProduct = async (
     product: ProductRow,
-    action: "approved" | "not_approved" | "reject",
+    action: 'approved' | 'not_approved' | 'reject',
     reason?: string
   ) => {
+    console.log('🚀 moveProduct called with action:', action, 'product ID:', product.id);
     setProcessingId(product.id);
     try {
       let targetTable: string;
@@ -259,7 +260,7 @@ export default function VelvetVistaPage() {
 
       const { id, working, reason: oldReason, ...productData } = product;
 
-      if (action === "approved") {
+      if (action === 'approved') {
         targetTable = `usa_validation_main_file`;
         dataToInsert = {
           asin: product.asin,
@@ -273,74 +274,163 @@ export default function VelvetVistaPage() {
           product_weight: null,
           judgement: null,
         };
-      } else if (action === "not_approved") {
+
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(dataToInsert);
+
+        if (insertError) {
+          console.error('❌ Error inserting product:', insertError);
+          setToast({
+            message: `Failed to move product: ${insertError.message}`,
+            type: 'error',
+          });
+          return;
+        }
+
+        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        await saveToHistory(product, currentTable, targetTable);
+
+        const { error: deleteError } = await supabase
+          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) {
+          console.error('❌ Error deleting product:', deleteError);
+          setToast({
+            message: 'Failed to delete product from brand checking table',
+            type: 'error',
+          });
+          return;
+        }
+
+        // ✅ Update progress using RPC for atomic operation
+        const { error: updateProgressError } = await supabase.rpc('increment_brand_check_approved', {
+          p_seller_id: SELLER_ID
+        });
+
+        if (updateProgressError) {
+          console.error('❌ Error updating progress:', updateProgressError);
+        } else {
+          console.log('✅ Progress updated successfully!');
+        }
+
+        await fetchProducts();
+
+        setToast({
+          message: `Product moved to Validation Main File successfully!`,
+          type: 'success',
+        });
+        setProcessingId(null);
+        return;
+
+      } else if (action === 'not_approved') {
         targetTable = `usa_seller_${SELLER_ID}_not_approved`;
         dataToInsert = productData;
-      } else if (action === "reject") {
+
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(dataToInsert);
+
+        if (insertError) {
+          console.error('Error inserting product:', insertError);
+          setToast({
+            message: `Failed to move product: ${insertError.message}`,
+            type: 'error',
+          });
+          return;
+        }
+
+        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        await saveToHistory(product, currentTable, targetTable);
+
+        const { error: deleteError } = await supabase
+          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) {
+          console.error('Error deleting product:', deleteError);
+        }
+
+        // ✅ Update not_approved counter
+        const { error: updateProgressError } = await supabase.rpc('increment_brand_check_not_approved', {
+          p_seller_id: SELLER_ID
+        });
+
+        if (updateProgressError) {
+          console.error('❌ Error updating progress:', updateProgressError);
+        }
+
+        await fetchProducts();
+        setToast({
+          message: `Product moved to Not Approved successfully!`,
+          type: 'success',
+        });
+        setProcessingId(null);
+        return;
+
+      } else if (action === 'reject') {
         targetTable = `usa_seller_${SELLER_ID}_reject`;
         dataToInsert = {
           ...productData,
-          reason: reason || "No reason provided",
+          reason: reason || 'No reason provided',
         };
-      } else {
-        console.error("Invalid action:", action);
+
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(dataToInsert);
+
+        if (insertError) {
+          console.error('Error inserting product:', insertError);
+          setToast({
+            message: `Failed to move product: ${insertError.message}`,
+            type: 'error',
+          });
+          return;
+        }
+
+        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        await saveToHistory(product, currentTable, targetTable);
+
+        const { error: deleteError } = await supabase
+          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) {
+          console.error('Error deleting product:', deleteError);
+        }
+
+        // ✅ Rejected items decrease total only
+        const { error: updateProgressError } = await supabase.rpc('decrement_brand_check_total', {
+          p_seller_id: SELLER_ID
+        });
+
+        if (updateProgressError) {
+          console.error('❌ Error updating progress:', updateProgressError);
+        }
+
+        await fetchProducts();
+        setToast({
+          message: `Product rejected successfully!`,
+          type: 'success',
+        });
         setProcessingId(null);
         return;
       }
-
-      const { error: insertError } = await supabase
-        .from(targetTable)
-        .insert(dataToInsert);
-
-      if (insertError) {
-        console.error("Error inserting product:", insertError);
-        setToast({
-          message: `Failed to move product: ${insertError.message}`,
-          type: "error",
-        });
-        return;
-      }
-
-      const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-      await saveToHistory(product, currentTable, targetTable);
-
-      const { error: deleteError } = await supabase
-        .from(currentTable)
-        .delete()
-        .eq("id", product.id);
-
-      if (deleteError) {
-        console.error("Error deleting product:", deleteError);
-        setToast({
-          message: "Failed to delete product from current table",
-          type: "error",
-        });
-        return;
-      }
-
-      await fetchProducts();
-
-      const actionText =
-        action === "approved"
-          ? "Validation Main File"
-          : action === "not_approved"
-          ? "Not Approved"
-          : "Reject";
-
-      setToast({
-        message: `Product moved to ${actionText} successfully!`,
-        type: "success",
-      });
     } catch (err) {
-      console.error("Move product error:", err);
+      console.error('Move product error:', err);
       setToast({
-        message: "An error occurred while moving the product",
-        type: "error",
+        message: 'An error occurred while moving the product',
+        type: 'error',
       });
     } finally {
       setProcessingId(null);
     }
   };
+
 
   const handleRollBack = async () => {
     const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
@@ -577,55 +667,50 @@ export default function VelvetVistaPage() {
             <div className="flex gap-3 mb-6">
               <button
                 onClick={() => setActiveTab("high_demand")}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === "high_demand"
-                    ? "bg-green-400 text-white shadow-lg"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === "high_demand"
+                  ? "bg-green-400 text-white shadow-lg"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                  }`}
               >
                 High Demand
               </button>
 
               <button
                 onClick={() => setActiveTab("low_demand")}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === "low_demand"
-                    ? "bg-blue-400 text-white shadow-lg"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === "low_demand"
+                  ? "bg-blue-400 text-white shadow-lg"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                  }`}
               >
                 Low Demand
               </button>
 
               <button
                 onClick={() => setActiveTab("dropshipping")}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === "dropshipping"
-                    ? "bg-yellow-400 text-gray-900 shadow-lg"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === "dropshipping"
+                  ? "bg-yellow-400 text-gray-900 shadow-lg"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                  }`}
               >
                 Dropshipping
               </button>
 
               <button
                 onClick={() => setActiveTab("not_approved")}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === "not_approved"
-                    ? "bg-red-400 text-white shadow-lg"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === "not_approved"
+                  ? "bg-red-400 text-white shadow-lg"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                  }`}
               >
                 Not Approved
               </button>
 
               <button
                 onClick={() => setActiveTab("reject")}
-                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${
-                  activeTab === "reject"
-                    ? "bg-gray-400 text-white shadow-lg"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-                }`}
+                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === "reject"
+                  ? "bg-gray-400 text-white shadow-lg"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                  }`}
               >
                 Reject
               </button>
@@ -779,9 +864,8 @@ export default function VelvetVistaPage() {
                     {products.map((product, index) => (
                       <tr
                         key={product.id}
-                        className={`border-b hover:bg-gray-50 ${
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                        }`}
+                        className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }`}
                       >
                         <td className="p-3">
                           <input

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 export const dynamic = "force-dynamic"
 import { useEffect, useState, Suspense, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -247,28 +247,9 @@ function GeneratedLinks() {
     }
   }
 
-  const copyToClipboard = async (text: string, linkId?: string) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     setCopiedLinks(prev => new Set([...prev, text]))
-
-    // Mark as copied in database if linkId is provided
-    if (linkId && supabase) {
-      try {
-        const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
-        const { error } = await supabase
-          .from(tableName)
-          .update({ is_copied: true })
-          .eq('id', linkId)
-
-        if (error) {
-          console.error('Error marking link as copied:', error)
-        } else {
-          console.log(`✅ Marked link ${linkId} as copied in database`)
-        }
-      } catch (err) {
-        console.error('Error updating database:', err)
-      }
-    }
 
     // Show toast notification
     const toast = document.createElement('div')
@@ -293,43 +274,13 @@ function GeneratedLinks() {
     // Copy to clipboard
     await navigator.clipboard.writeText(allLinksText)
 
-    // Mark all as copied in database
-    if (supabase) {
-      try {
-        const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
-        const linkIds = links.filter(link => link.id).map(link => link.id!)
-
-        if (linkIds.length > 0) {
-          // Update in batches to avoid overwhelming the database
-          const batchSize = 100
-          for (let i = 0; i < linkIds.length; i += batchSize) {
-            const batch = linkIds.slice(i, i + batchSize)
-            const { error } = await supabase
-              .from(tableName)
-              .update({ is_copied: true })
-              .in('id', batch)
-
-            if (error) {
-              console.error('Error marking batch as copied:', error)
-            } else {
-              console.log(`✅ Marked batch ${Math.floor(i / batchSize) + 1} as copied (${batch.length} links)`)
-            }
-
-            // Update progress
-            setCopyProgress({
-              isActive: true,
-              current: Math.min(i + batchSize, totalLinks),
-              total: totalLinks
-            })
-          }
-          console.log(`✅ Marked all ${linkIds.length} links as copied in database`)
-        }
-      } catch (err) {
-        console.error('Error updating database:', err)
-      }
+    // Simulate progress for visual feedback
+    for (let i = 0; i <= totalLinks; i += Math.ceil(totalLinks / 20)) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      setCopyProgress({ isActive: true, current: Math.min(i, totalLinks), total: totalLinks })
     }
 
-    // Mark all as copied in UI
+    // Mark all as copied
     setCopiedLinks(new Set(links.map(link => link.profile_link)))
 
     // Complete
@@ -595,7 +546,7 @@ function GeneratedLinks() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              copyToClipboard(link.profile_link, link.id)
+                              copyToClipboard(link.profile_link)
                             }}
                             className={`px-4 py-2 ${isCopied
                               ? 'bg-green-600 hover:bg-green-700'
@@ -677,4 +628,3 @@ function GeneratedLinks() {
     </div>
   )
 }
-

@@ -7,7 +7,6 @@ import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
 
 /* ================= STATIC SELLERS ================= */
-
 const ALL_SELLERS = [
   { id: 1, slug: "golden-aura", name: "Golden Aura" },
   { id: 2, slug: "rudra-retail", name: "Rudra Retail" },
@@ -16,7 +15,6 @@ const ALL_SELLERS = [
 ];
 
 /* ================= TYPES ================= */
-
 type BrandProgressRow = {
   seller_id: number;
   total: number;
@@ -34,7 +32,6 @@ type SellerUI = {
 };
 
 /* ================= PAGE ================= */
-
 export default function BrandCheckingPage() {
   const router = useRouter();
 
@@ -53,28 +50,39 @@ export default function BrandCheckingPage() {
   const handleSellerCardClick = (sellerId: number) => {
     const seller = ALL_SELLERS.find((s) => s.id === sellerId);
     if (seller) {
-      router.push(
-        `/dashboard/usa-selling/brand-checking/${seller.slug}`
-      );
+      router.push(`/dashboard/usa-selling/brand-checking/${seller.slug}`);
     }
   };
 
   /* ===== INITIAL LOAD FROM SUPABASE ===== */
   useEffect(() => {
-    supabase
-      .from("brand_check_progress")
-      .select("*")
-      .then(({ data }) => {
-        if (!data) return;
+    const fetchProgress = async () => {
+      console.log("📊 Fetching initial brand check progress...");
+      
+      const { data, error } = await supabase
+        .from("brand_check_progress")
+        .select("*");
 
+      if (error) {
+        console.error("❌ Error fetching brand check progress:", error);
+        return;
+      }
+
+      if (data) {
+        console.log("✅ Initial progress data:", data);
+        
         setSellers((prev) =>
           prev.map((seller) => {
             const row = data.find(
               (d: BrandProgressRow) => d.seller_id === seller.id
             );
-
-            if (!row) return seller;
-
+            if (!row) {
+              console.log(`⚠️ No data for seller ${seller.name} (ID: ${seller.id})`);
+              return seller;
+            }
+            
+            console.log(`📈 ${seller.name}: Total=${row.total}, Approved=${row.approved}, Not Approved=${row.not_approved}`);
+            
             return {
               ...seller,
               totalProducts: row.total,
@@ -83,25 +91,46 @@ export default function BrandCheckingPage() {
             };
           })
         );
-      });
+      }
+    };
+
+    fetchProgress();
   }, []);
 
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {
+    console.log("🔌 Setting up real-time subscription for brand_check_progress");
+    
     const channel = supabase
-      .channel("brand-check-progress")
+      .channel("brand-check-progress-updates")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "*", // Listen to INSERT, UPDATE, DELETE
           schema: "public",
           table: "brand_check_progress",
         },
         (payload) => {
+          console.log("📡 Real-time update received:", payload);
+          console.log("📡 Payload.new:", payload.new);
+          console.log("📡 Payload.old:", payload.old);
+          
+          // Handle both INSERT and UPDATE
           const data = payload.new as BrandProgressRow;
+          
+          if (!data || !data.seller_id) {
+            console.error("❌ Invalid payload data:", data);
+            return;
+          }
+          
+          console.log(`📡 Updated data for seller_id ${data.seller_id}:`, {
+            total: data.total,
+            approved: data.approved,
+            not_approved: data.not_approved,
+          });
 
-          setSellers((prev) =>
-            prev.map((seller) =>
+          setSellers((prev) => {
+            const updated = prev.map((seller) =>
               seller.id === data.seller_id
                 ? {
                     ...seller,
@@ -110,46 +139,54 @@ export default function BrandCheckingPage() {
                     notApproved: data.not_approved,
                   }
                 : seller
-            )
-          );
+            );
+            console.log(`✅ Updated sellers state:`, updated);
+            return updated;
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Subscription status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("✅ Successfully subscribed to brand_check_progress changes");
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error("❌ Subscription error");
+        }
+      });
 
     return () => {
+      console.log("🔌 Cleaning up real-time subscription");
       supabase.removeChannel(channel);
     };
   }, []);
 
+
   return (
     <PageTransition>
-      <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="min-h-screen bg-gray-50 p-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-8">
           <Link
             href="/dashboard/usa-selling"
-            className="text-blue-600 hover:underline mb-2 inline-block"
+            className="text-blue-600 hover:underline mb-4 inline-block"
           >
             ← Back to USA Selling Dashboard
           </Link>
-
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-4xl font-bold text-gray-900">
             USA Selling - Brand Checking Dashboard
           </h1>
-
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-2">
             Total Sellers: {sellers.length} | Monitor brand checking progress
           </p>
         </div>
 
         {/* Seller Cards */}
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {sellers.map((seller) => {
             const approvedPercentage =
               seller.totalProducts === 0
                 ? 0
                 : (seller.approved / seller.totalProducts) * 100;
-
             const notApprovedPercentage =
               seller.totalProducts === 0
                 ? 0
@@ -158,75 +195,67 @@ export default function BrandCheckingPage() {
             return (
               <div
                 key={seller.id}
-                className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                onClick={() => handleSellerCardClick(seller.id)}
+                className="border-2 border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all"
               >
-                {/* Seller Card */}
-                <div
-                  onClick={() => handleSellerCardClick(seller.id)}
-                  className="border-2 border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all"
-                >
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">
-                    {seller.name}
-                  </h3>
+                {/* Seller Name */}
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  {seller.name}
+                </h2>
 
-                  <div className="text-center">
-                    <p className="text-4xl font-bold text-blue-600">
-                      {seller.totalProducts}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Total Products
-                    </p>
+                {/* Total Products */}
+                <div className="text-center mb-4">
+                  <div className="text-5xl font-bold text-blue-600">
+                    {seller.totalProducts.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Total Products
                   </div>
                 </div>
 
                 {/* Progress */}
-                <div className="flex flex-col justify-center">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                <div className="w-full">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">
                     Brand Checking Progress
-                  </h4>
+                  </div>
 
-                  <div className="relative w-full h-16 bg-gray-200 rounded-lg overflow-hidden shadow-inner">
+                  {/* Progress Bar */}
+                  <div className="relative w-full h-8 bg-gray-200 rounded-lg overflow-hidden mb-3">
                     {/* Approved */}
                     <div
-                      className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center text-white font-semibold text-sm px-4 transition-all duration-500"
+                      className="absolute left-0 top-0 h-full bg-green-500 flex items-center justify-center transition-all duration-300"
                       style={{ width: `${approvedPercentage}%` }}
                     >
                       {approvedPercentage > 15 && (
-                        <span>Approved: {seller.approved}</span>
+                        <span className="text-xs font-bold text-white">
+                          Approved: {seller.approved}
+                        </span>
                       )}
                     </div>
 
                     {/* Not Approved */}
                     <div
-                      className="absolute right-0 top-0 h-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-sm px-4 transition-all duration-500"
+                      className="absolute right-0 top-0 h-full bg-red-500 flex items-center justify-center transition-all duration-300"
                       style={{ width: `${notApprovedPercentage}%` }}
                     >
                       {notApprovedPercentage > 15 && (
-                        <span>
+                        <span className="text-xs font-bold text-white">
                           Not Approved: {seller.notApproved}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex justify-between mt-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-green-500 rounded" />
-                      Approved:{" "}
-                      <strong>
-                        {seller.approved} (
-                        {approvedPercentage.toFixed(1)}%)
-                      </strong>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-red-500 rounded" />
-                      Not Approved:{" "}
-                      <strong>
-                        {seller.notApproved} (
-                        {notApprovedPercentage.toFixed(1)}%)
-                      </strong>
-                    </div>
+                  {/* Stats */}
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span className="text-green-600 font-semibold">
+                      Approved: {seller.approved} (
+                      {approvedPercentage.toFixed(1)}%)
+                    </span>
+                    <span className="text-red-600 font-semibold">
+                      Not Approved: {seller.notApproved} (
+                      {notApprovedPercentage.toFixed(1)}%)
+                    </span>
                   </div>
                 </div>
               </div>

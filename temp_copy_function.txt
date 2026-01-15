@@ -1,0 +1,27 @@
+﻿  const copyToClipboard = async (text: string, linkId?: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedLinks(prev => new Set([...prev, text]))
+    
+    // Update database if we have a link ID
+    if (linkId && supabase && country) {
+      const tableName = country === 'usa' ? 'us_sellers' : ${country}_sellers
+      try {
+        await supabase
+          .from(tableName)
+          .update({ is_copied: true })
+          .eq('id', linkId)
+      } catch (error) {
+        console.error('Error marking link as copied:', error)
+      }
+    }
+    
+    // Show toast notification
+    const toast = document.createElement('div')
+    toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in'
+    toast.textContent = '✅ Link copied to clipboard!'
+    document.body.appendChild(toast)
+    setTimeout(() => {
+      toast.classList.add('animate-fade-out')
+      setTimeout(() => document.body.removeChild(toast), 300)
+    }, 2000)
+  }

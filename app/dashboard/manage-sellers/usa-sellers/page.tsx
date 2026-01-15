@@ -187,21 +187,21 @@ export default function UsaSellersPage() {
 
         // Normalize data and conditionally generate links
         const normalizedData = normalizeDataForDB(data)
-  .map((product) => {
-    if (product && !product.link && product.asin) {
-      product.link = generateAmazonLink(product.asin, 'usa');
-    }
-    return product;
-  })
-  .filter(Boolean);
+          .map((product) => {
+            if (product && !product.link && product.asin) {
+              product.link = generateAmazonLink(product.asin, 'usa');
+            }
+            return product;
+          })
+          .filter(Boolean);
 
-// ✅ THIS IS STEP 2 (ONLY THIS LINE)
-const { newProducts, duplicateCount } =
-  await filterDuplicateASINs(normalizedData, TABLE_NAME);
+        // ✅ THIS IS STEP 2 (ONLY THIS LINE)
+        const { newProducts, duplicateCount } =
+          await filterDuplicateASINs(normalizedData, TABLE_NAME);
 
-allNewProducts.push(...newProducts);
-totalDuplicates += duplicateCount;
- // Remove null products
+        allNewProducts.push(...newProducts);
+        totalDuplicates += duplicateCount;
+        // Remove null products
 
         // Filter duplicates
         // toast.loading(`Checking duplicates in ${file.name}...`, { id: toastId });
@@ -251,18 +251,17 @@ totalDuplicates += duplicateCount;
 
         try {
           const { error } = await supabase
-  .from(TABLE_NAME)
-  .upsert(batch, {
-    onConflict: 'asin',
-    ignoreDuplicates: true,
-  });
+            .from(TABLE_NAME)
+            .upsert(batch, {
+              onConflict: 'asin',
+            });
 
-if (error) {
-  console.error(`❌ Batch ${batchNumber} failed:`, error);
-  failedBatches++;
-} else {
-  successCount += batch.length;
-}
+          if (error) {
+            console.error(`❌ Batch ${batchNumber} failed:`, error);
+            failedBatches++;
+          } else {
+            successCount += batch.length;
+          }
         } catch (err) {
           console.error(`❌ Batch ${batchNumber} exception:`, err);
           failedBatches++;
@@ -271,15 +270,15 @@ if (error) {
 
       // Step 3: Show final summary
       const summaryLines = [];
-      
+
       if (successCount > 0) {
         summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
       }
-      
+
       if (totalDuplicates > 0) {
         summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       }
-      
+
       if (failedBatches > 0) {
         summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
       }
@@ -432,7 +431,7 @@ if (error) {
                   <p className="text-gray-600 mb-2">
                     Batch {uploadProgress.batch} of {uploadProgress.totalBatches}
                   </p>
-                  
+
                   <p className="text-2xl font-bold text-blue-600 mb-4">
                     {uploadProgress.current.toLocaleString()} / {uploadProgress.total.toLocaleString()}
                   </p>
@@ -528,7 +527,7 @@ if (error) {
 
           <ExportButton
             onExport={handleExport}
-            // selectedCount={selectedIds.size}
+          // selectedCount={selectedIds.size}
           />
 
           <button
@@ -548,21 +547,21 @@ if (error) {
 
       {/* Table */}
       <UsaMasterTable
-  searchTerm={searchTerm}
-  hiddenColumns={hiddenColumns}  // ADD THIS
-  columnWidths={columnWidths}
-  onColumnWidthChange={handleColumnWidthChange}
-  filters={filters}
-  onFiltersChange={handleFiltersChange}
-  // tableName={TABLE_NAME}
-  refreshTrigger={refreshTrigger}
-  currentPage={currentPage}
-  itemsPerPage={ITEMS_PER_PAGE}
-  onTotalProductsChange={setTotalProducts}
-  onTotalPagesChange={setTotalPages}
-  selectedIds={selectedIds}
-  onSelectedIdsChange={setSelectedIds}
-/>
+        searchTerm={searchTerm}
+        hiddenColumns={hiddenColumns}  // ADD THIS
+        columnWidths={columnWidths}
+        onColumnWidthChange={handleColumnWidthChange}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        // tableName={TABLE_NAME}
+        refreshTrigger={refreshTrigger}
+        currentPage={currentPage}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onTotalProductsChange={setTotalProducts}
+        onTotalPagesChange={setTotalPages}
+        selectedIds={selectedIds}
+        onSelectedIdsChange={setSelectedIds}
+      />
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
@@ -599,11 +598,11 @@ if (error) {
       />
 
       <UploadModal
-  isOpen={isUploadModalOpen}
-  onClose={() => setIsUploadModalOpen(false)}
-  onUpload={handleUpload}
-  multiple={true}
-/>
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUpload={handleUpload}
+        multiple={true}
+      />
     </div>
   );
 }

@@ -250,85 +250,219 @@ export default function GoldenAuraPage() {
     action: 'approved' | 'not_approved' | 'reject',
     reason?: string
   ) => {
+    console.log('🚀 moveProduct called with action:', action, 'product ID:', product.id);
     setProcessingId(product.id);
-
     try {
-      let targetTable: string = '';
-      let dataToInsert: any = {};
+      let targetTable: string;
+      let dataToInsert: any;
 
       const { id, working, reason: oldReason, ...productData } = product;
 
       if (action === 'approved') {
+        // ✅ STEP 1: Move to validation table first
         targetTable = `usa_validation_main_file`;
         dataToInsert = {
           asin: product.asin,
-          product_name: product.product_name,           // ✅ Fixed: was product.productname
+          product_name: product.product_name,
           brand: product.brand,
           seller_tag: getSellerName(SELLER_ID.toString()),
           funnel: product.funnel,
           no_of_seller: 1,
-          usa_link: product.product_link,               // ✅ Fixed: was product.productlink
+          usa_link: product.product_link,
           india_price: null,
           product_weight: null,
           judgement: null,
         };
+
+        console.log('📦 Inserting to validation table:', dataToInsert);
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(dataToInsert);
+
+        if (insertError) {
+          console.error('❌ Error inserting product:', insertError);
+          setToast({
+            message: `Failed to move product: ${insertError.message}`,
+            type: 'error',
+          });
+          return;
+        }
+
+        // ✅ STEP 2: Save to history
+        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        await saveToHistory(product, currentTable, targetTable);
+
+        // ✅ STEP 3: Delete from brand checking table
+        console.log('🗑️ Deleting from brand checking table');
+        const { error: deleteError } = await supabase
+          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) {
+          console.error('❌ Error deleting product:', deleteError);
+          setToast({
+            message: 'Failed to delete product from brand checking table',
+            type: 'error',
+          });
+          return;
+        }
+
+        // ✅ STEP 4: Manually increment approved counter
+        console.log('📊 Fetching current progress...');
+        const { data: currentProgress, error: fetchError } = await supabase
+          .from('brand_check_progress')
+          .select('approved, total')
+          .eq('seller_id', SELLER_ID)
+          .single();
+
+        if (fetchError) {
+          console.error('❌ Error fetching progress:', fetchError);
+        }
+
+        if (currentProgress) {
+          console.log('📊 Current progress:', currentProgress);
+          const newApproved = currentProgress.approved + 1;
+          const newTotal = currentProgress.total - 1;
+          console.log('📊 Updating progress to:', { approved: newApproved, total: newTotal });
+
+          const { error: updateProgressError } = await supabase
+            .from('brand_check_progress')
+            .update({
+              approved: newApproved,
+              total: newTotal,
+              updated_at: new Date().toISOString()
+            })
+            .eq('seller_id', SELLER_ID);
+
+          if (updateProgressError) {
+            console.error('❌ Error updating progress:', updateProgressError);
+          } else {
+            console.log('✅ Progress updated successfully!');
+          }
+        }
+
+        await fetchProducts();
+
+        setToast({
+          message: `Product moved to Validation Main File successfully!`,
+          type: 'success',
+        });
+        setProcessingId(null);
+        return;
+
       } else if (action === 'not_approved') {
         targetTable = `usa_seller_${SELLER_ID}_not_approved`;
         dataToInsert = productData;
+
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(dataToInsert);
+
+        if (insertError) {
+          console.error('Error inserting product:', insertError);
+          setToast({
+            message: `Failed to move product: ${insertError.message}`,
+            type: 'error',
+          });
+          return;
+        }
+
+        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        await saveToHistory(product, currentTable, targetTable);
+
+        const { error: deleteError } = await supabase
+          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) {
+          console.error('Error deleting product:', deleteError);
+        }
+
+        // ✅ Update not_approved counter
+        const { data: currentProgress } = await supabase
+          .from('brand_check_progress')
+          .select('not_approved, total')
+          .eq('seller_id', SELLER_ID)
+          .single();
+
+        if (currentProgress) {
+          await supabase
+            .from('brand_check_progress')
+            .update({
+              not_approved: currentProgress.not_approved + 1,
+              total: currentProgress.total - 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('seller_id', SELLER_ID);
+        }
+
+        await fetchProducts();
+        setToast({
+          message: `Product moved to Not Approved successfully!`,
+          type: 'success',
+        });
+        setProcessingId(null);
+        return;
+
       } else if (action === 'reject') {
         targetTable = `usa_seller_${SELLER_ID}_reject`;
         dataToInsert = {
           ...productData,
           reason: reason || 'No reason provided',
         };
-      } else {
-        console.error('Invalid action:', action);
+
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(dataToInsert);
+
+        if (insertError) {
+          console.error('Error inserting product:', insertError);
+          setToast({
+            message: `Failed to move product: ${insertError.message}`,
+            type: 'error',
+          });
+          return;
+        }
+
+        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        await saveToHistory(product, currentTable, targetTable);
+
+        const { error: deleteError } = await supabase
+          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) {
+          console.error('Error deleting product:', deleteError);
+        }
+
+        // ✅ Rejected items decrease total only
+        const { data: currentProgress } = await supabase
+          .from('brand_check_progress')
+          .select('total')
+          .eq('seller_id', SELLER_ID)
+          .single();
+
+        if (currentProgress) {
+          await supabase
+            .from('brand_check_progress')
+            .update({
+              total: currentProgress.total - 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('seller_id', SELLER_ID);
+        }
+
+        await fetchProducts();
+        setToast({
+          message: `Product rejected successfully!`,
+          type: 'success',
+        });
         setProcessingId(null);
         return;
       }
-
-      const { error: insertError } = await supabase
-        .from(targetTable)
-        .insert(dataToInsert);
-
-      if (insertError) {
-        console.error('Error inserting product:', insertError);
-        setToast({
-          message: `Failed to move product: ${insertError.message}`,
-          type: 'error',
-        });
-        return;
-      }
-
-      const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-      await saveToHistory(product, currentTable, targetTable);
-
-      const { error: deleteError } = await supabase
-        .from(currentTable)
-        .delete()
-        .eq('id', product.id);
-
-      if (deleteError) {
-        console.error('Error deleting product:', deleteError);
-        setToast({
-          message: 'Failed to delete product from current table',
-          type: 'error',
-        });
-        return;
-      }
-
-      await fetchProducts();
-
-      const actionText =
-        action === 'approved'
-          ? 'Validation Main File'
-          : action === 'not_approved'
-            ? 'Not Approved'
-            : 'Reject';
-      setToast({
-        message: `Product moved to ${actionText} successfully!`,
-        type: 'success',
-      });
     } catch (err) {
       console.error('Move product error:', err);
       setToast({
@@ -339,6 +473,7 @@ export default function GoldenAuraPage() {
       setProcessingId(null);
     }
   };
+
 
   const handleRollBack = async () => {
     const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
@@ -577,8 +712,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('high_demand')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'high_demand'
-                    ? 'bg-green-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-green-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 High Demand
@@ -586,8 +721,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('low_demand')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'low_demand'
-                    ? 'bg-blue-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-blue-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Low Demand
@@ -595,8 +730,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('dropshipping')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'dropshipping'
-                    ? 'bg-yellow-400 text-gray-900 shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-yellow-400 text-gray-900 shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Dropshipping
@@ -604,8 +739,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('not_approved')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'not_approved'
-                    ? 'bg-red-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-red-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Not Approved
@@ -613,8 +748,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('reject')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'reject'
-                    ? 'bg-gray-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-gray-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Reject
