@@ -8,6 +8,8 @@ interface CountryProgress {
   country: string
   totalLinks: number
   copiedLinks: number
+  resetAt: string | null
+  completedAt: string | null
 }
 
 export default function ManageSellersPage() {
@@ -21,10 +23,10 @@ export default function ManageSellersPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [authMessage, setAuthMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [progress, setProgress] = useState<Record<string, CountryProgress>>({
-    usa: { country: 'usa', totalLinks: 0, copiedLinks: 0 },
-    india: { country: 'india', totalLinks: 0, copiedLinks: 0 },
-    uae: { country: 'uae', totalLinks: 0, copiedLinks: 0 },
-    uk: { country: 'uk', totalLinks: 0, copiedLinks: 0 }
+    usa: { country: 'usa', totalLinks: 0, copiedLinks: 0, resetAt: null, completedAt: null },
+    india: { country: 'india', totalLinks: 0, copiedLinks: 0, resetAt: null, completedAt: null },
+    uae: { country: 'uae', totalLinks: 0, copiedLinks: 0, resetAt: null, completedAt: null },
+    uk: { country: 'uk', totalLinks: 0, copiedLinks: 0, resetAt: null, completedAt: null }
   })
 
   const sellerCards = [
@@ -47,6 +49,17 @@ export default function ManageSellersPage() {
       const countries = ['usa', 'india', 'uae', 'uk']
       const progressData: Record<string, CountryProgress> = {}
 
+      // Fetch timestamps from copy_progress_timestamps table
+      const { data: timestamps } = await supabase
+        .from('copy_progress_timestamps')
+        .select('*')
+        .eq('user_id', user.id)
+
+      const timestampMap: Record<string, any> = {}
+      timestamps?.forEach(t => {
+        timestampMap[t.country] = t
+      })
+
       for (const country of countries) {
         const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
 
@@ -64,10 +77,11 @@ export default function ManageSellersPage() {
         progressData[country] = {
           country,
           totalLinks: totalCount || 0,
-          copiedLinks: copiedCount || 0
+          copiedLinks: copiedCount || 0,
+          resetAt: timestampMap[country]?.reset_at || null,
+          completedAt: timestampMap[country]?.completed_at || null
         }
       }
-
       setProgress(progressData)
     } catch (error: any) {
       if (error.name !== 'AbortError') {
@@ -75,6 +89,7 @@ export default function ManageSellersPage() {
       }
     }
   }
+
 
   // ✅ DEBOUNCED VERSION
   const debouncedFetchProgress = () => {
@@ -172,7 +187,6 @@ export default function ManageSellersPage() {
       if (!user) return
 
       const tableName = country === 'usa' ? 'us_sellers' : `${country}_sellers`
-
       const BATCH_SIZE = 1000
       let offset = 0
       let hasMore = true
@@ -197,11 +211,22 @@ export default function ManageSellersPage() {
           .in('id', ids)
 
         offset += BATCH_SIZE
-
         if (links.length < BATCH_SIZE) {
           hasMore = false
         }
       }
+
+      // Update timestamp - set reset_at and clear completed_at
+      await supabase
+        .from('copy_progress_timestamps')
+        .upsert({
+          user_id: user.id,
+          country: country,
+          total_links: progress[country].totalLinks,
+          copied_links: 0,
+          reset_at: new Date().toISOString(),
+          completed_at: null
+        }, { onConflict: 'user_id,country' })
 
       await fetchProgress()
       setAuthMessage({ text: `Reset completed for ${country.toUpperCase()}!`, type: 'success' })
@@ -333,15 +358,55 @@ export default function ManageSellersPage() {
                     Reset All Copied
                   </button>
                 </div>
-
+                
                 {/* Progress Bar */}
-                <div className="w-full bg-gray-700 rounded-full h-6 overflow-hidden">
+                <div className="relative w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                   <div
-                    className={`${card.color} h-full transition-all duration-500 flex items-center justify-end px-2`}
+                    className={`h-full rounded-full transition-all duration-500 ${card.color}`}
                     style={{ width: `${percentage}%` }}
-                  >
-                    <span className="text-white text-xs font-bold">{percentage}% Complete</span>
-                  </div>
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-right">
+                  {percentage}% Complete
+                </p>
+
+                {/* Timestamps Display */}
+                <div className="mt-3 space-y-2">
+                  {countryProgress.resetAt && (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <svg className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>
+                        Reset: {new Date(countryProgress.resetAt).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </span>
+                    </div>
+                  )}
+
+                  {countryProgress.completedAt && (
+                    <div className="flex items-center gap-2 text-xs text-green-400">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>
+                        Completed: {new Date(countryProgress.completedAt).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
