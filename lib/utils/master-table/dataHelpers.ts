@@ -99,10 +99,34 @@ export const normalizeDataForDB = (rows: any[]) => {
       Object.entries(row).forEach(([rawKey, value]) => {
         let dbKey = normalizeHeaderToSnakeCase(rawKey);
 
-        if (dbKey === 'monthly_units') dbKey = 'monthly_unit';
-        if (dbKey === 'seller_count') dbKey = 'seller';
-        if (dbKey === 'sellers') dbKey = 'seller';
-        if (dbKey === 'link') dbKey = 'amz_link'; 
+        // ---- ALIASES FROM JUNGLE SCOUT ----
+
+// Monthly Units
+if (dbKey === 'monthly_units') dbKey = 'monthly_unit';
+if (dbKey === 'monthly_units_sold') dbKey = 'monthly_unit';
+
+// Monthly Sales / Revenue
+if (dbKey === 'monthly_revenue') dbKey = 'monthly_sales';
+if (dbKey === 'monthly_sales') dbKey = 'monthly_sales';
+
+// Sellers count
+if (dbKey === 'seller_count') dbKey = 'seller';
+if (dbKey === 'sellers') dbKey = 'seller';
+if (dbKey === 'no_of_sellers') dbKey = 'seller';
+if (dbKey === 'no_of_seller') dbKey = 'seller';
+
+// Dimensions (keep as-is, just normalize)
+if (dbKey === 'dimension') dbKey = 'dimensions';
+if (dbKey === 'dimensions') dbKey = 'dimensions';
+
+// Amazon link – single source of truth
+if (
+  dbKey === 'link' ||
+  dbKey === 'amazon_link' ||
+  dbKey === 'product_url'
+) {
+  dbKey = 'amz_link';
+}
 
         if (BLOCKED_COLUMNS.has(dbKey)) return;
         if (!DB_COLUMNS.has(dbKey)) return;
@@ -146,9 +170,9 @@ export const normalizeDataForDB = (rows: any[]) => {
   normalizedRow.amz_link = `www.amazon.com/dp/${normalizedRow.asin}`;
 }
 
-if (!normalizedRow.link || normalizedRow.link.trim() === '') {
-  normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
-}
+// if (!normalizedRow.link || normalizedRow.link.trim() === '') {
+//   normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
+// }
 
       // ✅ EXPLICIT RETURN - Only allowed DB columns
       const safeRow: any = {};

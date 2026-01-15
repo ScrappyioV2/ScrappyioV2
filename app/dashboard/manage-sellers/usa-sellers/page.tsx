@@ -17,6 +17,8 @@ import {
 } from '@/lib/utils/master-table/uploadHelpers'
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
+import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
+
 
 const TABLE_NAME = 'usa_master_sellers';
 
@@ -194,7 +196,11 @@ export default function UsaSellersPage() {
   .filter(Boolean);
 
 // ✅ THIS IS STEP 2 (ONLY THIS LINE)
-allNewProducts.push(...normalizedData);
+const { newProducts, duplicateCount } =
+  await filterDuplicateASINs(normalizedData, TABLE_NAME);
+
+allNewProducts.push(...newProducts);
+totalDuplicates += duplicateCount;
  // Remove null products
 
         // Filter duplicates
@@ -244,14 +250,19 @@ allNewProducts.push(...normalizedData);
         });
 
         try {
-          const { error } = await supabase.from(TABLE_NAME).insert(batch);
+          const { error } = await supabase
+  .from(TABLE_NAME)
+  .upsert(batch, {
+    onConflict: 'asin',
+    ignoreDuplicates: true,
+  });
 
-          if (error) {
-            console.error(`❌ Batch ${batchNumber} failed:`, error);
-            failedBatches++;
-          } else {
-            successCount += batch.length;
-          }
+if (error) {
+  console.error(`❌ Batch ${batchNumber} failed:`, error);
+  failedBatches++;
+} else {
+  successCount += batch.length;
+}
         } catch (err) {
           console.error(`❌ Batch ${batchNumber} exception:`, err);
           failedBatches++;
