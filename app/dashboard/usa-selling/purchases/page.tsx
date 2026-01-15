@@ -108,6 +108,13 @@ export default function PurchasesPage() {
   // Handle sending to admin validation
   const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
+      // ✅ ADD THIS: Fetch profit from validation table
+      const { data: validationData } = await supabase
+        .from('usa_validation_main_file')
+        .select('profit, total_cost, total_revenue')
+        .eq('asin', product.asin)
+        .maybeSingle();
+
       const { error: insertError } = await supabase.from('usa_admin_validation').insert({
         asin: product.asin,
         product_name: product.product_name,
@@ -124,6 +131,11 @@ export default function PurchasesPage() {
         seller_phone: product.seller_phone || '',
         payment_method: product.payment_method || '',
         admin_status: 'pending',
+
+        // ✅ ADD THESE 3 LINES:
+        profit: validationData?.profit || 0,
+        total_cost: validationData?.total_cost || 0,
+        total_revenue: validationData?.total_revenue || 0,
       });
 
       if (insertError) throw insertError;
@@ -296,6 +308,8 @@ export default function PurchasesPage() {
     { key: 'not_found', label: 'Not Found', count: products.filter(p => p.move_to === 'not_found').length },
     { key: 'reject', label: 'Reject', count: products.filter(p => p.move_to === 'reject').length },
   ];
+
+
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">

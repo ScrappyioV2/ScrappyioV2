@@ -23,9 +23,12 @@ type AdminProduct = {
   admin_status: string | null;
   admin_notes: string | null;
   created_at: string;
+  profit?: number | null;
+  total_cost?: number | null;
+  total_revenue?: number | null;
 };
 
-type TabType = 'overview' | 'india' | 'china' | 'pending' | 'reject';
+type TabType = 'overview' | 'india' | 'china' | 'pending' | 'confirm' | 'reject';
 
 export default function AdminValidationPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -33,6 +36,8 @@ export default function AdminValidationPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editingLinkValue, setEditingLinkValue] = useState<string>('');
 
   // Fetch products from usa_admin_validation table
   const fetchProducts = async () => {
@@ -88,7 +93,9 @@ export default function AdminValidationPage() {
       case 'china':
         return product.origin_china === true;
       case 'pending':
-        return product.admin_status === 'pending' || product.admin_status === null;
+        return product.admin_status === 'pending' || !product.admin_status;
+      case 'confirm':
+        return product.admin_status === 'confirmed';
       case 'reject':
         return product.admin_status === 'rejected';
       case 'overview':
@@ -108,22 +115,22 @@ export default function AdminValidationPage() {
       const selectedProducts = products.filter(p => selectedIds.has(p.id));
 
       for (const product of selectedProducts) {
-        // ✅ UPDATE existing row in usa_purchases (not INSERT)
+        // ✅ STEP 1: UPDATE usa_purchases (existing workflow preserved)
         const { error: updatePurchaseError } = await supabase
           .from('usa_purchases')
           .update({
-            admin_confirmed: true,  // ✅ CORRECT - matches DB
-            admin_confirmed_at: new Date().toISOString(),  // ✅ CORRECT - matches DB
+            admin_confirmed: true,
+            admin_confirmed_at: new Date().toISOString(),
           })
           .eq('asin', product.asin);
 
         if (updatePurchaseError) throw updatePurchaseError;
 
-        // Update status in usa_admin_validation
+        // ✅ STEP 2: UPDATE status in usa_admin_validation (KEEP the product, don't delete)
         const { error: updateAdminError } = await supabase
           .from('usa_admin_validation')
           .update({
-            admin_status: 'confirmed',
+            admin_status: 'confirmed',  // ✅ Set to 'confirmed' so it appears in Confirm tab
             confirmed_at: new Date().toISOString(),
           })
           .eq('id', product.id);
@@ -131,7 +138,7 @@ export default function AdminValidationPage() {
         if (updateAdminError) throw updateAdminError;
       }
 
-      alert(`Successfully confirmed ${selectedIds.size} product(s)!`);
+      alert(`Successfully confirmed ${selectedIds.size} products!`);
       setSelectedIds(new Set());
       fetchProducts();
     } catch (error: any) {
@@ -183,6 +190,7 @@ export default function AdminValidationPage() {
 
   const pendingCount = products.filter((p) => p.admin_status === 'pending' || !p.admin_status).length;
   const rejectedCount = products.filter((p) => p.admin_status === 'rejected').length;
+  const confirmedCount = products.filter(p => p.admin_status === 'confirmed').length; // ✅ ADD THIS
   const indiaCount = products.filter((p) => p.origin_india).length;
   const chinaCount = products.filter((p) => p.origin_china).length;
 
@@ -264,6 +272,22 @@ export default function AdminValidationPage() {
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setActiveTab('confirm')}
+          className={`px-6 py-3 font-semibold transition-all ${activeTab === 'confirm'
+              ? 'border-b-2 border-green-600 text-green-600'
+              : 'text-gray-600 hover:text-gray-900'
+            }`}
+        >
+          Confirm
+          {confirmedCount > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+              {confirmedCount}
+            </span>
+          )}
+        </button>
+
         <button
           onClick={() => setActiveTab('reject')}
           className={`px-6 py-3 font-semibold transition-all ${activeTab === 'reject'
@@ -319,6 +343,9 @@ export default function AdminValidationPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Funnel Qty</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Buying Price</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Buying Qty</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Profit
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Seller Link</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Seller Ph No.</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Payment Method</th>
@@ -347,11 +374,88 @@ export default function AdminValidationPage() {
                     <td className="px-4 py-3 text-sm text-gray-900">{product.asin}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{product.product_name || '-'}</td>
                     <td className="px-4 py-3 text-sm">
-                      {product.product_link ? (
-                        <a href={product.product_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          View
-                        </a>
-                      ) : '-'}
+                      <div className="w-32">  {/* ✅ Fixed width container */}
+                        {editingLinkId === product.id ? (
+                          // EDIT MODE: Show input field with Save/Cancel buttons
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={editingLinkValue}
+                              onChange={(e) => setEditingLinkValue(e.target.value)}
+                              className="w-full px-2 py-1 border border-blue-500 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                              placeholder="URL..."
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleCellEdit(product.id, 'product_link', editingLinkValue);
+                                  setEditingLinkId(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingLinkId(null);
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                handleCellEdit(product.id, 'product_link', editingLinkValue);
+                                setEditingLinkId(null);
+                              }}
+                              className="text-green-600 hover:text-green-800 flex-shrink-0"
+                              title="Save (Enter)"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setEditingLinkId(null)}
+                              className="text-red-600 hover:text-red-800 flex-shrink-0"
+                              title="Cancel (Esc)"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          // VIEW MODE: Show View link with pencil icon
+                          <div className="flex items-center gap-2">
+                            {product.product_link ? (
+                              <>
+                                <a
+                                  href={product.product_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium whitespace-nowrap"
+                                >
+                                  View
+                                </a>
+                                <button
+                                  onClick={() => {
+                                    setEditingLinkId(product.id);
+                                    setEditingLinkValue(product.product_link || '');
+                                  }}
+                                  className="text-gray-400 hover:text-orange-600 transition-colors flex-shrink-0"
+                                  title="Edit link"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingLinkId(product.id);
+                                  setEditingLinkValue('');
+                                }}
+                                className="text-green-600 hover:text-green-800 font-medium text-xs whitespace-nowrap"
+                              >
+                                + Add Link
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <input
@@ -386,6 +490,13 @@ export default function AdminValidationPage() {
                         onChange={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
                         className="w-16 px-2 py-1 border rounded text-sm"
                       />
+                    </td>
+                    {/* ✅ ADD THIS: PROFIT CELL */}
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <span className={`font-semibold ${(product.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                        ₹{(product.profit || 0).toFixed(2)}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <input
