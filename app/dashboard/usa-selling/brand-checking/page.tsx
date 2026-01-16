@@ -6,6 +6,39 @@ import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
 
+
+const SELLER_TABLE_GROUPS: Record<number, string[]> = {
+  1: [
+    'usa_seller_1_high_demand',
+    'usa_seller_1_low_demand',
+    'usa_seller_1_dropshipping',
+    'usa_seller_1_not_approved',
+    // 'usa_seller_1_reject',
+  ],
+  2: [
+    'usa_seller_2_high_demand',
+    'usa_seller_2_low_demand',
+    'usa_seller_2_dropshipping',
+    'usa_seller_2_not_approved',
+    // 'usa_seller_2_reject',
+  ],
+  3: [
+    'usa_seller_3_high_demand',
+    'usa_seller_3_low_demand',
+    'usa_seller_3_dropshipping',
+    'usa_seller_3_not_approved',
+    // 'usa_seller_3_reject',
+  ],
+  4: [
+    'usa_seller_4_high_demand',
+    'usa_seller_4_low_demand',
+    'usa_seller_4_dropshipping',
+    'usa_seller_4_not_approved',
+    // 'usa_seller_4_reject',
+  ],
+};
+
+
 /* ================= STATIC SELLERS ================= */
 const ALL_SELLERS = [
   { id: 1, slug: "golden-aura", name: "Golden Aura" },
@@ -20,6 +53,7 @@ type BrandProgressRow = {
   total: number;
   approved: number;
   not_approved: number;
+  // rejected: number;
 };
 
 type SellerUI = {
@@ -29,6 +63,7 @@ type SellerUI = {
   totalProducts: number;
   approved: number;
   notApproved: number;
+  // rejected: number;
 };
 
 /* ================= PAGE ================= */
@@ -44,6 +79,7 @@ export default function BrandCheckingPage() {
       totalProducts: 0,
       approved: 0,
       notApproved: 0,
+      // rejected: 0,
     }))
   );
 
@@ -85,9 +121,9 @@ export default function BrandCheckingPage() {
             
             return {
               ...seller,
-              totalProducts: row.total,
               approved: row.approved,
               notApproved: row.not_approved,
+              rejected: row.rejected,
             };
           })
         );
@@ -133,13 +169,14 @@ export default function BrandCheckingPage() {
             const updated = prev.map((seller) =>
               seller.id === data.seller_id
                 ? {
-                    ...seller,
-                    totalProducts: data.total,
-                    approved: data.approved,
-                    notApproved: data.not_approved,
-                  }
+                  ...seller,
+                  approved: data.approved,
+                  notApproved: data.not_approved,
+                  // rejected: data.rejected,
+                }
                 : seller
             );
+
             console.log(`✅ Updated sellers state:`, updated);
             return updated;
           });
@@ -159,6 +196,46 @@ export default function BrandCheckingPage() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+const fetchSellerTotals = async () => {
+  const updates = await Promise.all(
+    ALL_SELLERS.map(async (seller) => {
+      const tables = SELLER_TABLE_GROUPS[seller.id];
+
+      let total = 0;
+
+      for (const table of tables) {
+        const { count, error } = await supabase
+          .from(table)
+          .select("*", { count: "exact", head: true });
+
+        if (error) {
+          console.error(`❌ Error counting ${table}`, error);
+          continue;
+        }
+
+        total += count || 0;
+      }
+
+      console.log(`📦 ${seller.name} TOTAL products (all tabs):`, total);
+
+      return { seller_id: seller.id, total };
+    })
+  );
+
+  setSellers((prev) =>
+    prev.map((s) => {
+      const row = updates.find((u) => u.seller_id === s.id);
+      return row ? { ...s, totalProducts: row.total } : s;
+    })
+  );
+};
+
+
+useEffect(() => {
+  fetchSellerTotals();
+}, []);
+
 
 
   return (
@@ -184,13 +261,14 @@ export default function BrandCheckingPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {sellers.map((seller) => {
             const approvedPercentage =
-              seller.totalProducts === 0
-                ? 0
-                : (seller.approved / seller.totalProducts) * 100;
-            const notApprovedPercentage =
-              seller.totalProducts === 0
-                ? 0
-                : (seller.notApproved / seller.totalProducts) * 100;
+  seller.totalProducts === 0 ? 0 : (seller.approved / seller.totalProducts) * 100;
+
+const notApprovedPercentage =
+  seller.totalProducts === 0 ? 0 : (seller.notApproved / seller.totalProducts) * 100;
+
+// const rejectedPercentage =
+//   seller.totalProducts === 0 ? 0 : (seller.rejected / seller.totalProducts) * 100;
+
 
             return (
               <div
@@ -220,42 +298,47 @@ export default function BrandCheckingPage() {
                   </div>
 
                   {/* Progress Bar */}
+                  {/* Progress Bar */}
                   <div className="relative w-full h-8 bg-gray-200 rounded-lg overflow-hidden mb-3">
-                    {/* Approved */}
-                    <div
-                      className="absolute left-0 top-0 h-full bg-green-500 flex items-center justify-center transition-all duration-300"
-                      style={{ width: `${approvedPercentage}%` }}
-                    >
-                      {approvedPercentage > 15 && (
-                        <span className="text-xs font-bold text-white">
-                          Approved: {seller.approved}
-                        </span>
-                      )}
-                    </div>
 
-                    {/* Not Approved */}
+                    {/* Approved (Green) */}
                     <div
-                      className="absolute right-0 top-0 h-full bg-red-500 flex items-center justify-center transition-all duration-300"
-                      style={{ width: `${notApprovedPercentage}%` }}
-                    >
-                      {notApprovedPercentage > 15 && (
-                        <span className="text-xs font-bold text-white">
-                          Not Approved: {seller.notApproved}
-                        </span>
-                      )}
-                    </div>
+                      className="absolute top-0 h-full bg-green-500 transition-all duration-300"
+                      style={{ width: `${approvedPercentage}%`, left: 0 }}
+                    />
+
+                    {/* Not Approved (Red) */}
+                    <div
+                      className="absolute top-0 h-full bg-red-500 transition-all duration-300"
+                      style={{
+                        width: `${notApprovedPercentage}%`,
+                        left: `${approvedPercentage}%`,
+                      }}
+                    />
+
+                    {/* Rejected (Gray) */}
+                    {/* <div
+                      className="absolute top-0 h-full bg-gray-500 transition-all duration-300"
+                      style={{
+                        width: `${rejectedPercentage}%`,
+                        left: `${approvedPercentage + notApprovedPercentage}%`,
+                      }}
+                    /> */}
+
                   </div>
+
 
                   {/* Stats */}
                   <div className="flex justify-between text-xs text-gray-600">
                     <span className="text-green-600 font-semibold">
-                      Approved: {seller.approved} (
-                      {approvedPercentage.toFixed(1)}%)
+                      Approved: {seller.approved}
                     </span>
                     <span className="text-red-600 font-semibold">
-                      Not Approved: {seller.notApproved} (
-                      {notApprovedPercentage.toFixed(1)}%)
+                      Not Approved: {seller.notApproved}
                     </span>
+                    {/* <span className="text-gray-600 font-semibold">
+                      Rejected: {seller.rejected}
+                    </span> */}
                   </div>
                 </div>
               </div>

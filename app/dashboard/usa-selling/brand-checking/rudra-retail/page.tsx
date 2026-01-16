@@ -269,6 +269,7 @@ export default function GoldenAuraPage() {
           funnel: product.funnel,
           no_of_seller: 1,
           usa_link: product.product_link,
+          amz_link:product.amz_link,
           india_price: null,
           product_weight: null,
           judgement: null,
@@ -289,15 +290,15 @@ export default function GoldenAuraPage() {
         }
 
         // ✅ STEP 2: Save to history
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         // ✅ STEP 3: Delete from brand checking table
         console.log('🗑️ Deleting from brand checking table');
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
-          .delete()
-          .eq('id', product.id);
+  .from(sourceTable)
+  .delete()
+  .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('❌ Error deleting product:', deleteError);
@@ -368,13 +369,13 @@ export default function GoldenAuraPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
-          .delete()
-          .eq('id', product.id);
+  .from(sourceTable)
+  .delete()
+  .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
@@ -426,13 +427,13 @@ export default function GoldenAuraPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
-          .delete()
-          .eq('id', product.id);
+  .from(sourceTable)
+  .delete()
+  .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);

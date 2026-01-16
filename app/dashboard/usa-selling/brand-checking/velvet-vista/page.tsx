@@ -270,6 +270,7 @@ export default function VelvetVistaPage() {
           funnel: product.funnel,
           no_of_seller: 1,
           usa_link: product.product_link,
+          amz_link:product.amz_link,
           india_price: null,
           product_weight: null,
           judgement: null,
@@ -288,13 +289,13 @@ export default function VelvetVistaPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
-          .delete()
-          .eq('id', product.id);
+  .from(sourceTable)
+  .delete()
+  .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('❌ Error deleting product:', deleteError);
@@ -342,13 +343,13 @@ export default function VelvetVistaPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
-          .delete()
-          .eq('id', product.id);
+  .from(sourceTable)
+  .delete()
+  .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
@@ -391,26 +392,31 @@ export default function VelvetVistaPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
-          .delete()
-          .eq('id', product.id);
+  .from(sourceTable)
+  .delete()
+  .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
         }
 
         // ✅ Rejected items decrease total only
-        const { error: updateProgressError } = await supabase.rpc('decrement_brand_check_total', {
-          p_seller_id: SELLER_ID
-        });
+//  // ✅ Increment rejected count (CORRECT WAY)
+// const { error: rejectProgressError } = await supabase.rpc(
+//   "increment_brand_check_rejected",
+//   {
+//     p_seller_id: Number(SELLER_ID),
+//   }
+// );
 
-        if (updateProgressError) {
-          console.error('❌ Error updating progress:', updateProgressError);
-        }
+// if (rejectProgressError) {
+//   console.error("❌ Error incrementing rejected count:", rejectProgressError);
+// }
+
 
         await fetchProducts();
         setToast({

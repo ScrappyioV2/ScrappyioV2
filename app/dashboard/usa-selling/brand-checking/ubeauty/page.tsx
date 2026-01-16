@@ -267,6 +267,7 @@ export default function GoldenAuraPage() {
           funnel: product.funnel,
           no_of_seller: 1,
           usa_link: product.product_link,
+          amz_link:product.amz_link,
           india_price: null,
           product_weight: null,
           judgement: null,
@@ -287,15 +288,15 @@ export default function GoldenAuraPage() {
         }
 
         // ✅ STEP 2: Save to history
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         // ✅ STEP 3: Delete from brand checking table
         console.log('🗑️ Deleting from brand checking table');
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .from(sourceTable)
           .delete()
-          .eq('id', product.id);
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('❌ Error deleting product:', deleteError);
@@ -366,13 +367,13 @@ export default function GoldenAuraPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .from(sourceTable)
           .delete()
-          .eq('id', product.id);
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
@@ -424,13 +425,13 @@ export default function GoldenAuraPage() {
           return;
         }
 
-        const currentTable = `usa_brand_checking_seller_${SELLER_ID}`;
+        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-          .from(`usa_brand_checking_seller_${SELLER_ID}`)
+          .from(sourceTable)
           .delete()
-          .eq('id', product.id);
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
@@ -710,8 +711,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('high_demand')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'high_demand'
-                    ? 'bg-green-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-green-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 High Demand
@@ -719,8 +720,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('low_demand')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'low_demand'
-                    ? 'bg-blue-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-blue-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Low Demand
@@ -728,8 +729,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('dropshipping')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'dropshipping'
-                    ? 'bg-yellow-400 text-gray-900 shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-yellow-400 text-gray-900 shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Dropshipping
@@ -737,8 +738,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('not_approved')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'not_approved'
-                    ? 'bg-red-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-red-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Not Approved
@@ -746,8 +747,8 @@ export default function GoldenAuraPage() {
               <button
                 onClick={() => setActiveTab('reject')}
                 className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'reject'
-                    ? 'bg-gray-400 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-gray-400 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
                   }`}
               >
                 Reject
