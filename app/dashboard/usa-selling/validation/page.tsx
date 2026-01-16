@@ -30,6 +30,7 @@ interface ValidationProduct {
     funnel: string | null
     no_of_seller: number | null
     usa_link: string | null
+    amz_link: string | null
     product_weight: number | null
     judgement: string | null
     usd_price: number | null
@@ -60,9 +61,9 @@ interface Stats {
 }
 
 interface Filters {
-    seller_tag: string
-    brand: string
-    funnel: string
+    seller_tag: string;  // Changed from 'sellertag' to 'seller_tag'
+    brand: string;
+    funnel: string;
 }
 
 type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending'
@@ -82,6 +83,8 @@ export default function ValidationPage() {
     const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0 })
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
+    const [searchQuery, setSearchQuery] = useState('');
+
     const fileInputRef = useRef<HTMLInputElement>(null)
     const usaPriceCSVInputRef = useRef<HTMLInputElement>(null)
 
@@ -131,8 +134,16 @@ export default function ValidationPage() {
     }, [activeTab])
 
     useEffect(() => {
-        applyFilters()
-    }, [products, filters])
+        applyFilters();
+    }, [products, filters, searchQuery, activeTab]); // Added searchQuery and activeTab
+
+    // Clear search and filters when switching tabs
+    useEffect(() => {
+        setSearchQuery('');
+        setFilters({ seller_tag: '', brand: '', funnel: '' });
+        setSelectedIds(new Set());
+    }, [activeTab]);
+
 
     const fetchConstants = async () => {
         try {
@@ -157,20 +168,40 @@ export default function ValidationPage() {
     }
 
     const applyFilters = () => {
-        let filtered = [...products]
+        // START with tab-filtered products
+        let filtered = getTabProducts();
 
+        // Apply search query (searches across ASIN, Product Name, Brand)
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(p =>
+                p.asin?.toLowerCase().includes(query) ||
+                p.product_name?.toLowerCase().includes(query) ||
+                p.brand?.toLowerCase().includes(query)
+            );
+        }
+
+        // Apply filter dropdowns
         if (filters.seller_tag) {
-            filtered = filtered.filter(p => p.seller_tag?.toLowerCase().includes(filters.seller_tag.toLowerCase()))
-        }
-        if (filters.brand) {
-            filtered = filtered.filter(p => p.brand?.toLowerCase().includes(filters.brand.toLowerCase()))
-        }
-        if (filters.funnel) {
-            filtered = filtered.filter(p => p.funnel?.toLowerCase().includes(filters.funnel.toLowerCase()))
+            filtered = filtered.filter(p =>
+                p.seller_tag?.toLowerCase().includes(filters.seller_tag.toLowerCase())
+            );
         }
 
-        setFilteredProducts(filtered)
-    }
+        if (filters.brand) {
+            filtered = filtered.filter(p =>
+                p.brand?.toLowerCase().includes(filters.brand.toLowerCase())
+            );
+        }
+
+        if (filters.funnel) {
+            filtered = filtered.filter(p =>
+                p.funnel?.toLowerCase().includes(filters.funnel.toLowerCase())
+            );
+        }
+
+        setFilteredProducts(filtered);
+    };
 
     const fetchStats = async () => {
         try {
@@ -204,39 +235,45 @@ export default function ValidationPage() {
 
 
     const fetchProducts = async () => {
-        setLoading(true)
+        setLoading(true);
         try {
             // Always fetch from main_file
             const { data, error } = await supabase
                 .from('usa_validation_main_file')
                 .select('*')
-                .order('created_at', { ascending: false })
+                .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error fetching products:', error)
-                setProducts([])
+                console.error('Error fetching products:', error);
+                setProducts([]);
             } else {
-                let filteredData = data || []
-
-                // ✅ Filter based on judgement field
-                if (activeTab === 'pass_file') {
-                    filteredData = filteredData.filter(p => p.judgement === 'PASS')  // ✅ FIXED
-                } else if (activeTab === 'fail_file') {
-                    filteredData = filteredData.filter(p => p.judgement === 'FAIL')
-                } else if (activeTab === 'pending') {
-                    filteredData = filteredData.filter(p => !p.judgement || p.judgement === 'PENDING')
-                }
-                // main_file shows all products
-
-                setProducts(filteredData)
+                // Store ALL products - DON'T filter here
+                setProducts(data || []);
             }
         } catch (err) {
-            console.error('Fetch error:', err)
-            setProducts([])
+            console.error('Fetch error:', err);
+            setProducts([]);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
+
+    // Get products for current tab (before search/filters)
+    const getTabProducts = () => {
+        let tabProducts = [...products];
+
+        // Filter based on active tab
+        if (activeTab === 'pass_file') {
+            tabProducts = tabProducts.filter(p => p.judgement === 'PASS');
+        } else if (activeTab === 'fail_file') {
+            tabProducts = tabProducts.filter(p => p.judgement === 'FAIL');
+        } else if (activeTab === 'pending') {
+            tabProducts = tabProducts.filter(p => !p.judgement || p.judgement === 'PENDING');
+        }
+        // mainfile shows all products
+
+        return tabProducts;
+    };
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
         try {
@@ -305,39 +342,7 @@ export default function ValidationPage() {
             return
         }
 
-        // // If judgement is PASS or FAIL, copy to respective file
-        // if (result.judgement === 'PASS' || result.judgement === 'FAIL') {
-        //     const { id: _, ...productWithoutId } = product
-
-        //     const productData = {
-        //         ...productWithoutId,
-        //         total_cost: result.total_cost,  // ✅ NEW
-        //         total_revenue: result.total_revenue,  // ✅ NEW
-        //         profit: result.profit,  // ✅ NEW
-        //         judgement: result.judgement,
-        //     }
-
-        //     const targetTable =
-        //         result.judgement === 'PASS' ? 'usa_validation_pass_file' : 'usa_validation_fail_file'
-
-        //     const { data: existingData } = await supabase
-        //         .from(targetTable)
-        //         .select('id')
-        //         .eq('asin', product.asin)
-        //         .single()
-
-        //     if (!existingData) {
-        //         await supabase.from(targetTable).insert(productData)
-        //     } else {
-        //         await supabase
-        //             .from(targetTable)
-        //             .update(productData)
-        //             .eq('asin', product.asin)
-        //     }
-        // }
-
         fetchStats()
-
         // Update local state - ✅ NEW PROPERTY NAMES
         setProducts((prev) =>
             prev.map((p) =>
@@ -526,20 +531,20 @@ export default function ValidationPage() {
             .from("usa_purchases")
             .insert({
                 asin: product.asin,
-                product_name: product.product_name,        // ✅ Fixed
+                product_name: product.product_name,
                 brand: product.brand,
-                seller_tag: product.seller_tag,            // ✅ Fixed
+                seller_tag: product.seller_tag,
                 funnel: product.funnel,
                 origin_india: product.origin_india || false,
                 origin_china: product.origin_china || false,
-                product_link: product.usa_link,            // ✅ Fixed
-                target_price: product.usd_price,           // ✅ Fixed
+                product_link: product.usa_link,              // Product view link
+                target_price: product.usd_price,
                 target_quantity: 1,
                 funnel_quantity: 1,
                 funnel_seller: product.funnel,
-                buying_price: product.inr_purchase,        // ✅ Fixed
+                buying_price: product.inr_purchase,
                 buying_quantity: 1,
-                seller_link: "",
+                seller_link: product.amz_link || "",         // ✅ Amazon seller approval link
                 seller_phone: "",
                 payment_method: "",
                 tracking_details: "",
@@ -573,71 +578,175 @@ export default function ValidationPage() {
 
     const handleMoveToMainClick = async () => {
         if (selectedIds.size === 0) {
-            setToast({ message: 'No items selected', type: 'warning' })
-            return
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
         }
 
         const confirmed = window.confirm(
-            `Move ${selectedIds.size} item(s) back to Main File? This will reset their data for re-validation.`
-        )
+            `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`
+        );
 
-        if (!confirmed) return
+        if (!confirmed) return;
 
         try {
-            // Convert Set to Array for processing
-            const idsArray = Array.from(selectedIds)
+            const idsArray = Array.from(selectedIds);
 
-            // ✅ CLEAR ALL DATA - Reset to fresh state
+            console.log('🔄 Moving IDs:', idsArray);
+
+            // Use CORRECT database field names (snake_case with underscores)
             const { error } = await supabase
                 .from('usa_validation_main_file')
                 .update({
                     // Clear judgement
-                    judgement: 'PENDING',  // ✅ Show PENDING badge instead of "Auto-calculating..."
-
+                    judgement: 'PENDING',
                     // Clear calculated values
                     total_cost: null,
                     total_revenue: null,
                     profit: null,
-
-                    // ✅ Clear input fields
+                    // Clear input fields
                     usd_price: null,
                     product_weight: null,
                     inr_purchase: null,
-
-                    // Clear checklist
+                    // Clear checklist - CORRECT NAMES with underscores
                     check_brand: false,
                     check_item_expire: false,
                     check_small_size: false,
                     check_multi_seller: false,
-
                     // Clear origin
                     origin_india: false,
-                    origin_china: false
+                    origin_china: false,
                 })
-                .in('id', idsArray)
+                .in('id', idsArray);
 
             if (error) {
-                console.error('Move to main error:', error)
-                setToast({ message: 'Failed to move items', type: 'error' })
-                return
+                console.error('Supabase error:', error);
+                throw error;
             }
 
-            // Clear selections
-            setSelectedIds(new Set())
+            console.log('✅ Successfully updated!');
 
-            // Refresh data
-            await fetchProducts()
-            await fetchStats()
+            // Immediate UI update
+            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setSelectedIds(new Set());
 
             setToast({
-                message: `Successfully moved ${idsArray.length} item(s) back to Main File!`,
+                message: `Successfully moved ${idsArray.length} items back to Main File!`,
                 type: 'success'
-            })
+            });
+
+            // Background refresh
+            await fetchProducts();
+            await fetchStats();
+
         } catch (err) {
-            console.error('Move to main error:', err)
-            setToast({ message: 'Failed to move items', type: 'error' })
+            console.error('Move to main error:', err);
+            setToast({ message: 'Failed to move items', type: 'error' });
         }
-    }
+    };
+
+    // Move items from Pending to Pass
+    const handleMoveToPassClick = async () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Move ${selectedIds.size} items to Pass File?`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const idsArray = Array.from(selectedIds);
+
+            console.log('🔄 Moving to Pass:', idsArray);
+
+            // Update judgement to PASS in main_file
+            const { error } = await supabase
+                .from('usa_validation_main_file')
+                .update({
+                    judgement: 'PASS',
+                })
+                .in('id', idsArray);
+
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
+
+            // Immediate UI update
+            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setSelectedIds(new Set());
+
+            setToast({
+                message: `Successfully moved ${idsArray.length} items to Pass File!`,
+                type: 'success'
+            });
+
+            // Background refresh
+            await fetchProducts();
+            await fetchStats();
+
+        } catch (err) {
+            console.error('Move to pass error:', err);
+            setToast({ message: 'Failed to move items', type: 'error' });
+        }
+    };
+
+    // Move items from Pending to Fail
+    const handleMoveToFailClick = async () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Move ${selectedIds.size} items to Fail File?`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const idsArray = Array.from(selectedIds);
+
+            console.log('🔄 Moving to Fail:', idsArray);
+
+            // Update judgement to FAIL in main_file
+            const { error } = await supabase
+                .from('usa_validation_main_file')
+                .update({
+                    judgement: 'FAIL',
+                })
+                .in('id', idsArray);
+
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
+
+            // Immediate UI update
+            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setSelectedIds(new Set());
+
+            setToast({
+                message: `Successfully moved ${idsArray.length} items to Fail File!`,
+                type: 'success'
+            });
+
+            // Background refresh
+            await fetchProducts();
+            await fetchStats();
+
+        } catch (err) {
+            console.error('Move to fail error:', err);
+            setToast({ message: 'Failed to move items', type: 'error' });
+        }
+    };
+
 
     const downloadCSV = () => {
         if (filteredProducts.length === 0) {
@@ -724,7 +833,7 @@ export default function ValidationPage() {
     return (
         <PageTransition>
             <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-6">
-                <div className="max-w-full mx-auto flex flex-col flex-1 overflow-hidden">
+                <div className="w-full flex flex-col flex-1 overflow-hidden">
                     {/* Fixed Header Section */}
                     <div className="flex-none">
                         {/* Header */}
@@ -732,64 +841,66 @@ export default function ValidationPage() {
                             <h1 className="text-3xl font-bold text-gray-900">USA Selling - Validation</h1>
                             <p className="text-gray-600 mt-1">Manage validation files and product status</p>
                         </div>
-
                         {/* Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                            <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg p-5 text-white shadow-lg">
-                                <div className="text-sm opacity-90">Total Products</div>
-                                <div className="text-4xl font-bold mt-2">{stats.total}</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                            <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg px-5 py-4 text-white shadow-md">
+                                <div className="text-xs font-medium opacity-90">Total Products</div>
+                                <div className="text-3xl font-bold mt-1">{stats.total}</div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-5 text-white shadow-lg">
-                                <div className="text-sm opacity-90">✓ Passed</div>
-                                <div className="text-4xl font-bold mt-2">{stats.passed}</div>
+                            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg px-5 py-4 text-white shadow-md">
+                                <div className="text-xs font-medium opacity-90">✓ Passed</div>
+                                <div className="text-3xl font-bold mt-1">{stats.passed}</div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-5 text-white shadow-lg">
-                                <div className="text-sm opacity-90">✗ Failed</div>
-                                <div className="text-4xl font-bold mt-2">{stats.failed}</div>
+                            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg px-5 py-4 text-white shadow-md">
+                                <div className="text-xs font-medium opacity-90">✗ Failed</div>
+                                <div className="text-3xl font-bold mt-1">{stats.failed}</div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-5 text-white shadow-lg">
-                                <div className="text-sm opacity-90">⏳ Pending</div>
-                                <div className="text-4xl font-bold mt-2">{stats.pending}</div>
+                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg px-5 py-4 text-white shadow-md">
+                                <div className="text-xs font-medium opacity-90">⏳ Pending</div>
+                                <div className="text-3xl font-bold mt-1">{stats.pending}</div>
                             </div>
                         </div>
 
                         {/* File Tabs */}
-                        <div className="flex gap-2 mb-3">
+                        <div className="flex gap-2 mb-5 flex-wrap">
                             <button
                                 onClick={() => setActiveTab('main_file')}
-                                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'main_file'
-                                    ? 'bg-slate-600 text-white shadow-lg'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'main_file'
+                                    ? 'bg-slate-600 text-white'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                                     }`}
                             >
                                 Main File
                             </button>
+
                             <button
                                 onClick={() => setActiveTab('pass_file')}
-                                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'pass_file'
-                                    ? 'bg-green-500 text-white shadow-lg'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pass_file'
+                                    ? 'bg-slate-600 text-white'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                                     }`}
                             >
                                 Pass File
                             </button>
+
                             <button
                                 onClick={() => setActiveTab('fail_file')}
-                                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'fail_file'
-                                    ? 'bg-red-500 text-white shadow-lg'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'fail_file'
+                                    ? 'bg-slate-600 text-white'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                                     }`}
                             >
                                 Failed File
                             </button>
+
                             <button
                                 onClick={() => setActiveTab('pending')}
-                                className={`px-8 py-4 text-lg font-semibold rounded-lg transition-all ${activeTab === 'pending'
-                                    ? 'bg-orange-500 text-white shadow-lg'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pending'
+                                    ? 'bg-slate-600 text-white'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                                     }`}
                             >
                                 Pending
@@ -797,26 +908,64 @@ export default function ValidationPage() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex gap-3 flex-wrap">
+                        <div className="mb-4">
+                            <div className="flex items-center justify-between gap-3">
+                                {/* LEFT SIDE - Search + Filter */}
+                                <div className="flex gap-3 flex-1 min-w-[300px]">
+                                    {/* Search Bar - NEW */}
+                                    <div className="relative flex-1 max-w-md">
+                                        <svg
+                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                            />
+                                        </svg>
+                                        <input
+                                            type="text"
+                                            placeholder="Search by ASIN, Product Name, or Brand..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full pl-9 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                onClick={() => setSearchQuery('')}
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+
                                     {/* Filter Button */}
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 font-medium flex items-center gap-2"
+                                            className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                                />
                                             </svg>
                                             Add Filter
                                         </button>
+
                                         {isFilterOpen && (
                                             <>
-                                                <div
-                                                    className="fixed inset-0 z-10"
-                                                    onClick={() => setIsFilterOpen(false)}
-                                                />
+                                                <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
                                                 <div className="absolute top-full left-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-72">
                                                     <h3 className="font-semibold text-gray-900 mb-3">Filter Products</h3>
                                                     <div className="space-y-3">
@@ -851,7 +1000,7 @@ export default function ValidationPage() {
                                                             />
                                                         </div>
                                                         <button
-                                                            onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' })}
+                                                            onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
                                                             className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
                                                         >
                                                             Clear Filters
@@ -861,40 +1010,89 @@ export default function ValidationPage() {
                                             </>
                                         )}
                                     </div>
+                                </div>
 
-                                    {activeTab === 'pass_file' && (
+                                {/* RIGHT SIDE - Action Buttons */}
+                                <div className="flex gap-3 flex-wrap">
+                                    {/* Move to Main - ONLY for Pass and Failed tabs */}
+                                    {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
                                         <button
                                             onClick={handleMoveToMainClick}
                                             disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition
-                                          ${selectedIds.size === 0
-                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                    : 'bg-slate-800 text-white hover:bg-slate-900'
+                                            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
+                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                : 'bg-slate-800 text-white hover:bg-slate-900'
                                                 }`}
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
                                             Move to Main
                                         </button>
                                     )}
 
+                                    {/* Move to Pass - ONLY for Pending tab */}
+                                    {activeTab === 'pending' && (
+                                        <button
+                                            onClick={handleMoveToPassClick}
+                                            disabled={selectedIds.size === 0}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
+                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                : 'bg-green-600 text-white hover:bg-green-700'
+                                                }`}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Move to Pass
+                                        </button>
+                                    )}
+
+                                    {/* Move to Fail - ONLY for Pending tab */}
+                                    {activeTab === 'pending' && (
+                                        <button
+                                            onClick={handleMoveToFailClick}
+                                            disabled={selectedIds.size === 0}
+                                            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
+                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                : 'bg-red-600 text-white hover:bg-red-700'
+                                                }`}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                            Move to Fail
+                                        </button>
+                                    )}
+
+                                    {/* Download CSV */}
                                     <button
                                         onClick={downloadCSV}
-                                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium flex items-center gap-2"
+                                        className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                            />
                                         </svg>
                                         Download CSV
                                     </button>
 
+                                    {/* Upload CSV */}
                                     <button
                                         onClick={handleUploadCSV}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                            />
                                         </svg>
                                         Upload CSV
                                     </button>
@@ -906,9 +1104,10 @@ export default function ValidationPage() {
                                         className="hidden"
                                     />
 
+                                    {/* Bulk USA Price Update */}
                                     <button
                                         onClick={() => usaPriceCSVInputRef.current?.click()}
-                                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium whitespace-nowrap"
                                     >
                                         Bulk USA Price Update
                                     </button>
@@ -920,13 +1119,24 @@ export default function ValidationPage() {
                                         className="hidden"
                                     />
 
+                                    {/* Configure Constants */}
                                     <button
                                         onClick={openConstantsModal}
-                                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+                                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                            />
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                            />
                                         </svg>
                                         Configure Constants
                                     </button>
@@ -936,21 +1146,23 @@ export default function ValidationPage() {
                     </div>
 
                     {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                    <div className="flex-1 min-h-0 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                    <div className="flex-1 min-h-0 bg-white rounded-md shadow overflow-hidden flex flex-col border border-gray-200">
                         {loading ? (
-                            <div className="p-8 text-center">
-                                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
-                                <p className="mt-2 text-gray-600">Loading products...</p>
+                            <div className="flex flex-col items-center justify-center p-16">
+                                <div className="relative">
+                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-200"></div>
+                                    <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-blue-600"></div>
+                                </div>
+                                <p className="mt-4 text-gray-600 font-medium">Loading products...</p>
                             </div>
                         ) : filteredProducts.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">
-                                <p className="text-lg">No products found in {
-                                    activeTab === 'main_file' ? 'Main File' :
-                                        activeTab === 'pass_file' ? 'Pass File' :
-                                            activeTab === 'fail_file' ? 'Failed File' :
-                                                'Pending'
-                                }</p>
-                                <p className="text-sm mt-2">
+                            <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+                                <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                                <p className="text-lg font-semibold text-gray-700 mb-2">No products found</p>
+                                <p className="text-sm text-gray-500 max-w-md text-center">
+
                                     {activeTab === 'pending'
                                         ? 'Products with incomplete data will appear here'
                                         : activeTab === 'pass_file'
@@ -965,9 +1177,9 @@ export default function ValidationPage() {
                             <>
                                 <div className="flex-1 overflow-auto">
                                     <table className="w-full">
-                                        <thead className="bg-gray-100 border-b-2 border-gray-300 sticky top-0 z-10">
+                                        <thead className="bg-gradient-to-r from-slate-100 to-slate-200 border-b-2 border-slate-300 sticky top-0 z-10">
                                             <tr>
-                                                <th className="p-3 text-left">
+                                                <th className="px-4 py-3 text-left">
                                                     <input
                                                         type="checkbox"
                                                         checked={
@@ -979,23 +1191,19 @@ export default function ValidationPage() {
                                                     />
                                                 </th>
 
-                                                {visibleColumns.asin && <th className="p-3">ASIN</th>}
-                                                {visibleColumns.product_name && <th className="p-3">Product Name</th>}
-                                                {visibleColumns.brand && <th className="p-3">Brand</th>}
-                                                {visibleColumns.seller_tag && <th className="p-3">Seller Tag</th>}
-                                                {visibleColumns.funnel && <th className="p-3">Funnel</th>}
-                                                {visibleColumns.no_of_seller && <th className="p-3">No. OF seller</th>}
-                                                {visibleColumns.usa_link && <th className="p-3">USA Link</th>}
-
-                                                {activeTab === 'pass_file' && <th className="p-3">Origin</th>}
-
-                                                {visibleColumns.product_weight && <th className="p-3">Weight (g)</th>}
-                                                {visibleColumns.usd_price && <th className="p-3">USD Price</th>}
-                                                {visibleColumns.inr_purchase && <th className="p-3">INR Purchase</th>}
-
-                                                {activeTab === 'pass_file' && <th className="p-3">Checklist</th>}
-
-                                                {visibleColumns.judgement && <th className="p-3">Judgement</th>}
+                                                {visibleColumns.asin && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">ASIN</th>}
+                                                {visibleColumns.product_name && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Product Name</th>}
+                                                {visibleColumns.brand && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Brand</th>}
+                                                {visibleColumns.seller_tag && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Seller Tag</th>}
+                                                {visibleColumns.funnel && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Funnel</th>}
+                                                {visibleColumns.no_of_seller && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> No. of Sellers</th>}
+                                                {visibleColumns.usa_link && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">USA Link</th>}
+                                                {activeTab === 'pass_file' && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Origin</th>}
+                                                {visibleColumns.product_weight && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Weight (g)</th>}
+                                                {visibleColumns.usd_price && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">USD Price</th>}
+                                                {visibleColumns.inr_purchase && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">INR Purchase</th>}
+                                                {activeTab === 'pass_file' && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Checklist</th>}
+                                                {visibleColumns.judgement && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Judgement</th>}
                                             </tr>
                                         </thead>
 
@@ -1003,7 +1211,7 @@ export default function ValidationPage() {
                                             {filteredProducts.map((product, index) => (
                                                 <tr
                                                     key={product.id}
-                                                    className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                                                    className="border-b hover:bg-gray-50 transition-colors"
                                                 >
                                                     <td className="p-3">
                                                         <input
@@ -1230,21 +1438,21 @@ export default function ValidationPage() {
                                                         <td className="p-3">
                                                             {product.judgement ? (
                                                                 <span
-                                                                    className={`px-3 py-1 rounded-full text-xs font-bold ${product.judgement === 'PASS'
+                                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${product.judgement === 'PASS'
                                                                         ? 'bg-green-500 text-white'
                                                                         : product.judgement === 'FAIL'
                                                                             ? 'bg-red-500 text-white'
                                                                             : product.judgement === 'PENDING'
-                                                                                ? 'bg-gray-500 text-white'  // ✅ PENDING badge
+                                                                                ? 'bg-orange-500 text-white'
                                                                                 : 'bg-gray-400 text-white'
                                                                         }`}
                                                                 >
                                                                     {product.judgement}
                                                                 </span>
                                                             ) : (
-                                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-500 text-white">
+                                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500 text-white">
                                                                     PENDING
-                                                                </span>  // ✅ Show PENDING badge instead of "Auto-calculating..."
+                                                                </span>
                                                             )}
                                                         </td>
                                                     )}
@@ -1255,10 +1463,17 @@ export default function ValidationPage() {
                                 </div>
 
                                 {/* Footer Stats - Fixed at bottom of table */}
-                                <div className="flex-none border-t bg-gray-50 p-3">
-                                    <p className="text-sm text-gray-600">
-                                        Showing {filteredProducts.length} of {products.length} products | {selectedIds.size} selected
-                                    </p>
+                                <div className="flex-none border-t bg-gray-50 px-4 py-3">
+                                    <div className="flex items-center justify-between text-xs text-gray-600 flex-wrap gap-2">
+                                        <span className="text-gray-600 font-medium">
+                                            Showing <span className="font-bold text-slate-800">{filteredProducts.length}</span> of <span className="font-bold text-slate-800">{products.length}</span> products
+                                        </span>
+                                        {selectedIds.size > 0 && (
+                                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">
+                                                {selectedIds.size} selected
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </>
                         )}
