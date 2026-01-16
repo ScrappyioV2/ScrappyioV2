@@ -31,6 +31,7 @@ interface ValidationProduct {
     no_of_seller: number | null
     usa_link: string | null
     amz_link: string | null
+    inr_purchase_link: string | null
     product_weight: number | null
     judgement: string | null
     usd_price: number | null
@@ -106,6 +107,7 @@ export default function ValidationPage() {
         product_weight: true,
         usd_price: true,
         inr_purchase: true,
+        inr_purchase_link: true,
         total_cost: true,      // NEW
         total_revenue: true,   // NEW
         profit: true,          // NEW
@@ -544,7 +546,8 @@ export default function ValidationPage() {
                 funnel_seller: product.funnel,
                 buying_price: product.inr_purchase,
                 buying_quantity: 1,
-                seller_link: product.amz_link || "",         // ✅ Amazon seller approval link
+                seller_link: product.amz_link || "",
+                inr_purchase_link: product.inr_purchase_link || "",
                 seller_phone: "",
                 payment_method: "",
                 tracking_details: "",
@@ -1202,6 +1205,7 @@ export default function ValidationPage() {
                                                 {visibleColumns.product_weight && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Weight (g)</th>}
                                                 {visibleColumns.usd_price && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">USD Price</th>}
                                                 {visibleColumns.inr_purchase && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">INR Purchase</th>}
+                                                {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (<th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">INR Purchase Link</th>)}
                                                 {activeTab === 'pass_file' && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Checklist</th>}
                                                 {visibleColumns.judgement && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Judgement</th>}
                                             </tr>
@@ -1379,6 +1383,19 @@ export default function ValidationPage() {
                                                             ) : (
                                                                 formatINR(product.inr_purchase)
                                                             )}
+                                                        </td>
+                                                    )}
+
+                                                    {/* ✅ ADD THIS NEW EDITABLE CELL */}
+                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <input
+                                                                type="url"
+                                                                value={product.inr_purchase_link || ''}
+                                                                onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
+                                                                placeholder="Enter supplier link..."
+                                                                className="w-full min-w-[200px] px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                                            />
                                                         </td>
                                                     )}
 
