@@ -186,11 +186,22 @@ export default function UsaSellersPage() {
           continue;
         }
 
-        // Normalize data and conditionally generate links
+        // Normalize data and generate Amazon links
         const normalizedData = normalizeDataForDB(data)
           .map((product) => {
-            if (product && !product.link && product.asin) {
-              product.link = generateAmazonLink(product.asin, 'usa');
+            if (product) {
+              // Generate Amazon link if missing
+              if (!product.link && product.asin) {
+                product.link = generateAmazonLink(product.asin, 'usa');
+              }
+
+              // If CSV has amz_link, copy it to link column
+              if (product.amz_link && !product.link) {
+                product.link = product.amz_link;
+              }
+
+              // Remove amz_link (doesn't exist in DB)
+              delete product.amz_link;
             }
             return product;
           })
@@ -216,7 +227,7 @@ export default function UsaSellersPage() {
 
       // Step 2: OPTIMIZED Batch insert with parallel processing
       const batchSize = 1000;
-      const MAX_CONCURRENT_BATCHES = 3; // Process 3 batches simultaneously
+      const MAX_CONCURRENT_BATCHES = 3;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
@@ -248,6 +259,7 @@ export default function UsaSellersPage() {
               .from(TABLE_NAME)
               .upsert(batch, {
                 onConflict: 'asin',
+                ignoreDuplicates: false
               });
 
             if (error) throw error;
@@ -263,12 +275,10 @@ export default function UsaSellersPage() {
               return { success: false, count: 0, batchIndex, error };
             }
 
-            // Wait before retry (exponential backoff)
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           }
         }
 
-        // Fallback return (TypeScript safety)
         return { success: false, count: 0, batchIndex, error: 'Unexpected error' };
       };
 
@@ -285,7 +295,6 @@ export default function UsaSellersPage() {
 
         const results = await Promise.all(batchGroup);
 
-        // Update progress and count successes
         results.forEach(result => {
           if (result.success) {
             successCount += result.count;
@@ -333,6 +342,7 @@ export default function UsaSellersPage() {
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
     }
   };
+
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
