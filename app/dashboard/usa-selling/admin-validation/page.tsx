@@ -3,6 +3,11 @@
 import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect, useRef } from 'react'
 import Toast from '@/components/Toast';
+import {
+  calculateProductValues,
+  getDefaultConstants,
+  type CalculationConstants
+} from '@/lib/blackboxCalculations';
 
 type AdminProduct = {
   id: string;
@@ -43,7 +48,10 @@ export default function AdminValidationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
-
+  const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
+  const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false);
+  const [isSavingConstants, setIsSavingConstants] = useState(false);
+  const [calculatingIds, setCalculatingIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
@@ -69,7 +77,6 @@ export default function AdminValidationPage() {
 
   useEffect(() => {
     fetchProducts();
-
     // Real-time subscription
     const channel = supabase
       .channel('admin_validation_changes')
@@ -83,6 +90,10 @@ export default function AdminValidationPage() {
     return () => {
       channel.unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    fetchAdminConstants();
   }, []);
 
   // Column widths state
@@ -129,6 +140,110 @@ export default function AdminValidationPage() {
       payment_method: 120
     };
   });
+
+  const fetchAdminConstants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('usa_admin_validation_constants')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        setAdminConstants({
+          dollar_rate: data.dollar_rate,
+          bank_conversion_rate: data.bank_conversion_rate,
+          shipping_charge_per_kg: data.shipping_charge_per_kg,
+          commission_rate: data.commission_rate,
+          packing_cost: data.packing_cost,
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching admin constants:', err);
+    }
+  };
+
+  const saveAdminConstants = async () => {
+    setIsSavingConstants(true);
+    try {
+      // Update constants in database
+      const { data: existingData } = await supabase
+        .from('usa_admin_validation_constants')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (existingData) {
+        await supabase
+          .from('usa_admin_validation_constants')
+          .update(adminConstants)
+          .eq('id', existingData.id);
+      } else {
+        await supabase
+          .from('usa_admin_validation_constants')
+          .insert(adminConstants);
+      }
+
+      setToast({ message: 'Admin constants saved successfully!', type: 'success' });
+      setIsConstantsModalOpen(false);
+    } catch (err) {
+      console.error('Save constants error:', err);
+      setToast({ message: 'Failed to save constants', type: 'error' });
+    } finally {
+      setIsSavingConstants(false);
+    }
+  };
+
+  const autoCalculateProfit = async (productId: string, product: any) => {
+    // Check if we have all required values
+    if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
+      return; // Skip calculation if any value is missing
+    }
+
+    // Add to calculating set (for spinner)
+    setCalculatingIds(prev => new Set(prev).add(productId));
+
+    try {
+      // Calculate using admin constants
+      const result = calculateProductValues(
+        {
+          usd_price: product.usd_price,
+          product_weight: product.product_weight,
+          inr_purchase: product.inr_purchase,
+        },
+        adminConstants
+      );
+
+      // Update profit in database
+      const { error } = await supabase
+        .from('usa_purchases')
+        .update({ profit: result.profit })
+        .eq('id', productId);
+
+      if (error) {
+        console.error('Update profit error:', error);
+        return;
+      }
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(p =>
+          p.id === productId
+            ? { ...p, profit: result.profit }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error('Calculation error:', err);
+    } finally {
+      // Remove from calculating set
+      setCalculatingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
 
   // Resize tracking state
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -280,18 +395,39 @@ export default function AdminValidationPage() {
     }
   };
 
-  // Handle inline editing
+  // ✅ UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
+      // Update database
       const { error } = await supabase
-        .from('usa_admin_validation')
+        .from('usa_purchases')
         .update({ [field]: value })
         .eq('id', id);
 
-      if (error) throw error;
-      fetchProducts();
-    } catch (error: any) {
-      alert('Error updating: ' + error.message);
+      if (error) {
+        setToast({ message: 'Failed to update', type: 'error' });
+        return;
+      }
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(p =>
+          p.id === id ? { ...p, [field]: value } : p
+        )
+      );
+
+      // ✅ AUTO-CALCULATE IF IT'S ONE OF THE THREE KEY FIELDS
+      if (field === 'product_weight' || field === 'usd_price' || field === 'inr_purchase') {
+        const updatedProduct = products.find(p => p.id === id);
+        if (updatedProduct) {
+          await autoCalculateProfit(id, { ...updatedProduct, [field]: value });
+        }
+      }
+
+      setToast({ message: 'Updated successfully', type: 'success' });
+    } catch (err) {
+      console.error('Update error:', err);
+      setToast({ message: 'Update failed', type: 'error' });
     }
   };
 
@@ -385,12 +521,27 @@ export default function AdminValidationPage() {
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-4">
       <div className="flex flex-col flex-1 overflow-hidden">
 
-        {/* Header - STICKY */}
-        <div className="flex-none mb-3">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Validation</h1>
-            <p className="text-gray-600 mt-1">Review and confirm purchase orders</p>
-          </div>
+        {/* Search + Configure Constants Button - STICKY */}
+        <div className="flex-none mb-3 flex items-center justify-between gap-3">
+          <input
+            type="text"
+            placeholder="Search by ASIN, Product Name, or Funnel Seller..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
+          {/* Configure Constants Button */}
+          <button
+            onClick={() => setIsConstantsModalOpen(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Configure Constants
+          </button>
         </div>
 
         {/* Tabs - STICKY */}
@@ -1021,40 +1172,62 @@ export default function AdminValidationPage() {
                           className={`w-24 px-2 py-1 border rounded text-sm font-semibold ${(product.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
                         />
                       </td>
-                      {/* Product Weight Cell */}
+
+                      {/* Product Weight Cell - WITH SPINNER */}
                       <td className="px-4 py-3 text-sm">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={product.product_weight || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'product_weight', parseFloat(e.target.value) || null)}
-                          className="w-20 px-2 py-1 border rounded text-sm"
-                          placeholder="grams"
-                        />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={product.product_weight || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'product_weight', parseFloat(e.target.value) || null)}
+                            className="w-20 px-2 py-1 border rounded text-sm"
+                            placeholder="grams"
+                          />
+                          {calculatingIds.has(product.id) && (
+                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
-                      {/* USD Price Cell */}
+                      {/* USD Price Cell - WITH SPINNER */}
                       <td className="px-4 py-3 text-sm">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={product.usd_price || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'usd_price', parseFloat(e.target.value) || null)}
-                          className="w-24 px-2 py-1 border rounded text-sm"
-                          placeholder="$"
-                        />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={product.usd_price || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'usd_price', parseFloat(e.target.value) || null)}
+                            className="w-24 px-2 py-1 border rounded text-sm"
+                            placeholder="$"
+                          />
+                          {calculatingIds.has(product.id) && (
+                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
-                      {/* INR Purchase Cell */}
+                      {/* INR Purchase Cell - WITH SPINNER */}
                       <td className="px-4 py-3 text-sm">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={product.inr_purchase || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'inr_purchase', parseFloat(e.target.value) || null)}
-                          className="w-28 px-2 py-1 border rounded text-sm"
-                          placeholder="₹"
-                        />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={product.inr_purchase || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'inr_purchase', parseFloat(e.target.value) || null)}
+                            className="w-28 px-2 py-1 border rounded text-sm"
+                            placeholder="₹"
+                          />
+                          {calculatingIds.has(product.id) && (
+                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* INR Purchase Link Cell */}
@@ -1233,6 +1406,124 @@ export default function AdminValidationPage() {
             Showing {filteredProducts.length} of {products.length} products
           </div>
         </div>
+        {/* ✅ CONSTANTS CONFIGURATION MODAL */}
+        {isConstantsModalOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              onClick={() => setIsConstantsModalOpen(false)}
+            ></div>
+
+            {/* Modal */}
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-t-xl">
+                  <h2 className="text-2xl font-bold">Admin Calculation Constants</h2>
+                  <p className="text-purple-100 mt-1">Configure constants for profit calculation (Admin only)</p>
+                </div>
+
+                {/* Form */}
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dollar Rate (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={adminConstants.dollar_rate}
+                      onChange={(e) => setAdminConstants({ ...adminConstants, dollar_rate: parseFloat(e.target.value) || 90 })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Bank Fee (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={adminConstants.bank_conversion_rate * 100}
+                      onChange={(e) => setAdminConstants({ ...adminConstants, bank_conversion_rate: (parseFloat(e.target.value) || 2) / 100 })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Shipping per 1000g (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={adminConstants.shipping_charge_per_kg}
+                      onChange={(e) => setAdminConstants({ ...adminConstants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Commission Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={adminConstants.commission_rate * 100}
+                      onChange={(e) => setAdminConstants({ ...adminConstants, commission_rate: (parseFloat(e.target.value) || 25) / 100 })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Packing Cost (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={adminConstants.packing_cost}
+                      onChange={(e) => setAdminConstants({ ...adminConstants, packing_cost: parseFloat(e.target.value) || 25 })}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 border-t bg-gray-50 flex items-center justify-end gap-3 rounded-b-xl">
+                  <button
+                    onClick={() => setIsConstantsModalOpen(false)}
+                    className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveAdminConstants}
+                    disabled={isSavingConstants}
+                    className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSavingConstants ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Save & Apply
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
       {/* ✅ ADD TOAST COMPONENT HERE */}
       {toast && (
