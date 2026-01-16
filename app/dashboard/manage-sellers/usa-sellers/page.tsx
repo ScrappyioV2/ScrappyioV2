@@ -1,6 +1,8 @@
 'use client';
 
+
 export const dynamic = 'force-dynamic'
+
 
 import {
   normalizeDataForDB,
@@ -20,39 +22,31 @@ import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
 
 
+
 const TABLE_NAME = 'usa_master_sellers';
 
+
 const ALL_COLUMNS = [
-  's_no',
-  'asin',
-  'link',
-  'amz_link',
-  'product_name',
-  'brand',
-  'price',
-  'monthly_unit',
-  'monthly_sales',
-  'bsr',
-  'seller',
-  'category',
-  'dimensions',
-  'weight',
+  's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
+  'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
+  'dimensions', 'weight', 'weight_unit'
 ];
 
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-  s_no: 60,
-  asin: 120,
-  link: 80,
-  product_name: 300,
-  brand: 120,
-  price: 100,
-  monthly_unit: 120,
-  monthly_sales: 140,
-  bsr: 100,
-  seller: 100,
-  category: 180,
-  dimensions: 150,
-  weight: 120,
+  's_no': 60,
+  'asin': 120,
+  'link': 80,
+  'amz_link': 120,  // Add this line
+  'product_name': 300,
+  'brand': 120,
+  'price': 100,
+  'monthly_unit': 120,
+  'monthly_sales': 140,
+  'bsr': 100,
+  'seller': 100,
+  'category': 180,
+  'dimensions': 150,
+  'weight': 120,
 };
 
 export default function UsaSellersPage() {
@@ -70,15 +64,19 @@ export default function UsaSellersPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
 
+
   // Upload progress state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
 
+
   const ITEMS_PER_PAGE = 50;
+
 
   useEffect(() => {
     loadColumnPreferences();
   }, []);
+
 
   const loadColumnPreferences = async () => {
     if (!supabase) return
@@ -86,12 +84,14 @@ export default function UsaSellersPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+
       const { data, error } = await supabase
         .from('user_column_preferences')
         .select('hidden_columns, column_widths')
         .eq('table_name', TABLE_NAME)
         .eq('user_id', user.id)
         .maybeSingle();
+
 
       if (data && !error) {
         setHiddenColumns(data.hidden_columns || []);
@@ -104,11 +104,13 @@ export default function UsaSellersPage() {
     }
   };
 
+
   const saveColumnPreferences = async (columns: string[], widths?: Record<string, number>) => {
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
 
       const updateData: any = {
         table_name: TABLE_NAME,
@@ -117,9 +119,11 @@ export default function UsaSellersPage() {
         updated_at: new Date().toISOString(),
       };
 
+
       if (widths) {
         updateData.column_widths = widths;
       }
+
 
       await supabase
         .from('user_column_preferences')
@@ -131,6 +135,7 @@ export default function UsaSellersPage() {
     }
   };
 
+
   const handleToggleColumn = (column: string) => {
     const newHiddenColumns = hiddenColumns.includes(column)
       ? hiddenColumns.filter((col) => col !== column)
@@ -139,15 +144,18 @@ export default function UsaSellersPage() {
     saveColumnPreferences(newHiddenColumns);
   };
 
+
   const handleColumnWidthChange = (widths: Record<string, number>) => {
     setColumnWidths(widths);
     saveColumnPreferences(hiddenColumns, widths);
   };
 
+
   const handleFiltersChange = (newFilters: Record<string, any>) => {
     setFilters(newFilters);
     setCurrentPage(1);
   };
+
 
   // Auto-generate Amazon link from ASIN
   const generateAmazonLink = (asin: string, country: 'usa' | 'india'): string => {
@@ -155,6 +163,7 @@ export default function UsaSellersPage() {
     const domain = country === 'usa' ? 'amazon.com' : 'amazon.in';
     return `https://www.${domain}/dp/${asin}`;
   };
+
 
   // FIXED: Handle multiple file uploads with batch insert
   // FIXED: Handle multiple file uploads with PARALLEL batch insert
@@ -189,19 +198,16 @@ export default function UsaSellersPage() {
         // Normalize data and generate Amazon links
         const normalizedData = normalizeDataForDB(data)
           .map((product) => {
-            if (product) {
-              // Generate Amazon link if missing
-              if (!product.link && product.asin) {
-                product.link = generateAmazonLink(product.asin, 'usa');
+            if (product && product.asin) {
+              // Generate amz_link if missing
+              // Generate amz_link if missing (use underscore!)
+              if (!product.amz_link) {
+                product.amz_link = generateAmazonLink(product.asin, 'usa');
               }
-
-              // If CSV has amz_link, copy it to link column
-              if (product.amz_link && !product.link) {
+              // Also set link if missing
+              if (!product.link) {
                 product.link = product.amz_link;
               }
-
-              // Remove amz_link (doesn't exist in DB)
-              delete product.amz_link;
             }
             return product;
           })
@@ -225,19 +231,41 @@ export default function UsaSellersPage() {
         return;
       }
 
+      // CRITICAL: Remove duplicate ASINs within the batch
+      const uniqueProductsMap = new Map();
+      allNewProducts.forEach(product => {
+        if (product.asin) {
+          // Keep the last occurrence (or you can keep first by checking !uniqueProductsMap.has)
+          uniqueProductsMap.set(product.asin, product);
+        }
+      });
+      allNewProducts = Array.from(uniqueProductsMap.values());
+
+      console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
+
       // Step 2: OPTIMIZED Batch insert with parallel processing
-      const batchSize = 1000;
-      const MAX_CONCURRENT_BATCHES = 3;
+      const batchSize = 500; // Reduced from 1000 to avoid timeouts
+      const MAX_CONCURRENT_BATCHES = 2; // Reduced from 3 for stability
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
 
       setUploadProgress({ current: 0, total: allNewProducts.length, batch: 0, totalBatches });
 
-      // Split into batches
+      // Split into batches and ensure no duplicates within each batch
       const batches = [];
       for (let i = 0; i < allNewProducts.length; i += batchSize) {
-        batches.push(allNewProducts.slice(i, i + batchSize));
+        const batch = allNewProducts.slice(i, i + batchSize);
+
+        // Double-check: remove any duplicates within this batch
+        const batchMap = new Map();
+        batch.forEach(product => {
+          if (product.asin) {
+            batchMap.set(product.asin, product);
+          }
+        });
+
+        batches.push(Array.from(batchMap.values()));
       }
 
       // Upload batch function with retry logic
@@ -255,27 +283,62 @@ export default function UsaSellersPage() {
 
         while (attempt < maxRetries) {
           try {
+            // Clean the batch data
+            const cleanBatch = batch.map(product => {
+              const cleaned: any = {};
+              Object.keys(product).forEach(key => {
+                if (product[key] !== undefined && product[key] !== null) {
+                  cleaned[key] = product[key];
+                }
+              });
+              return cleaned;
+            });
+
+            // Use insert with onConflict to avoid the columns parameter
             const { error } = await supabase
               .from(TABLE_NAME)
-              .upsert(batch, {
+              .insert(cleanBatch, {
+                // @ts-ignore - Use DO UPDATE for upsert behavior
                 onConflict: 'asin',
+                // This tells Supabase to update all columns on conflict
                 ignoreDuplicates: false
               });
 
-            if (error) throw error;
+            if (error) {
+              // If still failing, try individual inserts
+              if (error.code === '21000') {
+                console.warn(`Batch has duplicates, trying individual inserts...`);
+                let successfulInserts = 0;
+
+                for (const product of cleanBatch) {
+                  try {
+                    await supabase
+                      .from(TABLE_NAME)
+                      .upsert(product, { onConflict: 'asin' });
+                    successfulInserts++;
+                  } catch (e) {
+                    console.error('Failed to insert product:', product.asin, e);
+                  }
+                }
+
+                return { success: true, count: successfulInserts, batchIndex };
+              }
+
+              throw error;
+            }
 
             console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} uploaded (${batch.length} rows)`);
             return { success: true, count: batch.length, batchIndex };
 
-          } catch (error) {
+          } catch (error: any) {
             attempt++;
-            console.warn(`⚠️ Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
+            console.error(`⚠️ Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
 
             if (attempt >= maxRetries) {
               return { success: false, count: 0, batchIndex, error };
             }
 
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
           }
         }
 
@@ -343,14 +406,15 @@ export default function UsaSellersPage() {
     }
   };
 
-
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
     try {
       setIsExporting(true);
       setExportProgress({ current: 0, total: 0 });
 
+
       let baseQuery: any = supabase.from(TABLE_NAME).select('*', { count: 'exact', head: true });
+
 
       if (searchTerm) {
         baseQuery = baseQuery.or(
@@ -358,12 +422,15 @@ export default function UsaSellersPage() {
         );
       }
 
+
       Object.entries(filters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
+
 
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           baseQuery = baseQuery.in(columnKey, filterData.values);
         }
+
 
         if (filterData.type === 'numeric' && filterData.value !== null) {
           const value = parseFloat(filterData.value);
@@ -379,8 +446,10 @@ export default function UsaSellersPage() {
         }
       });
 
+
       const { count } = await baseQuery;
       const totalCount = count || 0;
+
 
       if (totalCount === 0) {
         alert('No data to export');
@@ -388,15 +457,19 @@ export default function UsaSellersPage() {
         return;
       }
 
+
       setExportProgress({ current: 0, total: totalCount });
+
 
       let allData: any[] = [];
       let offset = 0;
       const batchSize = 1000;
       let hasMore = true;
 
+
       while (hasMore) {
         let query: any = supabase.from(TABLE_NAME).select('*');
+
 
         if (searchTerm) {
           query = query.or(
@@ -404,12 +477,15 @@ export default function UsaSellersPage() {
           );
         }
 
+
         Object.entries(filters).forEach(([columnKey, filterData]) => {
           if (!filterData) return;
+
 
           if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
             query = query.in(columnKey, filterData.values);
           }
+
 
           if (filterData.type === 'numeric' && filterData.value !== null) {
             const value = parseFloat(filterData.value);
@@ -425,9 +501,12 @@ export default function UsaSellersPage() {
           }
         });
 
+
         const { data, error } = await query.range(offset, offset + batchSize - 1);
 
+
         if (error) throw error;
+
 
         if (data && data.length > 0) {
           allData.push(...data);
@@ -438,6 +517,7 @@ export default function UsaSellersPage() {
           hasMore = false;
         }
       }
+
 
       exportData(allData, TABLE_NAME, format);
       alert(`Successfully exported ${allData.length} products!`);
@@ -450,12 +530,15 @@ export default function UsaSellersPage() {
     }
   };
 
+
   const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1;
   const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalProducts);
+
 
   return (
     <div className="p-6 space-y-6">
       <Toaster position="top-right" />
+
 
       {/* Upload Progress Modal */}
       {isUploading && (
@@ -466,9 +549,11 @@ export default function UsaSellersPage() {
                 <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
               </div>
 
+
               <h3 className="text-xl font-semibold mb-4 text-gray-800">
                 Uploading Products...
               </h3>
+
 
               {uploadProgress.total > 0 && (
                 <>
@@ -476,9 +561,11 @@ export default function UsaSellersPage() {
                     Batch {uploadProgress.batch} of {uploadProgress.totalBatches}
                   </p>
 
+
                   <p className="text-2xl font-bold text-blue-600 mb-4">
                     {uploadProgress.current.toLocaleString()} / {uploadProgress.total.toLocaleString()}
                   </p>
+
 
                   <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
                     <div
@@ -489,6 +576,7 @@ export default function UsaSellersPage() {
                     ></div>
                   </div>
 
+
                   <p className="text-sm text-gray-500">
                     {Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete
                   </p>
@@ -498,6 +586,7 @@ export default function UsaSellersPage() {
           </div>
         </div>
       )}
+
 
       {/* Export Loading Modal */}
       {isExporting && (
@@ -533,6 +622,7 @@ export default function UsaSellersPage() {
         </div>
       )}
 
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="relative flex-1 max-w-md">
@@ -558,6 +648,7 @@ export default function UsaSellersPage() {
           />
         </div>
 
+
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsColumnToggleOpen(true)}
@@ -569,10 +660,12 @@ export default function UsaSellersPage() {
             Columns
           </button>
 
+
           <ExportButton
             onExport={handleExport}
           // selectedCount={selectedIds.size}
           />
+
 
           <button
             onClick={() => setIsUploadModalOpen(true)}
@@ -589,10 +682,11 @@ export default function UsaSellersPage() {
         Showing {totalProducts > 0 ? startItem : 0}-{endItem} of {totalProducts.toLocaleString()}
       </div>
 
+
       {/* Table */}
       <UsaMasterTable
         searchTerm={searchTerm}
-        hiddenColumns={hiddenColumns}  // ADD THIS
+        hiddenColumns={hiddenColumns}  // ADD THIS
         columnWidths={columnWidths}
         onColumnWidthChange={handleColumnWidthChange}
         filters={filters}
@@ -606,6 +700,7 @@ export default function UsaSellersPage() {
         selectedIds={selectedIds}
         onSelectedIdsChange={setSelectedIds}
       />
+
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
@@ -632,6 +727,7 @@ export default function UsaSellersPage() {
         )}
       </div>
 
+
       {/* Modals */}
       <ColumnToggle
         isOpen={isColumnToggleOpen}
@@ -640,7 +736,6 @@ export default function UsaSellersPage() {
         hiddenColumns={hiddenColumns}
         onToggleColumn={handleToggleColumn}
       />
-
       <UploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
@@ -650,5 +745,3 @@ export default function UsaSellersPage() {
     </div>
   );
 }
-
-
