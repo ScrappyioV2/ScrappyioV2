@@ -38,6 +38,11 @@ type PassFileProduct = {
   check_small_size: boolean | null;
   check_multi_seller: boolean | null;
   created_at: string | null;
+  inr_purchase_link?: string | null;
+  validation_funnel_seller?: string | null
+  validation_funnel_quantity?: number | null
+  validation_seller_tag?: string | null;  // For Funnel Seller column
+  validation_funnel?: string | null;       // For Funnel Quantity column
 };
 
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
@@ -52,19 +57,41 @@ export default function PurchasesPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('usa_purchases')  // ✅ CORRECT
+
+      // Fetch purchases...
+      const { data: purchasesData, error: purchasesError } = await supabase
+        .from('usa_purchases')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (purchasesError) throw purchasesError;
+
+      // Fetch validation data for seller_tag and funnel badges
+      const enrichedData = await Promise.all(
+        purchasesData.map(async (product) => {
+          // Fetch from validation main file table
+          const { data: validationData } = await supabase
+            .from('usa_validation_main_file')
+            .select('seller_tag, funnel')
+            .eq('asin', product.asin)
+            .maybeSingle();
+
+          return {
+            ...product,
+            validation_funnel: validationData?.funnel || null,      // HD, LD, DP
+            validation_seller_tag: validationData?.seller_tag || null,  // UB, GR, RR
+          };
+        })
+      );
+
+      setProducts(enrichedData);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchProducts();
@@ -89,8 +116,8 @@ export default function PurchasesPage() {
     asin: 120,
     product_link: 80,
     product_name: 200,
-    target_price: 100,
-    target_quantity: 120,
+    targetprice: 130,        // ✅ Increased from 100 to 150
+    targetquantity: 130,
     funnel_quantity: 120,
     funnel_seller: 100,
     buying_price: 100,
@@ -432,13 +459,15 @@ export default function PurchasesPage() {
                     Product Name
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_name', e)} />
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.target_price}px` }}>
+                  {/* Target Price */}
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
                     Target Price
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('target_price', e)} />
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.target_quantity}px` }}>
+                  {/* Target Quantity */}
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetquantity}px` }}>
                     Target Quantity
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('target_quantity', e)} />
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
                     Funnel Quantity
@@ -537,45 +566,78 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Target Price */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.target_price}px` }}>
-                          <input
-                            type="number"
-                            defaultValue={product.target_price || product.usd_price || ""}
-                            onBlur={(e) => handleCellEdit(product.id, 'target_price', parseFloat(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="$"
-                          />
+                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
+                          {activeTab === 'order_confirmed' ? (
+                            <input
+                              type="number"
+                              defaultValue={product.target_price ?? product.usd_price ?? ''}
+                              onBlur={(e) => handleCellEdit(product.id, 'target_price', parseFloat(e.target.value))}
+                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
+                              placeholder="$"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">After confirmation</span>
+                          )}
                         </td>
 
                         {/* Target Quantity */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.target_quantity}px` }}>
-                          <input
-                            type="number"
-                            defaultValue={product.target_quantity || 1}
-                            onBlur={(e) => handleCellEdit(product.id, 'target_quantity', parseInt(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="Qty"
-                          />
+                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
+                          {activeTab === 'order_confirmed' ? (
+                            <input
+                              type="number"
+                              defaultValue={product.target_quantity ?? 1}
+                              onBlur={(e) => handleCellEdit(product.id, 'target_quantity', parseInt(e.target.value))}
+                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
+                              placeholder="Qty"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">After confirmation</span>
+                          )}
                         </td>
 
-                        {/* Funnel Quantity */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnel_quantity}px` }}>
-                          <input
-                            type="number"
-                            defaultValue={product.funnel_quantity || 1}
-                            onBlur={(e) => handleCellEdit(product.id, 'funnel_quantity', parseInt(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="Qty"
-                          />
+                        {/* Funnel Quantity - Shows Funnel Badge from Validation */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                          {product.validation_funnel ? (
+                            <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
+                              product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
+                                product.validation_funnel === 'DP' ? 'bg-yellow-400 text-black' :
+                                  'bg-gray-400 text-white'
+                              }`}>
+                              {product.validation_funnel}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">-</span>
+                          )}
                         </td>
 
-                        {/* Funnel Seller */}
-                        <td className="px-3 py-2 text-sm overflow-hidden" style={{ width: `${columnWidths.funnel_seller}px` }}>
-                          <div className="truncate">{product.funnel_seller || product.funnel || '-'}</div>
+                        {/* Funnel Seller - Shows Seller Tags from Validation */}
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
+                          {product.validation_seller_tag ? (
+                            <div className="flex flex-wrap gap-2">
+                              {product.validation_seller_tag.split(',').map((tag) => {
+                                const cleanTag = tag.trim();
+                                return (
+                                  <span
+                                    key={cleanTag}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full font-bold text-sm ${cleanTag === 'GR' ? 'bg-yellow-400 text-black' :
+                                        cleanTag === 'RR' ? 'bg-gray-400 text-black' :
+                                          cleanTag === 'UB' ? 'bg-pink-500 text-white' :
+                                            cleanTag === 'VV' ? 'bg-purple-600 text-white' :
+                                              'bg-slate-700 text-white'
+                                      }`}
+                                  >
+                                    {cleanTag}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">-</span>
+                          )}
                         </td>
 
                         {/* Buying Price */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buying_price}px` }}>
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
                           <input
                             type="number"
                             defaultValue={product.buying_price || ""}
@@ -586,10 +648,10 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Buying Quantity */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buying_quantity}px` }}>
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
                           <input
                             type="number"
-                            defaultValue={product.buying_quantity || 1}
+                            defaultValue={product.buying_quantity ?? 1}
                             onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
                             className="w-full px-2 py-1 border rounded text-xs"
                             placeholder="Qty"
@@ -597,7 +659,7 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Seller Link */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.seller_link}px` }}>
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
                           <input
                             type="text"
                             defaultValue={product.seller_link || ""}
@@ -608,7 +670,7 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Seller Phone */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.seller_ph_no}px` }}>
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
                           <input
                             type="text"
                             defaultValue={product.seller_phone || ""}
@@ -619,7 +681,7 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Payment Method */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.payment_method}px` }}>
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
                           <input
                             type="text"
                             defaultValue={product.payment_method || ""}
@@ -630,7 +692,7 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Tracking Details */}
-                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.tracking_details}px` }}>
+                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
                           {activeTab === 'order_confirmed' ? (
                             <input
                               type="text"
@@ -645,7 +707,7 @@ export default function PurchasesPage() {
                         </td>
 
                         {/* Delivery Date */}
-                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.delivery_date}px` }}>
+                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
                           {activeTab === 'order_confirmed' ? (
                             <input
                               type="date"
@@ -657,6 +719,7 @@ export default function PurchasesPage() {
                             <span className="text-xs text-gray-400 italic">After confirmation</span>
                           )}
                         </td>
+
 
 
                         {/* Move TO Buttons */}
