@@ -117,6 +117,13 @@ export default function GoldenAuraPage() {
 
   const SELLER_ID = 2;
 
+  const SELLER_CODE_MAP: Record<number, string> = {
+    1: 'GR',
+    2: 'RR',
+    3: 'UB',
+    4: 'VV',
+  };
+
   const getSellerName = (sellerId: string) => {
     const sellerNames: { [key: string]: string } = {
       '1': 'Golden Aura',
@@ -259,100 +266,64 @@ export default function GoldenAuraPage() {
       const { id, working, reason: oldReason, ...productData } = product;
 
       if (action === 'approved') {
-        // ✅ STEP 1: Move to validation table first
-        targetTable = `usa_validation_main_file`;
-        dataToInsert = {
-          asin: product.asin,
-          product_name: product.product_name,
-          brand: product.brand,
-          seller_tag: getSellerName(SELLER_ID.toString()),
-          funnel: product.funnel,
-          no_of_seller: 1,
-          usa_link: product.product_link,
-          amz_link:product.amz_link,
-          india_price: null,
-          product_weight: null,
-          judgement: null,
-        };
+  targetTable = `usa_validation_main_file`;
+  const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-        console.log('📦 Inserting to validation table:', dataToInsert);
-        const { error: insertError } = await supabase
-          .from(targetTable)
-          .insert(dataToInsert);
+  const { data: existingRow, error: selectError } = await supabase
+    .from('usa_validation_main_file')
+    .select('id, seller_tag')
+    .eq('asin', product.asin)
+    .maybeSingle();
 
-        if (insertError) {
-          console.error('❌ Error inserting product:', insertError);
-          setToast({
-            message: `Failed to move product: ${insertError.message}`,
-            type: 'error',
-          });
-          return;
-        }
+  if (selectError) {
+    console.warn('Validation select warning:', selectError);
+  }
 
-        // ✅ STEP 2: Save to history
-        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-        await saveToHistory(product, currentTable, targetTable);
+  if (!existingRow) {
+    await supabase.from('usa_validation_main_file').insert({
+      asin: product.asin,
+      product_name: product.product_name,
+      brand: product.brand,
+      seller_tag: SELLER_CODE,
+      funnel: product.funnel,
+      no_of_seller: 1,
+      usa_link: product.product_link,
+      amz_link: product.amz_link,
+      product_weight: null,
+      judgement: null,
+    });
+  } else {
+    const existingTags = existingRow.seller_tag?.split(',') ?? [];
 
-        // ✅ STEP 3: Delete from brand checking table
-        console.log('🗑️ Deleting from brand checking table');
-        const { error: deleteError } = await supabase
-  .from(sourceTable)
-  .delete()
-  .eq('asin', product.asin);
+    if (!existingTags.includes(SELLER_CODE)) {
+      await supabase
+        .from('usa_validation_main_file')
+        .update({
+          seller_tag: [...existingTags, SELLER_CODE].join(','),
+          no_of_seller: existingTags.length + 1,
+        })
+        .eq('id', existingRow.id);
+    }
+  }
 
-        if (deleteError) {
-          console.error('❌ Error deleting product:', deleteError);
-          setToast({
-            message: 'Failed to delete product from brand checking table',
-            type: 'error',
-          });
-          return;
-        }
+  const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
+  await saveToHistory(product, currentTable, targetTable);
 
-        // ✅ STEP 4: Manually increment approved counter
-        console.log('📊 Fetching current progress...');
-        const { data: currentProgress, error: fetchError } = await supabase
-          .from('brand_check_progress')
-          .select('approved, total')
-          .eq('seller_id', SELLER_ID)
-          .single();
+  await supabase
+    .from(sourceTable)
+    .delete()
+    .eq('asin', product.asin);
 
-        if (fetchError) {
-          console.error('❌ Error fetching progress:', fetchError);
-        }
+  await fetchProducts();
 
-        if (currentProgress) {
-          console.log('📊 Current progress:', currentProgress);
-          const newApproved = currentProgress.approved + 1;
-          const newTotal = currentProgress.total - 1;
-          console.log('📊 Updating progress to:', { approved: newApproved, total: newTotal });
+  setToast({
+    message: `Product moved to Validation Main File successfully!`,
+    type: 'success',
+  });
 
-          const { error: updateProgressError } = await supabase
-            .from('brand_check_progress')
-            .update({
-              approved: newApproved,
-              total: newTotal,
-              updated_at: new Date().toISOString()
-            })
-            .eq('seller_id', SELLER_ID);
-
-          if (updateProgressError) {
-            console.error('❌ Error updating progress:', updateProgressError);
-          } else {
-            console.log('✅ Progress updated successfully!');
-          }
-        }
-
-        await fetchProducts();
-
-        setToast({
-          message: `Product moved to Validation Main File successfully!`,
-          type: 'success',
-        });
-        setProcessingId(null);
-        return;
-
-      } else if (action === 'not_approved') {
+  setProcessingId(null);
+  return;
+} else if (action === 'not_approved') {
         targetTable = `usa_seller_${SELLER_ID}_not_approved`;
         dataToInsert = productData;
 
@@ -373,9 +344,9 @@ export default function GoldenAuraPage() {
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-  .from(sourceTable)
-  .delete()
-  .eq('asin', product.asin);
+          .from(sourceTable)
+          .delete()
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
@@ -431,9 +402,9 @@ export default function GoldenAuraPage() {
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-  .from(sourceTable)
-  .delete()
-  .eq('asin', product.asin);
+          .from(sourceTable)
+          .delete()
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);

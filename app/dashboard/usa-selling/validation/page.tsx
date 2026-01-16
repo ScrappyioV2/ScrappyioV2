@@ -69,6 +69,70 @@ interface Filters {
 
 type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending'
 
+
+const SELLER_STYLES: Record<string, string> = {
+  GR: 'bg-yellow-400 text-black',   // Bright Yellow
+  RR: 'bg-gray-400 text-black',     // Grey
+  UB: 'bg-pink-500 text-white',     // Pink
+  VV: 'bg-purple-600 text-white',   // Purple
+};
+
+const renderSellerTags = (sellerTag: string | null) => {
+  if (!sellerTag) return '-';
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      {sellerTag.split(',').map((tag) => {
+        const cleanTag = tag.trim();
+        return (
+          <span
+            key={cleanTag}
+            className={`
+              w-9 h-9
+              flex items-center justify-center
+              rounded-full
+              font-bold text-sm
+              ${SELLER_STYLES[cleanTag] ?? 'bg-slate-700 text-white'}
+            `}
+          >
+            {cleanTag}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+const FUNNEL_STYLES: Record<string, string> = {
+  HD: 'bg-green-500 text-white',      // High Demand
+  LD: 'bg-blue-500 text-white',       // Low Demand
+  DP: 'bg-yellow-400 text-black',     // Dropshipping
+};
+
+
+const renderFunnelBadge = (funnel: string | null) => {
+  if (!funnel) return '-';
+
+  const tag = funnel.trim();
+
+  return (
+    <span
+      className={`
+        w-9 h-9
+        inline-flex items-center justify-center
+        rounded-full
+        font-bold text-sm
+        ${FUNNEL_STYLES[tag] ?? 'bg-gray-400 text-white'}
+      `}
+    >
+      {tag}
+    </span>
+  );
+};
+
+
+
+
 export default function ValidationPage() {
     const [editingValue, setEditingValue] = useState<{
         id: string
@@ -1236,10 +1300,14 @@ export default function ValidationPage() {
                                                         <td className="p-3">{product.brand || '-'}</td>
                                                     )}
                                                     {visibleColumns.seller_tag && (
-                                                        <td className="p-3">{product.seller_tag || '-'}</td>
+                                                        <td className="p-3">
+                                                            {renderSellerTags(product.seller_tag)}
+                                                        </td>
                                                     )}
                                                     {visibleColumns.funnel && (
-                                                        <td className="p-3">{product.funnel || '-'}</td>
+                                                        <td className="p-3">
+                                                            {renderFunnelBadge(product.funnel)}
+                                                        </td>
                                                     )}
                                                     {visibleColumns.no_of_seller && (
                                                         <td className="p-3">{product.no_of_seller || '-'}</td>

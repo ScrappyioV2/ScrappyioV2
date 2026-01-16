@@ -118,6 +118,13 @@ export default function VelvetVistaPage() {
 
   const SELLER_ID = 4;
 
+  const SELLER_CODE_MAP: Record<number, string> = {
+    1: 'GR',
+    2: 'RR',
+    3: 'UB',
+    4: 'VV',
+  };
+
   const getSellerName = (sellerId: string) => {
     const sellerNames: { [key: string]: string } = {
       "1": "Golden Aura",
@@ -261,72 +268,65 @@ export default function VelvetVistaPage() {
       const { id, working, reason: oldReason, ...productData } = product;
 
       if (action === 'approved') {
-        targetTable = `usa_validation_main_file`;
-        dataToInsert = {
-          asin: product.asin,
-          product_name: product.product_name,
-          brand: product.brand,
-          seller_tag: getSellerName(SELLER_ID.toString()),
-          funnel: product.funnel,
-          no_of_seller: 1,
-          usa_link: product.product_link,
-          amz_link:product.amz_link,
-          india_price: null,
-          product_weight: null,
-          judgement: null,
-        };
+  targetTable = `usa_validation_main_file`;
+  const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-        const { error: insertError } = await supabase
-          .from(targetTable)
-          .insert(dataToInsert);
+  const { data: existingRow, error: selectError } = await supabase
+    .from('usa_validation_main_file')
+    .select('id, seller_tag')
+    .eq('asin', product.asin)
+    .maybeSingle();
 
-        if (insertError) {
-          console.error('❌ Error inserting product:', insertError);
-          setToast({
-            message: `Failed to move product: ${insertError.message}`,
-            type: 'error',
-          });
-          return;
-        }
+  if (selectError) {
+    console.warn('Validation select warning:', selectError);
+  }
 
-        const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-        await saveToHistory(product, currentTable, targetTable);
+  if (!existingRow) {
+    await supabase.from('usa_validation_main_file').insert({
+      asin: product.asin,
+      product_name: product.product_name,
+      brand: product.brand,
+      seller_tag: SELLER_CODE,
+      funnel: product.funnel,
+      no_of_seller: 1,
+      usa_link: product.product_link,
+      amz_link: product.amz_link,
+      product_weight: null,
+      judgement: null,
+    });
+  } else {
+    const existingTags = existingRow.seller_tag?.split(',') ?? [];
 
-        const { error: deleteError } = await supabase
-  .from(sourceTable)
-  .delete()
-  .eq('asin', product.asin);
+    if (!existingTags.includes(SELLER_CODE)) {
+      await supabase
+        .from('usa_validation_main_file')
+        .update({
+          seller_tag: [...existingTags, SELLER_CODE].join(','),
+          no_of_seller: existingTags.length + 1,
+        })
+        .eq('id', existingRow.id);
+    }
+  }
 
-        if (deleteError) {
-          console.error('❌ Error deleting product:', deleteError);
-          setToast({
-            message: 'Failed to delete product from brand checking table',
-            type: 'error',
-          });
-          return;
-        }
+  const sourceTable = `usa_seller_${SELLER_ID}_${activeTab}`;
+  await saveToHistory(product, currentTable, targetTable);
 
-        // ✅ Update progress using RPC for atomic operation
-        const { error: updateProgressError } = await supabase.rpc('increment_brand_check_approved', {
-          p_seller_id: SELLER_ID
-        });
+  await supabase
+    .from(sourceTable)
+    .delete()
+    .eq('asin', product.asin);
 
-        if (updateProgressError) {
-          console.error('❌ Error updating progress:', updateProgressError);
-        } else {
-          console.log('✅ Progress updated successfully!');
-        }
+  await fetchProducts();
 
-        await fetchProducts();
+  setToast({
+    message: `Product moved to Validation Main File successfully!`,
+    type: 'success',
+  });
 
-        setToast({
-          message: `Product moved to Validation Main File successfully!`,
-          type: 'success',
-        });
-        setProcessingId(null);
-        return;
-
-      } else if (action === 'not_approved') {
+  setProcessingId(null);
+  return;
+}
+ else if (action === 'not_approved') {
         targetTable = `usa_seller_${SELLER_ID}_not_approved`;
         dataToInsert = productData;
 
@@ -347,9 +347,9 @@ export default function VelvetVistaPage() {
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-  .from(sourceTable)
-  .delete()
-  .eq('asin', product.asin);
+          .from(sourceTable)
+          .delete()
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
@@ -396,26 +396,26 @@ export default function VelvetVistaPage() {
         await saveToHistory(product, currentTable, targetTable);
 
         const { error: deleteError } = await supabase
-  .from(sourceTable)
-  .delete()
-  .eq('asin', product.asin);
+          .from(sourceTable)
+          .delete()
+          .eq('asin', product.asin);
 
         if (deleteError) {
           console.error('Error deleting product:', deleteError);
         }
 
         // ✅ Rejected items decrease total only
-//  // ✅ Increment rejected count (CORRECT WAY)
-// const { error: rejectProgressError } = await supabase.rpc(
-//   "increment_brand_check_rejected",
-//   {
-//     p_seller_id: Number(SELLER_ID),
-//   }
-// );
+        //  // ✅ Increment rejected count (CORRECT WAY)
+        // const { error: rejectProgressError } = await supabase.rpc(
+        //   "increment_brand_check_rejected",
+        //   {
+        //     p_seller_id: Number(SELLER_ID),
+        //   }
+        // );
 
-// if (rejectProgressError) {
-//   console.error("❌ Error incrementing rejected count:", rejectProgressError);
-// }
+        // if (rejectProgressError) {
+        //   console.error("❌ Error incrementing rejected count:", rejectProgressError);
+        // }
 
 
         await fetchProducts();
