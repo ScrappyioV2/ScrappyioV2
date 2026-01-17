@@ -6,18 +6,18 @@ import * as XLSX from 'xlsx'
 
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-  asin: 140,
-  product_name: 320,
-  brand: 140,
-  seller_tag: 160,
-  funnel: 100,
-  no_of_seller: 120,
-  usa_link: 120,
-  product_weight: 120,
-  usd_price: 120,
-  inr_purchase: 140,
-  inr_purchase_link: 260,
-  judgement: 120,
+    asin: 140,
+    product_name: 320,
+    brand: 140,
+    seller_tag: 160,
+    funnel: 100,
+    no_of_seller: 120,
+    usa_link: 120,
+    product_weight: 120,
+    usd_price: 120,
+    inr_purchase: 140,
+    inr_purchase_link: 260,
+    judgement: 120,
 };
 
 import PageTransition from '@/components/layout/PageTransition'
@@ -254,15 +254,15 @@ export default function ValidationPage() {
     };
 
     useEffect(() => {
-        fetchProducts()
-        fetchStats()
-        fetchConstants()
+        fetchProducts();
+        fetchStats();
+        fetchConstants();
 
         const channel = supabase
             .channel('validation-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_main_file' }, () => {
-                fetchStats()
-                fetchProducts()
+                fetchStats();
+                fetchProducts();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_pass_file' }, () => fetchStats())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_fail_file' }, () => fetchStats())
@@ -377,19 +377,46 @@ export default function ValidationPage() {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            // Always fetch from main_file
-            const { data, error } = await supabase
+            // Step 1: Fetch all validation products
+            const { data: validationData, error: validationError } = await supabase
                 .from('usa_validation_main_file')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error('Error fetching products:', error);
+            if (validationError) {
+                console.error('Error fetching products:', validationError);
                 setProducts([]);
-            } else {
-                // Store ALL products - DON'T filter here
-                setProducts(data || []);
+                setLoading(false);
+                return;
             }
+
+            // Step 2: Get all unique ASINs
+            const asins = validationData.map(p => p.asin).filter(Boolean);
+
+            // Step 3: Fetch seller counts from master table
+            const { data: masterData, error: masterError } = await supabase
+                .from('usa_master_sellers')
+                .select('asin, seller')
+                .in('asin', asins);
+
+            if (masterError) {
+                console.error('Error fetching master data:', masterError);
+                // Continue with validation data only
+                setProducts(validationData);
+                setLoading(false);
+                return;
+            }
+
+            // Step 4: Create lookup map for O(1) access
+            const sellerMap = new Map(masterData.map(item => [item.asin, item.seller]));
+
+            // Step 5: Merge data
+            const mergedData = validationData.map(product => ({
+                ...product,
+                no_of_seller: sellerMap.get(product.asin) || product.no_of_seller || 1
+            }));
+
+            setProducts(mergedData);
         } catch (err) {
             console.error('Fetch error:', err);
             setProducts([]);
@@ -399,105 +426,213 @@ export default function ValidationPage() {
     };
 
     // Get products for current tab (before search/filters)
+    // Get products for current tab (before search/filters)
     const getTabProducts = () => {
         let tabProducts = [...products];
 
         // Filter based on active tab
         if (activeTab === 'pass_file') {
-            tabProducts = tabProducts.filter(p => p.judgement === 'PASS');
+            tabProducts = tabProducts.filter((p) => p.judgement === 'PASS');
         } else if (activeTab === 'fail_file') {
-            tabProducts = tabProducts.filter(p => p.judgement === 'FAIL');
+            tabProducts = tabProducts.filter((p) => p.judgement === 'FAIL');
         } else if (activeTab === 'pending') {
-            tabProducts = tabProducts.filter(p => !p.judgement || p.judgement === 'PENDING');
+            tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
+        } else if (activeTab === 'main_file') {
+            // Main File now shows only PENDING items (same as Pending tab)
+            tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
         }
-        // mainfile shows all products
 
         return tabProducts;
     };
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
         try {
-            const tableName = 'usa_validation_main_file'  // ✅ Always use main_file
+            const tableName = 'usa_validation_main_file';
 
             // Update the field first
             const { error } = await supabase
                 .from(tableName)
                 .update({ [field]: value })
-                .eq('id', id)
+                .eq('id', id);
 
             if (error) {
-                setToast({ message: 'Failed to update', type: 'error' })
-                return
+                setToast({ message: 'Failed to update', type: 'error' });
+                return;
             }
 
-            // Build latest product snapshot manually ✅
-            const existingProduct = products.find(p => p.id === id)
-
+            // Build latest product snapshot
+            const existingProduct = products.find((p) => p.id === id);
             if (existingProduct && activeTab === 'main_file') {
                 const latestProduct: ValidationProduct = {
                     ...existingProduct,
-                    [field]: value, // 👈 force latest value
-                }
+                    [field]: value, // Include the just-updated field
+                };
 
-                await autoCalculateAndUpdate(id, latestProduct)
+                // ✅ Always run calculation (it will handle judgement logic internally)
+                await autoCalculateAndUpdate(id, latestProduct);
             }
 
+            // ✅ Update local state immediately
+            setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
 
-            setProducts(prev =>
-                prev.map(p => p.id === id ? { ...p, [field]: value } : p)
-            )
-
-            setToast({ message: 'Updated successfully', type: 'success' })
+            // ✅ NO TOAST for regular fields - autoCalculateAndUpdate handles it
         } catch (err) {
-            console.error('Update error:', err)
-            setToast({ message: 'Update failed', type: 'error' })
+            console.error('Update error:', err);
+            setToast({ message: 'Update failed', type: 'error' });
         }
-    }
+    };
 
-    // 2. UPDATE the autoCalculateAndUpdate function (around line 180)
+
+    // 2. UPDATE the autoCalculateAndUpdate function around line 180
     const autoCalculateAndUpdate = async (id: string, product: ValidationProduct) => {
-        // Calculate values
-        const result = calculateProductValues(
-            {
-                usd_price: product.usd_price,
-                product_weight: product.product_weight,
-                inr_purchase: product.inr_purchase,  // ✅ Only 3 inputs needed
-            },
-            constants
-        )
+        try {
+            // Track if judgement changed
+            const previousJudgement = product.judgement;
 
-        // Update product with calculated values - ✅ NEW PROPERTY NAMES
-        const { error: updateError } = await supabase
-            .from('usa_validation_main_file')
-            .update({
-                total_cost: result.total_cost,
-                total_revenue: result.total_revenue,
-                profit: result.profit,
-                judgement: result.judgement,
-            })
-            .eq('id', id)
+            // Validate inputs before calculation
+            if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
+                console.log('⚠️ Missing required fields for calculation:', {
+                    usdprice: product.usd_price,
+                    productweight: product.product_weight,
+                    inrpurchase: product.inr_purchase,
+                });
+                return; // Exit if required fields are missing
+            }
 
-        if (updateError) {
-            console.error('Auto-calc error:', updateError)
-            return
+            // Calculate values
+            const result = calculateProductValues(
+                {
+                    usd_price: product.usd_price,
+                    product_weight: product.product_weight,
+                    inr_purchase: product.inr_purchase,
+                },
+                constants
+            );
+
+            const newJudgement = result.judgement;
+
+            // 🛡️ Validate and sanitize calculated values
+            const updateData: any = {};
+
+            // Handle totalcost
+            if (result.total_cost !== null && result.total_cost !== undefined) {
+                updateData.totalcost = isFinite(result.total_cost) && !isNaN(result.total_cost)
+                    ? Number(result.total_cost)
+                    : null;
+            } else {
+                updateData.totalcost = null;
+            }
+
+            // Handle totalrevenue
+            if (result.total_revenue !== null && result.total_revenue !== undefined) {
+                updateData.totalrevenue = isFinite(result.total_revenue) && !isNaN(result.total_revenue)
+                    ? Number(result.total_revenue)
+                    : null;
+            } else {
+                updateData.totalrevenue = null;
+            }
+
+            // Handle profit
+            if (result.profit !== null && result.profit !== undefined) {
+                updateData.profit = isFinite(result.profit) && !isNaN(result.profit)
+                    ? Number(result.profit)
+                    : null;
+            } else {
+                updateData.profit = null;
+            }
+
+            // Handle judgement - Calculate but don't finalize without INR Purchase Link
+            updateData.judgement = result.judgement || 'PENDING';
+
+            // 🔒 CRITICAL: Only save judgement to database if INR Purchase Link is filled
+            // Otherwise keep as PENDING even if calculations are done
+            const hasInrPurchaseLink = product.inr_purchase_link && product.inr_purchase_link.trim() !== '';
+
+            if (hasInrPurchaseLink) {
+                // INR Purchase Link is filled - save the calculated judgement
+                updateData.judgement = result.judgement || 'PENDING';
+            } else {
+                // INR Purchase Link NOT filled - keep as PENDING in database
+                updateData.judgement = 'PENDING';
+            }
+
+            console.log('📊 Updating product:', {
+                id,
+                asin: product.asin,
+                hasInrPurchaseLink,
+                calculatedJudgement: result.judgement,
+                savedJudgement: updateData.judgement,
+                ...updateData
+            });
+
+            const { error: updateError } = await supabase
+                .from('usa_validation_main_file')
+                .update(updateData)
+                .eq('id', id);
+
+            if (updateError) {
+                console.error('❌ Auto-calc error:', updateError);
+                setToast({
+                    message: 'Failed to update product calculation',
+                    type: 'error',
+                });
+                return;
+            }
+
+            console.log('✅ Product updated successfully');
+
+            // ⚠️ DO NOT call fetchStats() here - it causes page refresh!
+            // Stats will update via Supabase realtime subscription
+
+            // Update local state
+            setProducts((prev) =>
+                prev.map((p) =>
+                    p.id === id
+                        ? {
+                            ...p,
+                            totalcost: updateData.totalcost,
+                            totalrevenue: updateData.totalrevenue,
+                            profit: updateData.profit,
+                            judgement: updateData.judgement,
+                            _calculatedJudgement: result.judgement,
+                        }
+                        : p
+                )
+            );
+
+            // ✅ Show appropriate toast based on what was updated
+            if (hasInrPurchaseLink) {
+                // INR Purchase Link is filled - show "moved to file" toast
+                if (result.judgement === 'PASS') {
+                    setToast({
+                        message: `✅ Product ready for Pass File! (ASIN: ${product.asin})`,
+                        type: 'success',
+                    });
+                } else if (result.judgement === 'FAIL') {
+                    setToast({
+                        message: `❌ Product ready for Fail File! (ASIN: ${product.asin})`,
+                        type: 'error',
+                    });
+                }
+            } else {
+                // Calculation done but INR Purchase Link still needed
+                if (result.judgement && result.judgement !== 'PENDING') {
+                    console.log(`ℹ️ Judgement calculated (${result.judgement}) - waiting for INR Purchase Link`);
+                }
+                // Show generic success toast
+                setToast({
+                    message: 'Updated successfully',
+                    type: 'success',
+                });
+            }
+        } catch (err) {
+            console.error('💥 Exception in autoCalculateAndUpdate:', err);
+            setToast({
+                message: 'Calculation error occurred',
+                type: 'error',
+            });
         }
-
-        fetchStats()
-        // Update local state - ✅ NEW PROPERTY NAMES
-        setProducts((prev) =>
-            prev.map((p) =>
-                p.id === id
-                    ? {
-                        ...p,
-                        total_cost: result.total_cost,
-                        total_revenue: result.total_revenue,
-                        profit: result.profit,
-                        judgement: result.judgement,
-                    }
-                    : p
-            )
-        )
-    }
+    };
 
     const handleUploadCSV = () => {
         fileInputRef.current?.click()
