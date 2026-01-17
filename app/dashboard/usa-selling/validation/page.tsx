@@ -4,6 +4,22 @@ import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 
+// ✅ ADD THIS HERE (TOP LEVEL)
+const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
+  asin: 140,
+  product_name: 320,
+  brand: 140,
+  seller_tag: 160,
+  funnel: 100,
+  no_of_seller: 120,
+  usa_link: 120,
+  product_weight: 120,
+  usd_price: 120,
+  inr_purchase: 140,
+  inr_purchase_link: 260,
+  judgement: 120,
+};
+
 import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
@@ -130,7 +146,31 @@ const renderFunnelBadge = (funnel: string | null) => {
     );
 };
 
-
+const ResizableTH = ({
+    width,
+    label,
+    columnKey,
+    align = 'left',
+    onResizeStart,
+}: {
+    width: number
+    label: React.ReactNode
+    columnKey: string
+    align?: 'left' | 'center'
+    onResizeStart: (key: string, startX: number) => void
+}) => (
+    <th
+        style={{ width }}
+        className={`relative px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider ${align === 'center' ? 'text-center' : 'text-left'
+            } select-none`}
+    >
+        {label}
+        <span
+            onMouseDown={(e) => onResizeStart(columnKey, e.clientX)}
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+        />
+    </th>
+);
 
 
 export default function ValidationPage() {
@@ -178,6 +218,40 @@ export default function ValidationPage() {
         judgement: true,
         // Remove: inr_sold, india_price, cargo_charge, final_purchase_rate, purchase_rate_inr
     })
+
+
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+        if (typeof window === 'undefined') return DEFAULT_COLUMN_WIDTHS;
+
+        try {
+            const saved = localStorage.getItem('usa_validation_column_widths');
+            return saved ? JSON.parse(saved) : DEFAULT_COLUMN_WIDTHS;
+        } catch {
+            return DEFAULT_COLUMN_WIDTHS;
+        }
+    });
+    const startResize = (key: string, startX: number) => {
+        const startWidth = columnWidths[key];
+
+        const onMouseMove = (e: MouseEvent) => {
+            const newWidth = Math.max(80, startWidth + (e.clientX - startX));
+            setColumnWidths((prev) => {
+                const updated = { ...prev, [key]: newWidth };
+                localStorage.setItem(
+                    'usa_validation_column_widths',
+                    JSON.stringify(updated)
+                );
+                return updated;
+            });
+        };
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
 
     useEffect(() => {
         fetchProducts()
@@ -1248,7 +1322,7 @@ export default function ValidationPage() {
                         ) : (
                             <>
                                 <div className="flex-1 overflow-auto">
-                                    <table className="w-full">
+                                    <table className="w-full table-fixed">
                                         <thead className="bg-gradient-to-r from-slate-100 to-slate-200 border-b-2 border-slate-300 sticky top-0 z-10">
                                             <tr>
                                                 <th className="px-4 py-3 text-left">
@@ -1263,20 +1337,132 @@ export default function ValidationPage() {
                                                     />
                                                 </th>
 
-                                                {visibleColumns.asin && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">ASIN</th>}
-                                                {visibleColumns.product_name && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Product Name</th>}
-                                                {visibleColumns.brand && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Brand</th>}
-                                                {visibleColumns.seller_tag && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Seller Tag</th>}
-                                                {visibleColumns.funnel && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Funnel</th>}
-                                                {visibleColumns.no_of_seller && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> No. of Sellers</th>}
-                                                {visibleColumns.usa_link && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">USA Link</th>}
-                                                {activeTab === 'pass_file' && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Origin</th>}
-                                                {visibleColumns.product_weight && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left"> Weight (g)</th>}
-                                                {visibleColumns.usd_price && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">USD Price</th>}
-                                                {visibleColumns.inr_purchase && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">INR Purchase</th>}
-                                                {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (<th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">INR Purchase Link</th>)}
-                                                {activeTab === 'pass_file' && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Checklist</th>}
-                                                {visibleColumns.judgement && <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">Judgement</th>}
+                                                {visibleColumns.asin && (
+                                                    <ResizableTH
+                                                        width={columnWidths.asin}
+                                                        columnKey="asin"
+                                                        label="ASIN"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.product_name && (
+                                                    <ResizableTH
+                                                        width={columnWidths.product_name}
+                                                        columnKey="product_name"
+                                                        label="Product Name"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.brand && (
+                                                    <ResizableTH
+                                                        width={columnWidths.brand}
+                                                        columnKey="brand"
+                                                        label="Brand"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.seller_tag && (
+                                                    <ResizableTH
+                                                        width={columnWidths.seller_tag}
+                                                        columnKey="seller_tag"
+                                                        label="Seller Tag"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.funnel && (
+                                                    <ResizableTH
+                                                        width={columnWidths.funnel}
+                                                        columnKey="funnel"
+                                                        label="Funnel"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.no_of_seller && (
+                                                    <ResizableTH
+                                                        width={columnWidths.no_of_seller}
+                                                        columnKey="no_of_seller"
+                                                        label="No. of Sellers"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.usa_link && (
+                                                    <ResizableTH
+                                                        width={columnWidths.usa_link}
+                                                        columnKey="usa_link"
+                                                        label="USA Link"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {activeTab === 'pass_file' && (
+                                                    <ResizableTH
+                                                        width={120}
+                                                        columnKey="origin"
+                                                        label="Origin"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.product_weight && (
+                                                    <ResizableTH
+                                                        width={columnWidths.product_weight}
+                                                        columnKey="product_weight"
+                                                        label="Weight (g)"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.usd_price && (
+                                                    <ResizableTH
+                                                        width={columnWidths.usd_price}
+                                                        columnKey="usd_price"
+                                                        label="USD Price"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.inr_purchase && (
+                                                    <ResizableTH
+                                                        width={columnWidths.inr_purchase}
+                                                        columnKey="inr_purchase"
+                                                        label="INR Purchase"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
+                                                    <ResizableTH
+                                                        width={columnWidths.inr_purchase_link}
+                                                        columnKey="inr_purchase_link"
+                                                        label="INR Purchase Link"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {activeTab === 'pass_file' && (
+                                                    <ResizableTH
+                                                        width={160}
+                                                        columnKey="checklist"
+                                                        label="Checklist"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
+                                                {visibleColumns.judgement && (
+                                                    <ResizableTH
+                                                        width={columnWidths.judgement}
+                                                        columnKey="judgement"
+                                                        label="Judgement"
+                                                        onResizeStart={startResize}
+                                                    />
+                                                )}
+
                                             </tr>
                                         </thead>
 
@@ -1299,8 +1485,19 @@ export default function ValidationPage() {
                                                         <td className="p-3 font-mono text-sm">{product.asin}</td>
                                                     )}
                                                     {visibleColumns.product_name && (
-                                                        <td className="p-3">{product.product_name || '-'}</td>
+                                                        <td
+                                                            style={{ width: columnWidths.product_name }}
+                                                            className="p-3 overflow-hidden whitespace-nowrap"
+                                                        >
+                                                            <span
+                                                                className="block overflow-hidden text-ellipsis whitespace-nowrap"
+                                                                title={product.product_name || ''}
+                                                            >
+                                                                {product.product_name || '-'}
+                                                            </span>
+                                                        </td>
                                                     )}
+
                                                     {visibleColumns.brand && (
                                                         <td className="p-3">{product.brand || '-'}</td>
                                                     )}

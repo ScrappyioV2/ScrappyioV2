@@ -950,7 +950,10 @@ export default function GoldenAuraPage() {
                                   {product.reason || 'No reason provided'}
                                 </span>
                               ) : (
-                                String(product[col as keyof ProductRow] || '-')
+                                product[col as keyof ProductRow] === null ||
+                                  product[col as keyof ProductRow] === undefined
+                                  ? '0'
+                                  : String(product[col as keyof ProductRow])
                               )}
                             </td>
                           );
