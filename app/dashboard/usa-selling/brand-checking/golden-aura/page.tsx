@@ -512,32 +512,34 @@ export default function GoldenAuraPage() {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
 
     return (
-      <div className="flex items-center justify-between px-6 py-3 border-t border-gray-300 bg-gray-50">
-        <div className="text-sm text-gray-600">
-          Showing {(currentPage - 1) * rowsPerPage + 1} to{' '}
-          {Math.min(currentPage * rowsPerPage, totalCount)} of {totalCount}{' '}
-          products
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ◀ Previous
-          </button>
-          <div className="px-4 py-2 bg-gray-800 text-white rounded">
-            Page {currentPage} of {totalPages}
+      <div className="sticky bottom-0 z-40 bg-gray-50 border-t border-gray-300">
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="text-sm text-gray-600">
+            Showing {(currentPage - 1) * rowsPerPage + 1} to{' '}
+            {Math.min(currentPage * rowsPerPage, totalCount)} of {totalCount} products
           </div>
-          <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-            }
-            disabled={currentPage >= totalPages}
-            className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next ▶
-          </button>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-gray-700 text-white rounded disabled:opacity-50"
+            >
+              ◀ Previous
+            </button>
+
+            <div className="px-4 py-2 bg-gray-800 text-white rounded">
+              Page {currentPage} of {totalPages}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-gray-700 text-white rounded disabled:opacity-50"
+            >
+              Next ▶
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -818,9 +820,9 @@ export default function GoldenAuraPage() {
                 <p className="text-sm mt-2">Add products to see them here</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full" ref={tableRef}>
-                  <thead className="bg-gray-100 border-b-2 border-gray-300 sticky top-0 z-10">
+              <div className="relative h-[calc(100vh-260px)] overflow-y-auto overflow-x-auto">
+                <table className="w-full border-collapse" ref={tableRef}>
+                  <thead className="sticky top-0 z-30 bg-gray-100 border-b-2 border-gray-300">
                     <tr>
                       <th className="p-3 text-left bg-gray-100">
                         <input
