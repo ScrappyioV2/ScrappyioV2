@@ -14,14 +14,14 @@ type AdminProduct = {
   asin: string;
   product_name: string | null;
   product_link: string | null;
-  funnel_seller: string | null;
   origin_india: boolean | null;
   origin_china: boolean | null;
   target_price: number | null;
   target_quantity: number | null;
   buying_price: number | null;
   buying_quantity: number | null;
-  funnel_quantity: number | null;
+  funnel: number | null;
+  seller_tag: string | null;
   seller_link: string | null;
   seller_phone: string | null;
   payment_method: string | null;
@@ -36,6 +36,7 @@ type AdminProduct = {
   usd_price: number | null
   inr_purchase: number | null
   inr_purchase_link: string | null
+  admin_target_price: number | null;
 };
 
 type TabType = 'overview' | 'india' | 'china' | 'pending' | 'confirm' | 'reject';
@@ -106,6 +107,7 @@ export default function AdminValidationPage() {
         product_link: 100,
         target_price: 100,
         target_qty: 80,
+        admin_target_price: 120,
         funnel_seller: 100,
         funnel_qty: 80,
         buying_price: 100,
@@ -126,6 +128,7 @@ export default function AdminValidationPage() {
       product_link: 100,
       target_price: 100,
       target_qty: 80,
+      admin_target_price: 120,
       funnel_seller: 100,
       funnel_qty: 80,
       buying_price: 100,
@@ -329,7 +332,7 @@ export default function AdminValidationPage() {
       !searchQuery ||
       product.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.funnel_seller?.toLowerCase().includes(searchQuery.toLowerCase());
+      product.seller_tag?.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesSearch) return false;
 
@@ -370,6 +373,12 @@ export default function AdminValidationPage() {
           .update({
             admin_confirmed: true,
             admin_confirmed_at: new Date().toISOString(),
+            admin_target_price: product.admin_target_price,
+            buying_price: product.buying_price,           // ✅ ADD
+            buying_quantity: product.buying_quantity,     // ✅ ADD
+            seller_link: product.seller_link,             // ✅ ADD
+            seller_phone: product.seller_phone,           // ✅ ADD
+            payment_method: product.payment_method,
           })
           .eq('asin', product.asin);
 
@@ -398,9 +407,9 @@ export default function AdminValidationPage() {
   // ✅ UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
-      // Update database
+      // ✅ UPDATE usa_admin_validation table (not usa_purchases)
       const { error } = await supabase
-        .from('usa_purchases')
+        .from('usa_admin_validation')  // ✅ CORRECT TABLE
         .update({ [field]: value })
         .eq('id', id);
 
@@ -410,39 +419,40 @@ export default function AdminValidationPage() {
       }
 
       // Update local state
-      setProducts(prev =>
-        prev.map(p =>
-          p.id === id ? { ...p, [field]: value } : p
-        )
-      );
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
 
-      // ✅ AUTO-CALCULATE IF IT'S ONE OF THE THREE KEY FIELDS
+      // AUTO-CALCULATE IF IT'S ONE OF THE THREE KEY FIELDS
       if (field === 'product_weight' || field === 'usd_price' || field === 'inr_purchase') {
-        const updatedProduct = products.find(p => p.id === id);
-        if (updatedProduct) {
-          await autoCalculateProfit(id, { ...updatedProduct, [field]: value });
-        }
+        const updatedProduct = products.find((p) => p.id === id);
+        if (updatedProduct) await autoCalculateProfit(id, { ...updatedProduct, [field]: value });
       }
 
       setToast({ message: 'Updated successfully', type: 'success' });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Update error:', err);
       setToast({ message: 'Update failed', type: 'error' });
     }
   };
+  ;
 
   // Handle individual product confirm
   const handleConfirmProduct = async (productId: string) => {
     try {
-      const product = products.find(p => p.id === productId);
+      const product = products.find((p) => p.id === productId);
       if (!product) return;
 
-      // Update usa_purchases
+      // ✅ UPDATE usa_purchases with ALL edited fields from admin
       const { error: updatePurchaseError } = await supabase
         .from('usa_purchases')
         .update({
           admin_confirmed: true,
           admin_confirmed_at: new Date().toISOString(),
+          admin_target_price: product.admin_target_price,
+          buying_price: product.buying_price,           // ✅ ADD
+          buying_quantity: product.buying_quantity,     // ✅ ADD
+          seller_link: product.seller_link,             // ✅ ADD
+          seller_phone: product.seller_phone,           // ✅ ADD
+          payment_method: product.payment_method,       // ✅ ADD
         })
         .eq('asin', product.asin);
 
@@ -461,7 +471,7 @@ export default function AdminValidationPage() {
 
       fetchProducts();
     } catch (error: any) {
-      alert('Error confirming product: ' + error.message);
+      alert(`Error confirming product: ${error.message}`);
     }
   };
 
@@ -767,6 +777,26 @@ export default function AdminValidationPage() {
                     </div>
                   </th>
 
+                  {/* Admin Target Price Column */}
+                  <th
+                    onDoubleClick={() => handleColumnDoubleClick('admintargetprice')}
+                    className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative bg-purple-50"
+                    style={{ width: columnWidths.admintargetprice, minWidth: 100 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Admin Target Price</span>
+                    </div>
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                      onMouseDown={(e) => handleResizeStart(e, 'admintargetprice')}
+                      style={{
+                        backgroundColor: resizingColumn === 'admintargetprice' ? '#3b82f6' : 'transparent',
+                        width: resizingColumn === 'admintargetprice' ? '3px' : '4px',
+                      }}
+                      title="Drag to resize | Double-click to auto-fit"
+                    />
+                  </th>
+
                   {/* Funnel Seller Column */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('funnel_seller')}
@@ -774,7 +804,7 @@ export default function AdminValidationPage() {
                     style={{ width: columnWidths.funnel_seller, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
-                      <span>Funnel Seller</span>
+                      <span>Seller Tag</span>
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
                         onMouseDown={(e) => handleResizeStart(e, 'funnel_seller')}
@@ -794,7 +824,7 @@ export default function AdminValidationPage() {
                     style={{ width: columnWidths.funnel_qty, minWidth: 70 }}
                   >
                     <div className="flex items-center justify-between">
-                      <span>Funnel Qty</span>
+                      <span>Funnel</span>
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
                         onMouseDown={(e) => handleResizeStart(e, 'funnel_qty')}
@@ -1145,8 +1175,73 @@ export default function AdminValidationPage() {
                           className="w-16 px-2 py-1 border rounded text-sm"
                         />
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.funnel_seller || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{product.funnel_quantity || '-'}</td>
+
+                      {/* Admin Target Price Cell - Editable */}
+                      <td className="px-4 py-3 bg-purple-50">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={product.admin_target_price || ''}
+                          onChange={(e) => handleCellEdit(product.id, 'admin_target_price', parseFloat(e.target.value) || null)}
+                          className="w-24 px-2 py-1 border border-purple-300 rounded text-sm focus:ring-1 focus:ring-purple-500"
+                          placeholder="₹"
+                        />
+                      </td>
+
+                      <td className="px-4 py-3 text-sm">
+                        {product.seller_tag ? (
+                          <div className="flex flex-wrap gap-2">
+                            {product.seller_tag.split(',').map((tag) => {
+                              const cleanTag = tag.trim();
+                              return (
+                                <span
+                                  key={cleanTag}
+                                  className={`w-9 h-9 flex items-center justify-center rounded-full font-bold text-sm ${cleanTag === 'GR'
+                                    ? 'bg-yellow-400 text-black'
+                                    : cleanTag === 'RR'
+                                      ? 'bg-gray-400 text-black'
+                                      : cleanTag === 'UB'
+                                        ? 'bg-pink-500 text-white'
+                                        : cleanTag === 'VV'
+                                          ? 'bg-purple-600 text-white'
+                                          : 'bg-slate-700 text-white'
+                                    }`}
+                                >
+                                  {cleanTag}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">-</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3 text-sm">
+                        {product.funnel ? (
+                          <span
+                            className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.funnel === 1
+                                ? 'bg-green-500 text-white'
+                                : product.funnel === 2
+                                  ? 'bg-blue-500 text-white'
+                                  : product.funnel === 3
+                                    ? 'bg-yellow-400 text-black'
+                                    : 'bg-gray-400 text-white'
+                              }`}
+                          >
+                            {product.funnel === 1
+                              ? 'HD'
+                              : product.funnel === 2
+                                ? 'LD'
+                                : product.funnel === 3
+                                  ? 'DP'
+                                  : product.funnel}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">-</span>
+                        )}
+                      </td>
+
                       <td className="px-4 py-3">
                         <input
                           type="number"
@@ -1230,15 +1325,95 @@ export default function AdminValidationPage() {
                         </div>
                       </td>
 
-                      {/* INR Purchase Link Cell */}
+                      {/* INR Purchase Link Cell - Editable with View/Edit Pattern */}
                       <td className="px-4 py-3 text-sm">
-                        <input
-                          type="url"
-                          value={product.inr_purchase_link || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
-                          className="w-full min-w-[150px] px-2 py-1 border rounded text-sm"
-                          placeholder="Enter supplier link..."
-                        />
+                        <div className="w-32">
+                          {editingLinkId === `inr-${product.id}` ? (
+                            /* EDIT MODE - Show input field with Save/Cancel buttons */
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={editingLinkValue}
+                                onChange={(e) => setEditingLinkValue(e.target.value)}
+                                className="w-full px-2 py-1 border border-blue-500 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                                placeholder="Supplier URL..."
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleCellEdit(product.id, 'inrpurchaselink', editingLinkValue);
+                                    setEditingLinkId(null);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingLinkId(null);
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  handleCellEdit(product.id, 'inrpurchaselink', editingLinkValue);
+                                  setEditingLinkId(null);
+                                }}
+                                className="text-green-600 hover:text-green-800 flex-shrink-0"
+                                title="Save (Enter)"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => setEditingLinkId(null)}
+                                className="text-red-600 hover:text-red-800 flex-shrink-0"
+                                title="Cancel (Esc)"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            /* VIEW MODE - Show View link with pencil icon or Add Link button */
+                            <div className="flex items-center gap-2">
+                              {product.inr_purchase_link && product.inr_purchase_link.trim() !== '' ? (
+                                <>
+                                  <a
+                                    href={product.inr_purchase_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium whitespace-nowrap"
+                                  >
+                                    View
+                                  </a>
+                                  <button
+                                    onClick={() => {
+                                      setEditingLinkId(`inr-${product.id}`);
+                                      setEditingLinkValue(product.inr_purchase_link || '');
+                                    }}
+                                    className="text-gray-400 hover:text-orange-600 transition-colors flex-shrink-0"
+                                    title="Edit supplier link"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                      />
+                                    </svg>
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingLinkId(`inr-${product.id}`);
+                                    setEditingLinkValue('');
+                                  }}
+                                  className="text-green-600 hover:text-green-800 font-medium text-xs whitespace-nowrap"
+                                >
+                                  + Add Link
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div className="w-32">

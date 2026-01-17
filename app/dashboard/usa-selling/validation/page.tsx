@@ -594,31 +594,36 @@ export default function ValidationPage() {
 
         // INSERT into usa_purchases table
         const { error: insertError } = await supabase
-            .from("usa_purchases")
+            .from('usa_purchases')
             .insert({
                 asin: product.asin,
                 product_name: product.product_name,
                 brand: product.brand,
                 seller_tag: product.seller_tag,
                 funnel: product.funnel,
-                origin_india: product.origin_india || false,
-                origin_china: product.origin_china || false,
-                product_link: product.usa_link,              // Product view link
-                target_price: product.usd_price,
+                origin_india: product.origin_india ?? false,
+                origin_china: product.origin_china ?? false,
+                product_link: product.usa_link,
+                target_price: product.inr_purchase,  // ✅ CHANGED: Now fetches from inr_purchase
                 target_quantity: 1,
                 funnel_quantity: 1,
                 funnel_seller: product.funnel,
-                buying_price: product.inr_purchase,
-                buying_quantity: 1,
-                seller_link: product.amz_link || "",
-                inr_purchase_link: product.inr_purchase_link || "",
-                seller_phone: "",
-                payment_method: "",
-                tracking_details: "",
+                inr_purchase_link: product.inr_purchase_link ?? '',  // ✅ Auto-fetch INR Purchase Link
+                buying_price: null,  // ✅ CHANGED: Manual entry only
+                buying_quantity: null,  // ✅ CHANGED: Manual entry only
+                seller_link: null,  // ✅ CHANGED: Manual entry only
+                seller_phone: '',
+                payment_method: '',
+                tracking_details: '',
                 delivery_date: null,
-                status: "pending",
+                status: 'pending',
                 admin_confirmed: false,
+                // Store validation data for reference
+                product_weight: product.product_weight,
+                usd_price: product.usd_price,
+                inr_purchase: product.inr_purchase,
             });
+
 
         if (insertError) {
             console.error("Insert error:", insertError);

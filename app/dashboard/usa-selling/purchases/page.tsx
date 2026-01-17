@@ -17,9 +17,11 @@ type PassFileProduct = {
   usa_link: string | null;
   product_link: string | null;
   target_price: number | null;
+  admin_target_price: number | null;
   target_quantity: number | null;
-  funnel_quantity: number | null;
-  funnel_seller: string | null;
+  // funnel_quantity?: number | null;
+  // funnel_seller?: string | null;
+  inr_purchase_link?: string | null;  // ✅ FIXED: Changed from 'inrpurchaselink: true' to proper type
   buying_price: number | null;
   buying_quantity: number | null;
   seller_link: string | null;
@@ -31,19 +33,19 @@ type PassFileProduct = {
   move_to: string | null;
   sent_to_admin: boolean | null;
   sent_to_admin_at: string | null;
-  admin_confirmed: boolean | null;  // ✅ Match DB column name
-  admin_confirmed_at: string | null;  // ✅ Match DB column name
+  admin_confirmed: boolean | null;
+  admin_confirmed_at: string | null;
   check_brand: boolean | null;
   check_item_expire: boolean | null;
   check_small_size: boolean | null;
   check_multi_seller: boolean | null;
   created_at: string | null;
-  inr_purchase_link?: string | null;
-  validation_funnel_seller?: string | null
-  validation_funnel_quantity?: number | null
-  validation_seller_tag?: string | null;  // For Funnel Seller column
-  validation_funnel?: string | null;       // For Funnel Quantity column
+  validation_funnel_seller?: string | null;
+  validation_funnel_quantity?: number | null;
+  validation_seller_tag?: string | null;  // For Funnel Seller column (badges)
+  validation_funnel?: string | null;      // For Funnel Quantity column (badges)
 };
+
 
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
 
@@ -64,6 +66,8 @@ export default function PurchasesPage() {
     targetquantity: true,
     funnelquantity: true,
     funnelseller: true,
+    inrpurchaselink: true,
+    origin: true,
     buyingprice: true,
     buyingquantity: true,
     sellerlink: true,
@@ -72,6 +76,7 @@ export default function PurchasesPage() {
     trackingdetails: true,
     deliverydate: true,
     moveto: true,
+    admintargetprice: true,
   });
 
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
@@ -136,20 +141,23 @@ export default function PurchasesPage() {
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
     checkbox: 50,
     asin: 120,
-    product_link: 80,
-    product_name: 200,
-    targetprice: 130,        // ✅ Increased from 100 to 150
+    productlink: 80,
+    productname: 200,
+    targetprice: 130,
     targetquantity: 130,
-    funnel_quantity: 120,
-    funnel_seller: 100,
-    buying_price: 100,
-    buying_quantity: 120,
-    seller_link: 100,
-    seller_ph_no: 120,
-    payment_method: 120,
-    tracking_details: 150,
-    delivery_date: 150,
-    move_to: 150,
+    admintargetprice: 150,
+    funnelquantity: 120,
+    funnelseller: 90,
+    inrpurchaselink: 150,
+    origin: 100,  // ✅ ADD THIS LINE
+    buyingprice: 100,
+    buyingquantity: 120,
+    sellerlink: 100,
+    sellerphno: 120,
+    paymentmethod: 120,
+    trackingdetails: 150,
+    deliverydate: 150,
+    moveto: 150,
   });
 
   const [resizing, setResizing] = useState<{ column: string, startX: number, startWidth: number } | null>(null);
@@ -157,54 +165,76 @@ export default function PurchasesPage() {
   // Handle sending to admin validation
   const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
-      // ✅ ADD THIS: Fetch profit from validation table
+      // ✅ Fetch profit AND inr_purchase from validation table
       const { data: validationData } = await supabase
         .from('usa_validation_main_file')
-        .select('profit, total_cost, total_revenue')
+        .select('profit, total_cost, total_revenue, inr_purchase')
         .eq('asin', product.asin)
         .maybeSingle();
 
-      const { error: insertError } = await supabase.from('usa_admin_validation').insert({
-        asin: product.asin,
-        product_name: product.product_name,
-        product_link: product.usa_link || product.product_link,
-        funnel_seller: product.funnel || product.funnel_seller,
-        origin_india: product.origin_india,
-        origin_china: product.origin_china,
-        target_price: product.target_price || product.usd_price,
-        target_quantity: product.target_quantity || 1,
-        buying_price: product.buying_price || product.inr_purchase,
-        buying_quantity: product.buying_quantity || 1,
-        funnel_quantity: product.funnel_quantity || 1,
-        seller_link: product.seller_link || '',
-        seller_phone: product.seller_phone || '',
-        payment_method: product.payment_method || '',
-        admin_status: 'pending',
+      const { error: insertError } = await supabase
+        .from('usa_admin_validation')
+        .insert({
+          // Core Product Info
+          asin: product.asin,
+          product_name: product.product_name,
+          product_link: product.usa_link || product.product_link,
 
-        // ✅ ADD THESE 3 LINES:
-        profit: validationData?.profit || 0,
-        total_cost: validationData?.total_cost || 0,
-        total_revenue: validationData?.total_revenue || 0,
-      });
+          // Funnel & Seller Tag (RENAMED - CORRECT)
+          funnel: product.validation_funnel ? Number(product.validation_funnel) : null,
+          seller_tag: product.validation_seller_tag || null,
+
+          // ✅ AUTO-FETCH: Target Price from Validation INR Purchase
+          target_price: validationData?.inr_purchase || null,
+
+          // Validation Team Reference Price
+          target_price_validation: validationData?.inr_purchase || null,
+          target_price_link_validation: product.inr_purchase_link || null,
+
+          // ✅ INR Purchase Link from Validation Pass File
+          inr_purchase_link: product.inr_purchase_link || null, 
+
+          // Purchases Team Inputs
+          buying_price: product.buying_price || null,
+          buying_quantity: product.buying_quantity || 1,
+          seller_link: product.seller_link || '',
+          seller_phone: product.seller_phone || '',
+          payment_method: product.payment_method || '',
+
+          // Origin from Validation Pass File
+          origin_india: product.origin_india,
+          origin_china: product.origin_china,
+
+          // Profit Snapshot from validation calculation
+          profit: validationData?.profit || 0,
+          total_cost: validationData?.total_cost || 0,
+          total_revenue: validationData?.total_revenue || 0,
+
+          // Admin Status
+          admin_status: 'pending',
+        });
 
       if (insertError) throw insertError;
 
+      // Update usa_purchases
       const { error: updateError } = await supabase
-        .from('usa_purchases')  // ✅ CORRECT
+        .from('usa_purchases') // CORRECT
         .update({
           sent_to_admin: true,
           sent_to_admin_at: new Date().toISOString(),
         })
-        .eq('id', product.id);  // Use ID not ASIN
+        .eq('id', product.id); // Use ID not ASIN
 
       if (updateError) throw updateError;
 
-      alert('✅ Sent to Admin Validation successfully!');
+      alert('Sent to Admin Validation successfully!');
       fetchProducts();
     } catch (error: any) {
-      alert('❌ Error: ' + error.message);
+      alert(`Error: ${error.message}`);
     }
   };
+
+
 
   // Handle Price Wait
   const handlePriceWait = async (product: PassFileProduct) => {
@@ -481,24 +511,49 @@ export default function PurchasesPage() {
               <div className="absolute top-full right-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-64">
                 <h3 className="font-semibold text-gray-900 mb-3 text-sm">Toggle Columns</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {Object.keys(visibleColumns).map((col) => (
-                    <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                      <input
-                        type="checkbox"
-                        checked={visibleColumns[col as keyof typeof visibleColumns]}
-                        onChange={(e) =>
-                          setVisibleColumns({
-                            ...visibleColumns,
-                            [col]: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <span className="text-sm text-gray-700 capitalize">
-                        {col.replace(/([A-Z])/g, ' $1').trim()}
-                      </span>
-                    </label>
-                  ))}
+                  {Object.keys(visibleColumns).map((col) => {
+                    // Custom display names for columns
+                    const columnDisplayNames: { [key: string]: string } = {
+                      'checkbox': 'Checkbox',
+                      'asin': 'ASIN',
+                      'productlink': 'Product Link',
+                      'productname': 'Product Name',
+                      'targetprice': 'Target Price',
+                      'targetquantity': 'Target Quantity',
+                      'admintargetprice': 'Admin Target Price',
+                      'funnelquantity': 'Funnel',  // ✅ Changed from "Funnel Quantity"
+                      'funnelseller': 'Seller Tag',  // ✅ Changed from "Funnel Seller"
+                      'inrpurchaselink': 'INR Purchase Link',
+                      'origin': 'Origin',
+                      'buyingprice': 'Buying Price',
+                      'buyingquantity': 'Buying Quantity',
+                      'sellerlink': 'Seller Link',
+                      'sellerphno': 'Seller Ph No.',
+                      'paymentmethod': 'Payment Method',
+                      'trackingdetails': 'Tracking Details',
+                      'deliverydate': 'Delivery Date',
+                      'moveto': 'Move To',
+                    };
+
+                    return (
+                      <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[col as keyof typeof visibleColumns]}
+                          onChange={(e) =>
+                            setVisibleColumns({
+                              ...visibleColumns,
+                              [col]: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-blue-600 rounded"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {columnDisplayNames[col] || col}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
 
                 {/* Quick Actions */}
@@ -580,17 +635,38 @@ export default function PurchasesPage() {
                     </th>
                   )}
 
+                  {visibleColumns.admintargetprice && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-purple-50 relative group" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                      Admin Target Price
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} />
+                    </th>
+                  )}
+
                   {visibleColumns.funnelquantity && (
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
-                      Funnel Quantity
+                      Funnel
                       <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
                     </th>
                   )}
 
                   {visibleColumns.funnelseller && (
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
-                      Funnel Seller
+                      Seller Tag
                       <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.inrpurchaselink && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                      INR Purchase Link
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('inrpurchaselink', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.origin && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.origin}px` }}>
+                      Origin
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('origin', e)} />
                     </th>
                   )}
 
@@ -718,7 +794,7 @@ export default function PurchasesPage() {
                           <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
                             {activeTab === 'order_confirmed' ? (
                               <div className="px-2 py-1 text-sm font-medium text-gray-900">
-                                ${product.target_price ?? product.usd_price ?? '-'}
+                                ₹{product.target_price ?? product.usd_price ?? '-'}
                               </div>
                             ) : (
                               <span className="text-xs text-gray-400 italic">After confirmation</span>
@@ -732,6 +808,19 @@ export default function PurchasesPage() {
                             {activeTab === 'order_confirmed' ? (
                               <div className="px-2 py-1 text-sm font-medium text-gray-900">
                                 {product.target_quantity ?? 1}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">After confirmation</span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* Admin Target Price - Only visible in Order Confirmed tab */}
+                        {visibleColumns.admintargetprice && (
+                          <td className="px-3 py-2 bg-purple-50 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                            {activeTab === 'order_confirmed' ? (
+                              <div className="px-2 py-1 text-sm font-medium text-purple-900">
+                                ₹{product.admin_target_price ?? '-'}
                               </div>
                             ) : (
                               <span className="text-xs text-gray-400 italic">After confirmation</span>
@@ -784,41 +873,80 @@ export default function PurchasesPage() {
                           </td>
                         )}
 
-                        {/* Buying Price */}
+                        {/* INR Purchase Link - Auto-fetched from Validation */}
+                        {visibleColumns.inrpurchaselink && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                            {product.inr_purchase_link ? (
+                              <a
+                                href={product.inr_purchase_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-xs truncate block"
+                              >
+                                View
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">-</span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* Origin - Auto-fetched from Validation (Badges) */}
+                        {visibleColumns.origin && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
+                            <div className="flex flex-wrap gap-2">
+                              {product.origin_india && (
+                                <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold">
+                                  India
+                                </span>
+                              )}
+                              {product.origin_china && (
+                                <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold">
+                                  China
+                                </span>
+                              )}
+                              {!product.origin_india && !product.origin_china && (
+                                <span className="text-xs text-gray-400 italic">-</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+
+                        {/* Buying Price - Manual Entry Only */}
                         {visibleColumns.buyingprice && (
                           <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
                             <input
                               type="number"
-                              defaultValue={product.buying_price || ""}
+                              defaultValue={product.buying_price || ''}
                               onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))}
                               className="w-full px-2 py-1 border rounded text-xs"
-                              placeholder="₹"
+                              placeholder="Enter price"
                             />
                           </td>
                         )}
 
-                        {/* Buying Quantity */}
+                        {/* Buying Quantity - Manual Entry Only */}
                         {visibleColumns.buyingquantity && (
                           <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
                             <input
                               type="number"
-                              defaultValue={product.buying_quantity ?? 1}
+                              defaultValue={product.buying_quantity || ''}
                               onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
                               className="w-full px-2 py-1 border rounded text-xs"
-                              placeholder="Qty"
+                              placeholder="Enter qty"
                             />
                           </td>
                         )}
 
-                        {/* Seller Link */}
+                        {/* Seller Link - Manual Entry Only */}
                         {visibleColumns.sellerlink && (
                           <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
                             <input
                               type="text"
-                              defaultValue={product.seller_link || ""}
+                              defaultValue={product.seller_link || ''}
                               onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)}
                               className="w-full px-2 py-1 border rounded text-xs"
-                              placeholder="Link"
+                              placeholder="Enter link"
                             />
                           </td>
                         )}
