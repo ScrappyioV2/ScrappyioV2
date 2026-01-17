@@ -63,12 +63,14 @@ type SellerUI = {
   totalProducts: number;
   approved: number;
   notApproved: number;
-  // rejected: number;
 };
+
 
 /* ================= PAGE ================= */
 export default function BrandCheckingPage() {
   const router = useRouter();
+  const [hasAnyMovementYet, setHasAnyMovementYet] = useState(false);
+
 
   // Initialize ALL sellers with 0 progress
   const [sellers, setSellers] = useState<SellerUI[]>(
@@ -78,9 +80,9 @@ export default function BrandCheckingPage() {
       name: s.name,
       totalProducts: 0,
       approved: 0,
-      notApproved: 0,
-      // rejected: 0,
+      notApproved: 0, // ✅ ADD THIS
     }))
+
   );
 
   const handleSellerCardClick = (sellerId: number) => {
@@ -94,7 +96,7 @@ export default function BrandCheckingPage() {
   useEffect(() => {
     const fetchProgress = async () => {
       console.log("📊 Fetching initial brand check progress...");
-      
+
       const { data, error } = await supabase
         .from("brand_check_progress")
         .select("*");
@@ -106,7 +108,7 @@ export default function BrandCheckingPage() {
 
       if (data) {
         console.log("✅ Initial progress data:", data);
-        
+
         setSellers((prev) =>
           prev.map((seller) => {
             const row = data.find(
@@ -116,9 +118,9 @@ export default function BrandCheckingPage() {
               console.log(`⚠️ No data for seller ${seller.name} (ID: ${seller.id})`);
               return seller;
             }
-            
+
             console.log(`📈 ${seller.name}: Total=${row.total}, Approved=${row.approved}, Not Approved=${row.not_approved}`);
-            
+
             return {
               ...seller,
               approved: row.approved,
@@ -136,7 +138,7 @@ export default function BrandCheckingPage() {
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {
     console.log("🔌 Setting up real-time subscription for brand_check_progress");
-    
+
     const channel = supabase
       .channel("brand-check-progress-updates")
       .on(
@@ -150,15 +152,15 @@ export default function BrandCheckingPage() {
           console.log("📡 Real-time update received:", payload);
           console.log("📡 Payload.new:", payload.new);
           console.log("📡 Payload.old:", payload.old);
-          
+
           // Handle both INSERT and UPDATE
           const data = payload.new as BrandProgressRow;
-          
+
           if (!data || !data.seller_id) {
             console.error("❌ Invalid payload data:", data);
             return;
           }
-          
+
           console.log(`📡 Updated data for seller_id ${data.seller_id}:`, {
             total: data.total,
             approved: data.approved,
@@ -172,14 +174,17 @@ export default function BrandCheckingPage() {
                   ...seller,
                   approved: data.approved,
                   notApproved: data.not_approved,
-                  // rejected: data.rejected,
+                  hasMovement: true,
                 }
                 : seller
             );
 
-            console.log(`✅ Updated sellers state:`, updated);
             return updated;
           });
+
+          // ✅ ADD THIS LINE
+          setHasAnyMovementYet(true);
+
         }
       )
       .subscribe((status) => {
@@ -197,44 +202,44 @@ export default function BrandCheckingPage() {
     };
   }, []);
 
-const fetchSellerTotals = async () => {
-  const updates = await Promise.all(
-    ALL_SELLERS.map(async (seller) => {
-      const tables = SELLER_TABLE_GROUPS[seller.id];
+  const fetchSellerTotals = async () => {
+    const updates = await Promise.all(
+      ALL_SELLERS.map(async (seller) => {
+        const tables = SELLER_TABLE_GROUPS[seller.id];
 
-      let total = 0;
+        let total = 0;
 
-      for (const table of tables) {
-        const { count, error } = await supabase
-          .from(table)
-          .select("*", { count: "exact", head: true });
+        for (const table of tables) {
+          const { count, error } = await supabase
+            .from(table)
+            .select("*", { count: "exact", head: true });
 
-        if (error) {
-          console.error(`❌ Error counting ${table}`, error);
-          continue;
+          if (error) {
+            console.error(`❌ Error counting ${table}`, error);
+            continue;
+          }
+
+          total += count || 0;
         }
 
-        total += count || 0;
-      }
+        console.log(`📦 ${seller.name} TOTAL products (all tabs):`, total);
 
-      console.log(`📦 ${seller.name} TOTAL products (all tabs):`, total);
+        return { seller_id: seller.id, total };
+      })
+    );
 
-      return { seller_id: seller.id, total };
-    })
-  );
-
-  setSellers((prev) =>
-    prev.map((s) => {
-      const row = updates.find((u) => u.seller_id === s.id);
-      return row ? { ...s, totalProducts: row.total } : s;
-    })
-  );
-};
+    setSellers((prev) =>
+      prev.map((s) => {
+        const row = updates.find((u) => u.seller_id === s.id);
+        return row ? { ...s, totalProducts: row.total } : s;
+      })
+    );
+  };
 
 
-useEffect(() => {
-  fetchSellerTotals();
-}, []);
+  useEffect(() => {
+    fetchSellerTotals();
+  }, []);
 
 
 
@@ -260,14 +265,20 @@ useEffect(() => {
         {/* Seller Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {sellers.map((seller) => {
-            const approvedPercentage =
-  seller.totalProducts === 0 ? 0 : (seller.approved / seller.totalProducts) * 100;
+            const uiApproved =
+  seller.totalProducts === 0 ? 0 : seller.approved;
+
+const uiNotApproved =
+  seller.totalProducts === 0 ? 0 : seller.notApproved;
+
+const checkedTotal = uiApproved + uiNotApproved;
+const hasProgress = checkedTotal > 0;
+
+const approvedPercentage =
+  checkedTotal === 0 ? 0 : (uiApproved / checkedTotal) * 100;
 
 const notApprovedPercentage =
-  seller.totalProducts === 0 ? 0 : (seller.notApproved / seller.totalProducts) * 100;
-
-// const rejectedPercentage =
-//   seller.totalProducts === 0 ? 0 : (seller.rejected / seller.totalProducts) * 100;
+  checkedTotal === 0 ? 0 : (uiNotApproved / checkedTotal) * 100;
 
 
             return (
@@ -300,41 +311,35 @@ const notApprovedPercentage =
                   {/* Progress Bar */}
                   {/* Progress Bar */}
                   <div className="relative w-full h-8 bg-gray-200 rounded-lg overflow-hidden mb-3">
+                    {hasProgress ? (
+                      <>
+                        {/* Approved (Green) */}
+                        <div
+                          className="absolute top-0 h-full bg-green-500 transition-all duration-300"
+                          style={{ width: `${approvedPercentage}%`, left: 0 }}
+                        />
 
-                    {/* Approved (Green) */}
-                    <div
-                      className="absolute top-0 h-full bg-green-500 transition-all duration-300"
-                      style={{ width: `${approvedPercentage}%`, left: 0 }}
-                    />
-
-                    {/* Not Approved (Red) */}
-                    <div
-                      className="absolute top-0 h-full bg-red-500 transition-all duration-300"
-                      style={{
-                        width: `${notApprovedPercentage}%`,
-                        left: `${approvedPercentage}%`,
-                      }}
-                    />
-
-                    {/* Rejected (Gray) */}
-                    {/* <div
-                      className="absolute top-0 h-full bg-gray-500 transition-all duration-300"
-                      style={{
-                        width: `${rejectedPercentage}%`,
-                        left: `${approvedPercentage + notApprovedPercentage}%`,
-                      }}
-                    /> */}
-
+                        {/* Not Approved (Red) */}
+                        <div
+                          className="absolute top-0 h-full bg-red-500 transition-all duration-300"
+                          style={{
+                            width: `${notApprovedPercentage}%`,
+                            left: `${approvedPercentage}%`,
+                          }}
+                        />
+                      </>
+                    ) : (
+                      // Zero-state: no progress yet
+                      <div className="absolute inset-0 bg-gray-300" />
+                    )}
                   </div>
-
-
                   {/* Stats */}
                   <div className="flex justify-between text-xs text-gray-600">
                     <span className="text-green-600 font-semibold">
-                      Approved: {seller.approved}
+                      Approved: {uiApproved}
                     </span>
                     <span className="text-red-600 font-semibold">
-                      Not Approved: {seller.notApproved}
+                      Not Approved: {uiNotApproved}
                     </span>
                     {/* <span className="text-gray-600 font-semibold">
                       Rejected: {seller.rejected}

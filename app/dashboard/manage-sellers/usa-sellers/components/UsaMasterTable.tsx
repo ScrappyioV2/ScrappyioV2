@@ -730,7 +730,10 @@ export default function UsaMasterTable({
                           ) : column === 'price' || column === 'monthly_sales' ? (
                             row[column as keyof MasterData]?.toLocaleString() || '-'
                           ) : (
-                            (row[column as keyof MasterData] as any) || '-'
+                            row[column as keyof MasterData] === null ||
+                              row[column as keyof MasterData] === undefined
+                              ? '-'
+                              : row[column as keyof MasterData]
                           )}
                         </div>
                       </td>
