@@ -54,6 +54,28 @@ export default function PurchasesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Column visibility state - ALL columns visible by default
+  const [visibleColumns, setVisibleColumns] = useState({
+    checkbox: true,
+    asin: true,
+    productlink: true,
+    productname: true,
+    targetprice: true,
+    targetquantity: true,
+    funnelquantity: true,
+    funnelseller: true,
+    buyingprice: true,
+    buyingquantity: true,
+    sellerlink: true,
+    sellerphno: true,
+    paymentmethod: true,
+    trackingdetails: true,
+    deliverydate: true,
+    moveto: true,
+  });
+
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -422,16 +444,89 @@ export default function PurchasesPage() {
             Not Found
           </button>
         </div>
+      </div>
 
-        {/* Search - FIXED */}
-        <div>
-          <input
-            type="text"
-            placeholder="Search by ASIN, Product Name, or Funnel..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+      {/* Search - FIXED */}
+      <div className="flex gap-3 items-center mb-6 px-6">
+        <input
+          type="text"
+          placeholder="Search by ASIN, Product Name, or Funnel..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+
+        {/* NEW: Hide Columns Button */}
+        <div className="relative">
+          <button
+            onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            Hide Columns
+          </button>
+
+          {/* Dropdown Menu */}
+          {isColumnMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setIsColumnMenuOpen(false)}
+              />
+
+              {/* Menu */}
+              <div className="absolute top-full right-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-64">
+                <h3 className="font-semibold text-gray-900 mb-3 text-sm">Toggle Columns</h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {Object.keys(visibleColumns).map((col) => (
+                    <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[col as keyof typeof visibleColumns]}
+                        onChange={(e) =>
+                          setVisibleColumns({
+                            ...visibleColumns,
+                            [col]: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700 capitalize">
+                        {col.replace(/([A-Z])/g, ' $1').trim()}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="mt-3 pt-3 border-t flex gap-2">
+                  <button
+                    onClick={() =>
+                      setVisibleColumns(
+                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
+                      )
+                    }
+                    className="flex-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs font-medium"
+                  >
+                    Show All
+                  </button>
+                  <button
+                    onClick={() =>
+                      setVisibleColumns(
+                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns)
+                      )
+                    }
+                    className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-xs font-medium"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -443,79 +538,124 @@ export default function PurchasesPage() {
             <table className="w-full divide-y divide-gray-200 table-fixed">
               <thead className="bg-gray-100 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.checkbox}px` }}>
-                    <input type="checkbox" checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0} onChange={(e) => handleSelectAll(e.target.checked)} className="rounded" />
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('checkbox', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.asin}px` }}>
-                    ASIN
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_link}px` }}>
-                    Product Link
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_link', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_name}px` }}>
-                    Product Name
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_name', e)} />
-                  </th>
-                  {/* Target Price */}
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
-                    Target Price
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
-                  </th>
-                  {/* Target Quantity */}
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetquantity}px` }}>
-                    Target Quantity
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
-                    Funnel Quantity
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
-                    Funnel Seller
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_price}px` }}>
-                    Buying Price
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_price', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_quantity}px` }}>
-                    Buying Quantity
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_quantity', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_link}px` }}>
-                    Seller Link
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_link', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_ph_no}px` }}>
-                    Seller Ph No.
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_ph_no', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.payment_method}px` }}>
-                    Payment Method
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('payment_method', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.tracking_details}px` }}>
-                    Tracking Details
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('tracking_details', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.delivery_date}px` }}>
-                    Delivery Date
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('delivery_date', e)} />
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.move_to}px` }}>
-                    Move TO
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('move_to', e)} />
-                  </th>
+                  {visibleColumns.checkbox && (
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.checkbox}px` }}>
+                      <input type="checkbox" checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0} onChange={(e) => handleSelectAll(e.target.checked)} className="rounded" />
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('checkbox', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.asin && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.asin}px` }}>
+                      ASIN
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.productlink && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_link}px` }}>
+                      Product Link
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_link', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.productname && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_name}px` }}>
+                      Product Name
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_name', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.targetprice && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
+                      Target Price
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.targetquantity && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetquantity}px` }}>
+                      Target Quantity
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.funnelquantity && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
+                      Funnel Quantity
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.funnelseller && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
+                      Funnel Seller
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.buyingprice && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_price}px` }}>
+                      Buying Price
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_price', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.buyingquantity && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_quantity}px` }}>
+                      Buying Quantity
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_quantity', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.sellerlink && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_link}px` }}>
+                      Seller Link
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_link', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.sellerphno && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_ph_no}px` }}>
+                      Seller Ph No.
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_ph_no', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.paymentmethod && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.payment_method}px` }}>
+                      Payment Method
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('payment_method', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.trackingdetails && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.tracking_details}px` }}>
+                      Tracking Details
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('tracking_details', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.deliverydate && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.delivery_date}px` }}>
+                      Delivery Date
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('delivery_date', e)} />
+                    </th>
+                  )}
+
+                  {visibleColumns.moveto && (
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.move_to}px` }}>
+                      Move TO
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('move_to', e)} />
+                    </th>
+                  )}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-200">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={16} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-8...">
                       No products available in {activeTab.replace('_', ' ')}
                     </td>
                   </tr>
@@ -524,203 +664,223 @@ export default function PurchasesPage() {
                     return (
                       <tr key={product.id} className="hover:bg-gray-50 group">
                         {/* Checkbox */}
-                        <td className="px-4 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.checkbox}px` }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(product.id)}
-                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded"
-                          />
-                        </td>
+                        {visibleColumns.checkbox && (
+                          <td className="px-4 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.checkbox}px` }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(product.id)}
+                              onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                              className="rounded"
+                            />
+                          </td>
+                        )}
 
                         {/* ASIN */}
-                        <td className="px-3 py-2 font-mono text-sm overflow-hidden" style={{ width: `${columnWidths.asin}px` }}>
-                          <div className="truncate">{product.asin}</div>
-                        </td>
+                        {visibleColumns.asin && (
+                          <td className="px-3 py-2 font-mono text-sm overflow-hidden" style={{ width: `${columnWidths.asin}px` }}>
+                            <div className="truncate">{product.asin}</div>
+                          </td>
+                        )}
 
                         {/* Product Link */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.product_link}px` }}>
-                          {product.usa_link || product.product_link ? (
-                            <a
-                              href={product.usa_link || product.product_link || "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-xs truncate block"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            <input
-                              type="text"
-                              defaultValue={product.product_link || ""}
-                              onBlur={(e) => handleCellEdit(product.id, 'product_link', e.target.value)}
-                              className="w-full px-2 py-1 border rounded text-xs"
-                              placeholder="Link"
-                            />
-                          )}
-                        </td>
+                        {visibleColumns.productlink && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.product_link}px` }}>
+                            {product.usa_link || product.product_link ? (
+                              <a
+                                href={product.usa_link || product.product_link || "#"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-xs truncate block"
+                              >
+                                View
+                              </a>
+                            ) : (
+                              <input
+                                type="text"
+                                defaultValue={product.product_link || ""}
+                                onBlur={(e) => handleCellEdit(product.id, 'product_link', e.target.value)}
+                                className="w-full px-2 py-1 border rounded text-xs"
+                                placeholder="Link"
+                              />
+                            )}
+                          </td>
+                        )}
 
                         {/* Product Name */}
-                        <td className="px-3 py-2 text-sm overflow-hidden" style={{ width: `${columnWidths.product_name}px` }}>
-                          <div className="truncate">{product.product_name || '-'}</div>
-                        </td>
+                        {visibleColumns.productname && (
+                          <td className="px-3 py-2 text-sm overflow-hidden" style={{ width: `${columnWidths.product_name}px` }}>
+                            <div className="truncate">{product.product_name || '-'}</div>
+                          </td>
+                        )}
 
                         {/* Target Price */}
-                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
-                          {activeTab === 'order_confirmed' ? (
-                            <input
-                              type="number"
-                              defaultValue={product.target_price ?? product.usd_price ?? ''}
-                              onBlur={(e) => handleCellEdit(product.id, 'target_price', parseFloat(e.target.value))}
-                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
-                              placeholder="$"
-                            />
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">After confirmation</span>
-                          )}
-                        </td>
+                        {visibleColumns.targetprice && (
+                          <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
+                            {activeTab === 'order_confirmed' ? (
+                              <div className="px-2 py-1 text-sm font-medium text-gray-900">
+                                ${product.target_price ?? product.usd_price ?? '-'}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">After confirmation</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Target Quantity */}
-                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
-                          {activeTab === 'order_confirmed' ? (
-                            <input
-                              type="number"
-                              defaultValue={product.target_quantity ?? 1}
-                              onBlur={(e) => handleCellEdit(product.id, 'target_quantity', parseInt(e.target.value))}
-                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
-                              placeholder="Qty"
-                            />
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">After confirmation</span>
-                          )}
-                        </td>
+                        {visibleColumns.targetquantity && (
+                          <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
+                            {activeTab === 'order_confirmed' ? (
+                              <div className="px-2 py-1 text-sm font-medium text-gray-900">
+                                {product.target_quantity ?? 1}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">After confirmation</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Funnel Quantity - Shows Funnel Badge from Validation */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
-                          {product.validation_funnel ? (
-                            <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
-                              product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
-                                product.validation_funnel === 'DP' ? 'bg-yellow-400 text-black' :
-                                  'bg-gray-400 text-white'
-                              }`}>
-                              {product.validation_funnel}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">-</span>
-                          )}
-                        </td>
+                        {visibleColumns.funnelquantity && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                            {product.validation_funnel ? (
+                              <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
+                                product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
+                                  product.validation_funnel === 'DP' ? 'bg-yellow-400 text-black' :
+                                    'bg-gray-400 text-white'
+                                }`}>
+                                {product.validation_funnel}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">-</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Funnel Seller - Shows Seller Tags from Validation */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
-                          {product.validation_seller_tag ? (
-                            <div className="flex flex-wrap gap-2">
-                              {product.validation_seller_tag.split(',').map((tag) => {
-                                const cleanTag = tag.trim();
-                                return (
-                                  <span
-                                    key={cleanTag}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-full font-bold text-sm ${cleanTag === 'GR' ? 'bg-yellow-400 text-black' :
+                        {visibleColumns.funnelseller && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
+                            {product.validation_seller_tag ? (
+                              <div className="flex flex-wrap gap-2">
+                                {product.validation_seller_tag.split(',').map((tag) => {
+                                  const cleanTag = tag.trim();
+                                  return (
+                                    <span
+                                      key={cleanTag}
+                                      className={`w-9 h-9 flex items-center justify-center rounded-full font-bold text-sm ${cleanTag === 'GR' ? 'bg-yellow-400 text-black' :
                                         cleanTag === 'RR' ? 'bg-gray-400 text-black' :
                                           cleanTag === 'UB' ? 'bg-pink-500 text-white' :
                                             cleanTag === 'VV' ? 'bg-purple-600 text-white' :
                                               'bg-slate-700 text-white'
-                                      }`}
-                                  >
-                                    {cleanTag}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">-</span>
-                          )}
-                        </td>
+                                        }`}
+                                    >
+                                      {cleanTag}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">-</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Buying Price */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
-                          <input
-                            type="number"
-                            defaultValue={product.buying_price || ""}
-                            onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="₹"
-                          />
-                        </td>
+                        {visibleColumns.buyingprice && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
+                            <input
+                              type="number"
+                              defaultValue={product.buying_price || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))}
+                              className="w-full px-2 py-1 border rounded text-xs"
+                              placeholder="₹"
+                            />
+                          </td>
+                        )}
 
                         {/* Buying Quantity */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
-                          <input
-                            type="number"
-                            defaultValue={product.buying_quantity ?? 1}
-                            onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="Qty"
-                          />
-                        </td>
+                        {visibleColumns.buyingquantity && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
+                            <input
+                              type="number"
+                              defaultValue={product.buying_quantity ?? 1}
+                              onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
+                              className="w-full px-2 py-1 border rounded text-xs"
+                              placeholder="Qty"
+                            />
+                          </td>
+                        )}
 
                         {/* Seller Link */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
-                          <input
-                            type="text"
-                            defaultValue={product.seller_link || ""}
-                            onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="Link"
-                          />
-                        </td>
-
-                        {/* Seller Phone */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
-                          <input
-                            type="text"
-                            defaultValue={product.seller_phone || ""}
-                            onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="Phone"
-                          />
-                        </td>
-
-                        {/* Payment Method */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
-                          <input
-                            type="text"
-                            defaultValue={product.payment_method || ""}
-                            onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)}
-                            className="w-full px-2 py-1 border rounded text-xs"
-                            placeholder="Method"
-                          />
-                        </td>
-
-                        {/* Tracking Details */}
-                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
-                          {activeTab === 'order_confirmed' ? (
+                        {visibleColumns.sellerlink && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
                             <input
                               type="text"
-                              defaultValue={product.tracking_details || ""}
-                              onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)}
-                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
-                              placeholder="Tracking #"
+                              defaultValue={product.seller_link || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)}
+                              className="w-full px-2 py-1 border rounded text-xs"
+                              placeholder="Link"
                             />
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">After confirmation</span>
-                          )}
-                        </td>
+                          </td>
+                        )}
+
+                        {/* Seller Phone */}
+                        {visibleColumns.sellerphno && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
+                            <input
+                              type="text"
+                              defaultValue={product.seller_phone || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)}
+                              className="w-full px-2 py-1 border rounded text-xs"
+                              placeholder="Phone"
+                            />
+                          </td>
+                        )}
+
+                        {/* Payment Method */}
+                        {visibleColumns.paymentmethod && (
+                          <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
+                            <input
+                              type="text"
+                              defaultValue={product.payment_method || ""}
+                              onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)}
+                              className="w-full px-2 py-1 border rounded text-xs"
+                              placeholder="Method"
+                            />
+                          </td>
+                        )}
+
+                        {/* Tracking Details */}
+                        {visibleColumns.trackingdetails && (
+                          <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
+                            {activeTab === 'order_confirmed' ? (
+                              <input
+                                type="text"
+                                defaultValue={product.tracking_details || ""}
+                                onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)}
+                                className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
+                                placeholder="Tracking #"
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">After confirmation</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Delivery Date */}
-                        <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
-                          {activeTab === 'order_confirmed' ? (
-                            <input
-                              type="date"
-                              defaultValue={product.delivery_date || ""}
-                              onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)}
-                              className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
-                            />
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">After confirmation</span>
-                          )}
-                        </td>
-
-
+                        {visibleColumns.deliverydate && (
+                          <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
+                            {activeTab === 'order_confirmed' ? (
+                              <input
+                                type="date"
+                                defaultValue={product.delivery_date || ""}
+                                onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)}
+                                className="w-full px-2 py-1 border border-green-300 rounded text-xs bg-white"
+                              />
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">After confirmation</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Move TO Buttons */}
                         <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.move_to}px` }}>
