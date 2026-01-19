@@ -57,24 +57,57 @@ export default function AdminValidationPage() {
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
   } | null>(null);
+  // ✅ CORRECT TYPE: Allow undefined for clearing history
+  const [movementHistory, setMovementHistory] = useState<Record<string, {
+    product: AdminProduct;
+    fromStatus: string | null;
+    toStatus: string | null;
+  } | undefined>>({});
 
   // Fetch products from usa_admin_validation table
   const fetchProducts = async () => {
     try {
-      setLoading(true);
-      const { data, error } = await supabase
+      setLoading(true)
+
+      // Fetch admin validation products
+      const { data: adminData, error: adminError } = await supabase
         .from('usa_admin_validation')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (adminError) throw adminError
+
+      // ✅ Enrich with validation data (funnel, seller_tag, AND the 3 new fields)
+      const enrichedData = await Promise.all(
+        adminData.map(async (product) => {
+          // Fetch from validation main file table
+          const { data: validationData } = await supabase
+            .from('usa_validation_main_file')
+            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')  // ✅ Added 3 fields
+            .eq('asin', product.asin)
+            .maybeSingle()
+
+          return {
+            ...product,
+            // Add validation data if found
+            sellertag: validationData?.seller_tag ?? product.sellertag, // Use validation data first
+            funnel: validationData?.funnel ?? product.funnel, // Use validation data first
+
+            // ✅ AUTO-FETCH THESE 3 FIELDS (read-only from validation)
+            productweight: validationData?.product_weight ?? product.productweight,
+            usdprice: validationData?.usd_price ?? product.usdprice,
+            inrpurchase: validationData?.inr_purchase ?? product.inrpurchase,
+          }
+        })
+      )
+
+      setProducts(enrichedData)
     } catch (error) {
-      console.error('Error fetching admin validation products:', error);
+      console.error('Error fetching admin validation products:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     fetchProducts();
@@ -92,6 +125,18 @@ export default function AdminValidationPage() {
       channel.unsubscribe();
     };
   }, []);
+
+  // ✅ ADD: Ctrl+Z keyboard shortcut for Roll Back
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'z' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        handleRollBack();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [movementHistory, activeTab]);
 
   useEffect(() => {
     fetchAdminConstants();
@@ -405,35 +450,75 @@ export default function AdminValidationPage() {
   };
 
   // ✅ UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
+  // UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
-      // ✅ UPDATE usa_admin_validation table (not usa_purchases)
+      // ✅ Map frontend field names to database column names with underscores
+      const fieldMapping: Record<string, string> = {
+        'inrpurchaselink': 'inr_purchase_link',
+        'productname': 'product_name',
+        'productlink': 'product_link',
+        'sellertag': 'seller_tag',
+        'targetprice': 'target_price',
+        'targetquantity': 'target_quantity',
+        'targetpricevalidation': 'target_price_validation',
+        'targetpricelinkvalidation': 'target_price_link_validation',
+        'buyingprice': 'buying_price',
+        'buyingquantity': 'buying_quantity',
+        'sellerlink': 'seller_link',
+        'sellerphone': 'seller_phone',
+        'paymentmethod': 'payment_method',
+        'originindia': 'origin_india',
+        'originchina': 'origin_china',
+        'productweight': 'product_weight',
+        'totalcost': 'total_cost',
+        'totalrevenue': 'total_revenue',
+        'adminstatus': 'admin_status',
+        'adminnotes': 'admin_notes',
+        'admintargetprice': 'admin_target_price',
+        'usdprice': 'usd_price',
+        'inrpurchase': 'inr_purchase',
+        'createdat': 'created_at',
+      }
+
+      // Use mapped field name, or original if not in mapping
+      const dbField = fieldMapping[field] || field
+
+      console.log('📊 Updating product:', { id, field, dbField, value })
+
+      // UPDATE usa_admin_validation table (not usa_purchases)
       const { error } = await supabase
         .from('usa_admin_validation')  // ✅ CORRECT TABLE
-        .update({ [field]: value })
-        .eq('id', id);
+        .update({ [dbField]: value })  // ✅ Use the correct database column name
+        .eq('id', id)
 
       if (error) {
-        setToast({ message: 'Failed to update', type: 'error' });
-        return;
+        console.error('❌ Update error:', error)
+        setToast({ message: 'Failed to update', type: 'error' })
+        return
       }
+
+      console.log('✅ Product updated successfully')
 
       // Update local state
-      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+      )
 
       // AUTO-CALCULATE IF IT'S ONE OF THE THREE KEY FIELDS
-      if (field === 'product_weight' || field === 'usd_price' || field === 'inr_purchase') {
-        const updatedProduct = products.find((p) => p.id === id);
-        if (updatedProduct) await autoCalculateProfit(id, { ...updatedProduct, [field]: value });
+      if (field === 'productweight' || field === 'usdprice' || field === 'inrpurchase') {
+        const updatedProduct = products.find((p) => p.id === id)
+        if (updatedProduct) {
+          await autoCalculateProfit(id, { ...updatedProduct, [field]: value })
+        }
       }
 
-      setToast({ message: 'Updated successfully', type: 'success' });
+      setToast({ message: 'Updated successfully', type: 'success' })
     } catch (err: any) {
-      console.error('Update error:', err);
-      setToast({ message: 'Update failed', type: 'error' });
+      console.error('Update error:', err)
+      setToast({ message: 'Update failed', type: 'error' })
     }
-  };
-  ;
+  }
 
   // Handle individual product confirm
   const handleConfirmProduct = async (productId: string) => {
@@ -441,18 +526,28 @@ export default function AdminValidationPage() {
       const product = products.find((p) => p.id === productId);
       if (!product) return;
 
-      // ✅ UPDATE usa_purchases with ALL edited fields from admin
+      // ✅ SAVE TO HISTORY FIRST!
+      setMovementHistory((prev) => ({
+        ...prev,
+        [activeTab]: {
+          product,
+          fromStatus: product.admin_status,
+          toStatus: 'confirmed'
+        },
+      }));
+
+      // UPDATE usa_purchases with ALL edited fields from admin
       const { error: updatePurchaseError } = await supabase
         .from('usa_purchases')
         .update({
           admin_confirmed: true,
           admin_confirmed_at: new Date().toISOString(),
           admin_target_price: product.admin_target_price,
-          buying_price: product.buying_price,           // ✅ ADD
-          buying_quantity: product.buying_quantity,     // ✅ ADD
-          seller_link: product.seller_link,             // ✅ ADD
-          seller_phone: product.seller_phone,           // ✅ ADD
-          payment_method: product.payment_method,       // ✅ ADD
+          buying_price: product.buying_price,
+          buying_quantity: product.buying_quantity,
+          seller_link: product.seller_link,
+          seller_phone: product.seller_phone,
+          payment_method: product.payment_method,
         })
         .eq('asin', product.asin);
 
@@ -475,22 +570,96 @@ export default function AdminValidationPage() {
     }
   };
 
+
   // Handle individual product reject
   const handleRejectProduct = async (productId: string) => {
     try {
-      const { error } = await supabase
-        .from('usa_admin_validation')
-        .update({
-          admin_status: 'rejected',
-          rejected_at: new Date().toISOString(),
-        })
-        .eq('id', productId);
+      const product = products.find((p) => p.id === productId);
+      if (!product) return;
 
-      if (error) throw error;
+      // ✅ SAVE TO HISTORY FIRST!
+      setMovementHistory((prev) => ({
+        ...prev,
+        [activeTab]: {
+          product,
+          fromStatus: product.admin_status,
+          toStatus: 'rejected'
+        },
+      }));
 
-      fetchProducts();
+      // ... rest of the function
     } catch (error: any) {
-      alert('Error rejecting product: ' + error.message);
+      alert(`Error rejecting product: ${error.message}`);
+    }
+  };
+
+  // ✅ ADD: Roll Back last movement
+  const handleRollBack = async () => {
+    // Always use activeTab as the key where movements are saved
+    const lastMovement = movementHistory[activeTab];
+
+    if (!lastMovement) {
+      alert('No recent movement to roll back from this tab');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { product, fromStatus, toStatus } = lastMovement;
+
+      if (toStatus === 'confirmed') {
+        // Rolling back from Confirm
+        // 1. Revert usa_purchases
+        const { error: updatePurchaseError } = await supabase
+          .from('usa_purchases')
+          .update({
+            admin_confirmed: false,
+            admin_confirmed_at: null,
+          })
+          .eq('asin', product.asin);
+
+        if (updatePurchaseError) {
+          console.error('Error rolling back usa_purchases:', updatePurchaseError);
+        }
+
+        // 2. Revert usa_admin_validation status
+        const { error: updateAdminError } = await supabase
+          .from('usa_admin_validation')
+          .update({
+            admin_status: fromStatus || 'pending',
+            confirmed_at: null,
+          })
+          .eq('asin', product.asin);
+
+        if (updateAdminError) throw updateAdminError;
+
+      } else if (toStatus === 'rejected') {
+        // Rolling back from Reject
+        const { error: updateAdminError } = await supabase
+          .from('usa_admin_validation')
+          .update({
+            admin_status: fromStatus || 'pending',
+            rejected_at: null,
+          })
+          .eq('asin', product.asin);
+
+        if (updateAdminError) throw updateAdminError;
+      }
+
+      // Clear history for this tab
+      setMovementHistory((prev) => {
+        const newHistory = { ...prev };
+        delete newHistory[activeTab];
+        return newHistory;
+      });
+
+      alert(`Rolled back: ${product.product_name}`);
+      fetchProducts();
+    } catch (error) {
+      console.error('Error rolling back:', error);
+      alert('Rollback failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -530,29 +699,6 @@ export default function AdminValidationPage() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-4">
       <div className="flex flex-col flex-1 overflow-hidden">
-
-        {/* Search + Configure Constants Button - STICKY */}
-        <div className="flex-none mb-3 flex items-center justify-between gap-3">
-          <input
-            type="text"
-            placeholder="Search by ASIN, Product Name, or Funnel Seller..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-
-          {/* Configure Constants Button */}
-          <button
-            onClick={() => setIsConstantsModalOpen(true)}
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Configure Constants
-          </button>
-        </div>
 
         {/* Tabs - STICKY */}
         <div className="flex-none flex gap-2 mb-3 border-b border-gray-200">
@@ -646,16 +792,44 @@ export default function AdminValidationPage() {
           </button>
         </div>
 
-
-        {/* Search - STICKY */}
-        <div className="flex-none mb-3">
+        {/* Search Bar + Buttons - Same Row */}
+        <div className="flex-none mb-3 flex items-center justify-between gap-3">
+          {/* Left: Search Input */}
           <input
             type="text"
             placeholder="Search by ASIN, Product Name, or Funnel Seller..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+
+          {/* Right: Buttons Group */}
+          <div className="flex items-center gap-3">
+            {/* Roll Back Button */}
+            <button
+              onClick={handleRollBack}
+              disabled={!movementHistory[activeTab]}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium whitespace-nowrap"
+              title="Roll Back last action from this tab (Ctrl+Z)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              Roll Back
+            </button>
+
+            {/* Configure Constants Button */}
+            <button
+              onClick={() => setIsConstantsModalOpen(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Configure Constants
+            </button>
+          </div>
         </div>
 
         <div className="text-xs text-blue-600 mb-2 px-4">
@@ -1221,12 +1395,12 @@ export default function AdminValidationPage() {
                         {product.funnel ? (
                           <span
                             className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.funnel === 1
-                                ? 'bg-green-500 text-white'
-                                : product.funnel === 2
-                                  ? 'bg-blue-500 text-white'
-                                  : product.funnel === 3
-                                    ? 'bg-yellow-400 text-black'
-                                    : 'bg-gray-400 text-white'
+                              ? 'bg-green-500 text-white'
+                              : product.funnel === 2
+                                ? 'bg-blue-500 text-white'
+                                : product.funnel === 3
+                                  ? 'bg-yellow-400 text-black'
+                                  : 'bg-gray-400 text-white'
                               }`}
                           >
                             {product.funnel === 1

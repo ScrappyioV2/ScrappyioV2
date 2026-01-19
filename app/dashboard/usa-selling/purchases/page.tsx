@@ -4,48 +4,49 @@ import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect } from 'react';
 
 type PassFileProduct = {
-  id: string;
-  asin: string;
-  product_name: string | null;
-  brand: string | null;
-  seller_tag: string | null;
-  funnel: string | null;
-  origin_india: boolean | null;
-  origin_china: boolean | null;
-  usd_price: number | null;
-  inr_purchase: number | null;
-  usa_link: string | null;
-  product_link: string | null;
-  target_price: number | null;
-  admin_target_price: number | null;
-  target_quantity: number | null;
-  // funnel_quantity?: number | null;
-  // funnel_seller?: string | null;
-  inr_purchase_link?: string | null;  // ✅ FIXED: Changed from 'inrpurchaselink: true' to proper type
-  buying_price: number | null;
-  buying_quantity: number | null;
-  seller_link: string | null;
-  seller_phone: string | null;
-  payment_method: string | null;
-  tracking_details: string | null;
-  delivery_date: string | null;
-  status: string | null;
-  move_to: string | null;
-  sent_to_admin: boolean | null;
-  sent_to_admin_at: string | null;
-  admin_confirmed: boolean | null;
-  admin_confirmed_at: string | null;
-  check_brand: boolean | null;
-  check_item_expire: boolean | null;
-  check_small_size: boolean | null;
-  check_multi_seller: boolean | null;
-  created_at: string | null;
-  validation_funnel_seller?: string | null;
-  validation_funnel_quantity?: number | null;
-  validation_seller_tag?: string | null;  // For Funnel Seller column (badges)
-  validation_funnel?: string | null;      // For Funnel Quantity column (badges)
-};
-
+  id: string
+  asin: string
+  product_name: string | null  // ✅ Underscore
+  brand: string | null
+  seller_tag: string | null  // ✅ Underscore
+  funnel: string | null
+  origin_india: boolean | null  // ✅ Underscore
+  origin_china: boolean | null  // ✅ Underscore
+  usd_price: number | null  // ✅ Underscore
+  inr_purchase: number | null  // ✅ Underscore
+  usa_link: string | null  // ✅ Underscore
+  product_link: string | null  // ✅ Underscore
+  target_price: number | null  // ✅ Underscore
+  admin_target_price: number | null  // ✅ Underscore
+  target_quantity: number | null  // ✅ Underscore
+  funnel_quantity?: number | null  // ✅ Underscore
+  funnel_seller?: string | null  // ✅ Underscore
+  inr_purchase_link?: string | null  // ✅ Underscore
+  buying_price: number | null  // ✅ Underscore
+  buying_quantity: number | null  // ✅ Underscore
+  seller_link: string | null  // ✅ Underscore
+  seller_phone: string | null  // ✅ Underscore
+  payment_method: string | null  // ✅ Underscore
+  tracking_details: string | null  // ✅ Underscore
+  delivery_date: string | null  // ✅ Underscore
+  status: string | null
+  move_to: string | null  // ✅ Underscore
+  sent_to_admin: boolean | null  // ✅ Underscore
+  sent_to_admin_at: string | null  // ✅ Underscore
+  admin_confirmed: boolean | null  // ✅ Underscore
+  admin_confirmed_at: string | null  // ✅ Underscore
+  check_brand: boolean | null  // ✅ Underscore
+  check_item_expire: boolean | null  // ✅ Underscore
+  check_small_size: boolean | null  // ✅ Underscore
+  check_multi_seller: boolean | null  // ✅ Underscore
+  created_at: string | null  // ✅ Underscore
+  validation_funnel_seller?: string | null  // ✅ Underscore
+  validation_funnel_quantity?: number | null  // ✅ Underscore
+  validation_seller_tag?: string | null  // ✅ Underscore
+  validation_funnel?: string | null  // ✅ Underscore
+  productweight?: number | null    // ✅ NEW
+  product_weight?: number | null
+}
 
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
 
@@ -55,6 +56,11 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [movementHistory, setMovementHistory] = useState<Record<string, {
+    product: PassFileProduct
+    fromStatus: string | null
+    toStatus: string
+  } | null>>({})
 
   // Column visibility state - ALL columns visible by default
   const [visibleColumns, setVisibleColumns] = useState({
@@ -83,42 +89,57 @@ export default function PurchasesPage() {
 
   const fetchProducts = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
-      // Fetch purchases...
+      // Fetch purchases
       const { data: purchasesData, error: purchasesError } = await supabase
-        .from('usa_purchases')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from('usa_purchases')  // ✅ Correct table name
+        .select()
+        .order('created_at', { ascending: false })  // ✅ Underscore
 
-      if (purchasesError) throw purchasesError;
+      if (purchasesError) throw purchasesError
 
-      // Fetch validation data for seller_tag and funnel badges
+      // Fetch validation data for sellertag and funnel badges
       const enrichedData = await Promise.all(
         purchasesData.map(async (product) => {
           // Fetch from validation main file table
           const { data: validationData } = await supabase
             .from('usa_validation_main_file')
-            .select('seller_tag, funnel')
+            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')  // ✅ ADDED 3 fields
             .eq('asin', product.asin)
-            .maybeSingle();
+            .maybeSingle()
 
           return {
             ...product,
-            validation_funnel: validationData?.funnel || null,      // HD, LD, DP
-            validation_seller_tag: validationData?.seller_tag || null,  // UB, GR, RR
-          };
+            validation_funnel: validationData?.funnel ?? null,
+            validation_seller_tag: validationData?.seller_tag ?? null,
+            // ✅ ADD THESE 3 NEW FIELDS
+            product_weight: validationData?.product_weight ?? null,
+            usd_price: validationData?.usd_price ?? null,
+            inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+          }
         })
-      );
+      )
 
-      setProducts(enrichedData);
+      setProducts(enrichedData)
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching products:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
+  // Ctrl+Z keyboard shortcut for Roll Back
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'z' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault()
+        handleRollBack()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [movementHistory, activeTab])
 
   useEffect(() => {
     fetchProducts();
@@ -165,110 +186,186 @@ export default function PurchasesPage() {
   // Handle sending to admin validation
   const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
-      // ✅ Fetch profit AND inr_purchase from validation table
+      // ✅ SAVE TO HISTORY FIRST!
+      setMovementHistory((prev) => ({
+        ...prev,
+        ['main_file']: {
+          product,
+          fromStatus: product.move_to,  // ✅ Underscore
+          toStatus: 'senttoadmin',
+        },
+      }))
+
+      // Fetch profit from validation
+      // Around line 196
       const { data: validationData } = await supabase
         .from('usa_validation_main_file')
-        .select('profit, total_cost, total_revenue, inr_purchase')
+        .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')  // ✅ ALL 6 fields
         .eq('asin', product.asin)
-        .maybeSingle();
+        .maybeSingle()
 
+      // Insert into admin validation
       const { error: insertError } = await supabase
-        .from('usa_admin_validation')
+        .from('usa_admin_validation')  // ✅ Underscore
         .insert({
-          // Core Product Info
           asin: product.asin,
-          product_name: product.product_name,
-          product_link: product.usa_link || product.product_link,
-
-          // Funnel & Seller Tag (RENAMED - CORRECT)
+          product_name: product.product_name,  // ✅ Underscore
+          product_link: product.usa_link || product.product_link,  // ✅ Underscore
           funnel: product.validation_funnel ? Number(product.validation_funnel) : null,
-          seller_tag: product.validation_seller_tag || null,
-
-          // ✅ AUTO-FETCH: Target Price from Validation INR Purchase
-          target_price: validationData?.inr_purchase || null,
-
-          // Validation Team Reference Price
-          target_price_validation: validationData?.inr_purchase || null,
-          target_price_link_validation: product.inr_purchase_link || null,
-
-          // ✅ INR Purchase Link from Validation Pass File
-          inr_purchase_link: product.inr_purchase_link || null, 
-
-          // Purchases Team Inputs
-          buying_price: product.buying_price || null,
-          buying_quantity: product.buying_quantity || 1,
-          seller_link: product.seller_link || '',
-          seller_phone: product.seller_phone || '',
-          payment_method: product.payment_method || '',
-
-          // Origin from Validation Pass File
-          origin_india: product.origin_india,
-          origin_china: product.origin_china,
-
-          // Profit Snapshot from validation calculation
+          seller_tag: product.validation_seller_tag || null,  // ✅ Underscore
+          target_price: validationData?.inr_purchase || null,  // ✅ Underscore
+          target_price_validation: validationData?.inr_purchase || null,  // ✅ Underscores
+          target_price_link_validation: product.inr_purchase_link || null,  // ✅ Underscores
+          inr_purchase_link: product.inr_purchase_link || null,  // ✅ Underscores
+          buying_price: product.buying_price || null,  // ✅ Underscore
+          buying_quantity: product.buying_quantity || 1,  // ✅ Underscore
+          seller_link: product.seller_link || '',  // ✅ Underscore
+          seller_phone: product.seller_phone || '',  // ✅ Underscore
+          payment_method: product.payment_method || '',  // ✅ Underscore
+          origin_india: product.origin_india,  // ✅ Underscore
+          origin_china: product.origin_china,  // ✅ Underscore
           profit: validationData?.profit || 0,
-          total_cost: validationData?.total_cost || 0,
-          total_revenue: validationData?.total_revenue || 0,
+          total_cost: validationData?.total_cost || 0,  // ✅ Underscore
+          total_revenue: validationData?.total_revenue || 0,  // ✅ Underscore
+          admin_status: 'pending',  // ✅ Underscore
+          product_weight: validationData?.product_weight ?? null,  // ✅ NEW
+          usd_price: validationData?.usd_price ?? null,           // ✅ NEW
+          inr_purchase: validationData?.inr_purchase ?? null,
+        })
 
-          // Admin Status
-          admin_status: 'pending',
-        });
-
-      if (insertError) throw insertError;
+      if (insertError) throw insertError
 
       // Update usa_purchases
       const { error: updateError } = await supabase
-        .from('usa_purchases') // CORRECT
+        .from('usa_purchases')  // ✅ Underscore
         .update({
-          sent_to_admin: true,
-          sent_to_admin_at: new Date().toISOString(),
+          sent_to_admin: true,  // ✅ Underscore
+          sent_to_admin_at: new Date().toISOString(),  // ✅ Underscore
         })
-        .eq('id', product.id); // Use ID not ASIN
+        .eq('id', product.id)
 
-      if (updateError) throw updateError;
+      if (updateError) throw updateError
 
-      alert('Sent to Admin Validation successfully!');
-      fetchProducts();
+      alert('Sent to Admin Validation successfully!')
+      fetchProducts()
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      alert('Error: ' + error.message)
     }
-  };
-
-
+  }
 
   // Handle Price Wait
   const handlePriceWait = async (product: PassFileProduct) => {
     try {
+      // ✅ SAVE TO HISTORY FIRST!
+      setMovementHistory((prev) => ({
+        ...prev,
+        ['main_file']: {
+          product,
+          fromStatus: product.move_to,  // ✅ Underscore
+          toStatus: 'pricewait',
+        },
+      }))
+
       const { error } = await supabase
-        .from('usa_purchases')
-        .update({ move_to: 'price_wait' })
-        .eq('id', product.id);
+        .from('usa_purchases')  // ✅ Underscore
+        .update({ move_to: 'pricewait' })  // ✅ Underscore
+        .eq('id', product.id)
 
-      if (error) throw error;
+      if (error) throw error
 
-      alert('Moved to Price Wait successfully!');
-      fetchProducts();
+      alert('Moved to Price Wait successfully!')
+      fetchProducts()
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      alert('Error: ' + error.message)
     }
-  };
+  }
 
   // Handle Not Found
   const handleNotFound = async (product: PassFileProduct) => {
     try {
+      // ✅ SAVE TO HISTORY FIRST!
+      setMovementHistory((prev) => ({
+        ...prev,
+        ['main_file']: {
+          product,
+          fromStatus: product.move_to ?? null,  // ✅ Underscore
+          toStatus: 'notfound',
+        },
+      }))
+
       const { error } = await supabase
-        .from('usa_purchases')
-        .update({ move_to: 'not_found' })
-        .eq('id', product.id);
+        .from('usa_purchases')  // ✅ Underscore
+        .update({ move_to: 'notfound' })  // ✅ Underscore
+        .eq('id', product.id)
 
-      if (error) throw error;
+      if (error) throw error
 
-      alert('Marked as Not Found successfully!');
-      fetchProducts();
+      alert('Marked as Not Found successfully!')
+      fetchProducts()
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      alert('Error: ' + error.message)
     }
-  };
+  }
+
+  // Roll Back last movement
+  // Roll Back last movement
+  const handleRollBack = async () => {
+    // Always use 'main_file' as the key where movements are saved
+    const lastMovement = movementHistory['main_file']
+
+    if (!lastMovement) {
+      alert('No recent movement to roll back from this tab')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { product, fromStatus, toStatus } = lastMovement
+
+      const updateData: any = {}
+
+      if (toStatus === 'senttoadmin') {
+        // Rolling back from Admin Validation
+        updateData['sent_to_admin'] = false  // ✅ Bracket notation
+        updateData['sent_to_admin_at'] = null  // ✅ Bracket notation
+
+        // Delete from usa_admin_validation table
+        const { error: deleteError } = await supabase
+          .from('usa_admin_validation')  // ✅ Underscore
+          .delete()
+          .eq('asin', product.asin)
+
+        if (deleteError) {
+          console.error('Error deleting from admin validation:', deleteError)
+        }
+      } else if (toStatus === 'pricewait' || toStatus === 'notfound') {
+        // Rolling back from Price Wait or Not Found
+        updateData['move_to'] = fromStatus  // ✅ Bracket notation - Will be null for Main File
+      }
+
+      // Update the product in usa_purchases
+      const { error: updateError } = await supabase
+        .from('usa_purchases')  // ✅ Underscore
+        .update(updateData)
+        .eq('asin', product.asin)
+
+      if (updateError) throw updateError
+
+      // Clear history for main_file
+      setMovementHistory((prev) => ({
+        ...prev,
+        ['main_file']: null,
+      }))
+
+      alert(`Rolled back: ${product.product_name}`)  // ✅ Underscore
+      fetchProducts()
+    } catch (error) {
+      console.error('Error rolling back:', error)
+      alert('Rollback failed')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Handle column resize
   const handleMouseDown = (column: string, e: React.MouseEvent) => {
@@ -310,32 +407,32 @@ export default function PurchasesPage() {
     const matchesSearch =
       !searchQuery ||
       p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.funnel?.toLowerCase().includes(searchQuery.toLowerCase());
+      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||  // ✅ Underscore
+      p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
 
-    if (!matchesSearch) return false;
+    if (!matchesSearch) return false
 
     switch (activeTab) {
-      case 'main_file':
-        return !p.sent_to_admin && !p.move_to;
+      case 'main_file':  // ✅ Underscore
+        return !p.sent_to_admin && !p.move_to  // ✅ Underscores
       case 'price_wait':
-        return p.move_to === 'price_wait';
-      case 'order_confirmed':
-        return p.admin_confirmed === true;
+        return p.move_to === 'pricewait'  // ✅ Underscore
+      case 'order_confirmed':  // ✅ Underscore
+        return p.admin_confirmed === true  // ✅ Underscore
       case 'china':
-        return p.origin_china === true;
+        return p.origin_china  // ✅ Underscore
       case 'india':
-        return p.origin_india === true;
+        return p.origin_india  // ✅ Underscore
       case 'pending':
-        return p.status === 'pending';
+        return p.status === 'pending'
       case 'not_found':
-        return p.move_to === 'not_found';
+        return p.move_to === 'notfound'  // ✅ Underscore
       case 'reject':
-        return p.move_to === 'reject';
+        return p.move_to === 'reject'  // ✅ Underscore
       default:
-        return true;
+        return true
     }
-  });
+  })
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -486,6 +583,19 @@ export default function PurchasesPage() {
           className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
 
+        {/* Roll Back Button */}
+        <button
+          onClick={handleRollBack}
+          disabled={!movementHistory[activeTab]}
+          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium whitespace-nowrap"
+          title="Roll Back last action from this tab (Ctrl+Z)"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+          Roll Back
+        </button>
+
         {/* NEW: Hide Columns Button */}
         <div className="relative">
           <button
@@ -518,7 +628,7 @@ export default function PurchasesPage() {
                       'asin': 'ASIN',
                       'productlink': 'Product Link',
                       'productname': 'Product Name',
-                      'targetprice': 'Target Price',
+                      'targetprice': 'Validation Target Price',
                       'targetquantity': 'Target Quantity',
                       'admintargetprice': 'Admin Target Price',
                       'funnelquantity': 'Funnel',  // ✅ Changed from "Funnel Quantity"
@@ -623,7 +733,7 @@ export default function PurchasesPage() {
 
                   {visibleColumns.targetprice && (
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
-                      Target Price
+                      Validation Target Price
                       <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
                     </th>
                   )}
@@ -792,9 +902,9 @@ export default function PurchasesPage() {
                         {/* Target Price */}
                         {visibleColumns.targetprice && (
                           <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
-                            {activeTab === 'order_confirmed' ? (
+                            {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
                               <div className="px-2 py-1 text-sm font-medium text-gray-900">
-                                ₹{product.target_price ?? product.usd_price ?? '-'}
+                                {product.target_price ?? product.usd_price ?? '-'}
                               </div>
                             ) : (
                               <span className="text-xs text-gray-400 italic">After confirmation</span>
@@ -805,7 +915,7 @@ export default function PurchasesPage() {
                         {/* Target Quantity */}
                         {visibleColumns.targetquantity && (
                           <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
-                            {activeTab === 'order_confirmed' ? (
+                            {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
                               <div className="px-2 py-1 text-sm font-medium text-gray-900">
                                 {product.target_quantity ?? 1}
                               </div>
@@ -1011,23 +1121,29 @@ export default function PurchasesPage() {
                         )}
 
                         {/* Move TO Buttons */}
-                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.move_to}px` }}>
+                        <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
                           <div className="flex gap-1 justify-center">
+                            {/* ✅ Add type="button" to prevent form submission */}
                             <button
+                              type="button"  // ✅ IMPORTANT - Prevents page refresh
                               onClick={() => handleSendToAdmin(product)}
                               className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0"
                               title="Done"
                             >
                               D
                             </button>
+
                             <button
+                              type="button"  // ✅ IMPORTANT
                               onClick={() => handlePriceWait(product)}
                               className="w-8 h-8 bg-yellow-600 text-white text-xs font-bold rounded hover:bg-yellow-700 flex items-center justify-center flex-shrink-0"
                               title="Price Wait"
                             >
                               PW
                             </button>
+
                             <button
+                              type="button"  // ✅ IMPORTANT
                               onClick={() => handleNotFound(product)}
                               className="w-8 h-8 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 flex items-center justify-center flex-shrink-0"
                               title="Not Found"
