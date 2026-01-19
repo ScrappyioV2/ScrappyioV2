@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
-
+import PageGuard from '../../../components/PageGuard'
 
 const SELLER_TABLE_GROUPS: Record<number, string[]> = {
   1: [
@@ -245,112 +245,114 @@ export default function BrandCheckingPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gray-50 p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/dashboard/usa-selling"
-            className="text-blue-600 hover:underline mb-4 inline-block"
-          >
-            ← Back to USA Selling Dashboard
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900">
-            USA Selling - Brand Checking Dashboard
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Total Sellers: {sellers.length} | Monitor brand checking progress
-          </p>
-        </div>
+      <PageGuard>
+        <div className="min-h-screen bg-gray-50 p-8">
+          {/* Header */}
+          <div className="mb-8">
+            <Link
+              href="/dashboard/usa-selling"
+              className="text-blue-600 hover:underline mb-4 inline-block"
+            >
+              ← Back to USA Selling Dashboard
+            </Link>
+            <h1 className="text-4xl font-bold text-gray-900">
+              USA Selling - Brand Checking Dashboard
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Total Sellers: {sellers.length} | Monitor brand checking progress
+            </p>
+          </div>
 
-        {/* Seller Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {sellers.map((seller) => {
-            const uiApproved =
-  seller.totalProducts === 0 ? 0 : seller.approved;
+          {/* Seller Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {sellers.map((seller) => {
+              const uiApproved =
+                seller.totalProducts === 0 ? 0 : seller.approved;
 
-const uiNotApproved =
-  seller.totalProducts === 0 ? 0 : seller.notApproved;
+              const uiNotApproved =
+                seller.totalProducts === 0 ? 0 : seller.notApproved;
 
-const checkedTotal = uiApproved + uiNotApproved;
-const hasProgress = checkedTotal > 0;
+              const checkedTotal = uiApproved + uiNotApproved;
+              const hasProgress = checkedTotal > 0;
 
-const approvedPercentage =
-  checkedTotal === 0 ? 0 : (uiApproved / checkedTotal) * 100;
+              const approvedPercentage =
+                checkedTotal === 0 ? 0 : (uiApproved / checkedTotal) * 100;
 
-const notApprovedPercentage =
-  checkedTotal === 0 ? 0 : (uiNotApproved / checkedTotal) * 100;
+              const notApprovedPercentage =
+                checkedTotal === 0 ? 0 : (uiNotApproved / checkedTotal) * 100;
 
 
-            return (
-              <div
-                key={seller.id}
-                onClick={() => handleSellerCardClick(seller.id)}
-                className="border-2 border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all"
-              >
-                {/* Seller Name */}
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  {seller.name}
-                </h2>
+              return (
+                <div
+                  key={seller.id}
+                  onClick={() => handleSellerCardClick(seller.id)}
+                  className="border-2 border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all"
+                >
+                  {/* Seller Name */}
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                    {seller.name}
+                  </h2>
 
-                {/* Total Products */}
-                <div className="text-center mb-4">
-                  <div className="text-5xl font-bold text-blue-600">
-                    {seller.totalProducts.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Total Products
-                  </div>
-                </div>
-
-                {/* Progress */}
-                <div className="w-full">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">
-                    Brand Checking Progress
+                  {/* Total Products */}
+                  <div className="text-center mb-4">
+                    <div className="text-5xl font-bold text-blue-600">
+                      {seller.totalProducts.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      Total Products
+                    </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  {/* Progress Bar */}
-                  <div className="relative w-full h-8 bg-gray-200 rounded-lg overflow-hidden mb-3">
-                    {hasProgress ? (
-                      <>
-                        {/* Approved (Green) */}
-                        <div
-                          className="absolute top-0 h-full bg-green-500 transition-all duration-300"
-                          style={{ width: `${approvedPercentage}%`, left: 0 }}
-                        />
+                  {/* Progress */}
+                  <div className="w-full">
+                    <div className="text-sm font-semibold text-gray-700 mb-2">
+                      Brand Checking Progress
+                    </div>
 
-                        {/* Not Approved (Red) */}
-                        <div
-                          className="absolute top-0 h-full bg-red-500 transition-all duration-300"
-                          style={{
-                            width: `${notApprovedPercentage}%`,
-                            left: `${approvedPercentage}%`,
-                          }}
-                        />
-                      </>
-                    ) : (
-                      // Zero-state: no progress yet
-                      <div className="absolute inset-0 bg-gray-300" />
-                    )}
-                  </div>
-                  {/* Stats */}
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span className="text-green-600 font-semibold">
-                      Approved: {uiApproved}
-                    </span>
-                    <span className="text-red-600 font-semibold">
-                      Not Approved: {uiNotApproved}
-                    </span>
-                    {/* <span className="text-gray-600 font-semibold">
+                    {/* Progress Bar */}
+                    {/* Progress Bar */}
+                    <div className="relative w-full h-8 bg-gray-200 rounded-lg overflow-hidden mb-3">
+                      {hasProgress ? (
+                        <>
+                          {/* Approved (Green) */}
+                          <div
+                            className="absolute top-0 h-full bg-green-500 transition-all duration-300"
+                            style={{ width: `${approvedPercentage}%`, left: 0 }}
+                          />
+
+                          {/* Not Approved (Red) */}
+                          <div
+                            className="absolute top-0 h-full bg-red-500 transition-all duration-300"
+                            style={{
+                              width: `${notApprovedPercentage}%`,
+                              left: `${approvedPercentage}%`,
+                            }}
+                          />
+                        </>
+                      ) : (
+                        // Zero-state: no progress yet
+                        <div className="absolute inset-0 bg-gray-300" />
+                      )}
+                    </div>
+                    {/* Stats */}
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span className="text-green-600 font-semibold">
+                        Approved: {uiApproved}
+                      </span>
+                      <span className="text-red-600 font-semibold">
+                        Not Approved: {uiNotApproved}
+                      </span>
+                      {/* <span className="text-gray-600 font-semibold">
                       Rejected: {seller.rejected}
                     </span> */}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </PageGuard>
     </PageTransition>
   );
 }

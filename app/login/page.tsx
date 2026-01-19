@@ -1,61 +1,91 @@
 'use client'
 export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [isSignUp, setIsSignUp] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   const router = useRouter()
 
   // Check if user is already logged in
   useEffect(() => {
     if (!supabase) return
+    
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         router.push('/dashboard')
       }
     }
+    
     checkUser()
   }, [router])
 
   const handleAuth = async (e: React.FormEvent) => {
     if (!supabase) return
+    
     e.preventDefault()
     setLoading(true)
     setMessage({ type: '', text: '' })
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        })
-        if (error) throw error
-        setMessage({
-          type: 'success',
-          text: '✅ Sign up successful! Check your email to confirm your account.'
-        })
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (error) throw error
+      // LOGIN
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-        // Auto-redirect to dashboard
+      if (error) throw error
+
+      console.log('✅ Auth successful, checking role...', email)
+
+      // Check if user has a role assigned
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('email', email)
+        .single()
+
+      console.log('Role data:', roleData)
+
+      if (!roleData) {
+        await supabase.auth.signOut()
+        throw new Error('Your account is not activated yet. Please contact the administrator.')
+      }
+
+      if (!roleData.is_active) {
+        await supabase.auth.signOut()
+        throw new Error('Your account has been deactivated. Please contact the administrator.')
+      }
+
+      console.log('✅ Role check passed, redirecting based on role...')
+
+      // ✅ Redirect based on role
+      if (roleData.role === 'admin') {
+        console.log('Admin detected, redirecting to dashboard')
         router.push('/dashboard')
+      } else {
+        // Non-admin: redirect to first allowed page
+        const firstPage = roleData.allowed_pages.find((page: string) => page !== 'dashboard' && page !== '*')
+        
+        console.log('Non-admin detected, first page:', firstPage)
+        
+        if (firstPage) {
+          router.push(`/dashboard/${firstPage}`)
+        } else {
+          throw new Error('No pages assigned to your account. Contact administrator.')
+        }
       }
     } catch (error: any) {
-      setMessage({
-        type: 'error',
-        text: error.message || 'Authentication failed'
+      console.error('❌ Login error:', error)
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'Authentication failed' 
       })
     } finally {
       setLoading(false)
@@ -63,112 +93,94 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="w-full max-w-md">
-        <div className="bg-white shadow-2xl rounded-2xl p-8 border border-gray-100">
-          {/* Logo/Title */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Scrappy V2
-            </h1>
-            <p className="text-gray-600">
-              {isSignUp ? 'Create your account' : 'Sign in to your account'}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              Secure authentication powered by Supabase
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">🚀 Scrappy V2</h1>
+          <p className="text-gray-600 mt-2">Sign in to your account</p>
+          <p className="text-xs text-gray-500 mt-1">Secure authentication powered by Supabase</p>
+        </div>
+
+        {/* Error/Success Message */}
+        {message.text && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${
+            message.type === 'error' 
+              ? 'bg-red-50 text-red-800 border border-red-200' 
+              : 'bg-green-50 text-green-800 border border-green-200'
+          }`}>
+            {message.text}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleAuth} className="space-y-4">
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="you@example.com"
+              required
+              disabled={loading}
+            />
           </div>
 
-          {/* Message Display */}
-          {message.text && (
-            <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success'
-              ? 'bg-green-100 text-green-800 border border-green-300'
-              : 'bg-red-100 text-red-800 border border-red-300'
-              }`}>
-              {message.text}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleAuth} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                placeholder="you@example.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                placeholder="••••••••"
-                minLength={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-              {isSignUp && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Must be at least 6 characters
-                </p>
-              )}
-            </div>
-
-            <button
-              type="submit"
+          {/* Password */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="••••••••"
+              required
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Processing...
-                </span>
-              ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
-              )}
-            </button>
-          </form>
-
-          {/* Toggle Sign In / Sign Up */}
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp)
-                setMessage({ type: '', text: '' })
-              }}
-              disabled={loading}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSignUp
-                ? '← Already have an account? Sign In'
-                : "Don't have an account? Sign Up →"
-              }
-            </button>
+            />
           </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in...
+              </span>
+            ) : 'Sign In'}
+          </button>
+        </form>
+
+        {/* Sign Up Disabled Notice */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            🔒 <strong>Note:</strong> Sign up is disabled. Contact your administrator to create an account.
+          </p>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-500 mt-6">
+        <div className="mt-8 text-center text-xs text-gray-500">
           © 2026 Scrappy V2. All rights reserved.
-        </p>
+        </div>
       </div>
     </div>
   )
