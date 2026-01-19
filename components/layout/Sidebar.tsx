@@ -63,7 +63,6 @@ export default function Sidebar() {
   const menuItems: MenuItem[] = [
     { label: 'Dashboard', href: '/dashboard', requiresPage: null, submenu: null, adminOnly: true },
     { label: 'Manage Sellers', href: '/dashboard/manage-sellers', requiresPage: 'manage-sellers', submenu: manageSellerSubmenu },
-    { label: 'Manage Users', href: '/dashboard/manage-users', requiresAdmin: true, submenu: null },
     { label: 'USA Selling', href: '/dashboard/usa-selling', requiresPage: 'usa-selling', submenu: usaSellingSubmenu },
     { label: 'India Selling', href: '/dashboard/india-selling', requiresPage: 'india-selling', submenu: null },
     { label: 'UAE Selling', href: '/dashboard/uae-selling', requiresPage: 'uae-selling', submenu: null },
@@ -290,3 +289,5 @@ export default function Sidebar() {
     </aside>
   )
 }
+
+
