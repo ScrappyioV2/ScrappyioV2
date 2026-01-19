@@ -798,39 +798,45 @@ export default function ValidationPage() {
         const confirmed = window.confirm('Send this item to Purchases?')
         if (!confirmed) return
 
-        const product = products.find((p) => p.id === id)
+        const product = products.find(p => p.id === id)
         if (!product) return
 
-        // ✅ INSERT into usa_purchases table with CORRECT column names (underscores)
+        // ✅ Calculate origin text BEFORE the insert call
+        const originText =
+            (product.origin_india && product.origin_china) ? 'Both' :
+                product.origin_china ? 'China' :
+                    product.origin_india ? 'India' : 'India';
+
+        // INSERT into usa_purchases table with CORRECT column names (underscores)
         const { error: insertError } = await supabase
             .from('usa_purchases')
             .insert({
                 asin: product.asin,
-                product_name: product.product_name,  // ✅ Underscore
+                product_name: product.product_name,
                 brand: product.brand,
-                seller_tag: product.seller_tag,  // ✅ Underscore
+                seller_tag: product.seller_tag,
                 funnel: product.funnel,
-                origin_india: product.origin_india ?? false,  // ✅ Underscore
-                origin_china: product.origin_china ?? false,  // ✅ Underscore
-                product_link: product.usa_link,  // ✅ Underscore
-                target_price: product.inr_purchase,  // ✅ Underscore - Now fetches from inrpurchase
-                target_quantity: 1,  // ✅ Underscore
-                funnel_quantity: 1,  // ✅ Underscore (if you're using this field)
-                funnel_seller: product.funnel,  // ✅ Underscore (if you're using this field)
-                inr_purchase_link: product.inr_purchase_link ?? '',  // ✅ Underscores - Auto-fetch INR Purchase Link
-                buying_price: null,  // ✅ Underscore - Manual entry only
-                buying_quantity: null,  // ✅ Underscore - Manual entry only
-                seller_link: null,  // ✅ Underscore - Manual entry only
-                seller_phone: '',  // ✅ Underscore
-                payment_method: '',  // ✅ Underscore
-                tracking_details: '',  // ✅ Underscore
-                delivery_date: null,  // ✅ Underscore
+                origin: originText,  // ✅ Now this variable is in scope
+                origin_india: product.origin_india ?? false,
+                origin_china: product.origin_china ?? false,
+                product_link: product.usa_link,
+                target_price: product.inr_purchase,
+                target_quantity: 1,
+                funnel_quantity: 1,
+                funnel_seller: product.funnel,
+                inr_purchase_link: product.inr_purchase_link ?? '',
+                buying_price: null,
+                buying_quantity: null,
+                seller_link: null,
+                seller_phone: '',
+                payment_method: '',
+                tracking_details: '',
+                delivery_date: null,
                 status: 'pending',
-                admin_confirmed: false,  // ✅ Underscore
-                // Store validation data for reference
-                product_weight: product.product_weight,  // ✅ Underscore
-                usd_price: product.usd_price,  // ✅ Underscore
-                inr_purchase: product.inr_purchase,  // ✅ Underscore
+                admin_confirmed: false,
+                product_weight: product.product_weight,
+                usd_price: product.usd_price,
+                inr_purchase: product.inr_purchase,
             })
 
         if (insertError) {

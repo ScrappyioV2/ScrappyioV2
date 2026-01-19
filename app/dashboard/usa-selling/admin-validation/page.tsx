@@ -83,17 +83,20 @@ export default function AdminValidationPage() {
           // Fetch from validation main file table
           const { data: validationData } = await supabase
             .from('usa_validation_main_file')
-            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')  // ✅ Added 3 fields
+            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
             .eq('asin', product.asin)
             .maybeSingle()
 
           return {
             ...product,
+            // ✅ FIX: Map snake_case database columns to camelCase
+            productname: (product as any).product_name ?? null,
+            originindia: (product as any).origin_india ?? false,
+            originchina: (product as any).origin_china ?? false,
             // Add validation data if found
-            sellertag: validationData?.seller_tag ?? product.sellertag, // Use validation data first
-            funnel: validationData?.funnel ?? product.funnel, // Use validation data first
-
-            // ✅ AUTO-FETCH THESE 3 FIELDS (read-only from validation)
+            sellertag: validationData?.seller_tag ?? product.sellertag,
+            funnel: validationData?.funnel ?? product.funnel,
+            // AUTO-FETCH THESE 3 FIELDS (read-only) from validation
             productweight: validationData?.product_weight ?? product.productweight,
             usdprice: validationData?.usd_price ?? product.usdprice,
             inrpurchase: validationData?.inr_purchase ?? product.inrpurchase,

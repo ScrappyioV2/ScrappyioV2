@@ -111,6 +111,9 @@ export default function PurchasesPage() {
 
           return {
             ...product,
+            productname: (product as any).product_name ?? null,
+            originindia: (product as any).origin_india ?? false,
+            originchina: (product as any).origin_china ?? false,
             validation_funnel: validationData?.funnel ?? null,
             validation_seller_tag: validationData?.seller_tag ?? null,
             // ✅ ADD THESE 3 NEW FIELDS
@@ -186,61 +189,84 @@ export default function PurchasesPage() {
   // Handle sending to admin validation
   const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
-      // ✅ SAVE TO HISTORY FIRST!
+      // SAVE TO HISTORY FIRST!
       setMovementHistory((prev) => ({
         ...prev,
-        ['main_file']: {
-          product,
-          fromStatus: product.move_to,  // ✅ Underscore
-          toStatus: 'senttoadmin',
-        },
+        mainfile: { product, fromStatus: product.move_to, toStatus: 'senttoadmin' },
       }))
 
       // Fetch profit from validation
-      // Around line 196
       const { data: validationData } = await supabase
         .from('usa_validation_main_file')
-        .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')  // ✅ ALL 6 fields
+        .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')
         .eq('asin', product.asin)
         .maybeSingle()
 
-      // Insert into admin validation
+      // Build origin text based on checkboxes for trigger
+      const originParts = []
+      if (product.origin_india) originParts.push('India')
+      if (product.origin_china) originParts.push('China')
+      const originText = originParts.length > 0 ? originParts.join(', ') : 'India'
+
+      // Insert into admin validation - ONLY fields that exist in schema
       const { error: insertError } = await supabase
-        .from('usa_admin_validation')  // ✅ Underscore
+        .from('usa_admin_validation')
         .insert({
+          // Core product info
           asin: product.asin,
-          product_name: product.product_name,  // ✅ Underscore
-          product_link: product.usa_link || product.product_link,  // ✅ Underscore
+          product_name: product.product_name,
+          product_link: product.usa_link || product.product_link,
+
+          // Target pricing from validation
+          target_price: validationData?.inr_purchase || null,
+          target_quantity: 1,
+          target_price_validation: validationData?.inr_purchase || null,
+          target_price_link_validation: product.inr_purchase_link || null,
+
+          // Funnel & Seller
           funnel: product.validation_funnel ? Number(product.validation_funnel) : null,
-          seller_tag: product.validation_seller_tag || null,  // ✅ Underscore
-          target_price: validationData?.inr_purchase || null,  // ✅ Underscore
-          target_price_validation: validationData?.inr_purchase || null,  // ✅ Underscores
-          target_price_link_validation: product.inr_purchase_link || null,  // ✅ Underscores
-          inr_purchase_link: product.inr_purchase_link || null,  // ✅ Underscores
-          buying_price: product.buying_price || null,  // ✅ Underscore
-          buying_quantity: product.buying_quantity || 1,  // ✅ Underscore
-          seller_link: product.seller_link || '',  // ✅ Underscore
-          seller_phone: product.seller_phone || '',  // ✅ Underscore
-          payment_method: product.payment_method || '',  // ✅ Underscore
-          origin_india: product.origin_india,  // ✅ Underscore
-          origin_china: product.origin_china,  // ✅ Underscore
+          seller_tag: product.validation_seller_tag || null,
+
+          // Buying info (manual entry fields - set to null initially)
+          buying_price: null,
+          buying_quantity: null,
+          seller_link: null,
+          seller_phone: '',
+          payment_method: '',
+
+          // Origin fields
+          origin_india: product.origin_india ?? false,
+          origin_china: product.origin_china ?? false,
+          origin: originText,  // Text field for trigger
+
+          // INR Purchase Link
+          inr_purchase_link: product.inr_purchase_link || null,
+
+          // Calculation fields from validation
           profit: validationData?.profit || 0,
-          total_cost: validationData?.total_cost || 0,  // ✅ Underscore
-          total_revenue: validationData?.total_revenue || 0,  // ✅ Underscore
-          admin_status: 'pending',  // ✅ Underscore
-          product_weight: validationData?.product_weight ?? null,  // ✅ NEW
-          usd_price: validationData?.usd_price ?? null,           // ✅ NEW
+          total_cost: validationData?.total_cost || 0,
+          total_revenue: validationData?.total_revenue || 0,
+          product_weight: validationData?.product_weight ?? null,
+          usd_price: validationData?.usd_price ?? null,
           inr_purchase: validationData?.inr_purchase ?? null,
+
+          // Admin fields
+          admin_status: 'pending',
+          admin_target_price: null,  // Admin will fill this
+          admin_target_quantity: null,  // Admin will fill this
+
+          // Status
+          status: 'pending',
         })
 
       if (insertError) throw insertError
 
       // Update usa_purchases
       const { error: updateError } = await supabase
-        .from('usa_purchases')  // ✅ Underscore
+        .from('usa_purchases')
         .update({
-          sent_to_admin: true,  // ✅ Underscore
-          sent_to_admin_at: new Date().toISOString(),  // ✅ Underscore
+          sent_to_admin: true,
+          sent_to_admin_at: new Date().toISOString(),
         })
         .eq('id', product.id)
 
@@ -249,9 +275,10 @@ export default function PurchasesPage() {
       alert('Sent to Admin Validation successfully!')
       fetchProducts()
     } catch (error: any) {
-      alert('Error: ' + error.message)
+      alert(`Error: ${error.message}`)
     }
   }
+
 
   // Handle Price Wait
   const handlePriceWait = async (product: PassFileProduct) => {
