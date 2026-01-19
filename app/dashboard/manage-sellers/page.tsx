@@ -144,13 +144,24 @@ export default function ManageSellersPage() {
             debouncedFetchProgress()
           }
         )
-        .subscribe()
+        .subscribe((status) => {
+          // Add subscription status logging
+          if (status === 'SUBSCRIBED') {
+            console.log(`✅ Subscribed to ${country} changes`)
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error(`❌ Error subscribing to ${country}`)
+          }
+        })
 
       subscriptions.push(subscription)
     })
 
+    // Cleanup function
     return () => {
-      subscriptions.forEach(sub => sub.unsubscribe())
+      console.log('🧹 Cleaning up subscriptions...')
+      subscriptions.forEach((sub) => {
+        supabase.removeChannel(sub)
+      })
     }
   }, [user])
 
@@ -291,7 +302,7 @@ export default function ManageSellersPage() {
                       Reset All Copied
                     </button>
                   </div>
-                  
+
                   {/* Progress Bar */}
                   <div className="relative w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                     <div
