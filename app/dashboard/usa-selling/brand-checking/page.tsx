@@ -92,80 +92,72 @@ export default function BrandCheckingPage() {
     }
   };
 
-  /* ===== INITIAL LOAD FROM SUPABASE ===== */
+  // Track mount state
+  const [mounted, setMounted] = useState(false)
+
+  // Mount tracking
   useEffect(() => {
-    const fetchProgress = async () => {
-      console.log("📊 Fetching initial brand check progress...");
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
-      const { data, error } = await supabase
-        .from("brand_check_progress")
-        .select("*");
+  // INITIAL LOAD ONLY AFTER MOUNT
+  useEffect(() => {
+    if (!mounted) return
 
-      if (error) {
-        console.error("❌ Error fetching brand check progress:", error);
-        return;
-      }
+    const fetchSellerTotals = async () => {
+      const updates = await Promise.all(
+        ALL_SELLERS.map(async (seller) => {
+          const tables = SELLER_TABLE_GROUPS[seller.id]
+          let total = 0
+          for (const table of tables) {
+            const { count, error } = await supabase
+              .from(table)
+              .select('*', { count: 'exact', head: true })
 
-      if (data) {
-        console.log("✅ Initial progress data:", data);
-
-        setSellers((prev) =>
-          prev.map((seller) => {
-            const row = data.find(
-              (d: BrandProgressRow) => d.seller_id === seller.id
-            );
-            if (!row) {
-              console.log(`⚠️ No data for seller ${seller.name} (ID: ${seller.id})`);
-              return seller;
+            if (error) {
+              console.error(`Error counting ${table}:`, error)
+              continue
             }
+            total += count ?? 0
+          }
+          console.log(`${seller.name} TOTAL products (all tabs):`, total)
+          return { sellerid: seller.id, total }
+        })
+      )
 
-            console.log(`📈 ${seller.name}: Total=${row.total}, Approved=${row.approved}, Not Approved=${row.not_approved}`);
+      setSellers((prev) =>
+        prev.map((s) => {
+          const row = updates.find((u) => u.sellerid === s.id)
+          return row ? { ...s, totalProducts: row.total } : s
+        })
+      )
+    }
 
-            return {
-              ...seller,
-              approved: row.approved,
-              notApproved: row.not_approved,
-              rejected: row.rejected,
-            };
-          })
-        );
-      }
-    };
-
-    fetchProgress();
-  }, []);
+    fetchSellerTotals()
+  }, [mounted])
 
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {
-    console.log("🔌 Setting up real-time subscription for brand_check_progress");
+    if (!mounted) return
 
+    console.log('Setting up real-time subscription for brand_check_progress')
     const channel = supabase
-      .channel("brand-check-progress-updates")
+      .channel('brand-check-progress-updates')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "*", // Listen to INSERT, UPDATE, DELETE
-          schema: "public",
-          table: "brand_check_progress",
+          event: '*',
+          schema: 'public',
+          table: 'brand_check_progress',
         },
         (payload) => {
-          console.log("📡 Real-time update received:", payload);
-          console.log("📡 Payload.new:", payload.new);
-          console.log("📡 Payload.old:", payload.old);
-
-          // Handle both INSERT and UPDATE
-          const data = payload.new as BrandProgressRow;
-
+          console.log('Real-time update received:', payload)
+          const data = payload.new as BrandProgressRow
           if (!data || !data.seller_id) {
-            console.error("❌ Invalid payload data:", data);
-            return;
+            console.error('Invalid payload data:', data)
+            return
           }
-
-          console.log(`📡 Updated data for seller_id ${data.seller_id}:`, {
-            total: data.total,
-            approved: data.approved,
-            not_approved: data.not_approved,
-          });
 
           setSellers((prev) => {
             const updated = prev.map((seller) =>
@@ -177,30 +169,26 @@ export default function BrandCheckingPage() {
                   hasMovement: true,
                 }
                 : seller
-            );
-
-            return updated;
-          });
-
-          // ✅ ADD THIS LINE
-          setHasAnyMovementYet(true);
-
+            )
+            return updated
+          })
+          setHasAnyMovementYet(true)
         }
       )
       .subscribe((status) => {
-        console.log("📡 Subscription status:", status);
+        console.log('Subscription status:', status)
         if (status === 'SUBSCRIBED') {
-          console.log("✅ Successfully subscribed to brand_check_progress changes");
+          console.log('Successfully subscribed to brand_check_progress changes')
         } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ Subscription error");
+          console.error('Subscription error')
         }
-      });
+      })
 
     return () => {
-      console.log("🔌 Cleaning up real-time subscription");
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      console.log('Cleaning up real-time subscription')
+      supabase.removeChannel(channel)
+    }
+  }, [mounted])
 
   const fetchSellerTotals = async () => {
     const updates = await Promise.all(
