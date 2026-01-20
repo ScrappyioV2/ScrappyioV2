@@ -1,5 +1,5 @@
 'use client'
-
+import PageGuard from '../../../components/PageGuard'
 import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
@@ -795,13 +795,19 @@ export default function ValidationPage() {
     }
 
     const handleChecklistOk = async (id: string) => {
-        const confirmed = window.confirm("Send this item to Purchases?");
-        if (!confirmed) return;
+        const confirmed = window.confirm('Send this item to Purchases?')
+        if (!confirmed) return
 
-        const product = products.find((p) => p.id === id);
-        if (!product) return;
+        const product = products.find(p => p.id === id)
+        if (!product) return
 
-        // INSERT into usa_purchases table
+        // ✅ Calculate origin text BEFORE the insert call
+        const originText =
+            (product.origin_india && product.origin_china) ? 'Both' :
+                product.origin_china ? 'China' :
+                    product.origin_india ? 'India' : 'India';
+
+        // INSERT into usa_purchases table with CORRECT column names (underscores)
         const { error: insertError } = await supabase
             .from('usa_purchases')
             .insert({
@@ -810,52 +816,53 @@ export default function ValidationPage() {
                 brand: product.brand,
                 seller_tag: product.seller_tag,
                 funnel: product.funnel,
+                origin: originText,  // ✅ Now this variable is in scope
                 origin_india: product.origin_india ?? false,
                 origin_china: product.origin_china ?? false,
                 product_link: product.usa_link,
-                target_price: product.inr_purchase,  // ✅ CHANGED: Now fetches from inr_purchase
+                target_price: product.inr_purchase,
                 target_quantity: 1,
                 funnel_quantity: 1,
                 funnel_seller: product.funnel,
-                inr_purchase_link: product.inr_purchase_link ?? '',  // ✅ Auto-fetch INR Purchase Link
-                buying_price: null,  // ✅ CHANGED: Manual entry only
-                buying_quantity: null,  // ✅ CHANGED: Manual entry only
-                seller_link: null,  // ✅ CHANGED: Manual entry only
+                inr_purchase_link: product.inr_purchase_link ?? '',
+                buying_price: null,
+                buying_quantity: null,
+                seller_link: null,
                 seller_phone: '',
                 payment_method: '',
                 tracking_details: '',
                 delivery_date: null,
                 status: 'pending',
                 admin_confirmed: false,
-                // Store validation data for reference
                 product_weight: product.product_weight,
                 usd_price: product.usd_price,
                 inr_purchase: product.inr_purchase,
-            });
-
+            })
 
         if (insertError) {
-            console.error("Insert error:", insertError);
-            setToast({ message: `Failed: ${insertError.message}`, type: "error" });
-            return;
+            console.error('Insert error:', insertError)
+            setToast({ message: `Failed: ${insertError.message}`, type: 'error' })
+            return
         }
 
         // Mark as sent in main file
         const { error } = await supabase
-            .from("usa_validation_main_file")
+            .from('usa_validation_main_file')  // ✅ Underscores
             .update({
-                sent_to_purchases: true,
-                sent_to_purchases_at: new Date().toISOString(),
+                sent_to_purchases: true,  // ✅ Underscores
+                sent_to_purchases_at: new Date().toISOString(),  // ✅ Underscores
             })
-            .eq("id", id);
+            .eq('id', id)
 
         if (error) {
-            console.error("Update error:", error);
+            console.error('Update error:', error)
         }
 
-        setProducts((prev) => prev.filter((p) => p.id !== id));
-        setToast({ message: "Sent to Purchases!", type: "success" });
-    };
+        // Remove from local state
+        setProducts((prev) => prev.filter((p) => p.id !== id))
+
+        setToast({ message: 'Sent to Purchases!', type: 'success' })
+    }
 
     const handleMoveToMainClick = async () => {
         if (selectedIds.size === 0) {
@@ -1113,886 +1120,888 @@ export default function ValidationPage() {
 
     return (
         <PageTransition>
-            <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-6">
-                <div className="w-full flex flex-col flex-1 overflow-hidden">
-                    {/* Fixed Header Section */}
-                    <div className="flex-none">
-                        {/* Header */}
-                        <div className="mb-6">
-                            <h1 className="text-3xl font-bold text-gray-900">USA Selling - Validation</h1>
-                            <p className="text-gray-600 mt-1">Manage validation files and product status</p>
-                        </div>
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                            <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg px-5 py-4 text-white shadow-md">
-                                <div className="text-xs font-medium opacity-90">Total Products</div>
-                                <div className="text-3xl font-bold mt-1">{stats.total}</div>
+            <PageGuard>
+                <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-6">
+                    <div className="w-full flex flex-col flex-1 overflow-hidden">
+                        {/* Fixed Header Section */}
+                        <div className="flex-none">
+                            {/* Header */}
+                            <div className="mb-6">
+                                <h1 className="text-3xl font-bold text-gray-900">USA Selling - Validation</h1>
+                                <p className="text-gray-600 mt-1">Manage validation files and product status</p>
+                            </div>
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                                <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg px-5 py-4 text-white shadow-md">
+                                    <div className="text-xs font-medium opacity-90">Total Products</div>
+                                    <div className="text-3xl font-bold mt-1">{stats.total}</div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg px-5 py-4 text-white shadow-md">
+                                    <div className="text-xs font-medium opacity-90">✓ Passed</div>
+                                    <div className="text-3xl font-bold mt-1">{stats.passed}</div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg px-5 py-4 text-white shadow-md">
+                                    <div className="text-xs font-medium opacity-90">✗ Failed</div>
+                                    <div className="text-3xl font-bold mt-1">{stats.failed}</div>
+                                </div>
+
+                                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg px-5 py-4 text-white shadow-md">
+                                    <div className="text-xs font-medium opacity-90">⏳ Pending</div>
+                                    <div className="text-3xl font-bold mt-1">{stats.pending}</div>
+                                </div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg px-5 py-4 text-white shadow-md">
-                                <div className="text-xs font-medium opacity-90">✓ Passed</div>
-                                <div className="text-3xl font-bold mt-1">{stats.passed}</div>
+                            {/* File Tabs */}
+                            <div className="flex gap-2 mb-5 flex-wrap">
+                                <button
+                                    onClick={() => setActiveTab('main_file')}
+                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'main_file'
+                                        ? 'bg-slate-600 text-white'
+                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                                        }`}
+                                >
+                                    Main File
+                                </button>
+
+                                <button
+                                    onClick={() => setActiveTab('pass_file')}
+                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pass_file'
+                                        ? 'bg-slate-600 text-white'
+                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                                        }`}
+                                >
+                                    Pass File
+                                </button>
+
+                                <button
+                                    onClick={() => setActiveTab('fail_file')}
+                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'fail_file'
+                                        ? 'bg-slate-600 text-white'
+                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                                        }`}
+                                >
+                                    Failed File
+                                </button>
+
+                                <button
+                                    onClick={() => setActiveTab('pending')}
+                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pending'
+                                        ? 'bg-slate-600 text-white'
+                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                                        }`}
+                                >
+                                    Pending
+                                </button>
                             </div>
 
-                            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg px-5 py-4 text-white shadow-md">
-                                <div className="text-xs font-medium opacity-90">✗ Failed</div>
-                                <div className="text-3xl font-bold mt-1">{stats.failed}</div>
-                            </div>
-
-                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg px-5 py-4 text-white shadow-md">
-                                <div className="text-xs font-medium opacity-90">⏳ Pending</div>
-                                <div className="text-3xl font-bold mt-1">{stats.pending}</div>
-                            </div>
-                        </div>
-
-                        {/* File Tabs */}
-                        <div className="flex gap-2 mb-5 flex-wrap">
-                            <button
-                                onClick={() => setActiveTab('main_file')}
-                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'main_file'
-                                    ? 'bg-slate-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                    }`}
-                            >
-                                Main File
-                            </button>
-
-                            <button
-                                onClick={() => setActiveTab('pass_file')}
-                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pass_file'
-                                    ? 'bg-slate-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                    }`}
-                            >
-                                Pass File
-                            </button>
-
-                            <button
-                                onClick={() => setActiveTab('fail_file')}
-                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'fail_file'
-                                    ? 'bg-slate-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                    }`}
-                            >
-                                Failed File
-                            </button>
-
-                            <button
-                                onClick={() => setActiveTab('pending')}
-                                className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pending'
-                                    ? 'bg-slate-600 text-white'
-                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                    }`}
-                            >
-                                Pending
-                            </button>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="mb-4">
-                            <div className="flex items-center justify-between gap-3">
-                                {/* LEFT SIDE - Search + Filter */}
-                                <div className="flex gap-3 flex-1 min-w-[300px]">
-                                    {/* Search Bar - NEW */}
-                                    <div className="relative flex-1 max-w-md">
-                                        <svg
-                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                            />
-                                        </svg>
-                                        <input
-                                            type="text"
-                                            placeholder="Search by ASIN, Product Name, or Brand..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-                                        />
-                                        {searchQuery && (
-                                            <button
-                                                onClick={() => setSearchQuery('')}
-                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            {/* Action Buttons */}
+                            <div className="mb-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    {/* LEFT SIDE - Search + Filter */}
+                                    <div className="flex gap-3 flex-1 min-w-[300px]">
+                                        {/* Search Bar - NEW */}
+                                        <div className="relative flex-1 max-w-md">
+                                            <svg
+                                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
+                                            </svg>
+                                            <input
+                                                type="text"
+                                                placeholder="Search by ASIN, Product Name, or Brand..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="w-full pl-9 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                            />
+                                            {searchQuery && (
+                                                <button
+                                                    onClick={() => setSearchQuery('')}
+                                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Filter Button */}
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                                className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                                    />
                                                 </svg>
+                                                Add Filter
                                             </button>
-                                        )}
+
+                                            {isFilterOpen && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
+                                                    <div className="absolute top-full left-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-72">
+                                                        <h3 className="font-semibold text-gray-900 mb-3">Filter Products</h3>
+                                                        <div className="space-y-3">
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">Seller Tag</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={filters.seller_tag}
+                                                                    onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
+                                                                    className="w-full px-3 py-2 border rounded-lg"
+                                                                    placeholder="Enter seller name"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={filters.brand}
+                                                                    onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
+                                                                    className="w-full px-3 py-2 border rounded-lg"
+                                                                    placeholder="Enter brand"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">Funnel</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={filters.funnel}
+                                                                    onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
+                                                                    className="w-full px-3 py-2 border rounded-lg"
+                                                                    placeholder="Enter funnel"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
+                                                                className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                                                            >
+                                                                Clear Filters
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    {/* Filter Button */}
-                                    <div className="relative">
+                                    {/* RIGHT SIDE - Action Buttons */}
+                                    <div className="flex gap-3 flex-wrap">
+                                        {/* Move to Main - ONLY for Pass and Failed tabs */}
+                                        {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
+                                            <button
+                                                onClick={handleMoveToMainClick}
+                                                disabled={selectedIds.size === 0}
+                                                className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
+                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                    : 'bg-slate-800 text-white hover:bg-slate-900'
+                                                    }`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                                Move to Main
+                                            </button>
+                                        )}
+
+                                        {/* Move to Pass - ONLY for Pending tab */}
+                                        {activeTab === 'pending' && (
+                                            <button
+                                                onClick={handleMoveToPassClick}
+                                                disabled={selectedIds.size === 0}
+                                                className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
+                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                                    }`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Move to Pass
+                                            </button>
+                                        )}
+
+                                        {/* Move to Fail - ONLY for Pending tab */}
+                                        {activeTab === 'pending' && (
+                                            <button
+                                                onClick={handleMoveToFailClick}
+                                                disabled={selectedIds.size === 0}
+                                                className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
+                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                                    }`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                                Move to Fail
+                                            </button>
+                                        )}
+
+                                        {/* Download CSV */}
                                         <button
-                                            onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                            onClick={downloadCSV}
+                                            className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
                                                     strokeWidth={2}
-                                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                                                 />
                                             </svg>
-                                            Add Filter
+                                            Download CSV
                                         </button>
 
-                                        {isFilterOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                <div className="absolute top-full left-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-72">
-                                                    <h3 className="font-semibold text-gray-900 mb-3">Filter Products</h3>
-                                                    <div className="space-y-3">
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">Seller Tag</label>
-                                                            <input
-                                                                type="text"
-                                                                value={filters.seller_tag}
-                                                                onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                className="w-full px-3 py-2 border rounded-lg"
-                                                                placeholder="Enter seller name"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                                                            <input
-                                                                type="text"
-                                                                value={filters.brand}
-                                                                onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                className="w-full px-3 py-2 border rounded-lg"
-                                                                placeholder="Enter brand"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">Funnel</label>
-                                                            <input
-                                                                type="text"
-                                                                value={filters.funnel}
-                                                                onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                className="w-full px-3 py-2 border rounded-lg"
-                                                                placeholder="Enter funnel"
-                                                            />
-                                                        </div>
-                                                        <button
-                                                            onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
-                                                            className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                                                        >
-                                                            Clear Filters
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
+                                        {/* Upload CSV */}
+                                        <button
+                                            onClick={handleUploadCSV}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                                />
+                                            </svg>
+                                            Upload CSV
+                                        </button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".csv,.xlsx,.xls"
+                                            onChange={processCSVFile}
+                                            className="hidden"
+                                        />
+
+                                        {/* Bulk USA Price Update */}
+                                        <button
+                                            onClick={() => usaPriceCSVInputRef.current?.click()}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium whitespace-nowrap"
+                                        >
+                                            Bulk USA Price Update
+                                        </button>
+                                        <input
+                                            type="file"
+                                            accept=".csv"
+                                            ref={usaPriceCSVInputRef}
+                                            onChange={handleUSAPriceCSVUpload}
+                                            className="hidden"
+                                        />
+
+                                        {/* Configure Constants */}
+                                        <button
+                                            onClick={openConstantsModal}
+                                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                                />
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                />
+                                            </svg>
+                                            Configure Constants
+                                        </button>
                                     </div>
-                                </div>
-
-                                {/* RIGHT SIDE - Action Buttons */}
-                                <div className="flex gap-3 flex-wrap">
-                                    {/* Move to Main - ONLY for Pass and Failed tabs */}
-                                    {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
-                                        <button
-                                            onClick={handleMoveToMainClick}
-                                            disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
-                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                : 'bg-slate-800 text-white hover:bg-slate-900'
-                                                }`}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                            Move to Main
-                                        </button>
-                                    )}
-
-                                    {/* Move to Pass - ONLY for Pending tab */}
-                                    {activeTab === 'pending' && (
-                                        <button
-                                            onClick={handleMoveToPassClick}
-                                            disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
-                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                : 'bg-green-600 text-white hover:bg-green-700'
-                                                }`}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            Move to Pass
-                                        </button>
-                                    )}
-
-                                    {/* Move to Fail - ONLY for Pending tab */}
-                                    {activeTab === 'pending' && (
-                                        <button
-                                            onClick={handleMoveToFailClick}
-                                            disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
-                                                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                : 'bg-red-600 text-white hover:bg-red-700'
-                                                }`}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                            Move to Fail
-                                        </button>
-                                    )}
-
-                                    {/* Download CSV */}
-                                    <button
-                                        onClick={downloadCSV}
-                                        className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                            />
-                                        </svg>
-                                        Download CSV
-                                    </button>
-
-                                    {/* Upload CSV */}
-                                    <button
-                                        onClick={handleUploadCSV}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                                            />
-                                        </svg>
-                                        Upload CSV
-                                    </button>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".csv,.xlsx,.xls"
-                                        onChange={processCSVFile}
-                                        className="hidden"
-                                    />
-
-                                    {/* Bulk USA Price Update */}
-                                    <button
-                                        onClick={() => usaPriceCSVInputRef.current?.click()}
-                                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium whitespace-nowrap"
-                                    >
-                                        Bulk USA Price Update
-                                    </button>
-                                    <input
-                                        type="file"
-                                        accept=".csv"
-                                        ref={usaPriceCSVInputRef}
-                                        onChange={handleUSAPriceCSVUpload}
-                                        className="hidden"
-                                    />
-
-                                    {/* Configure Constants */}
-                                    <button
-                                        onClick={openConstantsModal}
-                                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                                            />
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                            />
-                                        </svg>
-                                        Configure Constants
-                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                    <div className="flex-1 min-h-0 bg-white rounded-md shadow overflow-hidden flex flex-col border border-gray-200">
-                        {loading ? (
-                            <div className="flex flex-col items-center justify-center p-16">
-                                <div className="relative">
-                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-200"></div>
-                                    <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-blue-600"></div>
+                        {/* Scrollable Table Section - ONLY THIS SCROLLS */}
+                        <div className="flex-1 min-h-0 bg-white rounded-md shadow overflow-hidden flex flex-col border border-gray-200">
+                            {loading ? (
+                                <div className="flex flex-col items-center justify-center p-16">
+                                    <div className="relative">
+                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-200"></div>
+                                        <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-blue-600"></div>
+                                    </div>
+                                    <p className="mt-4 text-gray-600 font-medium">Loading products...</p>
                                 </div>
-                                <p className="mt-4 text-gray-600 font-medium">Loading products...</p>
-                            </div>
-                        ) : filteredProducts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-12 text-gray-500">
-                                <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                </svg>
-                                <p className="text-lg font-semibold text-gray-700 mb-2">No products found</p>
-                                <p className="text-sm text-gray-500 max-w-md text-center">
+                            ) : filteredProducts.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+                                    <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                    </svg>
+                                    <p className="text-lg font-semibold text-gray-700 mb-2">No products found</p>
+                                    <p className="text-sm text-gray-500 max-w-md text-center">
 
-                                    {activeTab === 'pending'
-                                        ? 'Products with incomplete data will appear here'
-                                        : activeTab === 'pass_file'
-                                            ? 'Products with PASS judgement will appear here'
-                                            : activeTab === 'fail_file'
-                                                ? 'Products with FAIL judgement will appear here'
-                                                : 'All products will appear here'
-                                    }
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex-1 overflow-auto">
-                                    <table className="w-full table-fixed">
-                                        <thead className="bg-gradient-to-r from-slate-100 to-slate-200 border-b-2 border-slate-300 sticky top-0 z-10">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={
-                                                            selectedIds.size === filteredProducts.length &&
-                                                            filteredProducts.length > 0
-                                                        }
-                                                        onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded"
-                                                    />
-                                                </th>
-
-                                                {visibleColumns.asin && (
-                                                    <ResizableTH
-                                                        width={columnWidths.asin}
-                                                        columnKey="asin"
-                                                        label="ASIN"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.product_name && (
-                                                    <ResizableTH
-                                                        width={columnWidths.product_name}
-                                                        columnKey="product_name"
-                                                        label="Product Name"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.brand && (
-                                                    <ResizableTH
-                                                        width={columnWidths.brand}
-                                                        columnKey="brand"
-                                                        label="Brand"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.seller_tag && (
-                                                    <ResizableTH
-                                                        width={columnWidths.seller_tag}
-                                                        columnKey="seller_tag"
-                                                        label="Seller Tag"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.funnel && (
-                                                    <ResizableTH
-                                                        width={columnWidths.funnel}
-                                                        columnKey="funnel"
-                                                        label="Funnel"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.no_of_seller && (
-                                                    <ResizableTH
-                                                        width={columnWidths.no_of_seller}
-                                                        columnKey="no_of_seller"
-                                                        label="No. of Sellers"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.usa_link && (
-                                                    <ResizableTH
-                                                        width={columnWidths.usa_link}
-                                                        columnKey="usa_link"
-                                                        label="USA Link"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {activeTab === 'pass_file' && (
-                                                    <ResizableTH
-                                                        width={120}
-                                                        columnKey="origin"
-                                                        label="Origin"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.product_weight && (
-                                                    <ResizableTH
-                                                        width={columnWidths.product_weight}
-                                                        columnKey="product_weight"
-                                                        label="Weight (g)"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.usd_price && (
-                                                    <ResizableTH
-                                                        width={columnWidths.usd_price}
-                                                        columnKey="usd_price"
-                                                        label="USD Price"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.inr_purchase && (
-                                                    <ResizableTH
-                                                        width={columnWidths.inr_purchase}
-                                                        columnKey="inr_purchase"
-                                                        label="INR Purchase"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                    <ResizableTH
-                                                        width={columnWidths.inr_purchase_link}
-                                                        columnKey="inr_purchase_link"
-                                                        label="INR Purchase Link"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {activeTab === 'pass_file' && (
-                                                    <ResizableTH
-                                                        width={160}
-                                                        columnKey="checklist"
-                                                        label="Checklist"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                                {visibleColumns.judgement && (
-                                                    <ResizableTH
-                                                        width={columnWidths.judgement}
-                                                        columnKey="judgement"
-                                                        label="Judgement"
-                                                        onResizeStart={startResize}
-                                                    />
-                                                )}
-
-                                            </tr>
-                                        </thead>
-
-                                        <tbody>
-                                            {filteredProducts.map((product, index) => (
-                                                <tr
-                                                    key={product.id}
-                                                    className="border-b hover:bg-gray-50 transition-colors"
-                                                >
-                                                    <td className="p-3">
+                                        {activeTab === 'pending'
+                                            ? 'Products with incomplete data will appear here'
+                                            : activeTab === 'pass_file'
+                                                ? 'Products with PASS judgement will appear here'
+                                                : activeTab === 'fail_file'
+                                                    ? 'Products with FAIL judgement will appear here'
+                                                    : 'All products will appear here'
+                                        }
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex-1 overflow-auto">
+                                        <table className="w-full table-fixed">
+                                            <thead className="bg-gradient-to-r from-slate-100 to-slate-200 border-b-2 border-slate-300 sticky top-0 z-10">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left">
                                                         <input
                                                             type="checkbox"
-                                                            checked={selectedIds.has(product.id)}
-                                                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                            checked={
+                                                                selectedIds.size === filteredProducts.length &&
+                                                                filteredProducts.length > 0
+                                                            }
+                                                            onChange={(e) => handleSelectAll(e.target.checked)}
                                                             className="rounded"
                                                         />
-                                                    </td>
+                                                    </th>
 
                                                     {visibleColumns.asin && (
-                                                        <td className="p-3 font-mono text-sm">{product.asin}</td>
+                                                        <ResizableTH
+                                                            width={columnWidths.asin}
+                                                            columnKey="asin"
+                                                            label="ASIN"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
+
                                                     {visibleColumns.product_name && (
-                                                        <td
-                                                            style={{ width: columnWidths.product_name }}
-                                                            className="p-3 overflow-hidden whitespace-nowrap"
-                                                        >
-                                                            <span
-                                                                className="block overflow-hidden text-ellipsis whitespace-nowrap"
-                                                                title={product.product_name || ''}
-                                                            >
-                                                                {product.product_name || '-'}
-                                                            </span>
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.product_name}
+                                                            columnKey="product_name"
+                                                            label="Product Name"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {visibleColumns.brand && (
-                                                        <td className="p-3">{product.brand || '-'}</td>
+                                                        <ResizableTH
+                                                            width={columnWidths.brand}
+                                                            columnKey="brand"
+                                                            label="Brand"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
+
                                                     {visibleColumns.seller_tag && (
-                                                        <td className="p-3">
-                                                            {renderSellerTags(product.seller_tag)}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.seller_tag}
+                                                            columnKey="seller_tag"
+                                                            label="Seller Tag"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
+
                                                     {visibleColumns.funnel && (
-                                                        <td className="p-3">
-                                                            {renderFunnelBadge(product.funnel)}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.funnel}
+                                                            columnKey="funnel"
+                                                            label="Funnel"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
+
                                                     {visibleColumns.no_of_seller && (
-                                                        <td className="p-3">{product.no_of_seller || '-'}</td>
+                                                        <ResizableTH
+                                                            width={columnWidths.no_of_seller}
+                                                            columnKey="no_of_seller"
+                                                            label="No. of Sellers"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {visibleColumns.usa_link && (
-                                                        <td className="p-3">
-                                                            {product.usa_link ? (
-                                                                <a
-                                                                    href={product.usa_link}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-blue-600 hover:underline"
-                                                                >
-                                                                    View
-                                                                </a>
-                                                            ) : (
-                                                                '-'
-                                                            )}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.usa_link}
+                                                            columnKey="usa_link"
+                                                            label="USA Link"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {activeTab === 'pass_file' && (
-                                                        <td className="p-3">
-                                                            <div className="flex flex-col gap-1 text-sm">
-                                                                <label className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={!!product.origin_india}
-                                                                        onChange={(e) =>
-                                                                            handleOriginToggle(product.id, 'origin_india', e.target.checked)
-                                                                        }
-                                                                    />
-                                                                    India
-                                                                </label>
-                                                                <label className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={!!product.origin_china}
-                                                                        onChange={(e) =>
-                                                                            handleOriginToggle(product.id, 'origin_china', e.target.checked)
-                                                                        }
-                                                                    />
-                                                                    China
-                                                                </label>
-                                                            </div>
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={120}
+                                                            columnKey="origin"
+                                                            label="Origin"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {visibleColumns.product_weight && (
-                                                        <td className="p-3">
-                                                            {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="number"
-                                                                    value={product.product_weight ?? ''}
-                                                                    onChange={(e) =>
-                                                                        handleCellEdit(
-                                                                            product.id,
-                                                                            'product_weight',
-                                                                            Number(e.target.value) || null
-                                                                        )
-                                                                    }
-                                                                    className="w-20 px-2 py-1 border rounded"
-                                                                />
-                                                            ) : (
-                                                                product.product_weight ?? '-'
-                                                            )}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.product_weight}
+                                                            columnKey="product_weight"
+                                                            label="Weight (g)"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {visibleColumns.usd_price && (
-                                                        <td className="p-3">
-                                                            {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={
-                                                                        editingValue?.id === product.id &&
-                                                                            editingValue.field === 'usd_price'
-                                                                            ? editingValue.value
-                                                                            : formatUSD(product.usd_price)
-                                                                    }
-                                                                    onFocus={() =>
-                                                                        setEditingValue({
-                                                                            id: product.id,
-                                                                            field: 'usd_price',
-                                                                            value: product.usd_price?.toString() || ''
-                                                                        })
-                                                                    }
-                                                                    onChange={(e) =>
-                                                                        setEditingValue({
-                                                                            id: product.id,
-                                                                            field: 'usd_price',
-                                                                            value: e.target.value
-                                                                        })
-                                                                    }
-                                                                    onBlur={() => {
-                                                                        const parsed = parseCurrency(editingValue?.value || '')
-                                                                        handleCellEdit(product.id, 'usd_price', parsed)
-                                                                        setEditingValue(null)
-                                                                    }}
-                                                                    className="w-28 px-2 py-1 border rounded"
-                                                                />
-                                                            ) : (
-                                                                formatUSD(product.usd_price)
-                                                            )}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.usd_price}
+                                                            columnKey="usd_price"
+                                                            label="USD Price"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {visibleColumns.inr_purchase && (
-                                                        <td className="p-3">
-                                                            {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={
-                                                                        editingValue?.id === product.id &&
-                                                                            editingValue.field === 'inr_purchase'
-                                                                            ? editingValue.value
-                                                                            : formatINR(product.inr_purchase)
-                                                                    }
-                                                                    onFocus={() =>
-                                                                        setEditingValue({
-                                                                            id: product.id,
-                                                                            field: 'inr_purchase',
-                                                                            value: product.inr_purchase?.toString() || ''
-                                                                        })
-                                                                    }
-                                                                    onChange={(e) =>
-                                                                        setEditingValue({
-                                                                            id: product.id,
-                                                                            field: 'inr_purchase',
-                                                                            value: e.target.value
-                                                                        })
-                                                                    }
-                                                                    onBlur={() => {
-                                                                        const parsed = parseCurrency(editingValue?.value || '')
-                                                                        handleCellEdit(product.id, 'inr_purchase', parsed)
-                                                                        setEditingValue(null)
-                                                                    }}
-                                                                    className="w-32 px-2 py-1 border rounded"
-                                                                />
-                                                            ) : (
-                                                                formatINR(product.inr_purchase)
-                                                            )}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.inr_purchase}
+                                                            columnKey="inr_purchase"
+                                                            label="INR Purchase"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
-                                                    {/* ✅ ADD THIS NEW EDITABLE CELL */}
                                                     {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                        <td className="px-4 py-3 text-sm">
-                                                            <input
-                                                                type="url"
-                                                                value={product.inr_purchase_link || ''}
-                                                                onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
-                                                                placeholder="Enter supplier link..."
-                                                                className="w-full min-w-[200px] px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                                            />
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.inr_purchase_link}
+                                                            columnKey="inr_purchase_link"
+                                                            label="INR Purchase Link"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {activeTab === 'pass_file' && (
-                                                        <td className="p-3">
-                                                            {product.check_brand && product.check_item_expire && product.check_small_size && product.check_multi_seller ? (
-                                                                <button
-                                                                    onClick={() => handleChecklistOk(product.id)}
-                                                                    className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
-                                                                >
-                                                                    OK
-                                                                </button>
-                                                            ) : (
-                                                                <div className="flex flex-wrap gap-2 text-xs">
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Brand Checking">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!product.check_brand}
-                                                                            onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)}
-                                                                            className="w-3 h-3"
-                                                                        />
-                                                                        <span>Brand</span>
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Item Expaire">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!product.check_item_expire}
-                                                                            onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)}
-                                                                            className="w-3 h-3"
-                                                                        />
-                                                                        <span>Expire</span>
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Small Size">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!product.check_small_size}
-                                                                            onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)}
-                                                                            className="w-3 h-3"
-                                                                        />
-                                                                        <span>Size</span>
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Multi Sellers">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!product.check_multi_seller}
-                                                                            onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)}
-                                                                            className="w-3 h-3"
-                                                                        />
-                                                                        <span>Multi</span>
-                                                                    </label>
-                                                                </div>
-                                                            )}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={160}
+                                                            columnKey="checklist"
+                                                            label="Checklist"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
 
                                                     {visibleColumns.judgement && (
-                                                        <td className="p-3">
-                                                            {product.judgement ? (
-                                                                <span
-                                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${product.judgement === 'PASS'
-                                                                        ? 'bg-green-500 text-white'
-                                                                        : product.judgement === 'FAIL'
-                                                                            ? 'bg-red-500 text-white'
-                                                                            : product.judgement === 'PENDING'
-                                                                                ? 'bg-orange-500 text-white'
-                                                                                : 'bg-gray-400 text-white'
-                                                                        }`}
-                                                                >
-                                                                    {product.judgement}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500 text-white">
-                                                                    PENDING
-                                                                </span>
-                                                            )}
-                                                        </td>
+                                                        <ResizableTH
+                                                            width={columnWidths.judgement}
+                                                            columnKey="judgement"
+                                                            label="Judgement"
+                                                            onResizeStart={startResize}
+                                                        />
                                                     )}
+
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
 
-                                {/* Footer Stats - Fixed at bottom of table */}
-                                <div className="flex-none border-t bg-gray-50 px-4 py-3">
-                                    <div className="flex items-center justify-between text-xs text-gray-600 flex-wrap gap-2">
-                                        <span className="text-gray-600 font-medium">
-                                            Showing <span className="font-bold text-slate-800">{filteredProducts.length}</span> of <span className="font-bold text-slate-800">{products.length}</span> products
-                                        </span>
-                                        {selectedIds.size > 0 && (
-                                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">
-                                                {selectedIds.size} selected
+                                            <tbody>
+                                                {filteredProducts.map((product, index) => (
+                                                    <tr
+                                                        key={product.id}
+                                                        className="border-b hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        <td className="p-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.has(product.id)}
+                                                                onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                                className="rounded"
+                                                            />
+                                                        </td>
+
+                                                        {visibleColumns.asin && (
+                                                            <td className="p-3 font-mono text-sm">{product.asin}</td>
+                                                        )}
+                                                        {visibleColumns.product_name && (
+                                                            <td
+                                                                style={{ width: columnWidths.product_name }}
+                                                                className="p-3 overflow-hidden whitespace-nowrap"
+                                                            >
+                                                                <span
+                                                                    className="block overflow-hidden text-ellipsis whitespace-nowrap"
+                                                                    title={product.product_name || ''}
+                                                                >
+                                                                    {product.product_name || '-'}
+                                                                </span>
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.brand && (
+                                                            <td className="p-3">{product.brand || '-'}</td>
+                                                        )}
+                                                        {visibleColumns.seller_tag && (
+                                                            <td className="p-3">
+                                                                {renderSellerTags(product.seller_tag)}
+                                                            </td>
+                                                        )}
+                                                        {visibleColumns.funnel && (
+                                                            <td className="p-3">
+                                                                {renderFunnelBadge(product.funnel)}
+                                                            </td>
+                                                        )}
+                                                        {visibleColumns.no_of_seller && (
+                                                            <td className="p-3">{product.no_of_seller || '-'}</td>
+                                                        )}
+
+                                                        {visibleColumns.usa_link && (
+                                                            <td className="p-3">
+                                                                {product.usa_link ? (
+                                                                    <a
+                                                                        href={product.usa_link}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 hover:underline"
+                                                                    >
+                                                                        View
+                                                                    </a>
+                                                                ) : (
+                                                                    '-'
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {activeTab === 'pass_file' && (
+                                                            <td className="p-3">
+                                                                <div className="flex flex-col gap-1 text-sm">
+                                                                    <label className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={!!product.origin_india}
+                                                                            onChange={(e) =>
+                                                                                handleOriginToggle(product.id, 'origin_india', e.target.checked)
+                                                                            }
+                                                                        />
+                                                                        India
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={!!product.origin_china}
+                                                                            onChange={(e) =>
+                                                                                handleOriginToggle(product.id, 'origin_china', e.target.checked)
+                                                                            }
+                                                                        />
+                                                                        China
+                                                                    </label>
+                                                                </div>
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.product_weight && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        value={product.product_weight ?? ''}
+                                                                        onChange={(e) =>
+                                                                            handleCellEdit(
+                                                                                product.id,
+                                                                                'product_weight',
+                                                                                Number(e.target.value) || null
+                                                                            )
+                                                                        }
+                                                                        className="w-20 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    product.product_weight ?? '-'
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.usd_price && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={
+                                                                            editingValue?.id === product.id &&
+                                                                                editingValue.field === 'usd_price'
+                                                                                ? editingValue.value
+                                                                                : formatUSD(product.usd_price)
+                                                                        }
+                                                                        onFocus={() =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'usd_price',
+                                                                                value: product.usd_price?.toString() || ''
+                                                                            })
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'usd_price',
+                                                                                value: e.target.value
+                                                                            })
+                                                                        }
+                                                                        onBlur={() => {
+                                                                            const parsed = parseCurrency(editingValue?.value || '')
+                                                                            handleCellEdit(product.id, 'usd_price', parsed)
+                                                                            setEditingValue(null)
+                                                                        }}
+                                                                        className="w-28 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    formatUSD(product.usd_price)
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.inr_purchase && (
+                                                            <td className="p-3">
+                                                                {activeTab === 'main_file' ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={
+                                                                            editingValue?.id === product.id &&
+                                                                                editingValue.field === 'inr_purchase'
+                                                                                ? editingValue.value
+                                                                                : formatINR(product.inr_purchase)
+                                                                        }
+                                                                        onFocus={() =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'inr_purchase',
+                                                                                value: product.inr_purchase?.toString() || ''
+                                                                            })
+                                                                        }
+                                                                        onChange={(e) =>
+                                                                            setEditingValue({
+                                                                                id: product.id,
+                                                                                field: 'inr_purchase',
+                                                                                value: e.target.value
+                                                                            })
+                                                                        }
+                                                                        onBlur={() => {
+                                                                            const parsed = parseCurrency(editingValue?.value || '')
+                                                                            handleCellEdit(product.id, 'inr_purchase', parsed)
+                                                                            setEditingValue(null)
+                                                                        }}
+                                                                        className="w-32 px-2 py-1 border rounded"
+                                                                    />
+                                                                ) : (
+                                                                    formatINR(product.inr_purchase)
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {/* ✅ ADD THIS NEW EDITABLE CELL */}
+                                                        {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
+                                                            <td className="px-4 py-3 text-sm">
+                                                                <input
+                                                                    type="url"
+                                                                    value={product.inr_purchase_link || ''}
+                                                                    onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
+                                                                    placeholder="Enter supplier link..."
+                                                                    className="w-full min-w-[200px] px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                                                />
+                                                            </td>
+                                                        )}
+
+                                                        {activeTab === 'pass_file' && (
+                                                            <td className="p-3">
+                                                                {product.check_brand && product.check_item_expire && product.check_small_size && product.check_multi_seller ? (
+                                                                    <button
+                                                                        onClick={() => handleChecklistOk(product.id)}
+                                                                        className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                                                                    >
+                                                                        OK
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="flex flex-wrap gap-2 text-xs">
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Brand Checking">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_brand}
+                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)}
+                                                                                className="w-3 h-3"
+                                                                            />
+                                                                            <span>Brand</span>
+                                                                        </label>
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Item Expaire">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_item_expire}
+                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)}
+                                                                                className="w-3 h-3"
+                                                                            />
+                                                                            <span>Expire</span>
+                                                                        </label>
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Small Size">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_small_size}
+                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)}
+                                                                                className="w-3 h-3"
+                                                                            />
+                                                                            <span>Size</span>
+                                                                        </label>
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Multi Sellers">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!product.check_multi_seller}
+                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)}
+                                                                                className="w-3 h-3"
+                                                                            />
+                                                                            <span>Multi</span>
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        )}
+
+                                                        {visibleColumns.judgement && (
+                                                            <td className="p-3">
+                                                                {product.judgement ? (
+                                                                    <span
+                                                                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${product.judgement === 'PASS'
+                                                                            ? 'bg-green-500 text-white'
+                                                                            : product.judgement === 'FAIL'
+                                                                                ? 'bg-red-500 text-white'
+                                                                                : product.judgement === 'PENDING'
+                                                                                    ? 'bg-orange-500 text-white'
+                                                                                    : 'bg-gray-400 text-white'
+                                                                            }`}
+                                                                    >
+                                                                        {product.judgement}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500 text-white">
+                                                                        PENDING
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Footer Stats - Fixed at bottom of table */}
+                                    <div className="flex-none border-t bg-gray-50 px-4 py-3">
+                                        <div className="flex items-center justify-between text-xs text-gray-600 flex-wrap gap-2">
+                                            <span className="text-gray-600 font-medium">
+                                                Showing <span className="font-bold text-slate-800">{filteredProducts.length}</span> of <span className="font-bold text-slate-800">{products.length}</span> products
                                             </span>
-                                        )}
+                                            {selectedIds.size > 0 && (
+                                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">
+                                                    {selectedIds.size} selected
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            </>
-                        )}
+                                </>
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Constants Configuration Modal */}
-                {isConstantsModalOpen && (
-                    <>
-                        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsConstantsModalOpen(false)} />
-                        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-                                <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-t-xl">
-                                    <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
-                                    <p className="text-purple-100 mt-1">Update global constants for automatic calculations</p>
-                                </div>
+                    {/* Constants Configuration Modal */}
+                    {isConstantsModalOpen && (
+                        <>
+                            <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsConstantsModalOpen(false)} />
+                            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                                <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+                                    <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-t-xl">
+                                        <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
+                                        <p className="text-purple-100 mt-1">Update global constants for automatic calculations</p>
+                                    </div>
 
-                                <div className="p-6 space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Dollar Rate (₹)</label>
-                                        <input
-                                            type="number"
-                                            value={constants.dollar_rate}
-                                            onChange={(e) =>
-                                                setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })
-                                            }
-                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
-                                            step="0.01"
-                                        />
+                                    <div className="p-6 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Dollar Rate (₹)</label>
+                                            <input
+                                                type="number"
+                                                value={constants.dollar_rate}
+                                                onChange={(e) =>
+                                                    setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })
+                                                }
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Bank Fee (%)</label>
+                                            <input
+                                                type="number"
+                                                value={constants.bank_conversion_rate * 100}
+                                                onChange={(e) =>
+                                                    setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })
+                                                }
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Shipping per 1000g (₹)</label>
+                                            <input
+                                                type="number"
+                                                value={constants.shipping_charge_per_kg}
+                                                onChange={(e) =>
+                                                    setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })
+                                                }
+                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                                                step="0.01"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Bank Fee (%)</label>
-                                        <input
-                                            type="number"
-                                            value={constants.bank_conversion_rate * 100}
-                                            onChange={(e) =>
-                                                setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })
-                                            }
-                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
-                                            step="0.01"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Shipping per 1000g (₹)</label>
-                                        <input
-                                            type="number"
-                                            value={constants.shipping_charge_per_kg}
-                                            onChange={(e) =>
-                                                setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })
-                                            }
-                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
-                                            step="0.01"
-                                        />
-                                    </div>
-                                </div>
 
-                                <div className="p-6 border-t bg-gray-50 flex items-center justify-end gap-3 rounded-b-xl">
-                                    <button
-                                        onClick={() => setIsConstantsModalOpen(false)}
-                                        className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={saveConstants}
-                                        disabled={isSavingConstants}
-                                        className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                    >
-                                        {isSavingConstants ? (
-                                            <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                                                Saving...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                                Save & Recalculate
-                                            </>
-                                        )}
-                                    </button>
+                                    <div className="p-6 border-t bg-gray-50 flex items-center justify-end gap-3 rounded-b-xl">
+                                        <button
+                                            onClick={() => setIsConstantsModalOpen(false)}
+                                            className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={saveConstants}
+                                            disabled={isSavingConstants}
+                                            className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        >
+                                            {isSavingConstants ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Save & Recalculate
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </>
-                )}
+                        </>
+                    )}
 
-                {/* Toast Notification */}
-                {toast && (
-                    <Toast
-                        message={toast.message}
-                        type={toast.type}
-                        onClose={() => setToast(null)}
-                    />
-                )}
-            </div>
+                    {/* Toast Notification */}
+                    {toast && (
+                        <Toast
+                            message={toast.message}
+                            type={toast.type}
+                            onClose={() => setToast(null)}
+                        />
+                    )}
+                </div>
+            </PageGuard>
         </PageTransition>
     )
 }

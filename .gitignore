@@ -35,3 +35,5 @@ Thumbs.db
 
 # Supabase (if you have local keys)
 .env.local
+
+.vercel
