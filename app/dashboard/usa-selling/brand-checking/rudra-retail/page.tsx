@@ -353,22 +353,22 @@ export default function GoldenAuraPage() {
         }
 
         // ✅ Update not_approved counter
-        const { data: currentProgress } = await supabase
-          .from('brand_check_progress')
-          .select('not_approved, total')
-          .eq('seller_id', SELLER_ID)
-          .single();
+        // const { data: currentProgress } = await supabase
+        //   .from('brand_check_progress')
+        //   .select('not_approved, total')
+        //   .eq('seller_id', SELLER_ID)
+        //   .single();
 
-        if (currentProgress) {
-          await supabase
-            .from('brand_check_progress')
-            .update({
-              not_approved: currentProgress.not_approved + 1,
-              total: currentProgress.total - 1,
-              updated_at: new Date().toISOString()
-            })
-            .eq('seller_id', SELLER_ID);
-        }
+        // if (currentProgress) {
+        //   await supabase
+        //     .from('brand_check_progress')
+        //     .update({
+        //       not_approved: currentProgress.not_approved + 1,
+        //       total: currentProgress.total - 1,
+        //       updated_at: new Date().toISOString()
+        //     })
+        //     .eq('seller_id', SELLER_ID);
+        // }
 
         await fetchProducts();
         setToast({
@@ -411,21 +411,21 @@ export default function GoldenAuraPage() {
         }
 
         // ✅ Rejected items decrease total only
-        const { data: currentProgress } = await supabase
-          .from('brand_check_progress')
-          .select('total')
-          .eq('seller_id', SELLER_ID)
-          .single();
+        // const { data: currentProgress } = await supabase
+        //   .from('brand_check_progress')
+        //   .select('total')
+        //   .eq('seller_id', SELLER_ID)
+        //   .single();
 
-        if (currentProgress) {
-          await supabase
-            .from('brand_check_progress')
-            .update({
-              total: currentProgress.total - 1,
-              updated_at: new Date().toISOString()
-            })
-            .eq('seller_id', SELLER_ID);
-        }
+        // if (currentProgress) {
+        //   await supabase
+        //     .from('brand_check_progress')
+        //     .update({
+        //       total: currentProgress.total - 1,
+        //       updated_at: new Date().toISOString()
+        //     })
+        //     .eq('seller_id', SELLER_ID);
+        // }
 
         await fetchProducts();
         setToast({

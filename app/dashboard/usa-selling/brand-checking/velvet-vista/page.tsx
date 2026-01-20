@@ -356,13 +356,13 @@ export default function VelvetVistaPage() {
         }
 
         // ✅ Update not_approved counter
-        const { error: updateProgressError } = await supabase.rpc('increment_brand_check_not_approved', {
-          p_seller_id: SELLER_ID
-        });
+        // const { error: updateProgressError } = await supabase.rpc('increment_brand_check_not_approved', {
+        //   p_seller_id: SELLER_ID
+        // });
 
-        if (updateProgressError) {
-          console.error('❌ Error updating progress:', updateProgressError);
-        }
+        // if (updateProgressError) {
+        //   console.error('❌ Error updating progress:', updateProgressError);
+        // }
 
         await fetchProducts();
         setToast({

@@ -21,7 +21,11 @@ import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
 
-const TABLE_NAME = 'uae_master_sellers'
+
+
+const TABLE_NAME = 'uae_master_sellers';
+
+
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
@@ -156,7 +160,7 @@ export default function UaeSellersPage() {
   // Auto-generate Amazon link from ASIN
   const generateAmazonLink = (asin: string, country: 'uae' | 'india'): string => {
     if (!asin) return '';
-    const domain = country === 'uae' ? 'amazon.com' : 'amazon.in';
+    const domain = country === "uae" ? "amazon.ae" : "amazon.com";
     return `https://www.${domain}/dp/${asin}`;
   };
 
@@ -198,7 +202,7 @@ export default function UaeSellersPage() {
               // Generate amz_link if missing
               // Generate amz_link if missing (use underscore!)
               if (!product.amz_link) {
-                product.amz_link = generateAmazonLink(product.asin, 'uae');
+                product.amz_link = generateAmazonLink(product.asin, "uae")
               }
               // Also set link if missing
               if (!product.link) {
@@ -239,50 +243,36 @@ export default function UaeSellersPage() {
 
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
-      // Step 2: OPTIMIZED Batch insert with parallel processing
-      const batchSize = 500; // Reduced from 1000 to avoid timeouts
-      const MAX_CONCURRENT_BATCHES = 2; // Reduced from 3 for stability
+      // Step 2: OPTIMIZED Batch insert
+      const batchSize = 100; // Smaller batches
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
 
-      setUploadProgress({ current: 0, total: allNewProducts.length, batch: 0, totalBatches });
+      setUploadProgress({
+        current: 0,
+        total: allNewProducts.length,
+        batch: 0,
+        totalBatches,
+      });
 
-      // Split into batches and ensure no duplicates within each batch
-      const batches = [];
+      // Split into batches
+      const batches: any[][] = [];
       for (let i = 0; i < allNewProducts.length; i += batchSize) {
         const batch = allNewProducts.slice(i, i + batchSize);
-
-        // Double-check: remove any duplicates within this batch
-        const batchMap = new Map();
-        batch.forEach(product => {
-          if (product.asin) {
-            batchMap.set(product.asin, product);
-          }
-        });
-
-        batches.push(Array.from(batchMap.values()));
+        batches.push(batch);
       }
 
-      // Upload batch function with retry logic
-      const uploadBatch = async (
-        batch: any[],
-        batchIndex: number
-      ): Promise<{
-        success: boolean;
-        count: number;
-        batchIndex: number;
-        error?: any;
-      }> => {
+      // Upload batch function
+      const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
         const maxRetries = 3;
         let attempt = 0;
 
         while (attempt < maxRetries) {
           try {
-            // Clean the batch data
-            const cleanBatch = batch.map(product => {
+            const cleanBatch = batch.map((product) => {
               const cleaned: any = {};
-              Object.keys(product).forEach(key => {
+              Object.keys(product).forEach((key) => {
                 if (product[key] !== undefined && product[key] !== null) {
                   cleaned[key] = product[key];
                 }
@@ -290,84 +280,60 @@ export default function UaeSellersPage() {
               return cleaned;
             });
 
-            // Use insert with onConflict to avoid the columns parameter
             const { error } = await supabase
               .from(TABLE_NAME)
-              .insert(cleanBatch, {
-                // @ts-ignore - Use DO UPDATE for upsert behavior
+              .upsert(cleanBatch, {
                 onConflict: 'asin',
-                // This tells Supabase to update all columns on conflict
                 ignoreDuplicates: false
               });
 
             if (error) {
-              // If still failing, try individual inserts
-              if (error.code === '21000') {
-                console.warn(`Batch has duplicates, trying individual inserts...`);
-                let successfulInserts = 0;
-
-                for (const product of cleanBatch) {
-                  try {
-                    await supabase
-                      .from(TABLE_NAME)
-                      .upsert(product, { onConflict: 'asin' });
-                    successfulInserts++;
-                  } catch (e) {
-                    console.error('Failed to insert product:', product.asin, e);
-                  }
-                }
-
-                return { success: true, count: successfulInserts, batchIndex };
-              }
-
               throw error;
             }
 
-            console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} uploaded (${batch.length} rows)`);
-            return { success: true, count: batch.length, batchIndex };
-
+            return { success: true, count: batch.length };
           } catch (error: any) {
             attempt++;
-            console.error(`⚠️ Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
+            console.error(`Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
 
             if (attempt >= maxRetries) {
-              return { success: false, count: 0, batchIndex, error };
+              return { success: false, count: 0 };
             }
 
-            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
 
-        return { success: false, count: 0, batchIndex, error: 'Unexpected error' };
+        return { success: false, count: 0 };
       };
 
-      // Process batches with controlled concurrency
-      for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
-        const batchGroup = batches
-          .slice(i, i + MAX_CONCURRENT_BATCHES)
-          .map((batch, index) => uploadBatch(batch, i + index));
-
+      // Process batches SEQUENTIALLY
+      for (let i = 0; i < batches.length; i++) {
         toast.loading(
-          `Uploading batches ${i + 1}-${Math.min(i + MAX_CONCURRENT_BATCHES, totalBatches)} of ${totalBatches}...`,
+          `Uploading batch ${i + 1} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
           { id: toastId }
         );
 
-        const results = await Promise.all(batchGroup);
+        const result = await uploadBatch(batches[i], i);
 
-        results.forEach(result => {
-          if (result.success) {
-            successCount += result.count;
-          } else {
-            failedBatches++;
-          }
-        });
+        if (result.success) {
+          successCount += result.count;
+        } else {
+          failedBatches++;
+        }
 
         setUploadProgress({
           current: successCount,
           total: allNewProducts.length,
-          batch: Math.min(i + MAX_CONCURRENT_BATCHES, totalBatches),
-          totalBatches
+          batch: i + 1,
+          totalBatches,
         });
+
+        // Small delay to prevent rate limiting
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
 
       // Step 3: Show final summary
