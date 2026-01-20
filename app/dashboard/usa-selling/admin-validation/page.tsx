@@ -69,48 +69,115 @@ export default function AdminValidationPage() {
     try {
       setLoading(true)
 
-      // Fetch admin validation products
+      // 1️⃣ Fetch base data from usa_admin_validation
       const { data: adminData, error: adminError } = await supabase
         .from('usa_admin_validation')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (adminError) throw adminError
+      if (adminError) {
+        console.error('❌ Admin validation fetch error:', adminError)
+        throw adminError
+      }
 
-      // ✅ Enrich with validation data (funnel, seller_tag, AND the 3 new fields)
-      const enrichedData = await Promise.all(
-        adminData.map(async (product) => {
-          // Fetch from validation main file table
-          const { data: validationData } = await supabase
-            .from('usa_validation_main_file')
-            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-            .eq('asin', product.asin)
-            .maybeSingle()
+      if (!adminData || adminData.length === 0) {
+        setProducts([])
+        setLoading(false)
+        return
+      }
 
-          return {
-            ...product,
-            // ✅ FIX: Map snake_case database columns to camelCase
-            productname: (product as any).product_name ?? null,
-            originindia: (product as any).origin_india ?? false,
-            originchina: (product as any).origin_china ?? false,
-            // Add validation data if found
-            sellertag: validationData?.seller_tag ?? product.sellertag,
-            funnel: validationData?.funnel ?? product.funnel,
-            // AUTO-FETCH THESE 3 FIELDS (read-only) from validation
-            productweight: validationData?.product_weight ?? product.productweight,
-            usdprice: validationData?.usd_price ?? product.usdprice,
-            inrpurchase: validationData?.inr_purchase ?? product.inrpurchase,
-          }
-        })
+      // 2️⃣ Get all ASINs for batch fetching
+      const asins = adminData.map(p => p.asin)
+
+      // 3️⃣ Batch fetch from BOTH tables (2 queries total, not 100+)
+      const [purchaseResult, validationResult] = await Promise.all([
+        // ✅ Fetch purchase team's data (5 columns)
+        supabase
+          .from('usa_purchases')
+          .select('asin, buying_price, buying_quantity, seller_link, seller_phone, payment_method')
+          .in('asin', asins),
+
+        // ✅ Fetch validation team's data
+        supabase
+          .from('usa_validation_main_file')
+          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+          .in('asin', asins)
+      ])
+
+      // Handle errors gracefully
+      if (purchaseResult.error) {
+        console.error('⚠️ Purchase data fetch error:', purchaseResult.error)
+      }
+
+      if (validationResult.error) {
+        console.error('⚠️ Validation data fetch error:', validationResult.error)
+      }
+
+      // 4️⃣ Create lookup maps for O(1) access
+      const purchaseMap = new Map(
+        purchaseResult.data?.map(p => [p.asin, p]) ?? []
       )
 
+      const validationMap = new Map(
+        validationResult.data?.map(v => [v.asin, v]) ?? []
+      )
+
+      console.log('📦 Fetched purchase data for', purchaseMap.size, 'products')
+      console.log('📦 Fetched validation data for', validationMap.size, 'products')
+
+      // 5️⃣ Enrich data - merge all sources with CORRECT field names
+      const enrichedData: AdminProduct[] = adminData.map((product) => {
+        const purchase = purchaseMap.get(product.asin)
+        const validation = validationMap.get(product.asin)
+
+        return {
+          id: product.id,
+          asin: product.asin,
+          product_name: product.product_name,
+          product_link: product.product_link,
+          origin_india: product.origin_india ?? false,
+          origin_china: product.origin_china ?? false,
+          target_price: product.target_price,
+          target_quantity: product.target_quantity,
+          admin_target_price: product.admin_target_price,
+
+          // ✅ FROM PURCHASE TEAM (usa_purchases table)
+          buying_price: purchase?.buying_price ?? product.buying_price ?? null,
+          buying_quantity: purchase?.buying_quantity ?? product.buying_quantity ?? null,
+          seller_link: purchase?.seller_link ?? product.seller_link ?? null,
+          seller_phone: purchase?.seller_phone ?? product.seller_phone ?? null,
+          payment_method: purchase?.payment_method ?? product.payment_method ?? null,
+
+          // ✅ FROM VALIDATION TEAM (usa_validation_main_file table)
+          funnel: validation?.funnel ?? product.funnel ?? null,
+          seller_tag: validation?.seller_tag ?? product.seller_tag ?? null,
+          product_weight: validation?.product_weight ?? product.product_weight ?? null,
+          usd_price: validation?.usd_price ?? product.usd_price ?? null,
+          inr_purchase: validation?.inr_purchase ?? product.inr_purchase ?? null,
+
+          // ✅ FROM ADMIN VALIDATION TABLE (always)
+          status: product.status,
+          admin_status: product.admin_status,
+          admin_notes: product.admin_notes,
+          created_at: product.created_at,
+          profit: product.profit,
+          total_cost: product.total_cost,
+          total_revenue: product.total_revenue,
+          inr_purchase_link: product.inr_purchase_link,
+        }
+      })
+
       setProducts(enrichedData)
-    } catch (error) {
-      console.error('Error fetching admin validation products:', error)
+      console.log('✅ Loaded', enrichedData.length, 'products successfully')
+    } catch (error: any) {
+      console.error('❌ Error in fetchProducts:', error)
+      setToast({ message: 'Error loading data', type: 'error' })
+      setProducts([])
     } finally {
       setLoading(false)
     }
   }
+
 
   useEffect(() => {
     fetchProducts();

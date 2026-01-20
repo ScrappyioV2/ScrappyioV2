@@ -132,7 +132,53 @@ export default function PurchasesPage() {
     }
   }
 
-  // Ctrl+Z keyboard shortcut for Roll Back
+  // ✅ Silent refresh - updates data WITHOUT loading screen (OPTIMIZED)
+  const refreshProductsSilently = async () => {
+    try {
+      // Fetch purchases
+      const { data: purchasesData, error: purchasesError } = await supabase
+        .from('usa_purchases')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (purchasesError) throw purchasesError
+
+      // Fetch ALL validation data in ONE query (much faster)
+      const allAsins = purchasesData.map((p: any) => p.asin)
+      const { data: validationDataArray } = await supabase
+        .from('usa_validation_main_file')
+        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+        .in('asin', allAsins)
+
+      // Create lookup map for fast access
+      const validationMap = new Map(
+        (validationDataArray || []).map((v: any) => [v.asin, v])
+      )
+
+      // Enrich data
+      const enrichedData = purchasesData.map((product: any) => {
+        const validationData = validationMap.get(product.asin)
+
+        return {
+          ...product,
+          product_name: product.product_name ?? null,
+          origin_india: product.origin_india ?? false,
+          origin_china: product.origin_china ?? false,
+          validation_funnel: validationData?.funnel ?? null,
+          validation_seller_tag: validationData?.seller_tag ?? null,
+          product_weight: validationData?.product_weight ?? null,
+          usd_price: validationData?.usd_price ?? null,
+          inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+        }
+      })
+
+      setProducts(enrichedData)
+    } catch (error) {
+      console.error('Error refreshing products:', error)
+    }
+  }
+
+  // ✅ Ctrl+Z keyboard shortcut for Roll Back
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'z' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
@@ -140,40 +186,40 @@ export default function PurchasesPage() {
         handleRollBack()
       }
     }
+
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [movementHistory, activeTab])
 
+  // ✅ FIXED: Proper async handling in useEffect
   useEffect(() => {
-    fetchProducts();
+    fetchProducts()
 
     const channel = supabase
-      .channel('purchases_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'usa_purchases' },  // ✅ CORRECT
-        () => fetchProducts()
-      )
-      .subscribe();
+      .channel('purchases-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_purchases' }, () => {
+        refreshProductsSilently()
+      })
+      .subscribe()
 
     return () => {
-      channel.unsubscribe();
-    };
-  }, []);
+      channel.unsubscribe()
+    }
+  }, [])
 
   // Column widths state for resizable columns
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
     checkbox: 50,
     asin: 120,
     productlink: 80,
-    productname: 200,
-    targetprice: 130,
-    targetquantity: 130,
-    admintargetprice: 150,
-    funnelquantity: 120,
-    funnelseller: 90,
-    inrpurchaselink: 150,
-    origin: 100,  // ✅ ADD THIS LINE
+    productname: 140,
+    targetprice: 100,
+    targetquantity: 100,
+    admintargetprice: 120,
+    funnelquantity: 70,
+    funnelseller: 70,
+    inrpurchaselink: 100,
+    origin: 70,  // ✅ ADD THIS LINE
     buyingprice: 100,
     buyingquantity: 120,
     sellerlink: 100,
@@ -181,7 +227,7 @@ export default function PurchasesPage() {
     paymentmethod: 120,
     trackingdetails: 150,
     deliverydate: 150,
-    moveto: 150,
+    moveto: 100,
   });
 
   const [resizing, setResizing] = useState<{ column: string, startX: number, startWidth: number } | null>(null);
@@ -190,9 +236,14 @@ export default function PurchasesPage() {
   const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
       // SAVE TO HISTORY FIRST!
-      setMovementHistory((prev) => ({
+      // ✅ SAVE TO CURRENT TAB HISTORY
+      setMovementHistory(prev => ({
         ...prev,
-        mainfile: { product, fromStatus: product.move_to, toStatus: 'senttoadmin' },
+        [activeTab]: {
+          product,
+          fromStatus: product.move_to,
+          toStatus: 'sent_to_admin',
+        },
       }))
 
       // Fetch profit from validation
@@ -273,7 +324,7 @@ export default function PurchasesPage() {
       if (updateError) throw updateError
 
       alert('Sent to Admin Validation successfully!')
-      fetchProducts()
+      await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
       alert(`Error: ${error.message}`)
     }
@@ -284,12 +335,14 @@ export default function PurchasesPage() {
   const handlePriceWait = async (product: PassFileProduct) => {
     try {
       // ✅ SAVE TO HISTORY FIRST!
-      setMovementHistory((prev) => ({
+      // SAVE TO HISTORY FIRST!
+      // ✅ SAVE TO CURRENT TAB HISTORY
+      setMovementHistory(prev => ({
         ...prev,
-        ['main_file']: {
+        [activeTab]: {
           product,
-          fromStatus: product.move_to,  // ✅ Underscore
-          toStatus: 'pricewait',
+          fromStatus: product.move_to,
+          toStatus: 'price_wait',
         },
       }))
 
@@ -301,7 +354,7 @@ export default function PurchasesPage() {
       if (error) throw error
 
       alert('Moved to Price Wait successfully!')
-      fetchProducts()
+      await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
       alert('Error: ' + error.message)
     }
@@ -311,12 +364,13 @@ export default function PurchasesPage() {
   const handleNotFound = async (product: PassFileProduct) => {
     try {
       // ✅ SAVE TO HISTORY FIRST!
-      setMovementHistory((prev) => ({
+      // ✅ SAVE TO CURRENT TAB HISTORY
+      setMovementHistory(prev => ({
         ...prev,
-        ['main_file']: {
+        [activeTab]: {
           product,
-          fromStatus: product.move_to ?? null,  // ✅ Underscore
-          toStatus: 'notfound',
+          fromStatus: product.move_to ?? null,
+          toStatus: 'not_found',
         },
       }))
 
@@ -328,70 +382,63 @@ export default function PurchasesPage() {
       if (error) throw error
 
       alert('Marked as Not Found successfully!')
-      fetchProducts()
+      await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
       alert('Error: ' + error.message)
     }
   }
 
   // Roll Back last movement
-  // Roll Back last movement
   const handleRollBack = async () => {
-    // Always use 'main_file' as the key where movements are saved
-    const lastMovement = movementHistory['main_file']
+    const lastMovement = movementHistory[activeTab]
 
     if (!lastMovement) {
       alert('No recent movement to roll back from this tab')
       return
     }
 
-    setLoading(true)
+    // ✅ REMOVED setLoading(true) - no loading screen
     try {
       const { product, fromStatus, toStatus } = lastMovement
-
       const updateData: any = {}
 
-      if (toStatus === 'senttoadmin') {
-        // Rolling back from Admin Validation
-        updateData['sent_to_admin'] = false  // ✅ Bracket notation
-        updateData['sent_to_admin_at'] = null  // ✅ Bracket notation
+      if (toStatus === 'sent_to_admin') {
+        updateData['sent_to_admin'] = false
+        updateData['sent_to_admin_at'] = null
 
-        // Delete from usa_admin_validation table
         const { error: deleteError } = await supabase
-          .from('usa_admin_validation')  // ✅ Underscore
+          .from('usa_admin_validation')
           .delete()
           .eq('asin', product.asin)
 
         if (deleteError) {
           console.error('Error deleting from admin validation:', deleteError)
         }
-      } else if (toStatus === 'pricewait' || toStatus === 'notfound') {
-        // Rolling back from Price Wait or Not Found
-        updateData['move_to'] = fromStatus  // ✅ Bracket notation - Will be null for Main File
+      } else if (toStatus === 'price_wait' || toStatus === 'not_found') {
+        updateData['move_to'] = fromStatus
       }
 
-      // Update the product in usa_purchases
       const { error: updateError } = await supabase
-        .from('usa_purchases')  // ✅ Underscore
+        .from('usa_purchases')
         .update(updateData)
         .eq('asin', product.asin)
 
       if (updateError) throw updateError
 
-      // Clear history for main_file
-      setMovementHistory((prev) => ({
-        ...prev,
-        ['main_file']: null,
-      }))
+      // ✅ Clear history
+      setMovementHistory(prev => {
+        const newHistory = { ...prev }
+        delete newHistory[activeTab]
+        return newHistory
+      })
 
-      alert(`Rolled back: ${product.product_name}`)  // ✅ Underscore
-      fetchProducts()
+      alert(`Rolled back ${product.product_name}`)
+      await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error) {
       console.error('Error rolling back:', error)
       alert('Rollback failed')
-    } finally {
-      setLoading(false)
     }
+    // ✅ NO finally block - no setLoading(false)
   }
 
   // Handle column resize
@@ -487,7 +534,7 @@ export default function PurchasesPage() {
         .eq("id", id);
 
       if (error) throw error;
-      fetchProducts();
+      await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
       alert('Error updating: ' + error.message);
     }
@@ -728,7 +775,7 @@ export default function PurchasesPage() {
           <div className="bg-white rounded-lg shadow h-full flex flex-col">
             {/* Table Wrapper with Scroll */}
             <div className="flex-1 overflow-y-auto">
-              <table className="w-full divide-y divide-gray-200 table-fixed">
+              <table className="w-full divide-y divide-gray-200" style={{ minWidth: '2500px' }}>
                 <thead className="bg-gray-100 sticky top-0 z-10">
                   <tr>
                     {visibleColumns.checkbox && (
@@ -739,126 +786,147 @@ export default function PurchasesPage() {
                     )}
 
                     {visibleColumns.asin && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.asin}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.asin}px` }}>
                         ASIN
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
                       </th>
                     )}
 
                     {visibleColumns.productlink && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_link}px` }}>
-                        Product Link
-                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_link', e)} />
+                      <th
+                        className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group"
+                        style={{
+                          width: `${columnWidths.productlink}px`,
+                          maxWidth: `${columnWidths.productlink}px`,
+                          minWidth: `${columnWidths.productlink}px`
+                        }}
+                      >
+                        PRODUCT LINK
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          onMouseDown={(e) => handleMouseDown('productlink', e)}
+                        />
                       </th>
                     )}
 
+                    {/* Product Name Header */}
                     {visibleColumns.productname && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.product_name}px` }}>
-                        Product Name
-                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('product_name', e)} />
+                      <th
+                        className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group"
+                        style={{
+                          width: `${columnWidths.productname}px`,
+                          maxWidth: `${columnWidths.productname}px`,  // ✅ ADD THIS LINE
+                          minWidth: `${columnWidths.productname}px`   // ✅ ADD THIS LINE TOO
+                        }}
+                      >
+                        PRODUCT NAME
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          onMouseDown={(e) => handleMouseDown('productname', e)}
+                        />
                       </th>
                     )}
 
                     {visibleColumns.targetprice && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
                         Validation Target Price
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
                       </th>
                     )}
 
                     {visibleColumns.targetquantity && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetquantity}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetquantity}px` }}>
                         Target Quantity
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
                       </th>
                     )}
 
                     {visibleColumns.admintargetprice && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-purple-50 relative group" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-purple-50 relative group" style={{ width: `${columnWidths.admintargetprice}px` }}>
                         Admin Target Price
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} />
                       </th>
                     )}
 
                     {visibleColumns.funnelquantity && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
                         Funnel
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
                       </th>
                     )}
 
                     {visibleColumns.funnelseller && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
                         Seller Tag
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
                       </th>
                     )}
 
                     {visibleColumns.inrpurchaselink && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                         INR Purchase Link
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('inrpurchaselink', e)} />
                       </th>
                     )}
 
                     {visibleColumns.origin && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.origin}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.origin}px` }}>
                         Origin
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('origin', e)} />
                       </th>
                     )}
 
                     {visibleColumns.buyingprice && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_price}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_price}px` }}>
                         Buying Price
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_price', e)} />
                       </th>
                     )}
 
                     {visibleColumns.buyingquantity && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_quantity}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.buying_quantity}px` }}>
                         Buying Quantity
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('buying_quantity', e)} />
                       </th>
                     )}
 
                     {visibleColumns.sellerlink && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_link}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_link}px` }}>
                         Seller Link
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_link', e)} />
                       </th>
                     )}
 
                     {visibleColumns.sellerphno && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_ph_no}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.seller_ph_no}px` }}>
                         Seller Ph No.
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('seller_ph_no', e)} />
                       </th>
                     )}
 
                     {visibleColumns.paymentmethod && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.payment_method}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.payment_method}px` }}>
                         Payment Method
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('payment_method', e)} />
                       </th>
                     )}
 
                     {visibleColumns.trackingdetails && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.tracking_details}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.tracking_details}px` }}>
                         Tracking Details
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('tracking_details', e)} />
                       </th>
                     )}
 
                     {visibleColumns.deliverydate && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.delivery_date}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.delivery_date}px` }}>
                         Delivery Date
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('delivery_date', e)} />
                       </th>
                     )}
 
                     {visibleColumns.moveto && (
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.move_to}px` }}>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.move_to}px` }}>
                         Move TO
                         <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('move_to', e)} />
                       </th>
@@ -896,34 +964,44 @@ export default function PurchasesPage() {
                             </td>
                           )}
 
-                          {/* Product Link */}
+                          {/* Product Link Cell */}
                           {visibleColumns.productlink && (
-                            <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.product_link}px` }}>
-                              {product.usa_link || product.product_link ? (
+                            <td
+                              className="px-3 py-2 overflow-hidden text-center"
+                              style={{
+                                width: `${columnWidths.productlink}px`,
+                                maxWidth: `${columnWidths.productlink}px`,
+                                minWidth: `${columnWidths.productlink}px`
+                              }}
+                            >
+                              {(product.usa_link || product.product_link) ? (
                                 <a
-                                  href={product.usa_link || product.product_link || "#"}
+                                  href={(product.usa_link || product.product_link) ?? undefined}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline text-xs truncate block"
+                                  className="text-blue-600 hover:underline text-xs font-medium"
                                 >
                                   View
                                 </a>
                               ) : (
-                                <input
-                                  type="text"
-                                  defaultValue={product.product_link || ""}
-                                  onBlur={(e) => handleCellEdit(product.id, 'product_link', e.target.value)}
-                                  className="w-full px-2 py-1 border rounded text-xs"
-                                  placeholder="Link"
-                                />
+                                <span className="text-xs text-gray-400">-</span>
                               )}
                             </td>
                           )}
 
-                          {/* Product Name */}
+                          {/* Product Name Cell */}
                           {visibleColumns.productname && (
-                            <td className="px-3 py-2 text-sm overflow-hidden" style={{ width: `${columnWidths.product_name}px` }}>
-                              <div className="truncate">{product.product_name || '-'}</div>
+                            <td
+                              className="px-3 py-2 font-mono text-sm overflow-hidden"
+                              style={{
+                                width: `${columnWidths.productname}px`,
+                                maxWidth: `${columnWidths.productname}px`,  // ✅ ADD THIS LINE
+                                minWidth: `${columnWidths.productname}px`   // ✅ ADD THIS LINE TOO
+                              }}
+                            >
+                              <div className="truncate" title={product.product_name || '-'}>
+                                {product.product_name || '-'}
+                              </div>
                             </td>
                           )}
 
@@ -1153,25 +1231,23 @@ export default function PurchasesPage() {
                             <div className="flex gap-1 justify-center">
                               {/* ✅ Add type="button" to prevent form submission */}
                               <button
-                                type="button"  // ✅ IMPORTANT - Prevents page refresh
+                                type="button"
                                 onClick={() => handleSendToAdmin(product)}
                                 className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 flex items-center justify-center flex-shrink-0"
                                 title="Done"
                               >
                                 D
                               </button>
-
                               <button
-                                type="button"  // ✅ IMPORTANT
+                                type="button"
                                 onClick={() => handlePriceWait(product)}
                                 className="w-8 h-8 bg-yellow-600 text-white text-xs font-bold rounded hover:bg-yellow-700 flex items-center justify-center flex-shrink-0"
                                 title="Price Wait"
                               >
                                 PW
                               </button>
-
                               <button
-                                type="button"  // ✅ IMPORTANT
+                                type="button"
                                 onClick={() => handleNotFound(product)}
                                 className="w-8 h-8 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 flex items-center justify-center flex-shrink-0"
                                 title="Not Found"
