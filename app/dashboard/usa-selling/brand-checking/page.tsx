@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
-
+import PageGuard from '../../../components/PageGuard'
 
 const SELLER_TABLE_GROUPS: Record<number, string[]> = {
   1: [
@@ -78,7 +78,7 @@ type SellerUI = {
 export default function BrandCheckingPage() {
   const router = useRouter();
   const [hasAnyMovementYet, setHasAnyMovementYet] = useState(false);
-    const [approvalBreakdown, setApprovalBreakdown] = useState<
+  const [approvalBreakdown, setApprovalBreakdown] = useState<
     Record<number, SellerApprovalBreakdown>
   >({});
 
@@ -256,132 +256,132 @@ export default function BrandCheckingPage() {
 
 
   const fetchApprovedBreakdown = async () => {
-  const result: Record<number, SellerApprovalBreakdown> = {};
+    const result: Record<number, SellerApprovalBreakdown> = {};
 
-  for (const seller of ALL_SELLERS) {
-    const [
-      high,
-      low,
-      drop,
-    ] = await Promise.all([
-      supabase.from(`usa_seller_${seller.id}_high_demand`)
-        .select('*', { count: 'exact', head: true }),
-      supabase.from(`usa_seller_${seller.id}_low_demand`)
-        .select('*', { count: 'exact', head: true }),
-      supabase.from(`usa_seller_${seller.id}_dropshipping`)
-        .select('*', { count: 'exact', head: true }),
-    ]);
+    for (const seller of ALL_SELLERS) {
+      const [
+        high,
+        low,
+        drop,
+      ] = await Promise.all([
+        supabase.from(`usa_seller_${seller.id}_high_demand`)
+          .select('*', { count: 'exact', head: true }),
+        supabase.from(`usa_seller_${seller.id}_low_demand`)
+          .select('*', { count: 'exact', head: true }),
+        supabase.from(`usa_seller_${seller.id}_dropshipping`)
+          .select('*', { count: 'exact', head: true }),
+      ]);
 
-    result[seller.id] = {
-      high: high.count || 0,
-      low: low.count || 0,
-      drop: drop.count || 0,
-    };
-  }
+      result[seller.id] = {
+        high: high.count || 0,
+        low: low.count || 0,
+        drop: drop.count || 0,
+      };
+    }
 
-  setApprovalBreakdown(result);
-};
+    setApprovalBreakdown(result);
+  };
 
-useEffect(() => {
-  fetchApprovedBreakdown();
-}, []);
-
-
+  useEffect(() => {
+    fetchApprovedBreakdown();
+  }, []);
 
   return (
     <PageTransition>
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <Link
-          href="/dashboard/usa-selling"
-          className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
-        >
-          ← Back to USA Selling Dashboard
-        </Link>
-        <h1 className="text-3xl font-bold mb-2">USA Selling - Brand Checking Dashboard</h1>
-        <p className="text-gray-600">
-          Total Sellers: {sellers.length} | Monitor brand checking progress
-        </p>
-      </div>
-
-      {/* Seller Grid - 2 columns layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {sellers.map((seller) => {
-          const checkedTotal = seller.approved + seller.notApproved;
-          const approvedPercentage =
-            checkedTotal === 0 ? 0 : (seller.approved / checkedTotal) * 100;
-          const notApprovedPercentage =
-            checkedTotal === 0 ? 0 : (seller.notApproved / checkedTotal) * 100;
-
-          return (
-            <div
-              key={seller.id}
-              onClick={() => handleSellerCardClick(seller.id)}
-              className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all bg-white"
+      <PageGuard>
+        <div className="p-6">
+          {/* Header */}
+          <div className="mb-6">
+            <Link
+              href="/dashboard/usa-selling"
+              className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
             >
-              <div className="grid grid-cols-5 gap-4">
-                {/* Left: Seller Card */}
-                <div className="col-span-1 border-2 border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-300 pb-1 w-full text-center">
-                    {seller.name}
-                  </h3>
-                  <div className="text-4xl font-bold text-gray-800">
-                    {seller.totalProducts.toLocaleString()}
-                  </div>
-                </div>
+              ← Back to USA Selling Dashboard
+            </Link>
+            <h1 className="text-3xl font-bold mb-2">USA Selling - Brand Checking Dashboard</h1>
+            <p className="text-gray-600">
+              Total Sellers: {sellers.length} | Monitor brand checking progress
+            </p>
+          </div>
 
-                {/* Right: Progress Bars */}
-                <div className="col-span-4 flex flex-col justify-center">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                    Brand Checking Progress bar
-                  </h3>
+          {/* Seller Grid - 2 columns layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {sellers.map((seller) => {
+              const checkedTotal = seller.approved + seller.notApproved;
+              const approvedPercentage =
+                checkedTotal === 0 ? 0 : (seller.approved / checkedTotal) * 100;
+              const notApprovedPercentage =
+                checkedTotal === 0 ? 0 : (seller.notApproved / checkedTotal) * 100;
 
-                  {/* Approved Progress Bar */}
-                  <div className="mb-3">
-                    <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                      <div
-                        className="bg-green-500 h-full flex items-center justify-end pr-2"
-                        style={{ width: `${approvedPercentage}%` }}
-                      >
-                        {approvedPercentage > 10 && (
-                          <span className="text-white text-xs font-semibold">
-                            {Math.round(approvedPercentage)}%
-                          </span>
-                        )}
+              return (
+                <div
+                  key={seller.id}
+                  onClick={() => handleSellerCardClick(seller.id)}
+                  className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all bg-white"
+                >
+                  <div className="grid grid-cols-5 gap-4">
+                    {/* Left: Seller Card */}
+                    <div className="col-span-1 border-2 border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-300 pb-1 w-full text-center">
+                        {seller.name}
+                      </h3>
+                      <div className="text-4xl font-bold text-gray-800">
+                        {seller.totalProducts.toLocaleString()}
                       </div>
                     </div>
-                    <p className="text-xs text-green-600 font-medium mt-1">
-                      Approved: {seller.approved}
-                    </p>
-                  </div>
 
-                  {/* Not Approved Progress Bar */}
-                  <div>
-                    <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                      <div
-                        className="bg-red-500 h-full flex items-center justify-end pr-2"
-                        style={{ width: `${notApprovedPercentage}%` }}
-                      >
-                        {notApprovedPercentage > 10 && (
-                          <span className="text-white text-xs font-semibold">
-                            {Math.round(notApprovedPercentage)}%
-                          </span>
-                        )}
+                    {/* Right: Progress Bars */}
+                    <div className="col-span-4 flex flex-col justify-center">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                        Brand Checking Progress bar
+                      </h3>
+
+                      {/* Approved Progress Bar */}
+                      <div className="mb-3">
+                        <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                          <div
+                            className="bg-green-500 h-full flex items-center justify-end pr-2"
+                            style={{ width: `${approvedPercentage}%` }}
+                          >
+                            {approvedPercentage > 10 && (
+                              <span className="text-white text-xs font-semibold">
+                                {Math.round(approvedPercentage)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-green-600 font-medium mt-1">
+                          Approved: {seller.approved}
+                        </p>
+                      </div>
+
+                      {/* Not Approved Progress Bar */}
+                      <div>
+                        <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                          <div
+                            className="bg-red-500 h-full flex items-center justify-end pr-2"
+                            style={{ width: `${notApprovedPercentage}%` }}
+                          >
+                            {notApprovedPercentage > 10 && (
+                              <span className="text-white text-xs font-semibold">
+                                {Math.round(notApprovedPercentage)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-red-600 font-medium mt-1">
+                          Not Approved: {seller.notApproved}
+                        </p>
                       </div>
                     </div>
-                    <p className="text-xs text-red-600 font-medium mt-1">
-                      Not Approved: {seller.notApproved}
-                    </p>
                   </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  </PageTransition>
+              );
+            })}
+          </div>
+        </div>
+      </PageGuard>
+    </PageTransition>
   );
 }
 
