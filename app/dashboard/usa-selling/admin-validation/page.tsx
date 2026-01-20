@@ -65,9 +65,9 @@ export default function AdminValidationPage() {
   } | undefined>>({});
 
   // Fetch products from usa_admin_validation table
-  const fetchProducts = async () => {
+  const fetchProducts = async (showLoader: boolean = false) => {
     try {
-      setLoading(true)
+      if (showLoader) setLoading(true)
 
       // 1️⃣ Fetch base data from usa_admin_validation
       const { data: adminData, error: adminError } = await supabase
@@ -94,7 +94,7 @@ export default function AdminValidationPage() {
         // ✅ Fetch purchase team's data (5 columns)
         supabase
           .from('usa_purchases')
-          .select('asin, buying_price, buying_quantity, seller_link, seller_phone, payment_method')
+          .select('asin, admin_target_price, buying_price, buying_quantity, seller_link, seller_phone, payment_method')
           .in('asin', asins),
 
         // ✅ Fetch validation team's data
@@ -174,20 +174,22 @@ export default function AdminValidationPage() {
       setToast({ message: 'Error loading data', type: 'error' })
       setProducts([])
     } finally {
-      setLoading(false)
+      if (showLoader) setLoading(false)
     }
   }
 
 
   useEffect(() => {
-    fetchProducts();
-    // Real-time subscription
+    // ✅ FIRST LOAD → show loader
+    fetchProducts(true);
+
+    // ✅ REALTIME → silent refresh (NO loader)
     const channel = supabase
       .channel('admin_validation_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'usa_admin_validation' },
-        () => fetchProducts()
+        () => fetchProducts(false)
       )
       .subscribe();
 
@@ -529,7 +531,6 @@ export default function AdminValidationPage() {
     }
   };
 
-  // ✅ UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
   // UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
@@ -582,8 +583,21 @@ export default function AdminValidationPage() {
 
       // Update local state
       setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-      )
+        prev.map((p) => {
+          if (p.id !== id) return p;
+
+          // 🔴 FIX: admin target price must update correct key
+          if (field === 'admintargetprice') {
+            return { ...p, admin_target_price: value };
+          }
+
+          if (field === 'sellertag') {
+            return { ...p, seller_tag: value };
+          }
+
+          return { ...p, [field]: value };
+        })
+      );
 
       // AUTO-CALCULATE IF IT'S ONE OF THE THREE KEY FIELDS
       if (field === 'productweight' || field === 'usdprice' || field === 'inrpurchase') {
@@ -1363,8 +1377,10 @@ export default function AdminValidationPage() {
                           <input
                             type="number"
                             step="0.01"
-                            defaultValue={product.admin_target_price || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'admintargetprice', parseFloat(e.target.value) || null)}
+                            value={product.admin_target_price ?? ''}
+                            onChange={(e) =>
+                              handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))
+                            }
                             className="w-24 px-2 py-1 border border-purple-300 rounded text-sm focus:ring-1 focus:ring-purple-500"
                             placeholder="₹"
                           />
