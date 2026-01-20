@@ -501,8 +501,6 @@ export default function PurchasesPage() {
         return p.status === 'pending'
       case 'not_found':
         return p.move_to === 'notfound'  // ✅ Underscore
-      case 'reject':
-        return p.move_to === 'reject'  // ✅ Underscore
       default:
         return true
     }
@@ -549,17 +547,14 @@ export default function PurchasesPage() {
   }
 
   const tabs = [
-    { key: 'main_file', label: 'Main File', count: products.filter(p => !p.sent_to_admin && !p.move_to).length },
-    { key: 'price_wait', label: 'Price Wait', count: products.filter(p => p.move_to === 'price_wait').length },
-    { key: 'order_confirmed', label: 'Order Confirmed', count: products.filter(p => p.admin_confirmed === true).length, },
-    { key: 'china', label: 'China', count: products.filter(p => p.origin_china).length },
+    { key: 'mainfile', label: 'Main File', count: products.filter(p => !p.sent_to_admin && !p.move_to).length },
+    { key: 'orderconfirmed', label: 'Order Confirmed', count: products.filter(p => p.admin_confirmed === true).length },
     { key: 'india', label: 'India', count: products.filter(p => p.origin_india).length },
+    { key: 'china', label: 'China', count: products.filter(p => p.origin_china).length },
     { key: 'pending', label: 'Pending', count: products.filter(p => p.status === 'pending').length },
-    { key: 'not_found', label: 'Not Found', count: products.filter(p => p.move_to === 'not_found').length },
-    { key: 'reject', label: 'Reject', count: products.filter(p => p.move_to === 'reject').length },
+    { key: 'pricewait', label: 'Price Wait', count: products.filter(p => p.move_to === 'pricewait').length },
+    { key: 'notfound', label: 'Not Found', count: products.filter(p => p.move_to === 'notfound').length },
   ];
-
-
 
   return (
     <PageGuard>
@@ -573,69 +568,73 @@ export default function PurchasesPage() {
 
           {/* Tabs - FIXED */}
           <div className="flex gap-2 mb-4 border-b border-gray-200">
+            {/* 1. Main File */}
             <button
-              onClick={() => setActiveTab("main_file")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "main_file"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab('main_file')}
+              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'main_file'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              Main File
+              Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})
             </button>
+
+            {/* 2. Order Confirmed */}
             <button
-              onClick={() => setActiveTab("price_wait")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "price_wait"
-                ? "border-yellow-600 text-yellow-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab('order_confirmed')}
+              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'order_confirmed'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              Price Wait
+              Order Confirmed ({products.filter(p => p.admin_confirmed === true).length})
             </button>
+
+            {/* 3. India */}
             <button
-              onClick={() => setActiveTab("order_confirmed")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "order_confirmed"
-                ? "border-green-600 text-green-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab('india')}
+              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'india'
+                ? 'border-orange-600 text-orange-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              Order Confirmed
+              India ({products.filter(p => p.origin_india).length})
             </button>
+
+            {/* 4. China */}
             <button
-              onClick={() => setActiveTab("china")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "china"
-                ? "border-red-600 text-red-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab('china')}
+              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'china'
+                ? 'border-red-600 text-red-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              China
+              China ({products.filter(p => p.origin_china).length})
             </button>
+
+            {/* 5. Pending */}
             <button
-              onClick={() => setActiveTab("india")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "india"
-                ? "border-orange-600 text-orange-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab('pending')}
+              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'pending'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              India
+              Pending ({products.filter(p => p.status === 'pending').length})
             </button>
+
+            {/* 6. Price Wait */}
             <button
-              onClick={() => setActiveTab("pending")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "pending"
-                ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
+              onClick={() => setActiveTab('price_wait')}
+              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'price_wait'
+                ? 'border-yellow-600 text-yellow-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              Pending
+              Price Wait ({products.filter(p => p.move_to === 'pricewait').length})
             </button>
-            <button
-              onClick={() => setActiveTab("reject")}
-              className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === "reject"
-                ? "border-gray-600 text-gray-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-                }`}
-            >
-              Reject
-            </button>
+
+            {/* 7. Not Found */}
             <button
               onClick={() => setActiveTab('not_found')}
               className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'not_found'
@@ -643,8 +642,10 @@ export default function PurchasesPage() {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
             >
-              Not Found
+              Not Found ({products.filter(p => p.move_to === 'notfound').length})
             </button>
+
+            {/* ❌ Reject tab REMOVED */}
           </div>
         </div>
 

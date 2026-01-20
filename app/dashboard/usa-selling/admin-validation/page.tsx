@@ -218,7 +218,7 @@ export default function AdminValidationPage() {
       const saved = localStorage.getItem('admin_validation_column_widths');
       return saved ? JSON.parse(saved) : {
         asin: 120,
-        product_name: 200,
+        product_name: 120,
         product_link: 100,
         target_price: 100,
         target_qty: 80,
@@ -314,27 +314,29 @@ export default function AdminValidationPage() {
 
   const autoCalculateProfit = async (productId: string, product: any) => {
     // Check if we have all required values
-    if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
+    if (!product.usdprice || !product.productweight || !product.inrpurchase) {
       return; // Skip calculation if any value is missing
     }
 
-    // Add to calculating set (for spinner)
-    setCalculatingIds(prev => new Set(prev).add(productId));
+    // Add to calculating set for spinner
+    setCalculatingIds((prev) => new Set(prev).add(productId));
 
     try {
       // Calculate using admin constants
       const result = calculateProductValues(
         {
-          usd_price: product.usd_price,
-          product_weight: product.product_weight,
-          inr_purchase: product.inr_purchase,
+          usd_price: product.usdprice,
+          product_weight: product.productweight,
+          inr_purchase: product.inrpurchase,
         },
         adminConstants
       );
 
-      // Update profit in database
+      console.log('Calculated profit:', result.profit);
+
+      // ✅ FIX: Update profit in CORRECT TABLE (usa_admin_validation)
       const { error } = await supabase
-        .from('usa_purchases')
+        .from('usa_admin_validation')  // ✅ CORRECT TABLE!
         .update({ profit: result.profit })
         .eq('id', productId);
 
@@ -343,25 +345,33 @@ export default function AdminValidationPage() {
         return;
       }
 
-      // Update local state
-      setProducts(prev =>
-        prev.map(p =>
-          p.id === productId
-            ? { ...p, profit: result.profit }
-            : p
+      // ✅ FIX: Update local state to show new profit immediately
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, profit: result.profit } : p
         )
       );
+
+      setToast({
+        message: `Profit calculated: ₹${result.profit.toFixed(2)}`,
+        type: 'success',
+      });
     } catch (err) {
       console.error('Calculation error:', err);
+      setToast({
+        message: 'Profit calculation failed',
+        type: 'error',
+      });
     } finally {
       // Remove from calculating set
-      setCalculatingIds(prev => {
+      setCalculatingIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(productId);
         return newSet;
       });
     }
   };
+
 
   // Resize tracking state
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -913,6 +923,7 @@ export default function AdminValidationPage() {
               <table className="w-full" ref={tableRef}>
                 <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
+                    {/* Checkbox */}
                     <th className="px-4 py-3">
                       <input
                         type="checkbox"
@@ -922,7 +933,7 @@ export default function AdminValidationPage() {
                       />
                     </th>
 
-                    {/* ASIN Column */}
+                    {/* 1. ASIN */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('asin')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
@@ -935,94 +946,74 @@ export default function AdminValidationPage() {
                           onMouseDown={(e) => handleResizeStart(e, 'asin')}
                           style={{
                             backgroundColor: resizingColumn === 'asin' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'asin' ? '3px' : '4px'
+                            width: resizingColumn === 'asin' ? '3px' : '4px',
                           }}
                           title="Drag to resize | Double-click to auto-fit"
                         />
                       </div>
                     </th>
 
-                    {/* Product Name Column */}
+                    {/* 2. Product Name - 200px */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('product_name')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.product_name, minWidth: 150 }}
+                      onDoubleClick={() => handleColumnDoubleClick('productname')}
+                      className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      style={{ width: `${columnWidths.productname}px`, minWidth: '150px' }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Product Name</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'product_name')}
-                          style={{
-                            backgroundColor: resizingColumn === 'product_name' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'product_name' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'productname')}
                         />
                       </div>
                     </th>
 
-                    {/* Product Link Column */}
+                    {/* 3. Product Link */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('product_link')}
+                      onDoubleClick={() => handleColumnDoubleClick('productlink')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.product_link, minWidth: 80 }}
+                      style={{ width: columnWidths.productlink, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Product Link</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'product_link')}
-                          style={{
-                            backgroundColor: resizingColumn === 'product_link' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'product_link' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'productlink')}
                         />
                       </div>
                     </th>
 
-                    {/* Target Price Column */}
+                    {/* 4. Target Price */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('target_price')}
+                      onDoubleClick={() => handleColumnDoubleClick('targetprice')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.target_price, minWidth: 80 }}
+                      style={{ width: columnWidths.targetprice, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Target Price</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'target_price')}
-                          style={{
-                            backgroundColor: resizingColumn === 'target_price' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'target_price' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'targetprice')}
                         />
                       </div>
                     </th>
 
-                    {/* Target Qty Column */}
+                    {/* 5. Target Qty */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('target_qty')}
+                      onDoubleClick={() => handleColumnDoubleClick('targetqty')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.target_qty, minWidth: 70 }}
+                      style={{ width: columnWidths.targetqty, minWidth: 70 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Target Qty</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'target_qty')}
-                          style={{
-                            backgroundColor: resizingColumn === 'target_qty' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'target_qty' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'targetqty')}
                         />
                       </div>
                     </th>
 
-                    {/* Admin Target Price Column */}
+                    {/* 6. Admin Target Price */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('admintargetprice')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative bg-purple-50"
@@ -1030,99 +1021,89 @@ export default function AdminValidationPage() {
                     >
                       <div className="flex items-center justify-between">
                         <span>Admin Target Price</span>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          onMouseDown={(e) => handleResizeStart(e, 'admintargetprice')}
+                        />
                       </div>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'admintargetprice')}
-                        style={{
-                          backgroundColor: resizingColumn === 'admintargetprice' ? '#3b82f6' : 'transparent',
-                          width: resizingColumn === 'admintargetprice' ? '3px' : '4px',
-                        }}
-                        title="Drag to resize | Double-click to auto-fit"
-                      />
                     </th>
 
-                    {/* Funnel Seller Column */}
+                    {/* 7. Seller Tag */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('funnel_seller')}
+                      onDoubleClick={() => handleColumnDoubleClick('funnelseller')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.funnel_seller, minWidth: 80 }}
+                      style={{ width: columnWidths.funnelseller, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Seller Tag</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'funnel_seller')}
-                          style={{
-                            backgroundColor: resizingColumn === 'funnel_seller' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'funnel_seller' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'funnelseller')}
                         />
                       </div>
                     </th>
 
-                    {/* Funnel Qty Column */}
+                    {/* 8. Funnel */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('funnel_qty')}
+                      onDoubleClick={() => handleColumnDoubleClick('funnelqty')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.funnel_qty, minWidth: 70 }}
+                      style={{ width: columnWidths.funnelqty, minWidth: 70 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Funnel</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'funnel_qty')}
-                          style={{
-                            backgroundColor: resizingColumn === 'funnel_qty' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'funnel_qty' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'funnelqty')}
                         />
                       </div>
                     </th>
 
-                    {/* Buying Price Column */}
+                    {/* 9. Product Weight */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('buying_price')}
+                      onDoubleClick={() => handleColumnDoubleClick('productweight')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.buying_price, minWidth: 80 }}
+                      style={{ width: columnWidths.productweight, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
-                        <span>Buying Price</span>
+                        <span>Product Weight</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'buying_price')}
-                          style={{
-                            backgroundColor: resizingColumn === 'buying_price' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'buying_price' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'productweight')}
                         />
                       </div>
                     </th>
 
-                    {/* Buying Qty Column */}
+                    {/* 10. USD Price */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('buying_qty')}
+                      onDoubleClick={() => handleColumnDoubleClick('usdprice')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.buying_qty, minWidth: 70 }}
+                      style={{ width: columnWidths.usdprice, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
-                        <span>Buying Qty</span>
+                        <span>USD Price</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'buying_qty')}
-                          style={{
-                            backgroundColor: resizingColumn === 'buying_qty' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'buying_qty' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'usdprice')}
                         />
                       </div>
                     </th>
 
-                    {/* Profit Column */}
+                    {/* 11. INR Purchase */}
+                    <th
+                      onDoubleClick={() => handleColumnDoubleClick('inrpurchase')}
+                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      style={{ width: columnWidths.inrpurchase, minWidth: 100 }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>INR Purchase</span>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          onMouseDown={(e) => handleResizeStart(e, 'inrpurchase')}
+                        />
+                      </div>
+                    </th>
+
+                    {/* 12. Profit */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('profit')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
@@ -1133,157 +1114,102 @@ export default function AdminValidationPage() {
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
                           onMouseDown={(e) => handleResizeStart(e, 'profit')}
-                          style={{
-                            backgroundColor: resizingColumn === 'profit' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'profit' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
                         />
                       </div>
                     </th>
 
-                    {/* Product Weight Column */}
+                    {/* 13. INR Purchase Link */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('product_weight')}
+                      onDoubleClick={() => handleColumnDoubleClick('inrpurchaselink')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.product_weight, minWidth: 100 }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>Product Weight</span>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'product_weight')}
-                          style={{
-                            backgroundColor: resizingColumn === 'product_weight' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'product_weight' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
-                        />
-                      </div>
-                    </th>
-
-                    {/* USD Price Column */}
-                    <th
-                      onDoubleClick={() => handleColumnDoubleClick('usd_price')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.usd_price, minWidth: 80 }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>USD Price</span>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'usd_price')}
-                          style={{
-                            backgroundColor: resizingColumn === 'usd_price' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'usd_price' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
-                        />
-                      </div>
-                    </th>
-
-                    {/* INR Purchase Column */}
-                    <th
-                      onDoubleClick={() => handleColumnDoubleClick('inr_purchase')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.inr_purchase, minWidth: 100 }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>INR Purchase</span>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'inr_purchase')}
-                          style={{
-                            backgroundColor: resizingColumn === 'inr_purchase' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'inr_purchase' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
-                        />
-                      </div>
-                    </th>
-
-                    {/* INR Purchase Link Column */}
-                    <th
-                      onDoubleClick={() => handleColumnDoubleClick('inr_purchase_link')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.inr_purchase_link, minWidth: 150 }}
+                      style={{ width: columnWidths.inrpurchaselink, minWidth: 150 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>INR Purchase Link</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'inr_purchase_link')}
-                          style={{
-                            backgroundColor: resizingColumn === 'inr_purchase_link' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'inr_purchase_link' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'inrpurchaselink')}
                         />
                       </div>
                     </th>
 
-                    {/* Seller Link Column */}
+                    {/* 14. Buying Price */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('seller_link')}
+                      onDoubleClick={() => handleColumnDoubleClick('buyingprice')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.seller_link, minWidth: 80 }}
+                      style={{ width: columnWidths.buyingprice, minWidth: 80 }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Buying Price</span>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          onMouseDown={(e) => handleResizeStart(e, 'buyingprice')}
+                        />
+                      </div>
+                    </th>
+
+                    {/* 15. Buying Quantity */}
+                    <th
+                      onDoubleClick={() => handleColumnDoubleClick('buyingqty')}
+                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      style={{ width: columnWidths.buyingqty, minWidth: 70 }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Buying Qty</span>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          onMouseDown={(e) => handleResizeStart(e, 'buyingqty')}
+                        />
+                      </div>
+                    </th>
+
+                    {/* 16. Seller Link */}
+                    <th
+                      onDoubleClick={() => handleColumnDoubleClick('sellerlink')}
+                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      style={{ width: columnWidths.sellerlink, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Seller Link</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'seller_link')}
-                          style={{
-                            backgroundColor: resizingColumn === 'seller_link' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'seller_link' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'sellerlink')}
                         />
                       </div>
                     </th>
 
-                    {/* Seller Phone Column */}
+                    {/* 17. Seller Ph No. */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('seller_phone')}
+                      onDoubleClick={() => handleColumnDoubleClick('sellerphone')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.seller_phone, minWidth: 100 }}
+                      style={{ width: columnWidths.sellerphone, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Seller Ph No.</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'seller_phone')}
-                          style={{
-                            backgroundColor: resizingColumn === 'seller_phone' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'seller_phone' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'sellerphone')}
                         />
                       </div>
                     </th>
 
-                    {/* Payment Method Column */}
+                    {/* 18. Payment Method */}
                     <th
-                      onDoubleClick={() => handleColumnDoubleClick('payment_method')}
+                      onDoubleClick={() => handleColumnDoubleClick('paymentmethod')}
                       className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: columnWidths.payment_method, minWidth: 100 }}
+                      style={{ width: columnWidths.paymentmethod, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Payment Method</span>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                          onMouseDown={(e) => handleResizeStart(e, 'payment_method')}
-                          style={{
-                            backgroundColor: resizingColumn === 'payment_method' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'payment_method' ? '3px' : '4px'
-                          }}
-                          title="Drag to resize | Double-click to auto-fit"
+                          onMouseDown={(e) => handleResizeStart(e, 'paymentmethod')}
                         />
                       </div>
                     </th>
 
-                    {/* Actions Column (no resize) */}
-                    {activeTab !== 'confirm' && activeTab !== 'reject' && (
+                    {/* 19. Actions */}
+                    {(activeTab !== 'confirm' && activeTab !== 'reject') && (
                       <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
@@ -1294,13 +1220,14 @@ export default function AdminValidationPage() {
                 <tbody className="divide-y divide-gray-200">
                   {filteredProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={activeTab === 'confirm' || activeTab === 'reject' ? 14 : 15} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={19} className="px-4 py-8 text-center text-gray-500">
                         No products found in {activeTab}
                       </td>
                     </tr>
                   ) : (
                     filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-gray-50">
+                        {/* Checkbox */}
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
@@ -1309,11 +1236,15 @@ export default function AdminValidationPage() {
                             className="rounded"
                           />
                         </td>
+
+                        {/* 1. ASIN */}
                         <td className="px-4 py-3 text-sm text-gray-900">{product.asin}</td>
+
+                        {/* 2. Product Name */}
                         <td
                           className="px-4 py-3 text-sm"
                           style={{
-                            maxWidth: columnWidths.product_name,
+                            maxWidth: columnWidths.productname,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap'
@@ -1322,6 +1253,8 @@ export default function AdminValidationPage() {
                         >
                           {product.product_name || '-'}
                         </td>
+
+                        {/* 3. Product Link */}
                         <td className="px-4 py-3 text-sm">
                           <div className="w-32">
                             {editingLinkId === product.id ? (
@@ -1335,7 +1268,7 @@ export default function AdminValidationPage() {
                                   autoFocus
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
-                                      handleCellEdit(product.id, 'product_link', editingLinkValue);
+                                      handleCellEdit(product.id, 'productlink', editingLinkValue);
                                       setEditingLinkId(null);
                                     } else if (e.key === 'Escape') {
                                       setEditingLinkId(null);
@@ -1344,7 +1277,7 @@ export default function AdminValidationPage() {
                                 />
                                 <button
                                   onClick={() => {
-                                    handleCellEdit(product.id, 'product_link', editingLinkValue);
+                                    handleCellEdit(product.id, 'productlink', editingLinkValue);
                                     setEditingLinkId(null);
                                   }}
                                   className="text-green-600 hover:text-green-800 flex-shrink-0"
@@ -1404,35 +1337,40 @@ export default function AdminValidationPage() {
                             )}
                           </div>
                         </td>
+
+                        {/* 4. Target Price */}
                         <td className="px-4 py-3">
                           <input
                             type="number"
-                            value={product.target_price || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'target_price', parseFloat(e.target.value))}
+                            defaultValue={product.target_price || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
                             className="w-20 px-2 py-1 border rounded text-sm"
                           />
                         </td>
+
+                        {/* 5. Target Qty */}
                         <td className="px-4 py-3">
                           <input
                             type="number"
-                            value={product.target_quantity || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'target_quantity', parseInt(e.target.value))}
+                            defaultValue={product.target_quantity || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
                             className="w-16 px-2 py-1 border rounded text-sm"
                           />
                         </td>
 
-                        {/* Admin Target Price Cell - Editable */}
+                        {/* 6. Admin Target Price */}
                         <td className="px-4 py-3 bg-purple-50">
                           <input
                             type="number"
                             step="0.01"
-                            value={product.admin_target_price || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'admin_target_price', parseFloat(e.target.value) || null)}
+                            defaultValue={product.admin_target_price || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'admintargetprice', parseFloat(e.target.value) || null)}
                             className="w-24 px-2 py-1 border border-purple-300 rounded text-sm focus:ring-1 focus:ring-purple-500"
                             placeholder="₹"
                           />
                         </td>
 
+                        {/* 7. Seller Tag */}
                         <td className="px-4 py-3 text-sm">
                           {product.seller_tag ? (
                             <div className="flex flex-wrap gap-2">
@@ -1462,6 +1400,7 @@ export default function AdminValidationPage() {
                           )}
                         </td>
 
+                        {/* 8. Funnel */}
                         <td className="px-4 py-3 text-sm">
                           {product.funnel ? (
                             <span
@@ -1487,40 +1426,20 @@ export default function AdminValidationPage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            value={product.buying_price || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))}
-                            className="w-20 px-2 py-1 border rounded text-sm"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            value={product.buying_quantity || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))}
-                            className="w-16 px-2 py-1 border rounded text-sm"
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={product.profit || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'profit', parseFloat(e.target.value) || 0)}
-                            className={`w-24 px-2 py-1 border rounded text-sm font-semibold ${(product.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                          />
-                        </td>
-
-                        {/* Product Weight Cell - WITH SPINNER */}
+                        {/* 9. Product Weight */}
                         <td className="px-4 py-3 text-sm">
                           <div className="relative">
                             <input
                               type="number"
                               step="0.01"
-                              value={product.product_weight || ''}
-                              onChange={(e) => handleCellEdit(product.id, 'product_weight', parseFloat(e.target.value) || null)}
+                              defaultValue={product.product_weight || ''}
+                              onBlur={(e) =>
+                                handleCellEdit(
+                                  product.id,
+                                  'productweight',
+                                  parseFloat(e.target.value) || null
+                                )
+                              }
                               className="w-20 px-2 py-1 border rounded text-sm"
                               placeholder="grams"
                             />
@@ -1532,14 +1451,16 @@ export default function AdminValidationPage() {
                           </div>
                         </td>
 
-                        {/* USD Price Cell - WITH SPINNER */}
+                        {/* 10. USD Price */}
                         <td className="px-4 py-3 text-sm">
                           <div className="relative">
                             <input
                               type="number"
                               step="0.01"
-                              value={product.usd_price || ''}
-                              onChange={(e) => handleCellEdit(product.id, 'usd_price', parseFloat(e.target.value) || null)}
+                              defaultValue={product.usd_price || ''}
+                              onBlur={(e) =>
+                                handleCellEdit(product.id, 'usdprice', parseFloat(e.target.value) || null)
+                              }
                               className="w-24 px-2 py-1 border rounded text-sm"
                               placeholder="$"
                             />
@@ -1551,14 +1472,20 @@ export default function AdminValidationPage() {
                           </div>
                         </td>
 
-                        {/* INR Purchase Cell - WITH SPINNER */}
+                        {/* 11. INR Purchase */}
                         <td className="px-4 py-3 text-sm">
                           <div className="relative">
                             <input
                               type="number"
                               step="0.01"
-                              value={product.inr_purchase || ''}
-                              onChange={(e) => handleCellEdit(product.id, 'inr_purchase', parseFloat(e.target.value) || null)}
+                              defaultValue={product.inr_purchase || ''}
+                              onBlur={(e) =>
+                                handleCellEdit(
+                                  product.id,
+                                  'inrpurchase',
+                                  parseFloat(e.target.value) || null
+                                )
+                              }
                               className="w-28 px-2 py-1 border rounded text-sm"
                               placeholder="₹"
                             />
@@ -1570,11 +1497,22 @@ export default function AdminValidationPage() {
                           </div>
                         </td>
 
-                        {/* INR Purchase Link Cell - Editable with View/Edit Pattern */}
+                        {/* 12. Profit */}
+                        <td className="px-4 py-3 text-sm">
+                          <div
+                            className={`w-24 px-2 py-1 border rounded text-sm font-semibold text-center ${(product.profit || 0) >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
+                              }`}
+                          >
+                            {product.profit !== null && product.profit !== undefined
+                              ? `₹${product.profit.toFixed(2)}`
+                              : '-'}
+                          </div>
+                        </td>
+
+                        {/* 13. INR Purchase Link */}
                         <td className="px-4 py-3 text-sm">
                           <div className="w-32">
                             {editingLinkId === `inr-${product.id}` ? (
-                              /* EDIT MODE - Show input field with Save/Cancel buttons */
                               <div className="flex items-center gap-1">
                                 <input
                                   type="text"
@@ -1615,7 +1553,6 @@ export default function AdminValidationPage() {
                                 </button>
                               </div>
                             ) : (
-                              /* VIEW MODE - Show View link with pencil icon or Add Link button */
                               <div className="flex items-center gap-2">
                                 {product.inr_purchase_link && product.inr_purchase_link.trim() !== '' ? (
                                   <>
@@ -1636,12 +1573,7 @@ export default function AdminValidationPage() {
                                       title="Edit supplier link"
                                     >
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                        />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                       </svg>
                                     </button>
                                   </>
@@ -1660,10 +1592,31 @@ export default function AdminValidationPage() {
                             )}
                           </div>
                         </td>
+
+                        {/* 14. Buying Price */}
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            defaultValue={product.buying_price || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+                            className="w-20 px-2 py-1 border rounded text-sm"
+                          />
+                        </td>
+
+                        {/* 15. Buying Quantity */}
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            defaultValue={product.buying_quantity || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
+                            className="w-16 px-2 py-1 border rounded text-sm"
+                          />
+                        </td>
+
+                        {/* 16. Seller Link */}
                         <td className="px-4 py-3 text-sm">
                           <div className="w-32">
                             {editingLinkId === `seller_${product.id}` ? (
-                              // EDIT MODE: Show input field with Save/Cancel buttons
                               <div className="flex items-center gap-1">
                                 <input
                                   type="text"
@@ -1674,7 +1627,7 @@ export default function AdminValidationPage() {
                                   autoFocus
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
-                                      handleCellEdit(product.id, 'seller_link', editingLinkValue);
+                                      handleCellEdit(product.id, 'sellerlink', editingLinkValue);
                                       setEditingLinkId(null);
                                     } else if (e.key === 'Escape') {
                                       setEditingLinkId(null);
@@ -1683,7 +1636,7 @@ export default function AdminValidationPage() {
                                 />
                                 <button
                                   onClick={() => {
-                                    handleCellEdit(product.id, 'seller_link', editingLinkValue);
+                                    handleCellEdit(product.id, 'sellerlink', editingLinkValue);
                                     setEditingLinkId(null);
                                   }}
                                   className="text-green-600 hover:text-green-800 flex-shrink-0"
@@ -1704,7 +1657,6 @@ export default function AdminValidationPage() {
                                 </button>
                               </div>
                             ) : (
-                              // VIEW MODE: Show View link with pencil icon
                               <div className="flex items-center gap-2">
                                 {product.seller_link && product.seller_link.trim() !== '' ? (
                                   <>
@@ -1744,46 +1696,33 @@ export default function AdminValidationPage() {
                             )}
                           </div>
                         </td>
+
+                        {/* 17. Seller Ph No. */}
                         <td className="px-4 py-3">
                           <input
                             type="text"
-                            value={product.seller_phone || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)}
+                            defaultValue={product.seller_phone || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
                             className="w-24 px-2 py-1 border rounded text-sm"
                             placeholder="Phone"
                           />
                         </td>
+
+                        {/* 18. Payment Method */}
                         <td className="px-4 py-3">
                           <input
                             type="text"
-                            value={product.payment_method || ''}
-                            onChange={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)}
+                            defaultValue={product.payment_method || ''}
+                            onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
                             className="w-24 px-2 py-1 border rounded text-sm"
                             placeholder="Method"
                           />
                         </td>
-                        {/* ❌ Hide Origin in Overview tab */}
-                        {activeTab !== 'overview' && (
-                          <td className="px-4 py-3 text-sm">
-                            <div className="flex gap-2">
-                              {product.origin_india && (
-                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium">
-                                  India
-                                </span>
-                              )}
-                              {product.origin_china && (
-                                <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
-                                  China
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        )}
 
+                        {/* 19. Actions */}
                         {activeTab !== 'confirm' && activeTab !== 'reject' && (
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              {/* Confirm Button */}
                               <button
                                 onClick={() => handleConfirmProduct(product.id)}
                                 disabled={product.admin_status === 'confirmed'}
@@ -1797,8 +1736,6 @@ export default function AdminValidationPage() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                               </button>
-
-                              {/* Reject Button */}
                               <button
                                 onClick={() => handleRejectProduct(product.id)}
                                 disabled={product.admin_status === 'rejected'}
