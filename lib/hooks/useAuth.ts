@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import{supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
+import type { User } from '@supabase/supabase-js'
 
 export type UserRole = {
   id: string
@@ -15,57 +16,109 @@ export type UserRole = {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
+    let isMounted = true
+
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session?.user) {
-        setUser(session.user)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
         
-        // Fetch user role
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single()
-        
-        if (roleData) {
-          setUserRole(roleData)
+        if (!isMounted) return
+
+        if (error) {
+          console.error('Auth error:', error)
+          setUser(null)
+          setUserRole(null)
+          setLoading(false)
+          return
         }
-      }
-      
-      setLoading(false)
-    }
 
-    checkUser()
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
         if (session?.user) {
           setUser(session.user)
-          
-          const { data: roleData } = await supabase
+
+          // Fetch user role
+          const { data: roleData, error: roleError } = await supabase
             .from('user_roles')
             .select('*')
             .eq('user_id', session.user.id)
             .single()
-          
-          if (roleData) {
+
+          if (!isMounted) return
+
+          if (roleError) {
+            console.error('Role fetch error:', roleError)
+          }
+
+          if (roleData && roleData.is_active) {
             setUserRole(roleData)
+          } else {
+            setUserRole(null)
+            // If user has no active role, sign them out
+            if (!roleData?.is_active) {
+              await supabase.auth.signOut()
+              setUser(null)
+            }
           }
         } else {
           setUser(null)
           setUserRole(null)
         }
+      } catch (error) {
+        console.error('Unexpected auth error:', error)
+        if (isMounted) {
+          setUser(null)
+          setUserRole(null)
+        }
+      } finally {
+        // CRITICAL: Always set loading to false
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    checkUser()
+
+    // Listen for auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return
+
+        console.log('Auth state changed:', event)
+
+        if (session?.user) {
+          setUser(session.user)
+
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single()
+
+          if (isMounted && roleData && roleData.is_active) {
+            setUserRole(roleData)
+          } else {
+            setUserRole(null)
+          }
+        } else {
+          setUser(null)
+          setUserRole(null)
+        }
+
+        // Set loading false after auth change is processed
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     )
 
     return () => {
+      isMounted = false
       authListener.subscription.unsubscribe()
     }
   }, [])
@@ -79,6 +132,8 @@ export function useAuth() {
 
   const logout = async () => {
     await supabase.auth.signOut()
+    setUser(null)
+    setUserRole(null)
     router.push('/')
   }
 
