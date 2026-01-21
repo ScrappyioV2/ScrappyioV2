@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
@@ -32,6 +32,18 @@ interface ProductRow {
 }
 
 type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
+
+// ✅ 1. UPDATE: Defined larger default widths for better layout
+const DEFAULT_WIDTHS: Record<string, number> = {
+  asin: 140,
+  product_name: 350,
+  brand: 160,
+  funnel: 110,
+  monthly_unit: 120,
+  product_link: 100,
+  amz_link: 100,
+  reason: 250
+};
 
 export default function GoldenAuraPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
@@ -69,40 +81,25 @@ export default function GoldenAuraPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Column widths state
+  // ✅ 2. UPDATE: Initialize widths with DEFAULT_WIDTHS
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('golden_aura_column_widths');
-      return saved ? JSON.parse(saved) : {
-        asin: 120,
-        product_name: 250,
-        brand: 150,
-        funnel: 100,
-        monthly_unit: 120,
-        product_link: 100,
-        amz_link: 100,
-        reason: 200
-      };
+      return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
     }
-    return {
-      asin: 120,
-      product_name: 250,
-      brand: 150,
-      funnel: 100,
-      monthly_unit: 120,
-      product_link: 100,
-      amz_link: 100,
-      reason: 200
-    };
+    return DEFAULT_WIDTHS;
   });
+
+  // ✅ 3. ADD: Resize Logic Ref
+  const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
   // Column order state
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('golden_aura_column_order');
-      return saved ? JSON.parse(saved) : ['asin', 'product_name', 'brand', 'funnel', 'monthly_unit', 'product_link', 'amz_link', 'reason'];
+      return saved ? JSON.parse(saved) : Object.keys(DEFAULT_WIDTHS);
     }
-    return ['asin', 'product_name', 'brand', 'funnel', 'monthly_unit', 'product_link', 'amz_link', 'reason'];
+    return Object.keys(DEFAULT_WIDTHS);
   });
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
@@ -133,7 +130,29 @@ export default function GoldenAuraPage() {
     4: 'VV',
   };
 
-  // Sanitize search term to avoid Supabase query errors
+  // ✅ 4. ADD: Resize Handlers
+  const startResize = (key: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { key, startX: e.pageX, startWidth: columnWidths[key] || 100 };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!resizeRef.current) return;
+    const { key, startX, startWidth } = resizeRef.current;
+    const newWidth = Math.max(80, startWidth + (e.pageX - startX));
+    setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
+  };
+
+  const handleMouseUp = () => {
+    if (resizeRef.current) localStorage.setItem('golden_aura_column_widths', JSON.stringify(columnWidths));
+    resizeRef.current = null;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
   const sanitizeSearchTerm = (term: string): string => {
     return term.replace(/'/g, "''").trim();
   };
@@ -404,22 +423,6 @@ export default function GoldenAuraPage() {
     );
   };
 
-  const handleColumnDoubleClick = (columnKey: string) => {
-    if (!tableRef.current) return;
-    const columnIndex = columnOrder.indexOf(columnKey) + 1;
-    const cells = tableRef.current.querySelectorAll(`tr td:nth-child(${columnIndex + 1}), tr th:nth-child(${columnIndex + 1})`);
-    let maxWidth = 80;
-    cells.forEach((cell) => {
-      const width = cell.scrollWidth + 20;
-      if (width > maxWidth) maxWidth = width;
-    });
-    maxWidth = Math.min(maxWidth, 500);
-    const newWidths = { ...columnWidths, [columnKey]: maxWidth };
-    setColumnWidths(newWidths);
-    localStorage.setItem('golden_aura_column_widths', JSON.stringify(newWidths));
-    setToast({ message: `Column resized to ${maxWidth}px`, type: 'success' });
-  };
-
   const handleDragStart = (columnName: string) => setDraggedColumn(columnName);
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
   const handleDrop = (targetColumn: string) => {
@@ -455,7 +458,8 @@ export default function GoldenAuraPage() {
     setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
   };
 
-  const renderColumnHeader = (columnKey: string, displayName: string, defaultWidth: number) => {
+  // ✅ 5. UPDATE: Enhanced Column Header (Center align + Resize)
+  const renderColumnHeader = (columnKey: string, displayName: string) => {
     if (!visibleColumns[columnKey as keyof typeof visibleColumns]) return null;
     return (
       <th
@@ -464,14 +468,20 @@ export default function GoldenAuraPage() {
         onDragStart={() => handleDragStart(columnKey)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
-        onDoubleClick={() => handleColumnDoubleClick(columnKey)}
-        className="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none"
-        style={{ width: columnWidths[columnKey] || defaultWidth, minWidth: 80 }}
+        // Added 'relative' and 'text-center'
+        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none group"
+        style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center gap-2">
           {displayName}
-          <ArrowUpDown className="w-3 h-3 text-slate-600" />
         </div>
+
+        {/* Resize Handle */}
+        <div
+          onMouseDown={(e) => startResize(columnKey, e)}
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-500/50 z-10"
+          onClick={(e) => e.stopPropagation()}
+        />
       </th>
     );
   };
@@ -484,8 +494,8 @@ export default function GoldenAuraPage() {
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
-          ? `text-white bg-slate-800 shadow-[0_0_20px_-5px_currentColor] ${colorClass}`
-          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-transparent hover:border-slate-800'
+        ? `text-white bg-slate-800 shadow-[0_0_20px_-5px_currentColor] ${colorClass}`
+        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-transparent hover:border-slate-800'
         }`}
     >
       <span className="relative z-10 flex items-center gap-2">
@@ -500,7 +510,7 @@ export default function GoldenAuraPage() {
   return (
     <PageTransition>
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
-        
+
         {/* HEADER */}
         <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
           <div className="max-w-[1920px] mx-auto">
@@ -516,7 +526,7 @@ export default function GoldenAuraPage() {
                   Review and process listing errors and approvals
                 </p>
               </div>
-              
+
               <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
                 <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
                 <span className="w-px h-3 bg-slate-700 mx-2" />
@@ -578,11 +588,10 @@ export default function GoldenAuraPage() {
                 <button
                   onClick={handleRollBack}
                   disabled={!hasRollback}
-                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
-                    hasRollback 
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20' 
+                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  }`}
+                    }`}
                 >
                   <RotateCcw className="w-4 h-4" /> Undo
                 </button>
@@ -607,10 +616,12 @@ export default function GoldenAuraPage() {
               </div>
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full border-collapse text-left" ref={tableRef}>
+                {/* ✅ 6. UPDATE: Added table-fixed */}
+                <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
                   <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
                     <tr>
-                      <th className="p-4 w-12 text-center bg-slate-950 border-r border-slate-800">
+                      {/* ✅ 7. UPDATE: Fixed Width Checkbox */}
+                      <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
                         <input
                           type="checkbox"
                           checked={selectedIds.size === products.length && products.length > 0}
@@ -623,31 +634,29 @@ export default function GoldenAuraPage() {
                           asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
                           monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason',
                         };
-                        const defaultWidths: Record<string, number> = {
-                          asin: 120, product_name: 250, brand: 150, funnel: 100,
-                          monthly_unit: 120, product_link: 100, amz_link: 100, reason: 200,
-                        };
 
                         if (col === 'funnel' && activeTab === 'reject') return null;
                         if ((col === 'product_link' || col === 'amz_link') && activeTab === 'reject') return null;
                         if (col === 'reason' && activeTab !== 'reject') return null;
 
-                        return renderColumnHeader(col, columnNames[col], defaultWidths[col]);
+                        return renderColumnHeader(col, columnNames[col]);
                       })}
                       {activeTab !== 'reject' && (
-                        <th className="p-4 text-left font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-950">Actions</th>
+                        /* ✅ FIXED: Changed bg-slate-950 to bg-slate-900 */
+                        <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '220px' }}>Actions</th>
                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
                     {products.map((product, index) => (
                       <tr key={product.id} className={`group hover:bg-slate-800/40 transition-colors ${selectedIds.has(product.id) ? 'bg-indigo-900/10' : ''}`}>
-                        <td className="p-4 text-center">
+                        {/* ✅ 8. UPDATE: Fixed Width Checkbox in Body */}
+                        <td className="p-3 text-center bg-slate-950/50 sticky left-0 z-10 border-r border-slate-800 group-hover:bg-slate-900 transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(product.id)}
                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
+                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 w-4 h-4 cursor-pointer"
                           />
                         </td>
                         {columnOrder.map((col) => {
@@ -657,8 +666,11 @@ export default function GoldenAuraPage() {
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
 
                           return (
-                            <td key={col} className="px-4 py-3 text-sm border-r border-slate-800/50 last:border-none"
-                              style={{ maxWidth: columnWidths[col] || 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            <td key={col}
+                              // ✅ 9. UPDATE: Added truncate and center alignment
+                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                              // ✅ 10. UPDATE: Use dynamic width
+                              style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
                               {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
@@ -681,8 +693,8 @@ export default function GoldenAuraPage() {
                           );
                         })}
                         {activeTab !== 'reject' && (
-                          <td className="p-4">
-                            <div className="flex gap-2">
+                          <td className="p-4 text-center">
+                            <div className="flex justify-center gap-2">
                               <button
                                 onClick={() => moveProduct(product, 'approved')}
                                 disabled={processingId === product.id}

@@ -6,13 +6,13 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '../../../lib/hooks/useAuth';
 import PageGuard from '../../components/PageGuard';
 import { motion } from 'framer-motion';
-import { 
-  Users, 
-  Globe, 
-  RefreshCw, 
-  Plus, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Users,
+  Globe,
+  RefreshCw,
+  Plus,
+  CheckCircle2,
+  Clock,
   Database,
   ArrowRight,
   Loader2
@@ -110,8 +110,8 @@ export default function ManageSellersPage() {
       const subscription = supabase
         .channel(`${country}_realtime_copy`)
         .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, () => {
-            console.log(`🔔 Real-time update for ${country}`);
-            debouncedFetchProgress();
+          console.log(`🔔 Real-time update for ${country}`);
+          debouncedFetchProgress();
         })
         .subscribe();
       subscriptions.push(subscription);
@@ -143,8 +143,8 @@ export default function ManageSellersPage() {
       }
 
       await supabase.from('copy_progress_timestamps').upsert({
-          user_id: user.id, country: country, total_links: progress[country].totalLinks, copied_links: 0,
-          reset_at: new Date().toISOString(), completed_at: null
+        user_id: user.id, country: country, total_links: progress[country].totalLinks, copied_links: 0,
+        reset_at: new Date().toISOString(), completed_at: null
       }, { onConflict: 'user_id,country' });
 
       await fetchProgress();
@@ -182,9 +182,9 @@ export default function ManageSellersPage() {
   return (
     <PageGuard>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
-        
+
         <motion.div variants={container} initial="hidden" animate="show" className="max-w-7xl mx-auto space-y-8">
-          
+
           {/* === HEADER === */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-slate-800/60">
             <div className="space-y-2">
@@ -199,18 +199,18 @@ export default function ManageSellersPage() {
               </p>
             </div>
             {user && userRole && (
-               <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400 flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
-                  {userRole.full_name || user.email}
-               </div>
+              <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400 flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
+                {userRole.full_name || user.email}
+              </div>
             )}
           </div>
 
           {/* === AUTH MESSAGE === */}
           {authMessage && (
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl border ${authMessage.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'} flex items-center gap-3`}>
-               {authMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <Loader2 className="w-5 h-5" />}
-               {authMessage.text}
+              {authMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <Loader2 className="w-5 h-5" />}
+              {authMessage.text}
             </motion.div>
           )}
 
@@ -234,21 +234,21 @@ export default function ManageSellersPage() {
                   {/* Header */}
                   <div className="flex justify-between items-start mb-6 relative z-10">
                     <div className="flex items-center gap-4">
-                       <div className="text-4xl filter drop-shadow-md grayscale group-hover:grayscale-0 transition-all duration-300">
-                          {config.flag}
-                       </div>
-                       <div>
-                          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                             {config.label}
-                             <span className={`text-[10px] px-2 py-0.5 rounded border ${config.border} bg-slate-900 ${config.color}`}>
-                                {config.code}
-                             </span>
-                          </h3>
-                          <div className="flex items-center gap-2 text-slate-500 text-sm mt-1">
-                             <Database className="w-3 h-3" />
-                             <span>{data.totalLinks.toLocaleString()} Total Sellers</span>
-                          </div>
-                       </div>
+                      <div className="text-4xl filter drop-shadow-md grayscale group-hover:grayscale-0 transition-all duration-300">
+                        {config.flag}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          {config.label}
+                          <span className={`text-[10px] px-2 py-0.5 rounded border ${config.border} bg-slate-900 ${config.color}`}>
+                            {config.code}
+                          </span>
+                        </h3>
+                        <div className="flex items-center gap-2 text-slate-500 text-sm mt-1">
+                          <Database className="w-3 h-3" />
+                          <span>{data.totalLinks.toLocaleString()} Total Sellers</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -256,31 +256,34 @@ export default function ManageSellersPage() {
                   <div className="mb-8 relative z-10">
                     <div className="flex justify-between text-sm mb-2 font-medium">
                       <span className="text-slate-400">Copy Progress</span>
-                      <span className={config.color}>{percentage}%</span>
+                      {/* ✅ CHANGED: Show count instead of percentage */}
+                      <span className={config.color}>
+                        {data.copiedLinks.toLocaleString()} / {data.totalLinks.toLocaleString()}
+                      </span>
                     </div>
                     <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
-                      <motion.div 
+                      <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${percentage}%` }}
                         transition={{ duration: 1, ease: "easeOut" }}
                         className={`h-full ${config.bg} shadow-[0_0_15px_-2px_currentColor]`}
                       />
                     </div>
-                    
+
                     {/* Timestamp Info */}
                     <div className="mt-3 flex flex-wrap gap-4 text-xs font-mono">
-                       {data.resetAt && (
-                          <div className="flex items-center gap-1.5 text-slate-500">
-                             <Clock className="w-3 h-3" />
-                             <span>Reset: {new Date(data.resetAt).toLocaleDateString()}</span>
-                          </div>
-                       )}
-                       {data.completedAt && (
-                          <div className="flex items-center gap-1.5 text-emerald-500/80">
-                             <CheckCircle2 className="w-3 h-3" />
-                             <span>Done: {new Date(data.completedAt).toLocaleDateString()}</span>
-                          </div>
-                       )}
+                      {data.resetAt && (
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <Clock className="w-3 h-3" />
+                          <span>Reset: {new Date(data.resetAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {data.completedAt && (
+                        <div className="flex items-center gap-1.5 text-emerald-500/80">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Done: {new Date(data.completedAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -293,7 +296,7 @@ export default function ManageSellersPage() {
                       <Plus className="w-4 h-4" />
                       Add Seller
                     </button>
-                    
+
                     <button
                       onClick={(e) => { e.stopPropagation(); resetAllCopied(country); }}
                       disabled={data.copiedLinks === 0}

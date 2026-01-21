@@ -6,18 +6,23 @@ import * as XLSX from 'xlsx'
 
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-    asin: 140,
-    product_name: 320,
-    brand: 140,
-    seller_tag: 160,
-    funnel: 100,
-    no_of_seller: 120,
-    usa_link: 120,
-    product_weight: 120,
-    usd_price: 120,
-    inr_purchase: 140,
-    inr_purchase_link: 260,
-    judgement: 120,
+    asin: 120,           // Reduced
+    product_name: 220,   // Reduced from 320
+    brand: 110,
+    seller_tag: 100,
+    funnel: 80,
+    no_of_seller: 80,
+    usa_link: 70,        // Minimal width for "View"
+    product_weight: 90,
+    usd_price: 90,
+    inr_purchase: 100,
+    inr_purchase_link: 150, // Reduced from 260 (will truncate)
+    judgement: 110,
+    origin: 100,
+    checklist: 140,
+    total_cost: 100,
+    total_revenue: 100,
+    profit: 100,
 };
 
 import PageTransition from '@/components/layout/PageTransition'
@@ -68,6 +73,7 @@ interface ValidationProduct {
     check_multi_seller: boolean | null
     sent_to_purchases?: boolean
     sent_to_purchases_at?: string
+    calculated_judgement?: string | null
 }
 
 interface Stats {
@@ -432,7 +438,8 @@ export default function ValidationPage() {
 
         // Filter based on active tab
         if (activeTab === 'pass_file') {
-            tabProducts = tabProducts.filter((p) => p.judgement === 'PASS');
+            // ✅ FIX: Hide items already sent to purchases
+            tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
         } else if (activeTab === 'fail_file') {
             tabProducts = tabProducts.filter((p) => p.judgement === 'FAIL');
         } else if (activeTab === 'pending') {
@@ -585,16 +592,23 @@ export default function ValidationPage() {
             // Stats will update via Supabase realtime subscription
 
             // Update local state
+            // Update local state
             setProducts((prev) =>
                 prev.map((p) =>
                     p.id === id
                         ? {
                             ...p,
-                            totalcost: updateData.totalcost,
-                            totalrevenue: updateData.totalrevenue,
-                            profit: updateData.profit,
+                            // Update calculated fields
+                            total_cost: result.total_cost,
+                            total_revenue: result.total_revenue,
+                            profit: result.profit,
+
+                            // 🔒 CRITICAL LOGIC: 
+                            // 1. Keep 'judgement' as updateData.judgement (keeps it in current tab if PENDING)
                             judgement: updateData.judgement,
-                            _calculatedJudgement: result.judgement,
+
+                            // 2. Store the math result visually so the user sees "PASS" immediately
+                            calculated_judgement: result.judgement,
                         }
                         : p
                 )
@@ -1289,7 +1303,7 @@ export default function ValidationPage() {
                                         )}
 
                                         {/* Move to Pass */}
-                                        {activeTab === 'pending' && (
+                                        {/* {activeTab === 'pending' && (
                                             <button
                                                 onClick={handleMoveToPassClick}
                                                 disabled={selectedIds.size === 0}
@@ -1303,10 +1317,10 @@ export default function ValidationPage() {
                                                 </svg>
                                                 Move to Pass
                                             </button>
-                                        )}
+                                        )} */}
 
                                         {/* Move to Fail */}
-                                        {activeTab === 'pending' && (
+                                        {/* {activeTab === 'pending' && (
                                             <button
                                                 onClick={handleMoveToFailClick}
                                                 disabled={selectedIds.size === 0}
@@ -1320,7 +1334,7 @@ export default function ValidationPage() {
                                                 </svg>
                                                 Move to Fail
                                             </button>
-                                        )}
+                                        )} */}
 
                                         {/* Download CSV */}
                                         <button
@@ -1403,7 +1417,8 @@ export default function ValidationPage() {
                                         <table className="w-full table-fixed">
                                             <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left">
+                                                    {/* ✅ Fixed width for checkbox to prevent overlap */}
+                                                    <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
@@ -1412,20 +1427,26 @@ export default function ValidationPage() {
                                                         />
                                                     </th>
 
+                                                    {/* ✅ Resizable Columns */}
                                                     {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
                                                     {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
                                                     {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
                                                     {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
                                                     {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
-                                                    {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="No. of Sellers" onResizeStart={startResize} />}
-                                                    {visibleColumns.usa_link && <ResizableTH width={columnWidths.usa_link} columnKey="usa_link" label="USA Link" onResizeStart={startResize} />}
-                                                    {activeTab === 'pass_file' && <ResizableTH width={120} columnKey="origin" label="Origin" onResizeStart={startResize} />}
+                                                    {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
+                                                    {visibleColumns.usa_link && <ResizableTH width={columnWidths.usa_link} columnKey="usa_link" label="USA" onResizeStart={startResize} />}
+
+                                                    {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
+
                                                     {visibleColumns.product_weight && <ResizableTH width={columnWidths.product_weight} columnKey="product_weight" label="Weight (g)" onResizeStart={startResize} />}
-                                                    {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD Price" onResizeStart={startResize} />}
-                                                    {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR Purchase" onResizeStart={startResize} />}
-                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="INR Purchase Link" onResizeStart={startResize} />}
+                                                    {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD $" onResizeStart={startResize} />}
+                                                    {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR ₹" onResizeStart={startResize} />}
+
+                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="Source Link" onResizeStart={startResize} />}
+
                                                     {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
-                                                    {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Judgement" onResizeStart={startResize} />}
+
+                                                    {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Status" onResizeStart={startResize} />}
                                                 </tr>
                                             </thead>
 
@@ -1445,10 +1466,11 @@ export default function ValidationPage() {
                                                             <td className="p-3 font-mono text-sm text-slate-300">{product.asin}</td>
                                                         )}
                                                         {visibleColumns.product_name && (
-                                                            <td style={{ width: columnWidths.product_name }} className="p-3 overflow-hidden whitespace-nowrap text-slate-200">
-                                                                <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={product.product_name || ''}>
+                                                            <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
+                                                                {/* ✅ Truncate long names */}
+                                                                <div className="truncate text-slate-300 text-xs" title={product.product_name || ''}>
                                                                     {product.product_name || '-'}
-                                                                </span>
+                                                                </div>
                                                             </td>
                                                         )}
 
@@ -1547,10 +1569,21 @@ export default function ValidationPage() {
 
                                                         {activeTab === 'pass_file' && (
                                                             <td className="p-3">
-                                                                {product.check_brand && product.check_item_expire && product.check_small_size && product.check_multi_seller ? (
-                                                                    <button onClick={() => handleChecklistOk(product.id)} className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all">OK</button>
+                                                                {/* ✅ FIX: Require Checklist AND Origin to show OK button */}
+                                                                {product.check_brand &&
+                                                                    product.check_item_expire &&
+                                                                    product.check_small_size &&
+                                                                    product.check_multi_seller &&
+                                                                    (product.origin_india || product.origin_china) ? (
+                                                                    <button
+                                                                        onClick={() => handleChecklistOk(product.id)}
+                                                                        className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
+                                                                    >
+                                                                        OK
+                                                                    </button>
                                                                 ) : (
                                                                     <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                                                                        {/* ... existing checkboxes ... */}
                                                                         <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Brand Checking">
                                                                             <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                             <span>Brand</span>
@@ -1574,13 +1607,22 @@ export default function ValidationPage() {
 
                                                         {visibleColumns.judgement && (
                                                             <td className="p-3">
-                                                                {product.judgement ? (
-                                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${product.judgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : product.judgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : product.judgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-slate-700 text-slate-300'}`}>
-                                                                        {product.judgement}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
-                                                                )}
+                                                                {(() => {
+                                                                    // Use calculated judgement for visual feedback, fallback to DB judgement
+                                                                    const displayJudgement = product.calculated_judgement || product.judgement;
+
+                                                                    return displayJudgement ? (
+                                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${displayJudgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                                                            displayJudgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                                                                displayJudgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                                                                                    'bg-slate-700 text-slate-300'
+                                                                            }`}>
+                                                                            {displayJudgement}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
+                                                                    );
+                                                                })()}
                                                             </td>
                                                         )}
                                                     </tr>

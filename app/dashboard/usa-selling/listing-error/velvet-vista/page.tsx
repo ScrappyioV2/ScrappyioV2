@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import PageGuard from '@/app/components/PageGuard';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, 
-  RotateCcw, 
-  Check, 
-  X, 
-  Trash2, 
-  ExternalLink, 
+import {
+  Search,
+  RotateCcw,
+  Check,
+  X,
+  Trash2,
+  ExternalLink,
   AlertOctagon,
   Loader2,
   LayoutList,
@@ -19,8 +20,8 @@ import {
 } from 'lucide-react';
 
 /* === CONFIGURATION === */
-const SELLER_ID = 3;
-const SELLER_NAME = "UBeauty";
+const SELLER_ID = 4;
+const SELLER_NAME = "Velvet Vista";
 const BASE_TABLE_PREFIX = `usa_listing_error_seller_${SELLER_ID}`;
 
 interface ListingProduct {
@@ -50,12 +51,13 @@ const TABS = [
   { id: 'removed', label: 'Removed', color: 'text-slate-500', glow: '' },
 ];
 
-export default function UBeautyListingPage() {
+export default function VelvetVistaListingPage() {
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('high_demand');
   const [products, setProducts] = useState<ListingProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -71,6 +73,10 @@ export default function UBeautyListingPage() {
 
   // Debounce Search
   useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setDebouncedSearch('');
+      return;
+    }
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -87,14 +93,17 @@ export default function UBeautyListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // Fetch Logic
-  const fetchProducts = async () => {
-    // Only show loader if we have no data, prevents flashing on updates
-    if (products.length === 0) setLoading(true);
+  // ✅ FETCH LOGIC WITH DUPLICATE FILTERING
+  const fetchProducts = useCallback(async () => {
+    if (!user) return;
+    
+    if (products.length === 0) setLoading(true); 
+    
     try {
       const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       let query = supabase.from(tableName).select('*').order('id', { ascending: false });
 
+      // Apply Search
       if (debouncedSearch.trim()) {
         const term = debouncedSearch.trim();
         query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
@@ -102,51 +111,62 @@ export default function UBeautyListingPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setProducts(data || []);
+
+      let fetchedData = data || [];
+
+      // ✅ FIX: Filter out items that are ALREADY listed in the 'done' table
+      // This prevents "Listed" items from showing up in High Demand, Low Demand, etc.
+      if (activeTab !== 'done' && activeTab !== 'error' && activeTab !== 'removed') {
+         const doneTableName = `${BASE_TABLE_PREFIX}_done`;
+         // Fetch IDs of listed products to exclude them
+         const { data: doneData } = await supabase.from(doneTableName).select('asin');
+         
+         if (doneData && doneData.length > 0) {
+             const doneAsins = new Set(doneData.map(d => d.asin));
+             fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
+         }
+      }
+
+      setProducts(fetchedData);
     } catch (err: any) {
       console.error('Fetch error:', err);
-      setToast({ message: `Failed to load data`, type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, debouncedSearch, user]);
 
-  // ✅ REAL-TIME LISTENER ADDED HERE
+  // Real-time Subscription
   useEffect(() => {
-    // 1. Fetch immediately
     fetchProducts();
 
     const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
     const channelName = `realtime_${tableName}`;
 
-    // 2. Subscribe
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: tableName },
-        (payload) => {
-          console.log("🔔 Real-time change detected:", payload);
-          fetchProducts(); // Auto-refresh data
+        () => {
+          fetchProducts(); 
         }
       )
       .subscribe();
 
-    // 3. Cleanup
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeTab, debouncedSearch]);
+  }, [fetchProducts, activeTab]); 
 
   // Stats Logic
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
     const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).single();
     if (stats) {
-      const pendingChange = increment > 0 ? -1 : 1; 
+      const pendingChange = increment > 0 ? -1 : 1;
       const updates = {
-         total_pending: Math.max(0, stats.total_pending + pendingChange),
-         [type]: Math.max(0, stats[type] + increment),
-         updated_at: new Date().toISOString()
+        total_pending: Math.max(0, stats.total_pending + pendingChange),
+        [type]: Math.max(0, stats[type] + increment),
+        updated_at: new Date().toISOString()
       };
       await supabase.from('listing_error_progress').update(updates).eq('seller_id', SELLER_ID);
     }
@@ -154,23 +174,23 @@ export default function UBeautyListingPage() {
 
   // Log History
   const logHistory = async (product: ListingProduct, fromTable: string, toTable: string) => {
-      try {
-        await supabase.from(`${BASE_TABLE_PREFIX}_movement_history`).insert({
-          source_admin_validation_id: product.source_admin_validation_id || null, 
-          asin: product.asin,
-          product_name: product.product_name,
-          sku: product.sku,
-          selling_price: product.selling_price,
-          seller_link: product.seller_link,
-          from_table: fromTable,
-          to_table: toTable
-        });
-        setMovementHistory((prev) => ({
-          ...prev,
-          [`${BASE_TABLE_PREFIX}_${activeTab}`]: { product, fromTable, toTable },
-        }));
-      } catch (err) { console.error("Log error:", err); }
-    };
+    try {
+      await supabase.from(`${BASE_TABLE_PREFIX}_movement_history`).insert({
+        source_admin_validation_id: product.source_admin_validation_id || null,
+        asin: product.asin,
+        product_name: product.product_name,
+        sku: product.sku,
+        selling_price: product.selling_price,
+        seller_link: product.seller_link,
+        from_table: fromTable,
+        to_table: toTable
+      });
+      setMovementHistory((prev) => ({
+        ...prev,
+        [`${BASE_TABLE_PREFIX}_${activeTab}`]: { product, fromTable, toTable },
+      }));
+    } catch (err) { console.error("Log error:", err); }
+  };
 
   // Move Logic
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
@@ -190,11 +210,14 @@ export default function UBeautyListingPage() {
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
 
+      // 1. Insert into target
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
 
+      // 2. Log History
       await logHistory(product, sourceTableName, targetTableName);
 
+      // 3. Delete from source tables
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
@@ -204,13 +227,15 @@ export default function UBeautyListingPage() {
 
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
+      // 4. Update Stats
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
-         const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
-         if(stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
+        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
+        if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
       }
 
+      // 5. Update UI
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
 
@@ -229,34 +254,42 @@ export default function UBeautyListingPage() {
 
     setLoading(true);
     try {
-        const { product, fromTable, toTable } = lastMovement;
-        const { id, ...rest } = product; 
-        
-        await supabase.from(fromTable).insert(rest);
-        await supabase.from(toTable).delete().eq('asin', product.asin);
+      const { product, fromTable, toTable } = lastMovement;
+      const { id, ...rest } = product;
 
-        if (toTable.includes('done')) await updateProgressStats('listed', -1);
-        else if (toTable.includes('error')) await updateProgressStats('error', -1);
-        else if (toTable.includes('removed')) {
-             const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
-             if(stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID);
-        }
+      await supabase.from(fromTable).insert(rest);
+      await supabase.from(toTable).delete().eq('asin', product.asin);
 
-        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-        fetchProducts();
-        setToast({ message: `Restored ${product.asin}`, type: 'success' });
-    } catch (err: any) { setToast({ message: "Rollback failed", type: 'error' }); } 
+      if (toTable.includes('done')) await updateProgressStats('listed', -1);
+      else if (toTable.includes('error')) await updateProgressStats('error', -1);
+      else if (toTable.includes('removed')) {
+        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
+        if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID);
+      }
+
+      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      fetchProducts();
+      setToast({ message: `Restored ${product.asin}`, type: 'success' });
+    } catch (err: any) { setToast({ message: "Rollback failed", type: 'error' }); }
     finally { setLoading(false); }
   };
 
   const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
   return (
     <PageGuard>
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
-        
+
         <div className="max-w-[1600px] mx-auto p-6 space-y-8">
-          
+
           {/* === HEADER === */}
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800/60">
             <div className="space-y-1">
@@ -268,26 +301,25 @@ export default function UBeautyListingPage() {
               </div>
               <p className="text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
             </div>
-            
+
             <div className="flex items-center gap-3">
-               <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
-                  TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{products.length}</span>
-               </div>
+              <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
+                TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{products.length}</span>
+              </div>
             </div>
           </header>
 
           {/* === CONTROLS === */}
           <div className="space-y-6">
-            
+
             {/* TABS */}
             <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-fit">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${
-                    activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'
-                  }`}
+                  onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
+                  className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'
+                    }`}
                 >
                   {activeTab === tab.id && (
                     <motion.div
@@ -309,13 +341,21 @@ export default function UBeautyListingPage() {
               {/* Search */}
               <div className="relative w-full sm:w-96 group">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                <input 
-                  type="text" 
-                  placeholder="Search by ASIN, Name, or SKU..." 
+                <input
+                  type="text"
+                  placeholder="Search by ASIN, Name, or SKU..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Undo Button */}
@@ -324,11 +364,10 @@ export default function UBeautyListingPage() {
                 whileTap={hasRollback ? { scale: 0.98 } : {}}
                 onClick={handleRollBack}
                 disabled={!hasRollback}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  hasRollback 
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500' 
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                }`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  }`}
               >
                 <RotateCcw className="w-4 h-4" />
                 Undo Action
@@ -339,17 +378,17 @@ export default function UBeautyListingPage() {
           {/* === DATA TABLE === */}
           <div className="bg-slate-900/40 rounded-2xl border border-slate-800/60 overflow-hidden backdrop-blur-sm flex flex-col max-h-[75vh]">
             {loading ? (
-               <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
-                  <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-                  <span className="text-sm font-medium tracking-wide">SYNCING DATA...</span>
-               </div>
+              <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
+                <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                <span className="text-sm font-medium tracking-wide">SYNCING DATA...</span>
+              </div>
             ) : products.length === 0 ? (
-               <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
-                   <div className="p-4 bg-slate-900 rounded-full border border-slate-800">
-                     <AlertOctagon className="w-8 h-8 text-slate-500" />
-                   </div>
-                   <p className="text-sm">No items found in {activeTab.replace('_', ' ')}.</p>
-               </div>
+              <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
+                <div className="p-4 bg-slate-900 rounded-full border border-slate-800">
+                  <AlertOctagon className="w-8 h-8 text-slate-500" />
+                </div>
+                <p className="text-sm">No items found in {activeTab.replace('_', ' ')}.</p>
+              </div>
             ) : (
               <div className="overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                 <table className="w-full text-left">
@@ -371,7 +410,7 @@ export default function UBeautyListingPage() {
                   <tbody className="divide-y divide-slate-800/50">
                     <AnimatePresence>
                       {products.map((product, index) => (
-                        <motion.tr 
+                        <motion.tr
                           key={product.id}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -395,16 +434,16 @@ export default function UBeautyListingPage() {
                           </td>
                           <td className="px-6 py-4 text-center">
                             {product.seller_link ? (
-                              <a 
-                                href={product.seller_link} 
-                                target="_blank" 
+                              <a
+                                href={product.seller_link}
+                                target="_blank"
                                 className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200"
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : <span className="text-slate-700">-</span>}
                           </td>
-                          
+
                           {/* === ACTION BUTTONS === */}
                           {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
                             <td className="px-6 py-4">
@@ -425,7 +464,7 @@ export default function UBeautyListingPage() {
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => {
                                     const reason = prompt("Enter error reason:");
-                                    if(reason) handleMoveProduct(product, 'error', reason);
+                                    if (reason) handleMoveProduct(product, 'error', reason);
                                   }}
                                   disabled={processingId === product.id}
                                   className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
@@ -447,7 +486,7 @@ export default function UBeautyListingPage() {
                               </div>
                             </td>
                           )}
-                          
+
                           {activeTab === 'error' && (
                             <td className="px-6 py-4">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
@@ -466,10 +505,10 @@ export default function UBeautyListingPage() {
           </div>
 
           {toast && (
-            <Toast 
-              message={toast.message} 
-              type={toast.type} 
-              onClose={() => setToast(null)} 
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast(null)}
             />
           )}
         </div>

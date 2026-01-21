@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import PageGuard from '@/app/components/PageGuard';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -51,6 +52,7 @@ const TABS = [
 ];
 
 export default function GoldenAuraListingPage() {
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('high_demand');
   const [products, setProducts] = useState<ListingProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,10 @@ export default function GoldenAuraListingPage() {
 
   // Debounce Search
   useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setDebouncedSearch('');
+      return;
+    }
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -87,51 +93,70 @@ export default function GoldenAuraListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // Fetch Logic
-  const fetchProducts = async () => {
-    // Only show loader on initial load, not on background refreshes
+  // ✅ FETCH LOGIC WITH DUPLICATE FILTERING
+  const fetchProducts = useCallback(async () => {
+    if (!user) return;
+    
     if (products.length === 0) setLoading(true); 
     
     try {
       const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       let query = supabase.from(tableName).select('*').order('id', { ascending: false });
 
+      // Apply Search
+      if (debouncedSearch.trim()) {
+        const term = debouncedSearch.trim();
+        query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
-      setProducts(data || []);
+
+      let fetchedData = data || [];
+
+      // ✅ FIX: Filter out items that are ALREADY listed in the 'done' table
+      // This prevents "Listed" items from showing up in High Demand, Low Demand, etc.
+      if (activeTab !== 'done' && activeTab !== 'error' && activeTab !== 'removed') {
+         const doneTableName = `${BASE_TABLE_PREFIX}_done`;
+         // Fetch IDs of listed products to exclude them
+         const { data: doneData } = await supabase.from(doneTableName).select('asin');
+         
+         if (doneData && doneData.length > 0) {
+             const doneAsins = new Set(doneData.map(d => d.asin));
+             fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
+         }
+      }
+
+      setProducts(fetchedData);
     } catch (err: any) {
       console.error('Fetch error:', err);
-      setProducts([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, debouncedSearch, user]);
 
-  // ✅ REAL-TIME LISTENER ADDED HERE
+  // Real-time Subscription
   useEffect(() => {
-    fetchProducts(); // Initial Fetch
+    fetchProducts();
 
     const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
     const channelName = `realtime_${tableName}`;
 
-    // Subscribe to changes
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: tableName },
-        (payload) => {
-          console.log("🔔 Real-time change detected:", payload);
-          fetchProducts(); // Auto-refresh data
+        () => {
+          fetchProducts(); 
         }
       )
       .subscribe();
 
-    // Cleanup subscription
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeTab, debouncedSearch]); // Re-subscribe when tab changes
+  }, [fetchProducts, activeTab]); 
 
   // Stats Logic
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
@@ -185,11 +210,14 @@ export default function GoldenAuraListingPage() {
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
 
+      // 1. Insert into target
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
 
+      // 2. Log History
       await logHistory(product, sourceTableName, targetTableName);
 
+      // 3. Delete from source tables
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
@@ -199,6 +227,7 @@ export default function GoldenAuraListingPage() {
 
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
+      // 4. Update Stats
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
@@ -206,6 +235,7 @@ export default function GoldenAuraListingPage() {
         if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
       }
 
+      // 5. Update UI
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
 
@@ -246,6 +276,14 @@ export default function GoldenAuraListingPage() {
 
   const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
   return (
     <PageGuard>
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
@@ -279,7 +317,7 @@ export default function GoldenAuraListingPage() {
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as TabType)}
+                  onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
                   className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'
                     }`}
                 >
@@ -308,8 +346,16 @@ export default function GoldenAuraListingPage() {
                   placeholder="Search by ASIN, Name, or SKU..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Undo Button */}
@@ -330,7 +376,6 @@ export default function GoldenAuraListingPage() {
           </div>
 
           {/* === DATA TABLE === */}
-          {/* ✅ SCROLLABLE CONTAINER: Fixed max height & auto overflow */}
           <div className="bg-slate-900/40 rounded-2xl border border-slate-800/60 overflow-hidden backdrop-blur-sm flex flex-col max-h-[75vh]">
             {loading ? (
               <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
