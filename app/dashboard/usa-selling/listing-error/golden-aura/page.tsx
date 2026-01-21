@@ -96,9 +96,9 @@ export default function GoldenAuraListingPage() {
   // ✅ FETCH LOGIC WITH DUPLICATE FILTERING
   const fetchProducts = useCallback(async () => {
     if (!user) return;
-    
-    if (products.length === 0) setLoading(true); 
-    
+
+    if (products.length === 0) setLoading(true);
+
     try {
       const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       let query = supabase.from(tableName).select('*').order('id', { ascending: false });
@@ -117,14 +117,14 @@ export default function GoldenAuraListingPage() {
       // ✅ FIX: Filter out items that are ALREADY listed in the 'done' table
       // This prevents "Listed" items from showing up in High Demand, Low Demand, etc.
       if (activeTab !== 'done' && activeTab !== 'error' && activeTab !== 'removed') {
-         const doneTableName = `${BASE_TABLE_PREFIX}_done`;
-         // Fetch IDs of listed products to exclude them
-         const { data: doneData } = await supabase.from(doneTableName).select('asin');
-         
-         if (doneData && doneData.length > 0) {
-             const doneAsins = new Set(doneData.map(d => d.asin));
-             fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
-         }
+        const doneTableName = `${BASE_TABLE_PREFIX}_done`;
+        // Fetch IDs of listed products to exclude them
+        const { data: doneData } = await supabase.from(doneTableName).select('asin');
+
+        if (doneData && doneData.length > 0) {
+          const doneAsins = new Set(doneData.map(d => d.asin));
+          fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
+        }
       }
 
       setProducts(fetchedData);
@@ -148,7 +148,7 @@ export default function GoldenAuraListingPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: tableName },
         () => {
-          fetchProducts(); 
+          fetchProducts();
         }
       )
       .subscribe();
@@ -156,7 +156,7 @@ export default function GoldenAuraListingPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchProducts, activeTab]); 
+  }, [fetchProducts, activeTab]);
 
   // Stats Logic
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
@@ -250,16 +250,35 @@ export default function GoldenAuraListingPage() {
   const handleRollBack = async () => {
     const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
     const lastMovement = movementHistory[currentTable];
-    if (!lastMovement) { setToast({ message: 'Nothing to undo', type: 'error' }); return; }
+    if (!lastMovement) {
+      setToast({ message: 'Nothing to undo', type: 'error' });
+      return;
+    }
 
     setLoading(true);
     try {
       const { product, fromTable, toTable } = lastMovement;
       const { id, ...rest } = product;
 
+      // ✅ 1. Restore to the original Funnel table (High Demand, etc.)
       await supabase.from(fromTable).insert(rest);
+
+      // ✅ 2. SYNC LOGIC: If the product originated from a funnel tab, 
+      // it must also be restored to the PENDING table.
+      const funnelTables = [
+        `${BASE_TABLE_PREFIX}_high_demand`,
+        `${BASE_TABLE_PREFIX}_low_demand`,
+        `${BASE_TABLE_PREFIX}_dropshipping`
+      ];
+
+      if (funnelTables.includes(fromTable)) {
+        await supabase.from(`${BASE_TABLE_PREFIX}_pending`).upsert(rest, { onConflict: 'asin' });
+      }
+
+      // ✅ 3. Delete from the target table where it was just moved to
       await supabase.from(toTable).delete().eq('asin', product.asin);
 
+      // ✅ 4. Update Stats (Reverse the increments)
       if (toTable.includes('done')) await updateProgressStats('listed', -1);
       else if (toTable.includes('error')) await updateProgressStats('error', -1);
       else if (toTable.includes('removed')) {
@@ -269,9 +288,13 @@ export default function GoldenAuraListingPage() {
 
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts();
-      setToast({ message: `Restored ${product.asin}`, type: 'success' });
-    } catch (err: any) { setToast({ message: "Rollback failed", type: 'error' }); }
-    finally { setLoading(false); }
+      setToast({ message: `Restored ${product.asin} to ${activeTab} and Pending`, type: 'success' });
+    } catch (err: any) {
+      console.error("Rollback error:", err);
+      setToast({ message: "Rollback failed", type: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];

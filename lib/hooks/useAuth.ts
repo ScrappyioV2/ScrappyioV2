@@ -75,8 +75,9 @@ export function useAuth() {
           setUserRole(null)
         }
       } finally {
-        // CRITICAL: Always set loading to false
+        // CRITICAL: Always set loading to false (only place to set it!)
         if (isMounted) {
+          console.log('✅ Auth loading complete')
           setLoading(false)
         }
       }
@@ -89,7 +90,7 @@ export function useAuth() {
       async (event, session) => {
         if (!isMounted) return
 
-        console.log('Auth state changed:', event)
+        console.log('🔔 Auth state changed:', event)
 
         if (session?.user) {
           setUser(session.user)
@@ -109,11 +110,7 @@ export function useAuth() {
           setUser(null)
           setUserRole(null)
         }
-
-        // Set loading false after auth change is processed
-        if (isMounted) {
-          setLoading(false)
-        }
+        // DON'T set loading here - already handled in finally block!
       }
     )
 
