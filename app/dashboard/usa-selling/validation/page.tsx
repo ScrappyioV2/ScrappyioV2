@@ -161,13 +161,13 @@ const ResizableTH = ({
 }) => (
     <th
         style={{ width }}
-        className={`relative px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider ${align === 'center' ? 'text-center' : 'text-left'
+        className={`relative px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 ${align === 'center' ? 'text-center' : 'text-left'
             } select-none`}
     >
         {label}
         <span
             onMouseDown={(e) => onResizeStart(columnKey, e.clientX)}
-            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
         />
     </th>
 );
@@ -1121,79 +1121,57 @@ export default function ValidationPage() {
     return (
         <PageTransition>
             <PageGuard>
-                <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-6">
+                <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
                     <div className="w-full flex flex-col flex-1 overflow-hidden">
                         {/* Fixed Header Section */}
                         <div className="flex-none">
                             {/* Header */}
                             <div className="mb-6">
-                                <h1 className="text-3xl font-bold text-gray-900">USA Selling - Validation</h1>
-                                <p className="text-gray-600 mt-1">Manage validation files and product status</p>
+                                <h1 className="text-3xl font-bold text-white">USA Selling - Validation</h1>
+                                <p className="text-slate-400 mt-1">Manage validation files and product status</p>
                             </div>
                             {/* Stats Cards */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                                <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg px-5 py-4 text-white shadow-md">
-                                    <div className="text-xs font-medium opacity-90">Total Products</div>
+                                <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-slate-700/50">
+                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products</div>
                                     <div className="text-3xl font-bold mt-1">{stats.total}</div>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg px-5 py-4 text-white shadow-md">
-                                    <div className="text-xs font-medium opacity-90">✓ Passed</div>
-                                    <div className="text-3xl font-bold mt-1">{stats.passed}</div>
+                                <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-900/20 rounded-xl px-5 py-4 text-emerald-100 shadow-lg border border-emerald-500/20">
+                                    <div className="text-xs font-medium text-emerald-400 uppercase tracking-wider">✓ Passed</div>
+                                    <div className="text-3xl font-bold mt-1 text-white">{stats.passed}</div>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg px-5 py-4 text-white shadow-md">
-                                    <div className="text-xs font-medium opacity-90">✗ Failed</div>
-                                    <div className="text-3xl font-bold mt-1">{stats.failed}</div>
+                                <div className="bg-gradient-to-br from-rose-900/50 to-rose-900/20 rounded-xl px-5 py-4 text-rose-100 shadow-lg border border-rose-500/20">
+                                    <div className="text-xs font-medium text-rose-400 uppercase tracking-wider">✗ Failed</div>
+                                    <div className="text-3xl font-bold mt-1 text-white">{stats.failed}</div>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg px-5 py-4 text-white shadow-md">
-                                    <div className="text-xs font-medium opacity-90">⏳ Pending</div>
-                                    <div className="text-3xl font-bold mt-1">{stats.pending}</div>
+                                <div className="bg-gradient-to-br from-amber-900/50 to-amber-900/20 rounded-xl px-5 py-4 text-amber-100 shadow-lg border border-amber-500/20">
+                                    <div className="text-xs font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</div>
+                                    <div className="text-3xl font-bold mt-1 text-white">{stats.pending}</div>
                                 </div>
                             </div>
 
                             {/* File Tabs */}
-                            <div className="flex gap-2 mb-5 flex-wrap">
-                                <button
-                                    onClick={() => setActiveTab('main_file')}
-                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'main_file'
-                                        ? 'bg-slate-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                        }`}
-                                >
-                                    Main File
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveTab('pass_file')}
-                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pass_file'
-                                        ? 'bg-slate-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                        }`}
-                                >
-                                    Pass File
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveTab('fail_file')}
-                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'fail_file'
-                                        ? 'bg-slate-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                        }`}
-                                >
-                                    Failed File
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveTab('pending')}
-                                    className={`px-6 py-2.5 text-sm font-semibold rounded-md transition-all ${activeTab === 'pending'
-                                        ? 'bg-slate-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                                        }`}
-                                >
-                                    Pending
-                                </button>
+                            <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
+                                {[
+                                    { id: 'main_file', label: 'Main File' },
+                                    { id: 'pass_file', label: 'Pass File' },
+                                    { id: 'fail_file', label: 'Failed File' },
+                                    { id: 'pending', label: 'Pending' }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as FileTab)}
+                                        className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
+                                            ? 'text-white bg-slate-800 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] border border-slate-700'
+                                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+                                            }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
 
                             {/* Action Buttons */}
@@ -1201,32 +1179,27 @@ export default function ValidationPage() {
                                 <div className="flex items-center justify-between gap-3">
                                     {/* LEFT SIDE - Search + Filter */}
                                     <div className="flex gap-3 flex-1 min-w-[300px]">
-                                        {/* Search Bar - NEW */}
-                                        <div className="relative flex-1 max-w-md">
+                                        {/* Search Bar */}
+                                        <div className="relative flex-1 max-w-md group">
                                             <svg
-                                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
+                                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
                                             >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                                />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                             </svg>
                                             <input
                                                 type="text"
                                                 placeholder="Search by ASIN, Product Name, or Brand..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full pl-9 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                                className="w-full pl-9 pr-10 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
                                             />
                                             {searchQuery && (
                                                 <button
                                                     onClick={() => setSearchQuery('')}
-                                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-300"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1239,15 +1212,10 @@ export default function ValidationPage() {
                                         <div className="relative">
                                             <button
                                                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                                className="px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                                className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                                                    />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                                                 </svg>
                                                 Add Filter
                                             </button>
@@ -1255,42 +1223,42 @@ export default function ValidationPage() {
                                             {isFilterOpen && (
                                                 <>
                                                     <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                    <div className="absolute top-full left-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-72">
-                                                        <h3 className="font-semibold text-gray-900 mb-3">Filter Products</h3>
+                                                    <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                                        <h3 className="font-semibold text-slate-200 mb-3">Filter Products</h3>
                                                         <div className="space-y-3">
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">Seller Tag</label>
+                                                                <label className="block text-xs font-medium text-slate-400 mb-1">Seller Tag</label>
                                                                 <input
                                                                     type="text"
                                                                     value={filters.seller_tag}
                                                                     onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                    className="w-full px-3 py-2 border rounded-lg"
+                                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
                                                                     placeholder="Enter seller name"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                                                                <label className="block text-xs font-medium text-slate-400 mb-1">Brand</label>
                                                                 <input
                                                                     type="text"
                                                                     value={filters.brand}
                                                                     onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                    className="w-full px-3 py-2 border rounded-lg"
+                                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
                                                                     placeholder="Enter brand"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-700 mb-1">Funnel</label>
+                                                                <label className="block text-xs font-medium text-slate-400 mb-1">Funnel</label>
                                                                 <input
                                                                     type="text"
                                                                     value={filters.funnel}
                                                                     onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                    className="w-full px-3 py-2 border rounded-lg"
+                                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
                                                                     placeholder="Enter funnel"
                                                                 />
                                                             </div>
                                                             <button
                                                                 onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
-                                                                className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                                                                className="w-full px-3 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white font-medium text-sm transition-colors"
                                                             >
                                                                 Clear Filters
                                                             </button>
@@ -1303,14 +1271,14 @@ export default function ValidationPage() {
 
                                     {/* RIGHT SIDE - Action Buttons */}
                                     <div className="flex gap-3 flex-wrap">
-                                        {/* Move to Main - ONLY for Pass and Failed tabs */}
+                                        {/* Move to Main */}
                                         {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
                                             <button
                                                 onClick={handleMoveToMainClick}
                                                 disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
-                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                    : 'bg-slate-800 text-white hover:bg-slate-900'
+                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                    : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1320,14 +1288,14 @@ export default function ValidationPage() {
                                             </button>
                                         )}
 
-                                        {/* Move to Pass - ONLY for Pending tab */}
+                                        {/* Move to Pass */}
                                         {activeTab === 'pending' && (
                                             <button
                                                 onClick={handleMoveToPassClick}
                                                 disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
-                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
+                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                    : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1337,14 +1305,14 @@ export default function ValidationPage() {
                                             </button>
                                         )}
 
-                                        {/* Move to Fail - ONLY for Pending tab */}
+                                        {/* Move to Fail */}
                                         {activeTab === 'pending' && (
                                             <button
                                                 onClick={handleMoveToFailClick}
                                                 disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition whitespace-nowrap ${selectedIds.size === 0
-                                                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
+                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                    : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1357,15 +1325,10 @@ export default function ValidationPage() {
                                         {/* Download CSV */}
                                         <button
                                             onClick={downloadCSV}
-                                            className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                                />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                             </svg>
                                             Download CSV
                                         </button>
@@ -1373,59 +1336,32 @@ export default function ValidationPage() {
                                         {/* Upload CSV */}
                                         <button
                                             onClick={handleUploadCSV}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                            className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                                                />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                             </svg>
                                             Upload CSV
                                         </button>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept=".csv,.xlsx,.xls"
-                                            onChange={processCSVFile}
-                                            className="hidden"
-                                        />
+                                        <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
 
                                         {/* Bulk USA Price Update */}
                                         <button
                                             onClick={() => usaPriceCSVInputRef.current?.click()}
-                                            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium whitespace-nowrap"
+                                            className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
                                         >
                                             Bulk USA Price Update
                                         </button>
-                                        <input
-                                            type="file"
-                                            accept=".csv"
-                                            ref={usaPriceCSVInputRef}
-                                            onChange={handleUSAPriceCSVUpload}
-                                            className="hidden"
-                                        />
+                                        <input type="file" accept=".csv" ref={usaPriceCSVInputRef} onChange={handleUSAPriceCSVUpload} className="hidden" />
 
                                         {/* Configure Constants */}
                                         <button
                                             onClick={openConstantsModal}
-                                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                            className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                                                />
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                             </svg>
                                             Configure Constants
                                         </button>
@@ -1435,23 +1371,22 @@ export default function ValidationPage() {
                         </div>
 
                         {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                        <div className="flex-1 min-h-0 bg-white rounded-md shadow overflow-hidden flex flex-col border border-gray-200">
+                        <div className="flex-1 min-h-0 bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-800">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center p-16">
                                     <div className="relative">
-                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-200"></div>
-                                        <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-blue-600"></div>
+                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500/30"></div>
+                                        <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-indigo-500"></div>
                                     </div>
-                                    <p className="mt-4 text-gray-600 font-medium">Loading products...</p>
+                                    <p className="mt-4 text-slate-400 font-medium tracking-wide animate-pulse">Loading products...</p>
                                 </div>
                             ) : filteredProducts.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center p-12 text-gray-500">
-                                    <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="flex flex-col items-center justify-center p-12 text-slate-500">
+                                    <svg className="w-16 h-16 mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                     </svg>
-                                    <p className="text-lg font-semibold text-gray-700 mb-2">No products found</p>
-                                    <p className="text-sm text-gray-500 max-w-md text-center">
-
+                                    <p className="text-lg font-semibold text-slate-400 mb-2">No products found</p>
+                                    <p className="text-sm text-slate-600 max-w-md text-center">
                                         {activeTab === 'pending'
                                             ? 'Products with incomplete data will appear here'
                                             : activeTab === 'pass_file'
@@ -1464,238 +1399,83 @@ export default function ValidationPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex-1 overflow-auto">
+                                    <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                                         <table className="w-full table-fixed">
-                                            <thead className="bg-gradient-to-r from-slate-100 to-slate-200 border-b-2 border-slate-300 sticky top-0 z-10">
+                                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left">
                                                         <input
                                                             type="checkbox"
-                                                            checked={
-                                                                selectedIds.size === filteredProducts.length &&
-                                                                filteredProducts.length > 0
-                                                            }
+                                                            checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                                                             onChange={(e) => handleSelectAll(e.target.checked)}
-                                                            className="rounded"
+                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
                                                         />
                                                     </th>
 
-                                                    {visibleColumns.asin && (
-                                                        <ResizableTH
-                                                            width={columnWidths.asin}
-                                                            columnKey="asin"
-                                                            label="ASIN"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.product_name && (
-                                                        <ResizableTH
-                                                            width={columnWidths.product_name}
-                                                            columnKey="product_name"
-                                                            label="Product Name"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.brand && (
-                                                        <ResizableTH
-                                                            width={columnWidths.brand}
-                                                            columnKey="brand"
-                                                            label="Brand"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.seller_tag && (
-                                                        <ResizableTH
-                                                            width={columnWidths.seller_tag}
-                                                            columnKey="seller_tag"
-                                                            label="Seller Tag"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.funnel && (
-                                                        <ResizableTH
-                                                            width={columnWidths.funnel}
-                                                            columnKey="funnel"
-                                                            label="Funnel"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.no_of_seller && (
-                                                        <ResizableTH
-                                                            width={columnWidths.no_of_seller}
-                                                            columnKey="no_of_seller"
-                                                            label="No. of Sellers"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.usa_link && (
-                                                        <ResizableTH
-                                                            width={columnWidths.usa_link}
-                                                            columnKey="usa_link"
-                                                            label="USA Link"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {activeTab === 'pass_file' && (
-                                                        <ResizableTH
-                                                            width={120}
-                                                            columnKey="origin"
-                                                            label="Origin"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.product_weight && (
-                                                        <ResizableTH
-                                                            width={columnWidths.product_weight}
-                                                            columnKey="product_weight"
-                                                            label="Weight (g)"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.usd_price && (
-                                                        <ResizableTH
-                                                            width={columnWidths.usd_price}
-                                                            columnKey="usd_price"
-                                                            label="USD Price"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.inr_purchase && (
-                                                        <ResizableTH
-                                                            width={columnWidths.inr_purchase}
-                                                            columnKey="inr_purchase"
-                                                            label="INR Purchase"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                        <ResizableTH
-                                                            width={columnWidths.inr_purchase_link}
-                                                            columnKey="inr_purchase_link"
-                                                            label="INR Purchase Link"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {activeTab === 'pass_file' && (
-                                                        <ResizableTH
-                                                            width={160}
-                                                            columnKey="checklist"
-                                                            label="Checklist"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
-                                                    {visibleColumns.judgement && (
-                                                        <ResizableTH
-                                                            width={columnWidths.judgement}
-                                                            columnKey="judgement"
-                                                            label="Judgement"
-                                                            onResizeStart={startResize}
-                                                        />
-                                                    )}
-
+                                                    {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
+                                                    {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
+                                                    {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
+                                                    {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
+                                                    {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
+                                                    {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="No. of Sellers" onResizeStart={startResize} />}
+                                                    {visibleColumns.usa_link && <ResizableTH width={columnWidths.usa_link} columnKey="usa_link" label="USA Link" onResizeStart={startResize} />}
+                                                    {activeTab === 'pass_file' && <ResizableTH width={120} columnKey="origin" label="Origin" onResizeStart={startResize} />}
+                                                    {visibleColumns.product_weight && <ResizableTH width={columnWidths.product_weight} columnKey="product_weight" label="Weight (g)" onResizeStart={startResize} />}
+                                                    {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD Price" onResizeStart={startResize} />}
+                                                    {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR Purchase" onResizeStart={startResize} />}
+                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="INR Purchase Link" onResizeStart={startResize} />}
+                                                    {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
+                                                    {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Judgement" onResizeStart={startResize} />}
                                                 </tr>
                                             </thead>
 
-                                            <tbody>
-                                                {filteredProducts.map((product, index) => (
-                                                    <tr
-                                                        key={product.id}
-                                                        className="border-b hover:bg-gray-50 transition-colors"
-                                                    >
+                                            <tbody className="divide-y divide-slate-800">
+                                                {filteredProducts.map((product) => (
+                                                    <tr key={product.id} className="hover:bg-slate-800/50 transition-colors">
                                                         <td className="p-3">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={selectedIds.has(product.id)}
                                                                 onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                                className="rounded"
+                                                                className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
                                                             />
                                                         </td>
 
                                                         {visibleColumns.asin && (
-                                                            <td className="p-3 font-mono text-sm">{product.asin}</td>
+                                                            <td className="p-3 font-mono text-sm text-slate-300">{product.asin}</td>
                                                         )}
                                                         {visibleColumns.product_name && (
-                                                            <td
-                                                                style={{ width: columnWidths.product_name }}
-                                                                className="p-3 overflow-hidden whitespace-nowrap"
-                                                            >
-                                                                <span
-                                                                    className="block overflow-hidden text-ellipsis whitespace-nowrap"
-                                                                    title={product.product_name || ''}
-                                                                >
+                                                            <td style={{ width: columnWidths.product_name }} className="p-3 overflow-hidden whitespace-nowrap text-slate-200">
+                                                                <span className="block overflow-hidden text-ellipsis whitespace-nowrap" title={product.product_name || ''}>
                                                                     {product.product_name || '-'}
                                                                 </span>
                                                             </td>
                                                         )}
 
-                                                        {visibleColumns.brand && (
-                                                            <td className="p-3">{product.brand || '-'}</td>
-                                                        )}
-                                                        {visibleColumns.seller_tag && (
-                                                            <td className="p-3">
-                                                                {renderSellerTags(product.seller_tag)}
-                                                            </td>
-                                                        )}
-                                                        {visibleColumns.funnel && (
-                                                            <td className="p-3">
-                                                                {renderFunnelBadge(product.funnel)}
-                                                            </td>
-                                                        )}
-                                                        {visibleColumns.no_of_seller && (
-                                                            <td className="p-3">{product.no_of_seller || '-'}</td>
-                                                        )}
+                                                        {visibleColumns.brand && <td className="p-3 text-slate-300">{product.brand || '-'}</td>}
+                                                        {visibleColumns.seller_tag && <td className="p-3">{renderSellerTags(product.seller_tag)}</td>}
+                                                        {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
+                                                        {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
 
                                                         {visibleColumns.usa_link && (
                                                             <td className="p-3">
                                                                 {product.usa_link ? (
-                                                                    <a
-                                                                        href={product.usa_link}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="text-blue-600 hover:underline"
-                                                                    >
+                                                                    <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline">
                                                                         View
                                                                     </a>
-                                                                ) : (
-                                                                    '-'
-                                                                )}
+                                                                ) : '-'}
                                                             </td>
                                                         )}
 
                                                         {activeTab === 'pass_file' && (
                                                             <td className="p-3">
-                                                                <div className="flex flex-col gap-1 text-sm">
+                                                                <div className="flex flex-col gap-1 text-sm text-slate-300">
                                                                     <label className="flex items-center gap-2">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!product.origin_india}
-                                                                            onChange={(e) =>
-                                                                                handleOriginToggle(product.id, 'origin_india', e.target.checked)
-                                                                            }
-                                                                        />
+                                                                        <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                         India
                                                                     </label>
                                                                     <label className="flex items-center gap-2">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={!!product.origin_china}
-                                                                            onChange={(e) =>
-                                                                                handleOriginToggle(product.id, 'origin_china', e.target.checked)
-                                                                            }
-                                                                        />
+                                                                        <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                         China
                                                                     </label>
                                                                 </div>
@@ -1703,103 +1483,56 @@ export default function ValidationPage() {
                                                         )}
 
                                                         {visibleColumns.product_weight && (
-                                                            <td className="p-3">
+                                                            <td className="p-3 text-slate-300">
                                                                 {activeTab === 'main_file' ? (
                                                                     <input
                                                                         type="number"
                                                                         value={product.product_weight ?? ''}
-                                                                        onChange={(e) =>
-                                                                            handleCellEdit(
-                                                                                product.id,
-                                                                                'product_weight',
-                                                                                Number(e.target.value) || null
-                                                                            )
-                                                                        }
-                                                                        className="w-20 px-2 py-1 border rounded"
+                                                                        onChange={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
+                                                                        className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                     />
-                                                                ) : (
-                                                                    product.product_weight ?? '-'
-                                                                )}
+                                                                ) : (product.product_weight ?? '-')}
                                                             </td>
                                                         )}
 
                                                         {visibleColumns.usd_price && (
-                                                            <td className="p-3">
+                                                            <td className="p-3 text-slate-300">
                                                                 {activeTab === 'main_file' ? (
                                                                     <input
                                                                         type="text"
-                                                                        value={
-                                                                            editingValue?.id === product.id &&
-                                                                                editingValue.field === 'usd_price'
-                                                                                ? editingValue.value
-                                                                                : formatUSD(product.usd_price)
-                                                                        }
-                                                                        onFocus={() =>
-                                                                            setEditingValue({
-                                                                                id: product.id,
-                                                                                field: 'usd_price',
-                                                                                value: product.usd_price?.toString() || ''
-                                                                            })
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            setEditingValue({
-                                                                                id: product.id,
-                                                                                field: 'usd_price',
-                                                                                value: e.target.value
-                                                                            })
-                                                                        }
+                                                                        value={editingValue?.id === product.id && editingValue.field === 'usd_price' ? editingValue.value : formatUSD(product.usd_price)}
+                                                                        onFocus={() => setEditingValue({ id: product.id, field: 'usd_price', value: product.usd_price?.toString() || '' })}
+                                                                        onChange={(e) => setEditingValue({ id: product.id, field: 'usd_price', value: e.target.value })}
                                                                         onBlur={() => {
                                                                             const parsed = parseCurrency(editingValue?.value || '')
                                                                             handleCellEdit(product.id, 'usd_price', parsed)
                                                                             setEditingValue(null)
                                                                         }}
-                                                                        className="w-28 px-2 py-1 border rounded"
+                                                                        className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                     />
-                                                                ) : (
-                                                                    formatUSD(product.usd_price)
-                                                                )}
+                                                                ) : formatUSD(product.usd_price)}
                                                             </td>
                                                         )}
 
                                                         {visibleColumns.inr_purchase && (
-                                                            <td className="p-3">
+                                                            <td className="p-3 text-slate-300">
                                                                 {activeTab === 'main_file' ? (
                                                                     <input
                                                                         type="text"
-                                                                        value={
-                                                                            editingValue?.id === product.id &&
-                                                                                editingValue.field === 'inr_purchase'
-                                                                                ? editingValue.value
-                                                                                : formatINR(product.inr_purchase)
-                                                                        }
-                                                                        onFocus={() =>
-                                                                            setEditingValue({
-                                                                                id: product.id,
-                                                                                field: 'inr_purchase',
-                                                                                value: product.inr_purchase?.toString() || ''
-                                                                            })
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            setEditingValue({
-                                                                                id: product.id,
-                                                                                field: 'inr_purchase',
-                                                                                value: e.target.value
-                                                                            })
-                                                                        }
+                                                                        value={editingValue?.id === product.id && editingValue.field === 'inr_purchase' ? editingValue.value : formatINR(product.inr_purchase)}
+                                                                        onFocus={() => setEditingValue({ id: product.id, field: 'inr_purchase', value: product.inr_purchase?.toString() || '' })}
+                                                                        onChange={(e) => setEditingValue({ id: product.id, field: 'inr_purchase', value: e.target.value })}
                                                                         onBlur={() => {
                                                                             const parsed = parseCurrency(editingValue?.value || '')
                                                                             handleCellEdit(product.id, 'inr_purchase', parsed)
                                                                             setEditingValue(null)
                                                                         }}
-                                                                        className="w-32 px-2 py-1 border rounded"
+                                                                        className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                     />
-                                                                ) : (
-                                                                    formatINR(product.inr_purchase)
-                                                                )}
+                                                                ) : formatINR(product.inr_purchase)}
                                                             </td>
                                                         )}
 
-                                                        {/* ✅ ADD THIS NEW EDITABLE CELL */}
                                                         {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
                                                             <td className="px-4 py-3 text-sm">
                                                                 <input
@@ -1807,7 +1540,7 @@ export default function ValidationPage() {
                                                                     value={product.inr_purchase_link || ''}
                                                                     onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
                                                                     placeholder="Enter supplier link..."
-                                                                    className="w-full min-w-[200px] px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                                                    className="w-full min-w-[200px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
                                                                 />
                                                             </td>
                                                         )}
@@ -1815,48 +1548,23 @@ export default function ValidationPage() {
                                                         {activeTab === 'pass_file' && (
                                                             <td className="p-3">
                                                                 {product.check_brand && product.check_item_expire && product.check_small_size && product.check_multi_seller ? (
-                                                                    <button
-                                                                        onClick={() => handleChecklistOk(product.id)}
-                                                                        className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
-                                                                    >
-                                                                        OK
-                                                                    </button>
+                                                                    <button onClick={() => handleChecklistOk(product.id)} className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all">OK</button>
                                                                 ) : (
-                                                                    <div className="flex flex-wrap gap-2 text-xs">
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Brand Checking">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!product.check_brand}
-                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)}
-                                                                                className="w-3 h-3"
-                                                                            />
+                                                                    <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Brand Checking">
+                                                                            <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                             <span>Brand</span>
                                                                         </label>
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Item Expaire">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!product.check_item_expire}
-                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)}
-                                                                                className="w-3 h-3"
-                                                                            />
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Item Expire">
+                                                                            <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                             <span>Expire</span>
                                                                         </label>
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Small Size">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!product.check_small_size}
-                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)}
-                                                                                className="w-3 h-3"
-                                                                            />
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Small Size">
+                                                                            <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                             <span>Size</span>
                                                                         </label>
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded" title="Multi Sellers">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!product.check_multi_seller}
-                                                                                onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)}
-                                                                                className="w-3 h-3"
-                                                                            />
+                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Multi Sellers">
+                                                                            <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                             <span>Multi</span>
                                                                         </label>
                                                                     </div>
@@ -1867,22 +1575,11 @@ export default function ValidationPage() {
                                                         {visibleColumns.judgement && (
                                                             <td className="p-3">
                                                                 {product.judgement ? (
-                                                                    <span
-                                                                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${product.judgement === 'PASS'
-                                                                            ? 'bg-green-500 text-white'
-                                                                            : product.judgement === 'FAIL'
-                                                                                ? 'bg-red-500 text-white'
-                                                                                : product.judgement === 'PENDING'
-                                                                                    ? 'bg-orange-500 text-white'
-                                                                                    : 'bg-gray-400 text-white'
-                                                                            }`}
-                                                                    >
+                                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${product.judgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : product.judgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : product.judgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-slate-700 text-slate-300'}`}>
                                                                         {product.judgement}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500 text-white">
-                                                                        PENDING
-                                                                    </span>
+                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
                                                                 )}
                                                             </td>
                                                         )}
@@ -1893,13 +1590,13 @@ export default function ValidationPage() {
                                     </div>
 
                                     {/* Footer Stats - Fixed at bottom of table */}
-                                    <div className="flex-none border-t bg-gray-50 px-4 py-3">
-                                        <div className="flex items-center justify-between text-xs text-gray-600 flex-wrap gap-2">
-                                            <span className="text-gray-600 font-medium">
-                                                Showing <span className="font-bold text-slate-800">{filteredProducts.length}</span> of <span className="font-bold text-slate-800">{products.length}</span> products
+                                    <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
+                                        <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
+                                            <span className="font-medium">
+                                                Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{products.length}</span> products
                                             </span>
                                             {selectedIds.size > 0 && (
-                                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">
+                                                <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-semibold border border-indigo-500/30">
                                                     {selectedIds.size} selected
                                                 </span>
                                             )}
@@ -1913,64 +1610,58 @@ export default function ValidationPage() {
                     {/* Constants Configuration Modal */}
                     {isConstantsModalOpen && (
                         <>
-                            <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsConstantsModalOpen(false)} />
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
                             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                                <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-                                    <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-t-xl">
+                                <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+                                    <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6">
                                         <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
-                                        <p className="text-purple-100 mt-1">Update global constants for automatic calculations</p>
+                                        <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
                                     </div>
 
-                                    <div className="p-6 space-y-4">
+                                    <div className="p-6 space-y-5">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Dollar Rate (₹)</label>
+                                            <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
                                             <input
                                                 type="number"
                                                 value={constants.dollar_rate}
-                                                onChange={(e) =>
-                                                    setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })
-                                                }
-                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                                                onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
+                                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                                 step="0.01"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Bank Fee (%)</label>
+                                            <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
                                             <input
                                                 type="number"
                                                 value={constants.bank_conversion_rate * 100}
-                                                onChange={(e) =>
-                                                    setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })
-                                                }
-                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                                                onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
+                                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                                 step="0.01"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Shipping per 1000g (₹)</label>
+                                            <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
                                             <input
                                                 type="number"
                                                 value={constants.shipping_charge_per_kg}
-                                                onChange={(e) =>
-                                                    setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })
-                                                }
-                                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                                                onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
+                                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                                 step="0.01"
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="p-6 border-t bg-gray-50 flex items-center justify-end gap-3 rounded-b-xl">
+                                    <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
                                         <button
                                             onClick={() => setIsConstantsModalOpen(false)}
-                                            className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                                            className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             onClick={saveConstants}
                                             disabled={isSavingConstants}
-                                            className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                            className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all"
                                         >
                                             {isSavingConstants ? (
                                                 <>

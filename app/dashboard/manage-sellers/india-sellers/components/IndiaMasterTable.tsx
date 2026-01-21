@@ -383,9 +383,6 @@ export default function IndiaMasterTable({
   };
 
   /**
- * Fetch unique values for a filter, respecting OTHER active filters
- */
-  /**
    * Fetch unique values for a filter, respecting OTHER active filters
    */
   const fetchUniqueValuesForFilter = async (columnKey: string) => {   

@@ -20,7 +20,7 @@ type AdminProduct = {
   target_quantity: number | null;
   buying_price: number | null;
   buying_quantity: number | null;
-  funnel: number | null;
+  funnel: number | string | null;
   seller_tag: string | null;
   seller_link: string | null;
   seller_phone: string | null;
@@ -40,6 +40,18 @@ type AdminProduct = {
 };
 
 type TabType = 'overview' | 'india' | 'china' | 'pending' | 'confirm' | 'reject';
+
+// ✅ Seller Mapping Helper
+const getSellerNameFromTag = (tag: string | null) => {
+  if (!tag) return null;
+  switch (tag.toUpperCase()) {
+    case 'GR': return 'Golden Aura';
+    case 'RR': return 'Rudra Retail';
+    case 'UB': return 'Ubeauty';
+    case 'VV': return 'Velvet Vista';
+    default: return null;
+  }
+};
 
 export default function AdminValidationPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -91,17 +103,9 @@ export default function AdminValidationPage() {
 
       // 3️⃣ Batch fetch from BOTH tables (2 queries total, not 100+)
       const [purchaseResult, validationResult] = await Promise.all([
-        // ✅ Fetch purchase team's data (5 columns)
-        supabase
-          .from('usa_purchases')
-          .select('asin, admin_target_price, buying_price, buying_quantity, seller_link, seller_phone, payment_method')
-          .in('asin', asins),
-
-        // ✅ Fetch validation team's data
-        supabase
-          .from('usa_validation_main_file')
-          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
-          .in('asin', asins)
+        supabase.from('usa_purchases').select('asin, buying_price, buying_quantity, seller_link, seller_phone, payment_method').in('asin', asins),
+        // ✅ REMOVED 'funnel_stage' to prevent crash
+        supabase.from('usa_validation_main_file').select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase').in('asin', asins)
       ])
 
       // Handle errors gracefully
@@ -614,56 +618,131 @@ export default function AdminValidationPage() {
     }
   }
 
-  // Handle individual product confirm
+  // =========================================================
+  // ✅ ROBUST AUTO-DISTRIBUTE (Handles Typos & Whitespace)
+  // =========================================================
   const handleConfirmProduct = async (productId: string) => {
     try {
       const product = products.find((p) => p.id === productId);
       if (!product) return;
 
-      // ✅ SAVE TO HISTORY FIRST!
-      setMovementHistory((prev) => ({
-        ...prev,
-        [activeTab]: {
-          product,
-          fromStatus: product.admin_status,
-          toStatus: 'confirmed'
-        },
-      }));
+      const cleanAsin = product.asin.trim();
+      console.log(`🚀 Confirming: ${cleanAsin}`);
 
-      // UPDATE usa_purchases with ALL edited fields from admin
-      const { error: updatePurchaseError } = await supabase
-        .from('usa_purchases')
-        .update({
-          admin_confirmed: true,
-          admin_confirmed_at: new Date().toISOString(),
-          admin_target_price: product.admin_target_price,
-          buying_price: product.buying_price,
-          buying_quantity: product.buying_quantity,
-          seller_link: product.seller_link,
-          seller_phone: product.seller_phone,
-          payment_method: product.payment_method,
-        })
-        .eq('asin', product.asin);
+      // 1. FRESH FETCH (Only existing columns)
+      // Removed 'funnel_stage' so this query works
+      const { data: validationData, error: fetchError } = await supabase
+        .from('usa_validation_main_file')
+        .select('funnel, seller_tag')
+        .eq('asin', cleanAsin)
+        .limit(1)
+        .maybeSingle();
 
-      if (updatePurchaseError) throw updatePurchaseError;
+      if (fetchError) console.warn("⚠️ DB Fetch Warning:", fetchError.message);
 
-      // Update usa_admin_validation status
-      const { error: updateAdminError } = await supabase
-        .from('usa_admin_validation')
-        .update({
-          admin_status: 'confirmed',
-          confirmed_at: new Date().toISOString(),
-        })
-        .eq('id', productId);
+      // 2. DETERMINE SELLER TAG (With Fallback)
+      const sellerTag = validationData?.seller_tag || product.seller_tag;
 
-      if (updateAdminError) throw updateAdminError;
+      if (!sellerTag) {
+        alert("Error: Missing Seller Tag. Please check product data.");
+        return;
+      }
+
+      // 3. DETERMINE FUNNEL ID (Robust Parser)
+      let finalFunnelId = 0;
+      const rawFunnel = validationData?.funnel ?? product.funnel;
+
+      // Handle number (1) or string ("1", "High Demand")
+      if (rawFunnel !== null && rawFunnel !== undefined) {
+        if (!isNaN(Number(rawFunnel))) {
+          finalFunnelId = Number(rawFunnel);
+        } else {
+          const str = String(rawFunnel).toLowerCase();
+          if (str.includes('high') || str === 'hd') finalFunnelId = 1;
+          else if (str.includes('low') || str === 'ld') finalFunnelId = 2;
+          else if (str.includes('drop') || str.includes('dp')) finalFunnelId = 3;
+        }
+      }
+
+      console.log(`📊 Distributing: Tag=${sellerTag} | Funnel=${finalFunnelId}`);
+
+      // 4. Determine Seller ID
+      let sellerIdForStats = 0;
+      switch (sellerTag.toUpperCase()) {
+        case 'GR': sellerIdForStats = 1; break;
+        case 'RR': sellerIdForStats = 2; break;
+        case 'UB': sellerIdForStats = 3; break;
+        case 'VV': sellerIdForStats = 4; break;
+        default:
+          alert(`Error: Unrecognized Seller Tag '${sellerTag}'`);
+          return;
+      }
+
+      // 5. Prepare Payload
+      const payload = {
+        source_admin_validation_id: product.id,
+        asin: cleanAsin,
+        product_name: product.product_name,
+        sku: cleanAsin,
+        selling_price: product.buying_price || product.admin_target_price || 0,
+        seller_link: product.seller_link,
+        min_price: null,
+        max_price: null,
+      };
+
+      // 6. Select Tables (Always Pending + Specific Funnel)
+      const tablesToInsert = [`usa_listing_error_seller_${sellerIdForStats}_pending`];
+
+      if (finalFunnelId === 1) tablesToInsert.push(`usa_listing_error_seller_${sellerIdForStats}_high_demand`);
+      else if (finalFunnelId === 2) tablesToInsert.push(`usa_listing_error_seller_${sellerIdForStats}_low_demand`);
+      else if (finalFunnelId === 3) tablesToInsert.push(`usa_listing_error_seller_${sellerIdForStats}_dropshipping`);
+
+      // 7. Execute UPSERTS (Prevents "Duplicate Key" errors)
+      const insertPromises = tablesToInsert.map(table =>
+        supabase.from(table).upsert(payload, { onConflict: 'asin' })
+      );
+
+      await Promise.all(insertPromises);
+
+      // 8. Update Stats
+      const { data: currentStats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', sellerIdForStats).single();
+      if (currentStats) {
+        await supabase.from('listing_error_progress')
+          .update({ total_pending: currentStats.total_pending + 1, updated_at: new Date().toISOString() })
+          .eq('seller_id', sellerIdForStats);
+      }
+
+      // 9. Update Statuses
+      await supabase.from('usa_purchases').update({
+        admin_confirmed: true,
+        admin_confirmed_at: new Date().toISOString(),
+        admin_target_price: product.admin_target_price,
+        buying_price: product.buying_price,
+        buying_quantity: product.buying_quantity,
+        seller_link: product.seller_link,
+        seller_phone: product.seller_phone,
+        payment_method: product.payment_method,
+      }).eq('asin', cleanAsin);
+
+      await supabase.from('usa_admin_validation').update({
+        admin_status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+      }).eq('id', productId);
 
       fetchProducts();
+
+      const dest = finalFunnelId === 1 ? "High Demand" : finalFunnelId === 2 ? "Low Demand" : finalFunnelId === 3 ? "Dropshipping" : "Pending Only";
+
+      setToast({
+        message: `Success! Sent to Purchase Page and Listing & Error (${dest})`,
+        type: "success"
+      });
+
     } catch (error: any) {
-      alert(`Error confirming product: ${error.message}`);
+      console.error(error);
+      alert(`Error: ${error.message}`);
     }
   };
-
 
   // Handle individual product reject
   const handleRejectProduct = async (productId: string) => {
@@ -792,111 +871,66 @@ export default function AdminValidationPage() {
 
   return (
     <PageGuard>
-      <div className="h-screen flex flex-col overflow-hidden bg-gray-50 p-4">
-        <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
+        <div className="w-full flex flex-col flex-1 overflow-hidden">
 
-          {/* Tabs - STICKY */}
-          <div className="flex-none flex gap-2 mb-3 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-6 py-3 font-semibold transition-all ${activeTab === 'overview'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              Overview
-              {products.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                  {products.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('india')}
-              className={`px-6 py-3 font-semibold transition-all ${activeTab === 'india'
-                ? 'border-b-2 border-orange-600 text-orange-600'
-                : 'text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              India
-              {indiaCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full">
-                  {indiaCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('china')}
-              className={`px-6 py-3 font-semibold transition-all ${activeTab === 'china'
-                ? 'border-b-2 border-red-600 text-red-600'
-                : 'text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              China
-              {chinaCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">
-                  {chinaCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('pending')}
-              className={`px-6 py-3 font-semibold transition-all ${activeTab === 'pending'
-                ? 'border-b-2 border-yellow-600 text-yellow-600'
-                : 'text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              Pending
-              {pendingCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-
-
-            <button
-              onClick={() => setActiveTab('confirm')}
-              className={`px-6 py-3 font-semibold transition-all ${activeTab === 'confirm'
-                ? 'border-b-2 border-green-600 text-green-600'
-                : 'text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              Confirm
-              {confirmedCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-                  {confirmedCount}
-                </span>
-              )}
-            </button>
-
-
-            <button
-              onClick={() => setActiveTab('reject')}
-              className={`px-6 py-3 font-semibold transition-all ${activeTab === 'reject'
-                ? 'border-b-2 border-red-600 text-red-600'
-                : 'text-gray-600 hover:text-gray-900'
-                }`}
-            >
-              Reject
-              {rejectedCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">
-                  {rejectedCount}
-                </span>
-              )}
-            </button>
+          {/* Header Section */}
+          <div className="flex-none mb-6">
+            <h1 className="text-3xl font-bold text-white">Admin Validation</h1>
+            <p className="text-slate-400 mt-1">Review and manage product pricing and profitability</p>
           </div>
 
-          {/* Search Bar + Buttons - Same Row */}
-          <div className="flex-none mb-3 flex items-center justify-between gap-3">
+          {/* Tabs - STICKY */}
+          <div className="flex-none flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
+            {[
+              { id: 'overview', label: 'Overview', count: products.length, color: 'text-indigo-400', activeBg: 'bg-indigo-500/10' },
+              { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/10' },
+              { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/10' },
+              { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/10' },
+              { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/10' },
+              { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/10' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
+                  ? `text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 ${tab.color}`
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+                  }`}
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`px-2 py-0.5 text-xs rounded-full bg-slate-950/50 border border-slate-800 ${tab.color}`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </span>
+                {activeTab === tab.id && (
+                  <div className={`absolute inset-0 opacity-10 ${tab.activeBg}`} />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Bar + Buttons */}
+          <div className="flex-none mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
             {/* Left: Search Input */}
-            <input
-              type="text"
-              placeholder="Search by ASIN, Product Name, or Funnel Seller..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="relative flex-1 w-full md:max-w-md group">
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by ASIN, Product Name, or Funnel Seller..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm text-sm"
+              />
+            </div>
 
             {/* Right: Buttons Group */}
             <div className="flex items-center gap-3">
@@ -904,7 +938,7 @@ export default function AdminValidationPage() {
               <button
                 onClick={handleRollBack}
                 disabled={!movementHistory[activeTab]}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium whitespace-nowrap"
+                className="px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
                 title="Roll Back last action from this tab (Ctrl+Z)"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -916,7 +950,7 @@ export default function AdminValidationPage() {
               {/* Configure Constants Button */}
               <button
                 onClick={() => setIsConstantsModalOpen(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -927,56 +961,56 @@ export default function AdminValidationPage() {
             </div>
           </div>
 
-          <div className="text-xs text-blue-600 mb-2 px-4">
-            💡 Tip: Double-click any column header to auto-fit its width
+          <div className="text-xs text-indigo-400 mb-2 px-1 font-medium flex items-center gap-1">
+            <span className="bg-indigo-500/10 p-1 rounded">💡</span>
+            Tip: Double-click any column header to auto-fit its width
           </div>
 
           {/* Table - SCROLLABLE ONLY */}
-          <div className="bg-white rounded-lg shadow flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-auto">
-              <table className="w-full" ref={tableRef}>
-                <thead className="bg-gray-50 border-b sticky top-0 z-10">
+          <div className="bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-slate-800">
+            <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+              <table className="w-full border-collapse" ref={tableRef}>
+                <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
                   <tr>
                     {/* Checkbox */}
-                    <th className="px-4 py-3">
+                    <th className="px-4 py-3 bg-slate-950">
                       <input
                         type="checkbox"
                         checked={selectedIds.size === products.length && products.length > 0}
                         onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="rounded"
+                        className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
                       />
                     </th>
 
                     {/* 1. ASIN */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('asin')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.asin, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>ASIN</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'asin')}
                           style={{
-                            backgroundColor: resizingColumn === 'asin' ? '#3b82f6' : 'transparent',
-                            width: resizingColumn === 'asin' ? '3px' : '4px',
+                            backgroundColor: resizingColumn === 'asin' ? '#6366f1' : 'transparent',
+                            width: resizingColumn === 'asin' ? '2px' : '4px',
                           }}
-                          title="Drag to resize | Double-click to auto-fit"
                         />
                       </div>
                     </th>
 
-                    {/* 2. Product Name - 200px */}
+                    {/* 2. Product Name */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('productname')}
-                      className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
-                      style={{ width: `${columnWidths.productname}px`, minWidth: '150px' }}
+                      className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
+                      style={{ width: columnWidths.productname, minWidth: 150 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Product Name</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'productname')}
                         />
                       </div>
@@ -985,13 +1019,13 @@ export default function AdminValidationPage() {
                     {/* 3. Product Link */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('productlink')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.productlink, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Product Link</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'productlink')}
                         />
                       </div>
@@ -1000,13 +1034,13 @@ export default function AdminValidationPage() {
                     {/* 4. Target Price */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('targetprice')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.targetprice, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Target Price</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'targetprice')}
                         />
                       </div>
@@ -1015,13 +1049,13 @@ export default function AdminValidationPage() {
                     {/* 5. Target Qty */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('targetqty')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.targetqty, minWidth: 70 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Target Qty</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'targetqty')}
                         />
                       </div>
@@ -1030,13 +1064,13 @@ export default function AdminValidationPage() {
                     {/* 6. Admin Target Price */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('admintargetprice')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative bg-purple-50"
+                      className="px-4 py-3 text-xs font-bold text-purple-300 uppercase tracking-wider hover:bg-purple-900/20 relative bg-purple-900/10 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.admintargetprice, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Admin Target Price</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'admintargetprice')}
                         />
                       </div>
@@ -1045,13 +1079,13 @@ export default function AdminValidationPage() {
                     {/* 7. Seller Tag */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('funnelseller')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.funnelseller, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Seller Tag</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'funnelseller')}
                         />
                       </div>
@@ -1060,13 +1094,13 @@ export default function AdminValidationPage() {
                     {/* 8. Funnel */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('funnelqty')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.funnelqty, minWidth: 70 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Funnel</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'funnelqty')}
                         />
                       </div>
@@ -1075,13 +1109,13 @@ export default function AdminValidationPage() {
                     {/* 9. Product Weight */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('productweight')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.productweight, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Product Weight</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'productweight')}
                         />
                       </div>
@@ -1090,13 +1124,13 @@ export default function AdminValidationPage() {
                     {/* 10. USD Price */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('usdprice')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.usdprice, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>USD Price</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'usdprice')}
                         />
                       </div>
@@ -1105,13 +1139,13 @@ export default function AdminValidationPage() {
                     {/* 11. INR Purchase */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('inrpurchase')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.inrpurchase, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>INR Purchase</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'inrpurchase')}
                         />
                       </div>
@@ -1120,13 +1154,13 @@ export default function AdminValidationPage() {
                     {/* 12. Profit */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('profit')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.profit, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Profit</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'profit')}
                         />
                       </div>
@@ -1135,13 +1169,13 @@ export default function AdminValidationPage() {
                     {/* 13. INR Purchase Link */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('inrpurchaselink')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.inrpurchaselink, minWidth: 150 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>INR Purchase Link</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'inrpurchaselink')}
                         />
                       </div>
@@ -1150,13 +1184,13 @@ export default function AdminValidationPage() {
                     {/* 14. Buying Price */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('buyingprice')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.buyingprice, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Buying Price</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'buyingprice')}
                         />
                       </div>
@@ -1165,13 +1199,13 @@ export default function AdminValidationPage() {
                     {/* 15. Buying Quantity */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('buyingqty')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.buyingqty, minWidth: 70 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Buying Qty</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'buyingqty')}
                         />
                       </div>
@@ -1180,13 +1214,13 @@ export default function AdminValidationPage() {
                     {/* 16. Seller Link */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('sellerlink')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.sellerlink, minWidth: 80 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Seller Link</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'sellerlink')}
                         />
                       </div>
@@ -1195,13 +1229,13 @@ export default function AdminValidationPage() {
                     {/* 17. Seller Ph No. */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('sellerphone')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.sellerphone, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Seller Ph No.</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'sellerphone')}
                         />
                       </div>
@@ -1210,13 +1244,13 @@ export default function AdminValidationPage() {
                     {/* 18. Payment Method */}
                     <th
                       onDoubleClick={() => handleColumnDoubleClick('paymentmethod')}
-                      className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 relative"
+                      className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
                       style={{ width: columnWidths.paymentmethod, minWidth: 100 }}
                     >
                       <div className="flex items-center justify-between">
                         <span>Payment Method</span>
                         <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                           onMouseDown={(e) => handleResizeStart(e, 'paymentmethod')}
                         />
                       </div>
@@ -1224,39 +1258,44 @@ export default function AdminValidationPage() {
 
                     {/* 19. Actions */}
                     {(activeTab !== 'confirm' && activeTab !== 'reject') && (
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950">
                         Actions
                       </th>
                     )}
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-800">
                   {filteredProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={19} className="px-4 py-8 text-center text-gray-500">
-                        No products found in {activeTab}
+                      <td colSpan={19} className="px-4 py-16 text-center text-slate-500">
+                        <div className="flex flex-col items-center">
+                          <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                          <span className="text-lg font-semibold text-slate-400">No products found in {activeTab}</span>
+                        </div>
                       </td>
                     </tr>
                   ) : (
                     filteredProducts.map((product) => (
-                      <tr key={product.id} className="hover:bg-gray-50">
+                      <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800">
                         {/* Checkbox */}
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(product.id)}
                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded"
+                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
                           />
                         </td>
 
                         {/* 1. ASIN */}
-                        <td className="px-4 py-3 text-sm text-gray-900">{product.asin}</td>
+                        <td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">{product.asin}</td>
 
                         {/* 2. Product Name */}
                         <td
-                          className="px-4 py-3 text-sm"
+                          className="px-4 py-3 text-sm text-slate-200"
                           style={{
                             maxWidth: columnWidths.productname,
                             overflow: 'hidden',
@@ -1277,7 +1316,7 @@ export default function AdminValidationPage() {
                                   type="text"
                                   value={editingLinkValue}
                                   onChange={(e) => setEditingLinkValue(e.target.value)}
-                                  className="w-full px-2 py-1 border border-blue-500 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                                  className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
                                   placeholder="URL..."
                                   autoFocus
                                   onKeyDown={(e) => {
@@ -1294,7 +1333,7 @@ export default function AdminValidationPage() {
                                     handleCellEdit(product.id, 'productlink', editingLinkValue);
                                     setEditingLinkId(null);
                                   }}
-                                  className="text-green-600 hover:text-green-800 flex-shrink-0"
+                                  className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
                                   title="Save (Enter)"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1303,7 +1342,7 @@ export default function AdminValidationPage() {
                                 </button>
                                 <button
                                   onClick={() => setEditingLinkId(null)}
-                                  className="text-red-600 hover:text-red-800 flex-shrink-0"
+                                  className="text-rose-500 hover:text-rose-400 flex-shrink-0"
                                   title="Cancel (Esc)"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1319,19 +1358,19 @@ export default function AdminValidationPage() {
                                       href={product.product_link}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium whitespace-nowrap"
+                                      className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
                                     >
-                                      View
+                                      View Link
                                     </a>
                                     <button
                                       onClick={() => {
                                         setEditingLinkId(product.id);
                                         setEditingLinkValue(product.product_link || '');
                                       }}
-                                      className="text-gray-400 hover:text-orange-600 transition-colors flex-shrink-0"
+                                      className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
                                       title="Edit link"
                                     >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                       </svg>
                                     </button>
@@ -1342,7 +1381,7 @@ export default function AdminValidationPage() {
                                       setEditingLinkId(product.id);
                                       setEditingLinkValue('');
                                     }}
-                                    className="text-green-600 hover:text-green-800 font-medium text-xs whitespace-nowrap"
+                                    className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
                                   >
                                     + Add Link
                                   </button>
@@ -1358,7 +1397,7 @@ export default function AdminValidationPage() {
                             type="number"
                             defaultValue={product.target_price || ''}
                             onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
-                            className="w-20 px-2 py-1 border rounded text-sm"
+                            className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                           />
                         </td>
 
@@ -1368,12 +1407,12 @@ export default function AdminValidationPage() {
                             type="number"
                             defaultValue={product.target_quantity || ''}
                             onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
-                            className="w-16 px-2 py-1 border rounded text-sm"
+                            className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                           />
                         </td>
 
                         {/* 6. Admin Target Price */}
-                        <td className="px-4 py-3 bg-purple-50">
+                        <td className="px-4 py-3 bg-purple-900/10">
                           <input
                             type="number"
                             step="0.01"
@@ -1381,7 +1420,7 @@ export default function AdminValidationPage() {
                             onChange={(e) =>
                               handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))
                             }
-                            className="w-24 px-2 py-1 border border-purple-300 rounded text-sm focus:ring-1 focus:ring-purple-500"
+                            className="w-24 px-2 py-1 bg-slate-950 border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
                             placeholder="₹"
                           />
                         </td>
@@ -1392,19 +1431,16 @@ export default function AdminValidationPage() {
                             <div className="flex flex-wrap gap-2">
                               {product.seller_tag.split(',').map((tag) => {
                                 const cleanTag = tag.trim();
+                                let badgeColor = 'bg-slate-700 text-white';
+                                if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+                                else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
+                                else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
+                                else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+
                                 return (
                                   <span
                                     key={cleanTag}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-full font-bold text-sm ${cleanTag === 'GR'
-                                      ? 'bg-yellow-400 text-black'
-                                      : cleanTag === 'RR'
-                                        ? 'bg-gray-400 text-black'
-                                        : cleanTag === 'UB'
-                                          ? 'bg-pink-500 text-white'
-                                          : cleanTag === 'VV'
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-slate-700 text-white'
-                                      }`}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}
                                   >
                                     {cleanTag}
                                   </span>
@@ -1412,7 +1448,7 @@ export default function AdminValidationPage() {
                               })}
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-400 italic">-</span>
+                            <span className="text-xs text-slate-600 italic">-</span>
                           )}
                         </td>
 
@@ -1420,25 +1456,19 @@ export default function AdminValidationPage() {
                         <td className="px-4 py-3 text-sm">
                           {product.funnel ? (
                             <span
-                              className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.funnel === 1
-                                ? 'bg-green-500 text-white'
+                              className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.funnel === 1
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 : product.funnel === 2
-                                  ? 'bg-blue-500 text-white'
+                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                                   : product.funnel === 3
-                                    ? 'bg-yellow-400 text-black'
-                                    : 'bg-gray-400 text-white'
+                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                    : 'bg-slate-700 text-slate-300'
                                 }`}
                             >
-                              {product.funnel === 1
-                                ? 'HD'
-                                : product.funnel === 2
-                                  ? 'LD'
-                                  : product.funnel === 3
-                                    ? 'DP'
-                                    : product.funnel}
+                              {product.funnel === 1 ? 'HD' : product.funnel === 2 ? 'LD' : product.funnel === 3 ? 'DP' : product.funnel}
                             </span>
                           ) : (
-                            <span className="text-xs text-gray-400 italic">-</span>
+                            <span className="text-xs text-slate-600 italic">-</span>
                           )}
                         </td>
 
@@ -1456,12 +1486,12 @@ export default function AdminValidationPage() {
                                   parseFloat(e.target.value) || null
                                 )
                               }
-                              className="w-20 px-2 py-1 border rounded text-sm"
-                              placeholder="grams"
+                              className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                              placeholder="g"
                             />
                             {calculatingIds.has(product.id) && (
                               <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
                               </div>
                             )}
                           </div>
@@ -1477,12 +1507,12 @@ export default function AdminValidationPage() {
                               onBlur={(e) =>
                                 handleCellEdit(product.id, 'usdprice', parseFloat(e.target.value) || null)
                               }
-                              className="w-24 px-2 py-1 border rounded text-sm"
+                              className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               placeholder="$"
                             />
                             {calculatingIds.has(product.id) && (
                               <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
                               </div>
                             )}
                           </div>
@@ -1502,12 +1532,12 @@ export default function AdminValidationPage() {
                                   parseFloat(e.target.value) || null
                                 )
                               }
-                              className="w-28 px-2 py-1 border rounded text-sm"
+                              className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               placeholder="₹"
                             />
                             {calculatingIds.has(product.id) && (
                               <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-500 border-t-transparent"></div>
+                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
                               </div>
                             )}
                           </div>
@@ -1516,7 +1546,9 @@ export default function AdminValidationPage() {
                         {/* 12. Profit */}
                         <td className="px-4 py-3 text-sm">
                           <div
-                            className={`w-24 px-2 py-1 border rounded text-sm font-semibold text-center ${(product.profit || 0) >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
+                            className={`w-24 px-2 py-1 border rounded text-sm font-bold text-center ${(product.profit || 0) >= 0
+                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                              : 'text-rose-400 bg-rose-500/10 border-rose-500/30'
                               }`}
                           >
                             {product.profit !== null && product.profit !== undefined
@@ -1534,7 +1566,7 @@ export default function AdminValidationPage() {
                                   type="text"
                                   value={editingLinkValue}
                                   onChange={(e) => setEditingLinkValue(e.target.value)}
-                                  className="w-full px-2 py-1 border border-blue-500 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                                  className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
                                   placeholder="Supplier URL..."
                                   autoFocus
                                   onKeyDown={(e) => {
@@ -1551,8 +1583,7 @@ export default function AdminValidationPage() {
                                     handleCellEdit(product.id, 'inrpurchaselink', editingLinkValue);
                                     setEditingLinkId(null);
                                   }}
-                                  className="text-green-600 hover:text-green-800 flex-shrink-0"
-                                  title="Save (Enter)"
+                                  className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1560,8 +1591,7 @@ export default function AdminValidationPage() {
                                 </button>
                                 <button
                                   onClick={() => setEditingLinkId(null)}
-                                  className="text-red-600 hover:text-red-800 flex-shrink-0"
-                                  title="Cancel (Esc)"
+                                  className="text-rose-500 hover:text-rose-400 flex-shrink-0"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1576,19 +1606,18 @@ export default function AdminValidationPage() {
                                       href={product.inr_purchase_link}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium whitespace-nowrap"
+                                      className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
                                     >
-                                      View
+                                      View Link
                                     </a>
                                     <button
                                       onClick={() => {
                                         setEditingLinkId(`inr-${product.id}`);
                                         setEditingLinkValue(product.inr_purchase_link || '');
                                       }}
-                                      className="text-gray-400 hover:text-orange-600 transition-colors flex-shrink-0"
-                                      title="Edit supplier link"
+                                      className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
                                     >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                       </svg>
                                     </button>
@@ -1599,7 +1628,7 @@ export default function AdminValidationPage() {
                                       setEditingLinkId(`inr-${product.id}`);
                                       setEditingLinkValue('');
                                     }}
-                                    className="text-green-600 hover:text-green-800 font-medium text-xs whitespace-nowrap"
+                                    className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
                                   >
                                     + Add Link
                                   </button>
@@ -1615,7 +1644,7 @@ export default function AdminValidationPage() {
                             type="number"
                             defaultValue={product.buying_price || ''}
                             onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-                            className="w-20 px-2 py-1 border rounded text-sm"
+                            className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                           />
                         </td>
 
@@ -1625,7 +1654,7 @@ export default function AdminValidationPage() {
                             type="number"
                             defaultValue={product.buying_quantity || ''}
                             onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-                            className="w-16 px-2 py-1 border rounded text-sm"
+                            className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                           />
                         </td>
 
@@ -1638,7 +1667,7 @@ export default function AdminValidationPage() {
                                   type="text"
                                   value={editingLinkValue}
                                   onChange={(e) => setEditingLinkValue(e.target.value)}
-                                  className="w-full px-2 py-1 border border-blue-500 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                                  className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
                                   placeholder="Amazon URL..."
                                   autoFocus
                                   onKeyDown={(e) => {
@@ -1655,8 +1684,7 @@ export default function AdminValidationPage() {
                                     handleCellEdit(product.id, 'sellerlink', editingLinkValue);
                                     setEditingLinkId(null);
                                   }}
-                                  className="text-green-600 hover:text-green-800 flex-shrink-0"
-                                  title="Save (Enter)"
+                                  className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1664,8 +1692,7 @@ export default function AdminValidationPage() {
                                 </button>
                                 <button
                                   onClick={() => setEditingLinkId(null)}
-                                  className="text-red-600 hover:text-red-800 flex-shrink-0"
-                                  title="Cancel (Esc)"
+                                  className="text-rose-500 hover:text-rose-400 flex-shrink-0"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1680,19 +1707,18 @@ export default function AdminValidationPage() {
                                       href={product.seller_link}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium whitespace-nowrap"
+                                      className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
                                     >
-                                      View
+                                      View Link
                                     </a>
                                     <button
                                       onClick={() => {
                                         setEditingLinkId(`seller_${product.id}`);
                                         setEditingLinkValue(product.seller_link || '');
                                       }}
-                                      className="text-gray-400 hover:text-orange-600 transition-colors flex-shrink-0"
-                                      title="Edit seller link"
+                                      className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
                                     >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                       </svg>
                                     </button>
@@ -1703,7 +1729,7 @@ export default function AdminValidationPage() {
                                       setEditingLinkId(`seller_${product.id}`);
                                       setEditingLinkValue('');
                                     }}
-                                    className="text-green-600 hover:text-green-800 font-medium text-xs whitespace-nowrap"
+                                    className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
                                   >
                                     + Add Link
                                   </button>
@@ -1719,7 +1745,7 @@ export default function AdminValidationPage() {
                             type="text"
                             defaultValue={product.seller_phone || ''}
                             onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-                            className="w-24 px-2 py-1 border rounded text-sm"
+                            className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                             placeholder="Phone"
                           />
                         </td>
@@ -1730,7 +1756,7 @@ export default function AdminValidationPage() {
                             type="text"
                             defaultValue={product.payment_method || ''}
                             onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-                            className="w-24 px-2 py-1 border rounded text-sm"
+                            className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                             placeholder="Method"
                           />
                         </td>
@@ -1743,8 +1769,8 @@ export default function AdminValidationPage() {
                                 onClick={() => handleConfirmProduct(product.id)}
                                 disabled={product.admin_status === 'confirmed'}
                                 className={`p-2 rounded-lg transition-all ${product.admin_status === 'confirmed'
-                                  ? 'bg-green-100 text-green-600 cursor-not-allowed'
-                                  : 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white'
+                                  ? 'bg-emerald-500/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
+                                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20'
                                   }`}
                                 title="Confirm"
                               >
@@ -1756,8 +1782,8 @@ export default function AdminValidationPage() {
                                 onClick={() => handleRejectProduct(product.id)}
                                 disabled={product.admin_status === 'rejected'}
                                 className={`p-2 rounded-lg transition-all ${product.admin_status === 'rejected'
-                                  ? 'bg-red-100 text-red-600 cursor-not-allowed'
-                                  : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'
+                                  ? 'bg-rose-500/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
+                                  : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20'
                                   }`}
                                 title="Reject"
                               >
@@ -1774,113 +1800,115 @@ export default function AdminValidationPage() {
                 </tbody>
               </table>
             </div>
+
             {/* Stats Footer - FIXED AT BOTTOM */}
-            <div className="flex-none border-t bg-white px-4 py-3 text-sm text-gray-600">
-              Showing {filteredProducts.length} of {products.length} products
+            <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">
+              Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
             </div>
           </div>
-          {/* ✅ CONSTANTS CONFIGURATION MODAL */}
+
+          {/* Constants Configuration Modal */}
           {isConstantsModalOpen && (
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 bg-black bg-opacity-50 z-40"
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
                 onClick={() => setIsConstantsModalOpen(false)}
               ></div>
 
               {/* Modal */}
               <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
+                <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 animate-in zoom-in-95 duration-200">
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 rounded-t-xl">
+                  <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6 rounded-t-xl">
                     <h2 className="text-2xl font-bold">Admin Calculation Constants</h2>
-                    <p className="text-purple-100 mt-1">Configure constants for profit calculation (Admin only)</p>
+                    <p className="text-purple-100 mt-1 opacity-90">Configure constants for profit calculation</p>
                   </div>
 
                   {/* Form */}
-                  <div className="p-6 space-y-4">
+                  <div className="p-6 space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-400 mb-2">
                         Dollar Rate (₹)
                       </label>
                       <input
                         type="number"
                         value={adminConstants.dollar_rate}
                         onChange={(e) => setAdminConstants({ ...adminConstants, dollar_rate: parseFloat(e.target.value) || 90 })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                         step="0.01"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-400 mb-2">
                         Bank Fee (%)
                       </label>
                       <input
                         type="number"
                         value={adminConstants.bank_conversion_rate * 100}
                         onChange={(e) => setAdminConstants({ ...adminConstants, bank_conversion_rate: (parseFloat(e.target.value) || 2) / 100 })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                         step="0.01"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-400 mb-2">
                         Shipping per 1000g (₹)
                       </label>
                       <input
                         type="number"
                         value={adminConstants.shipping_charge_per_kg}
                         onChange={(e) => setAdminConstants({ ...adminConstants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                         step="0.01"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-400 mb-2">
                         Commission Rate (%)
                       </label>
                       <input
                         type="number"
                         value={adminConstants.commission_rate * 100}
                         onChange={(e) => setAdminConstants({ ...adminConstants, commission_rate: (parseFloat(e.target.value) || 25) / 100 })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                         step="0.01"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-400 mb-2">
                         Packing Cost (₹)
                       </label>
                       <input
                         type="number"
                         value={adminConstants.packing_cost}
                         onChange={(e) => setAdminConstants({ ...adminConstants, packing_cost: parseFloat(e.target.value) || 25 })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                         step="0.01"
                       />
                     </div>
                   </div>
 
                   {/* Footer */}
-                  <div className="p-6 border-t bg-gray-50 flex items-center justify-end gap-3 rounded-b-xl">
+                  <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3 rounded-b-xl">
                     <button
                       onClick={() => setIsConstantsModalOpen(false)}
-                      className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                      className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 border border-slate-700 font-medium transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={saveAdminConstants}
                       disabled={isSavingConstants}
-                      className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all"
                     >
                       {isSavingConstants ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                           Saving...
                         </>
                       ) : (
@@ -1898,7 +1926,7 @@ export default function AdminValidationPage() {
             </>
           )}
         </div>
-        {/* ✅ ADD TOAST COMPONENT HERE */}
+        {/* Toast Notification */}
         {toast && (
           <Toast
             message={toast.message}

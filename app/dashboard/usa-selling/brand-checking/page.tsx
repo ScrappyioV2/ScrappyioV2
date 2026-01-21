@@ -1,11 +1,21 @@
 "use client";
 
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
 import PageGuard from '../../../components/PageGuard'
+import {
+  ShieldCheck,
+  LayoutDashboard,
+  CheckCircle2,
+  AlertCircle,
+  ArrowLeft,
+  TrendingUp
+} from 'lucide-react';
 
 const SELLER_TABLE_GROUPS: Record<number, string[]> = {
   1: [
@@ -13,33 +23,26 @@ const SELLER_TABLE_GROUPS: Record<number, string[]> = {
     'usa_seller_1_low_demand',
     'usa_seller_1_dropshipping',
     'usa_seller_1_not_approved',
-    // 'usa_seller_1_reject',
   ],
   2: [
     'usa_seller_2_high_demand',
     'usa_seller_2_low_demand',
     'usa_seller_2_dropshipping',
     'usa_seller_2_not_approved',
-    // 'usa_seller_2_reject',
   ],
   3: [
     'usa_seller_3_high_demand',
     'usa_seller_3_low_demand',
     'usa_seller_3_dropshipping',
     'usa_seller_3_not_approved',
-    // 'usa_seller_3_reject',
   ],
   4: [
     'usa_seller_4_high_demand',
     'usa_seller_4_low_demand',
     'usa_seller_4_dropshipping',
     'usa_seller_4_not_approved',
-    // 'usa_seller_4_reject',
   ],
 };
-
-
-
 
 /* ================= STATIC SELLERS ================= */
 const ALL_SELLERS = [
@@ -55,7 +58,6 @@ type BrandProgressRow = {
   total: number;
   approved: number;
   not_approved: number;
-  // rejected: number;
 };
 
 type SellerApprovalBreakdown = {
@@ -73,15 +75,14 @@ type SellerUI = {
   notApproved: number;
 };
 
-
 /* ================= PAGE ================= */
 export default function BrandCheckingPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [hasAnyMovementYet, setHasAnyMovementYet] = useState(false);
   const [approvalBreakdown, setApprovalBreakdown] = useState<
     Record<number, SellerApprovalBreakdown>
   >({});
-
 
   // Initialize ALL sellers with 0 progress
   const [sellers, setSellers] = useState<SellerUI[]>(
@@ -91,9 +92,8 @@ export default function BrandCheckingPage() {
       name: s.name,
       totalProducts: 0,
       approved: 0,
-      notApproved: 0, // ✅ ADD THIS
+      notApproved: 0,
     }))
-
   );
 
   const handleSellerCardClick = (sellerId: number) => {
@@ -105,6 +105,7 @@ export default function BrandCheckingPage() {
 
   /* ===== INITIAL LOAD FROM SUPABASE ===== */
   useEffect(() => {
+    if (!user) return;
     const fetchProgress = async () => {
       console.log("📊 Fetching initial brand check progress...");
 
@@ -118,26 +119,18 @@ export default function BrandCheckingPage() {
       }
 
       if (data) {
-        console.log("✅ Initial progress data:", data);
-
         setSellers((prev) =>
           prev.map((seller) => {
             const row = data.find(
               (d: BrandProgressRow) => d.seller_id === seller.id
             );
-            if (!row) {
-              console.log(`⚠️ No data for seller ${seller.name} (ID: ${seller.id})`);
-              return seller;
-            }
-
-            console.log(`📈 ${seller.name}: Total=${row.total}, Approved=${row.approved}, Not Approved=${row.not_approved}`);
+            if (!row) return seller;
 
             return {
               ...seller,
               totalProducts: row.total,
               approved: row.approved,
               notApproved: row.not_approved,
-              rejected: row.rejected,
             };
           })
         );
@@ -145,10 +138,11 @@ export default function BrandCheckingPage() {
     };
 
     fetchProgress();
-  }, []);
+  }, [user]);
 
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {
+    if (!user) return;
     console.log("🔌 Setting up real-time subscription for brand_check_progress");
 
     const channel = supabase
@@ -156,28 +150,14 @@ export default function BrandCheckingPage() {
       .on(
         "postgres_changes",
         {
-          event: "*", // Listen to INSERT, UPDATE, DELETE
+          event: "*",
           schema: "public",
           table: "brand_check_progress",
         },
         (payload) => {
-          console.log("📡 Real-time update received:", payload);
-          console.log("📡 Payload.new:", payload.new);
-          console.log("📡 Payload.old:", payload.old);
-
-          // Handle both INSERT and UPDATE
           const data = payload.new as BrandProgressRow;
 
-          if (!data || !data.seller_id) {
-            console.error("❌ Invalid payload data:", data);
-            return;
-          }
-
-          console.log(`📡 Updated data for seller_id ${data.seller_id}:`, {
-            total: data.total,
-            approved: data.approved,
-            not_approved: data.not_approved,
-          });
+          if (!data || !data.seller_id) return;
 
           setSellers((prev) => {
             const updated = prev.map((seller) =>
@@ -191,85 +171,27 @@ export default function BrandCheckingPage() {
                 }
                 : seller
             );
-
             return updated;
           });
 
-          // ✅ ADD THIS LINE
           setHasAnyMovementYet(true);
-
         }
       )
-      .subscribe((status) => {
-        console.log("📡 Subscription status:", status);
-        if (status === 'SUBSCRIBED') {
-          console.log("✅ Successfully subscribed to brand_check_progress changes");
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ Subscription error");
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log("🔌 Cleaning up real-time subscription");
       supabase.removeChannel(channel);
     };
-  }, []);
-
-  // const fetchSellerTotals = async () => {
-  //   const updates = await Promise.all(
-  //     ALL_SELLERS.map(async (seller) => {
-  //       const tables = SELLER_TABLE_GROUPS[seller.id];
-
-  //       let total = 0;
-
-  //       for (const table of tables) {
-  //         const { count, error } = await supabase
-  //           .from(table)
-  //           .select("*", { count: "exact", head: true });
-
-  //         if (error) {
-  //           console.error(`❌ Error counting ${table}`, error);
-  //           continue;
-  //         }
-
-  //         total += count || 0;
-  //       }
-
-  //       console.log(`📦 ${seller.name} TOTAL products (all tabs):`, total);
-
-  //       return { seller_id: seller.id, total };
-  //     })
-  //   );
-
-  //   setSellers((prev) =>
-  //     prev.map((s) => {
-  //       const row = updates.find((u) => u.seller_id === s.id);
-  //       return row ? { ...s, totalProducts: row.total } : s;
-  //     })
-  //   );
-  // };
-
-
-  // useEffect(() => {
-  //   fetchSellerTotals();
-  // }, []);
-
+  }, [user]);
 
   const fetchApprovedBreakdown = async () => {
     const result: Record<number, SellerApprovalBreakdown> = {};
 
     for (const seller of ALL_SELLERS) {
-      const [
-        high,
-        low,
-        drop,
-      ] = await Promise.all([
-        supabase.from(`usa_seller_${seller.id}_high_demand`)
-          .select('*', { count: 'exact', head: true }),
-        supabase.from(`usa_seller_${seller.id}_low_demand`)
-          .select('*', { count: 'exact', head: true }),
-        supabase.from(`usa_seller_${seller.id}_dropshipping`)
-          .select('*', { count: 'exact', head: true }),
+      const [high, low, drop] = await Promise.all([
+        supabase.from(`usa_seller_${seller.id}_high_demand`).select('*', { count: 'exact', head: true }),
+        supabase.from(`usa_seller_${seller.id}_low_demand`).select('*', { count: 'exact', head: true }),
+        supabase.from(`usa_seller_${seller.id}_dropshipping`).select('*', { count: 'exact', head: true }),
       ]);
 
       result[seller.id] = {
@@ -283,28 +205,53 @@ export default function BrandCheckingPage() {
   };
 
   useEffect(() => {
-    fetchApprovedBreakdown();
-  }, []);
+    if (user) { // 👈 Only fetch if user exists
+      fetchApprovedBreakdown();
+    }
+  }, [user]); // 👈 Change [] to [user]
+
+  if (authLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-slate-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-500"></div>
+      </div>
+    );
+  }
 
   return (
     <PageTransition>
       <PageGuard>
-        <div className="p-6">
-          {/* Header */}
-          <div className="mb-6">
+        <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
+
+          {/* === HEADER === */}
+          <div className="mb-8">
             <Link
               href="/dashboard/usa-selling"
-              className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
+              className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 mb-6 transition-colors group font-medium text-sm"
             >
-              ← Back to USA Selling Dashboard
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Back to USA Selling Dashboard
             </Link>
-            <h1 className="text-3xl font-bold mb-2">USA Selling - Brand Checking Dashboard</h1>
-            <p className="text-gray-600">
-              Total Sellers: {sellers.length} | Monitor brand checking progress
-            </p>
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/60 pb-8">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+                    <ShieldCheck className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">Brand Checking Dashboard</h1>
+                </div>
+                <p className="text-slate-400 pl-[3.75rem] max-w-2xl">
+                  Monitor real-time brand approval progress across all sellers.
+                  <span className="ml-3 inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-xs font-mono text-slate-300">
+                    Total Sellers: {sellers.length}
+                  </span>
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Seller Grid - 2 columns layout */}
+          {/* === SELLER GRID === */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {sellers.map((seller) => {
               const checkedTotal = seller.approved + seller.notApproved;
@@ -317,62 +264,83 @@ export default function BrandCheckingPage() {
                 <div
                   key={seller.id}
                   onClick={() => handleSellerCardClick(seller.id)}
-                  className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all bg-white"
+                  className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/50 backdrop-blur-sm overflow-hidden"
                 >
-                  <div className="grid grid-cols-5 gap-4">
+                  {/* Hover Glow Effect */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                  <div className="grid grid-cols-5 gap-6 relative z-10">
+
                     {/* Left: Seller Card */}
-                    <div className="col-span-1 border-2 border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2 border-b border-gray-300 pb-1 w-full text-center">
-                        {seller.name}
-                      </h3>
-                      <div className="text-4xl font-bold text-gray-800">
-                        {seller.totalProducts.toLocaleString()}
+                    <div className="col-span-2 flex flex-col">
+                      <div className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl p-5 flex flex-col items-center justify-center text-center group-hover:border-indigo-500/20 transition-colors">
+                        <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-3 text-slate-400 group-hover:text-indigo-400 group-hover:scale-110 transition-all shadow-inner">
+                          <LayoutDashboard className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-slate-300 mb-1 pb-1 w-full text-center">
+                          {seller.name}
+                        </h3>
+                        <div className="text-3xl font-bold text-white tracking-tight">
+                          {seller.totalProducts.toLocaleString()}
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-1 font-semibold">Total Products</span>
                       </div>
                     </div>
 
                     {/* Right: Progress Bars */}
-                    <div className="col-span-4 flex flex-col justify-center">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                        Brand Checking Progress bar
-                      </h3>
+                    <div className="col-span-3 flex flex-col justify-center space-y-6">
 
-                      {/* Approved Progress Bar */}
-                      <div className="mb-3">
-                        <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                          <div
-                            className="bg-green-500 h-full flex items-center justify-end pr-2"
-                            style={{ width: `${approvedPercentage}%` }}
-                          >
-                            {approvedPercentage > 10 && (
-                              <span className="text-white text-xs font-semibold">
-                                {Math.round(approvedPercentage)}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-xs text-green-600 font-medium mt-1">
-                          Approved: {seller.approved}
-                        </p>
-                      </div>
-
-                      {/* Not Approved Progress Bar */}
                       <div>
-                        <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                          <div
-                            className="bg-red-500 h-full flex items-center justify-end pr-2"
-                            style={{ width: `${notApprovedPercentage}%` }}
-                          >
-                            {notApprovedPercentage > 10 && (
-                              <span className="text-white text-xs font-semibold">
-                                {Math.round(notApprovedPercentage)}%
-                              </span>
-                            )}
+                        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                          Brand Check Status
+                          <div className="h-px flex-1 bg-slate-800"></div>
+                        </h4>
+
+                        {/* Approved Progress Bar */}
+                        <div className="mb-5">
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="text-sm text-emerald-400 font-medium flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4" /> Approved
+                            </span>
+                            <span className="text-xs font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                              {seller.approved.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
+                            <div
+                              className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out"
+                              style={{ width: `${approvedPercentage}%` }}
+                            >
+                            </div>
+                          </div>
+                          <div className="text-right mt-1">
+                            <span className="text-[10px] text-slate-500">{Math.round(approvedPercentage)}%</span>
                           </div>
                         </div>
-                        <p className="text-xs text-red-600 font-medium mt-1">
-                          Not Approved: {seller.notApproved}
-                        </p>
+
+                        {/* Not Approved Progress Bar */}
+                        <div>
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="text-sm text-rose-400 font-medium flex items-center gap-1.5">
+                              <AlertCircle className="w-4 h-4" /> Not Approved
+                            </span>
+                            <span className="text-xs font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                              {seller.notApproved.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
+                            <div
+                              className="bg-rose-500 h-full rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all duration-700 ease-out"
+                              style={{ width: `${notApprovedPercentage}%` }}
+                            >
+                            </div>
+                          </div>
+                          <div className="text-right mt-1">
+                            <span className="text-[10px] text-slate-500">{Math.round(notApprovedPercentage)}%</span>
+                          </div>
+                        </div>
                       </div>
+
                     </div>
                   </div>
                 </div>
@@ -384,6 +352,3 @@ export default function BrandCheckingPage() {
     </PageTransition>
   );
 }
-
-
-
