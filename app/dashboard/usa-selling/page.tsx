@@ -39,12 +39,11 @@ export default function USASellingPage() {
   // Chart Data Preparation
   const pipelineData = useMemo(() => {
     if (!stats) return [];
-    // Transform stats into chart friendly format
     return [1, 2, 3, 4].map(id => {
-      const bc = stats.brandChecking.sellers.find((s:any) => s.id === id)?.pending || 0;
-      const val = stats.validation.sellers.find((s:any) => s.id === id)?.pending || 0;
-      const pur = stats.purchasing.sellers.find((s:any) => s.id === id)?.pending || 0;
-      
+      const bc = stats.brandChecking.sellers.find((s: any) => s.id === id)?.pending || 0;
+      const val = stats.validation.sellers.find((s: any) => s.id === id)?.pending || 0;
+      const pur = stats.purchasing.sellers.find((s: any) => s.id === id)?.pending || 0;
+
       return {
         name: SELLER_CONFIG[id].name,
         "Brand Check": bc,
@@ -71,7 +70,7 @@ export default function USASellingPage() {
   return (
     <PageTransition>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
-        
+
         {/* === HEADER === */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 border-b border-slate-800/60 pb-6 gap-6">
           <div>
@@ -85,7 +84,7 @@ export default function USASellingPage() {
               Live pipeline metrics for <span className="text-indigo-400 font-bold">4 Brands</span>
             </p>
           </div>
-          
+
           <div className="bg-slate-900 px-6 py-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col items-center min-w-[160px]">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Active</span>
             <span className="text-3xl font-mono font-bold text-white">{totalActive}</span>
@@ -94,7 +93,7 @@ export default function USASellingPage() {
 
         {/* === MAIN LAYOUT === */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          
+
           {/* === LEFT: PIPELINE CHART === */}
           <div className="xl:col-span-2 space-y-8">
             <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl shadow-xl backdrop-blur-sm">
@@ -102,13 +101,14 @@ export default function USASellingPage() {
                 <TrendingUp className="w-5 h-5 text-indigo-400" />
                 Pipeline Volume
               </h2>
-              <div className="h-[350px] w-full">
+              {/* ✅ FIXED: Added inline style with explicit height */}
+              <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={pipelineData} barGap={4} barSize={32}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                     <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                     <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc', borderRadius: '12px' }}
                       cursor={{ fill: '#1e293b', opacity: 0.4 }}
                     />
@@ -124,16 +124,16 @@ export default function USASellingPage() {
             {/* === DETAILED STATS GRID === */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* BRAND CHECKING */}
-              <StatCard 
-                title="Brand Checking" 
+              <StatCard
+                title="Brand Checking"
                 icon={<ShieldCheck className="w-5 h-5 text-blue-400" />}
                 data={stats.brandChecking.sellers}
                 type="pending"
               />
-              
+
               {/* VALIDATION */}
-              <StatCard 
-                title="Validation" 
+              <StatCard
+                title="Validation"
                 icon={<FileCheck className="w-5 h-5 text-purple-400" />}
                 data={stats.validation.sellers}
                 type="mixed"
@@ -143,7 +143,7 @@ export default function USASellingPage() {
 
           {/* === RIGHT: ALERTS & PURCHASING === */}
           <div className="space-y-6">
-            
+
             {/* LISTING ERRORS (Alert) */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
               <div className="p-5 bg-rose-500/5 border-b border-rose-500/10 flex justify-between items-center">

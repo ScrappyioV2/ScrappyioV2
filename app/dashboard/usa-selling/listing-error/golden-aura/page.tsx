@@ -62,6 +62,11 @@ export default function GoldenAuraListingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // Reason Modal State
+  const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+  const [selectedForError, setSelectedForError] = useState<ListingProduct | null>(null);
+  const [errorReasonInput, setErrorReasonInput] = useState('');
+
   const [movementHistory, setMovementHistory] = useState<{
     [key: string]: {
       product: ListingProduct;
@@ -94,11 +99,10 @@ export default function GoldenAuraListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // ✅ FETCH LOGIC WITH DUPLICATE FILTERING
+  // ✅ OPTIMIZED FETCH LOGIC
   const fetchProducts = useCallback(async () => {
     if (!user) return;
-
-    if (products.length === 0) setLoading(true);
+    setLoading(true); // Show loader for smoother transitions
 
     try {
       const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
@@ -110,27 +114,14 @@ export default function GoldenAuraListingPage() {
         query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
       }
 
-      const { data, error } = await query;
+      // Limit results for performance (Pagination can be added later if needed)
+      const { data, error } = await query.limit(100);
+
       if (error) throw error;
-
-      let fetchedData = data || [];
-
-      // ✅ FIX: Filter out items that are ALREADY listed in the 'done' table
-      // This prevents "Listed" items from showing up in High Demand, Low Demand, etc.
-      if (activeTab !== 'done' && activeTab !== 'error' && activeTab !== 'removed') {
-        const doneTableName = `${BASE_TABLE_PREFIX}_done`;
-        // Fetch IDs of listed products to exclude them
-        const { data: doneData } = await supabase.from(doneTableName).select('asin');
-
-        if (doneData && doneData.length > 0) {
-          const doneAsins = new Set(doneData.map(d => d.asin));
-          fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
-        }
-      }
-
-      setProducts(fetchedData);
+      setProducts(data || []);
     } catch (err: any) {
       console.error('Fetch error:', err);
+      setToast({ message: 'Failed to load data', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -218,7 +209,7 @@ export default function GoldenAuraListingPage() {
       // 2. Log History
       await logHistory(product, sourceTableName, targetTableName);
 
-      // 3. Delete from source tables
+      // 3. Delete from source tables (ALL POSSIBLE SOURCES to prevent duplicates)
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
@@ -244,6 +235,10 @@ export default function GoldenAuraListingPage() {
       setToast({ message: err.message, type: 'error' });
     } finally {
       setProcessingId(null);
+      // Close modal if open
+      setIsReasonModalOpen(false);
+      setSelectedForError(null);
+      setErrorReasonInput('');
     }
   };
 
@@ -488,8 +483,8 @@ export default function GoldenAuraListingPage() {
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => {
-                                      const reason = prompt("Enter error reason:");
-                                      if (reason) handleMoveProduct(product, 'error', reason);
+                                      setSelectedForError(product);
+                                      setIsReasonModalOpen(true);
                                     }}
                                     disabled={processingId === product.id}
                                     className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
@@ -528,6 +523,39 @@ export default function GoldenAuraListingPage() {
                 </div>
               )}
             </div>
+
+            {/* CUSTOM ERROR REASON MODAL */}
+            {isReasonModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-md shadow-2xl">
+                  <h3 className="text-xl font-bold text-white mb-4">Report Error</h3>
+                  <p className="text-slate-400 mb-4 text-sm">Why are you rejecting <b>{selectedForError?.asin}</b>?</p>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="E.g., Price mismatch, Out of stock..."
+                    value={errorReasonInput}
+                    onChange={(e) => setErrorReasonInput(e.target.value)}
+                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-lg text-white focus:border-rose-500 outline-none mb-6"
+                  />
+                  <div className="flex justify-end gap-3">
+                    <button 
+                      onClick={() => setIsReasonModalOpen(false)} 
+                      className="px-4 py-2 text-slate-400 hover:text-white transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => selectedForError && handleMoveProduct(selectedForError, 'error', errorReasonInput)}
+                      disabled={!errorReasonInput.trim()}
+                      className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium transition disabled:opacity-50"
+                    >
+                      Confirm Error
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {toast && (
               <Toast

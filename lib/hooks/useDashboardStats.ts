@@ -34,26 +34,26 @@ export function useDashboardStats() {
           }
 
           // 2. VALIDATION (From Main File)
-          // Pending: In main file, Judgement is NULL
+          // Pending: In main file, Judgement is NULL or PENDING
           const { count: valPending } = await supabase
             .from('usa_validation_main_file')
             .select('*', { count: 'exact', head: true })
-            .ilike('seller_tag', `%${seller.code}%`)
-            .is('judgement', null);
+            .eq('seller_tag', seller.code) // ✅ Use .eq() to prevent 400 error
+            .or('judgement.is.null,judgement.eq.PENDING'); 
 
           // Passed: Judgement is PASS
           const { count: valPassed } = await supabase
             .from('usa_validation_main_file')
             .select('*', { count: 'exact', head: true })
-            .ilike('seller_tag', `%${seller.code}%`)
+            .eq('seller_tag', seller.code)
             .eq('judgement', 'PASS');
           
-          // Failed: Judgement is REJECT
+          // Failed: Judgement is FAIL
            const { count: valFailed } = await supabase
             .from('usa_validation_main_file')
             .select('*', { count: 'exact', head: true })
-            .ilike('seller_tag', `%${seller.code}%`)
-            .eq('judgement', 'REJECT');
+            .eq('seller_tag', seller.code)
+            .eq('judgement', 'FAIL'); 
 
           // 3. LISTING ERRORS
           // Active errors in the error table
@@ -62,21 +62,23 @@ export function useDashboardStats() {
             .select('*', { count: 'exact', head: true });
 
           // 4. PURCHASING 
-          // Pending Purchase: Validated (PASS) but no Buying Price yet
+          // ✅ FIX: Use 'sent_to_purchases' instead of 'buying_price'
+          
+          // Pending Purchase: Validated (PASS) but NOT yet sent to purchases
           const { count: purchPending } = await supabase
             .from('usa_validation_main_file')
             .select('*', { count: 'exact', head: true })
-            .ilike('seller_tag', `%${seller.code}%`)
+            .eq('seller_tag', seller.code)
             .eq('judgement', 'PASS')
-            .is('buying_price', null);
+            .not('sent_to_purchases', 'eq', true); // Count items NOT sent yet
 
-          // Purchased: Validated (PASS) AND has Buying Price
+          // Purchased: Validated (PASS) AND Sent to purchases
           const { count: purchDone } = await supabase
             .from('usa_validation_main_file')
             .select('*', { count: 'exact', head: true })
-            .ilike('seller_tag', `%${seller.code}%`)
+            .eq('seller_tag', seller.code)
             .eq('judgement', 'PASS')
-            .not('buying_price', 'is', null);
+            .eq('sent_to_purchases', true); // Count items ALREADY sent
 
           return {
             id: seller.id,
@@ -90,7 +92,6 @@ export function useDashboardStats() {
 
         const results = await Promise.all(promises);
 
-        // Group results back into the structure the UI expects
         newStats.brandChecking.sellers = results.map(r => ({ id: r.id, pending: r.brandChecking.pending }));
         newStats.validation.sellers = results.map(r => ({ id: r.id, pending: r.validation.pending, approved: r.validation.passed, notApproved: r.validation.failed }));
         newStats.listing.sellers = results.map(r => ({ id: r.id, notApproved: r.listing.errors }));
@@ -104,7 +105,22 @@ export function useDashboardStats() {
       }
     }
 
+    // Initial Fetch
     fetchStats();
+
+    // Auto-refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 Dashboard stats visible: Refreshing...');
+        fetchStats();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   return { stats, loading };
