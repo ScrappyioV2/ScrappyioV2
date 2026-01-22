@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import PageGuard from '@/app/components/PageGuard';
+import PageGuard from '@/components/PageGuard';
+import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -96,9 +97,9 @@ export default function VelvetVistaListingPage() {
   // ✅ FETCH LOGIC WITH DUPLICATE FILTERING
   const fetchProducts = useCallback(async () => {
     if (!user) return;
-    
-    if (products.length === 0) setLoading(true); 
-    
+
+    if (products.length === 0) setLoading(true);
+
     try {
       const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       let query = supabase.from(tableName).select('*').order('id', { ascending: false });
@@ -117,14 +118,14 @@ export default function VelvetVistaListingPage() {
       // ✅ FIX: Filter out items that are ALREADY listed in the 'done' table
       // This prevents "Listed" items from showing up in High Demand, Low Demand, etc.
       if (activeTab !== 'done' && activeTab !== 'error' && activeTab !== 'removed') {
-         const doneTableName = `${BASE_TABLE_PREFIX}_done`;
-         // Fetch IDs of listed products to exclude them
-         const { data: doneData } = await supabase.from(doneTableName).select('asin');
-         
-         if (doneData && doneData.length > 0) {
-             const doneAsins = new Set(doneData.map(d => d.asin));
-             fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
-         }
+        const doneTableName = `${BASE_TABLE_PREFIX}_done`;
+        // Fetch IDs of listed products to exclude them
+        const { data: doneData } = await supabase.from(doneTableName).select('asin');
+
+        if (doneData && doneData.length > 0) {
+          const doneAsins = new Set(doneData.map(d => d.asin));
+          fetchedData = fetchedData.filter(p => !doneAsins.has(p.asin));
+        }
       }
 
       setProducts(fetchedData);
@@ -148,7 +149,7 @@ export default function VelvetVistaListingPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: tableName },
         () => {
-          fetchProducts(); 
+          fetchProducts();
         }
       )
       .subscribe();
@@ -156,7 +157,7 @@ export default function VelvetVistaListingPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchProducts, activeTab]); 
+  }, [fetchProducts, activeTab]);
 
   // Stats Logic
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
@@ -285,234 +286,236 @@ export default function VelvetVistaListingPage() {
   }
 
   return (
-    <PageGuard>
-      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+    <PageTransition>
+      <PageGuard requiredPage="listing">
+        <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
 
-        <div className="max-w-[1600px] mx-auto p-6 space-y-8">
+          <div className="max-w-[1600px] mx-auto p-6 space-y-8">
 
-          {/* === HEADER === */}
-          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800/60">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                  <LayoutList className="w-6 h-6 text-indigo-400" />
+            {/* === HEADER === */}
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800/60">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                    <LayoutList className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
+                <p className="text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
               </div>
-              <p className="text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
-                TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{products.length}</span>
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
+                  TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{products.length}</span>
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
 
-          {/* === CONTROLS === */}
-          <div className="space-y-6">
+            {/* === CONTROLS === */}
+            <div className="space-y-6">
 
-            {/* TABS */}
-            <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-fit">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
-                  className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'
+              {/* TABS */}
+              <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-fit">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
+                    className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                  >
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm -z-10"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <span className="relative flex items-center gap-2">
+                      {tab.label}
+                      {activeTab === tab.id && <Sparkles className={`w-3 h-3 ${tab.color}`} />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* TOOLBAR */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
+                {/* Search */}
+                <div className="relative w-full sm:w-96 group">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Search by ASIN, Name, or SKU..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Undo Button */}
+                <motion.button
+                  whileHover={hasRollback ? { scale: 1.02 } : {}}
+                  whileTap={hasRollback ? { scale: 0.98 } : {}}
+                  onClick={handleRollBack}
+                  disabled={!hasRollback}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                     }`}
                 >
-                  {activeTab === tab.id && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm -z-10"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                    />
-                  )}
-                  <span className="relative flex items-center gap-2">
-                    {tab.label}
-                    {activeTab === tab.id && <Sparkles className={`w-3 h-3 ${tab.color}`} />}
-                  </span>
-                </button>
-              ))}
+                  <RotateCcw className="w-4 h-4" />
+                  Undo Action
+                </motion.button>
+              </div>
             </div>
 
-            {/* TOOLBAR */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
-              {/* Search */}
-              <div className="relative w-full sm:w-96 group">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search by ASIN, Name, or SKU..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Undo Button */}
-              <motion.button
-                whileHover={hasRollback ? { scale: 1.02 } : {}}
-                whileTap={hasRollback ? { scale: 0.98 } : {}}
-                onClick={handleRollBack}
-                disabled={!hasRollback}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  }`}
-              >
-                <RotateCcw className="w-4 h-4" />
-                Undo Action
-              </motion.button>
-            </div>
-          </div>
-
-          {/* === DATA TABLE === */}
-          <div className="bg-slate-900/40 rounded-2xl border border-slate-800/60 overflow-hidden backdrop-blur-sm flex flex-col max-h-[75vh]">
-            {loading ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
-                <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-                <span className="text-sm font-medium tracking-wide">SYNCING DATA...</span>
-              </div>
-            ) : products.length === 0 ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
-                <div className="p-4 bg-slate-900 rounded-full border border-slate-800">
-                  <AlertOctagon className="w-8 h-8 text-slate-500" />
+            {/* === DATA TABLE === */}
+            <div className="bg-slate-900/40 rounded-2xl border border-slate-800/60 overflow-hidden backdrop-blur-sm flex flex-col max-h-[75vh]">
+              {loading ? (
+                <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
+                  <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                  <span className="text-sm font-medium tracking-wide">SYNCING DATA...</span>
                 </div>
-                <p className="text-sm">No items found in {activeTab.replace('_', ' ')}.</p>
-              </div>
-            ) : (
-              <div className="overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-950/95 border-b border-slate-800 sticky top-0 backdrop-blur-md z-20 shadow-md">
-                    <tr>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">ASIN</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider w-1/3">Product Details</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">SKU</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Price</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Source</th>
-                      {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
-                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Actions</th>
-                      )}
-                      {activeTab === 'error' && (
-                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Reason</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    <AnimatePresence>
-                      {products.map((product, index) => (
-                        <motion.tr
-                          key={product.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ delay: index * 0.03, duration: 0.2 }}
-                          className="group hover:bg-slate-800/40 transition-colors"
-                        >
-                          <td className="px-6 py-4 text-sm font-medium text-slate-300 font-mono tracking-tight">
-                            {product.asin}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-slate-200 truncate max-w-sm" title={product.product_name || ''}>
-                              {product.product_name}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-500 font-mono">{product.sku}</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-semibold font-mono">
-                              {product.selling_price ? `₹${product.selling_price}` : '-'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            {product.seller_link ? (
-                              <a
-                                href={product.seller_link}
-                                target="_blank"
-                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            ) : <span className="text-slate-700">-</span>}
-                          </td>
-
-                          {/* === ACTION BUTTONS === */}
-                          {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+              ) : products.length === 0 ? (
+                <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
+                  <div className="p-4 bg-slate-900 rounded-full border border-slate-800">
+                    <AlertOctagon className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <p className="text-sm">No items found in {activeTab.replace('_', ' ')}.</p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-950/95 border-b border-slate-800 sticky top-0 backdrop-blur-md z-20 shadow-md">
+                      <tr>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">ASIN</th>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider w-1/3">Product Details</th>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">SKU</th>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Price</th>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Source</th>
+                        {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                          <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Actions</th>
+                        )}
+                        {activeTab === 'error' && (
+                          <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Reason</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      <AnimatePresence>
+                        {products.map((product, index) => (
+                          <motion.tr
+                            key={product.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ delay: index * 0.03, duration: 0.2 }}
+                            className="group hover:bg-slate-800/40 transition-colors"
+                          >
+                            <td className="px-6 py-4 text-sm font-medium text-slate-300 font-mono tracking-tight">
+                              {product.asin}
+                            </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-3">
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={() => handleMoveProduct(product, 'done')}
-                                  disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)] transition-all"
-                                  title="Mark as Listed"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </motion.button>
-
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={() => {
-                                    const reason = prompt("Enter error reason:");
-                                    if (reason) handleMoveProduct(product, 'error', reason);
-                                  }}
-                                  disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
-                                  title="Mark as Error"
-                                >
-                                  <X className="w-4 h-4" />
-                                </motion.button>
-
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.9 }}
-                                  onClick={() => handleMoveProduct(product, 'removed')}
-                                  disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 hover:bg-slate-700 hover:text-white transition-all"
-                                  title="Remove"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </motion.button>
+                              <div className="text-sm text-slate-200 truncate max-w-sm" title={product.product_name || ''}>
+                                {product.product_name}
                               </div>
                             </td>
-                          )}
-
-                          {activeTab === 'error' && (
+                            <td className="px-6 py-4 text-sm text-slate-500 font-mono">{product.sku}</td>
                             <td className="px-6 py-4">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
-                                <AlertOctagon className="w-3 h-3" />
-                                {product.error_reason}
+                              <span className="inline-flex px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-semibold font-mono">
+                                {product.selling_price ? `₹${product.selling_price}` : '-'}
                               </span>
                             </td>
-                          )}
-                        </motion.tr>
-                      ))}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </div>
+                            <td className="px-6 py-4 text-center">
+                              {product.seller_link ? (
+                                <a
+                                  href={product.seller_link}
+                                  target="_blank"
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              ) : <span className="text-slate-700">-</span>}
+                            </td>
+
+                            {/* === ACTION BUTTONS === */}
+                            {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                              <td className="px-6 py-4">
+                                <div className="flex items-center justify-center gap-3">
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => handleMoveProduct(product, 'done')}
+                                    disabled={processingId === product.id}
+                                    className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)] transition-all"
+                                    title="Mark as Listed"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </motion.button>
+
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => {
+                                      const reason = prompt("Enter error reason:");
+                                      if (reason) handleMoveProduct(product, 'error', reason);
+                                    }}
+                                    disabled={processingId === product.id}
+                                    className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
+                                    title="Mark as Error"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </motion.button>
+
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => handleMoveProduct(product, 'removed')}
+                                    disabled={processingId === product.id}
+                                    className="p-2 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 hover:bg-slate-700 hover:text-white transition-all"
+                                    title="Remove"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </motion.button>
+                                </div>
+                              </td>
+                            )}
+
+                            {activeTab === 'error' && (
+                              <td className="px-6 py-4">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
+                                  <AlertOctagon className="w-3 h-3" />
+                                  {product.error_reason}
+                                </span>
+                              </td>
+                            )}
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {toast && (
+              <Toast
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast(null)}
+              />
             )}
           </div>
-
-          {toast && (
-            <Toast
-              message={toast.message}
-              type={toast.type}
-              onClose={() => setToast(null)}
-            />
-          )}
         </div>
-      </div>
-    </PageGuard>
+      </PageGuard>
+    </PageTransition>
   );
 }

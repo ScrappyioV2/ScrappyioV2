@@ -1,5 +1,5 @@
 'use client';
-import PageGuard from '../../../components/PageGuard'
+import PageGuard from '@/components/PageGuard';
 import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect } from 'react';
 
@@ -557,7 +557,7 @@ export default function PurchasesPage() {
   ];
 
   return (
-    <PageGuard>
+    <PageGuard requiredPage="purchase">
       <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
 
         {/* Header Section */}
@@ -579,8 +579,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('main_file')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-blue-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-blue-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})</span>
@@ -591,8 +591,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('order_confirmed')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-emerald-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-emerald-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
@@ -603,8 +603,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('india')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'india'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-orange-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-orange-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">India ({products.filter(p => p.origin_india).length})</span>
@@ -615,8 +615,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('china')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'china'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-rose-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-rose-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">China ({products.filter(p => p.origin_china).length})</span>
@@ -627,8 +627,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('pending')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'pending'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-purple-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-purple-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">Pending ({products.filter(p => p.status === 'pending').length})</span>
@@ -639,8 +639,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('price_wait')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'price_wait'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-amber-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-amber-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">Price Wait ({products.filter(p => p.move_to === 'pricewait').length})</span>
@@ -651,8 +651,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setActiveTab('not_found')}
             className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'not_found'
-                ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-slate-400'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+              ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-slate-400'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
               }`}
           >
             <span className="relative z-10">Not Found ({products.filter(p => p.move_to === 'notfound').length})</span>
@@ -883,9 +883,9 @@ export default function PurchasesPage() {
                         {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
                           {product.validation_funnel ? (
                             <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                  product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                    'bg-slate-700 text-slate-300'
+                              product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                  'bg-slate-700 text-slate-300'
                               }`}>{product.validation_funnel}</span>
                           ) : <span className="text-xs text-slate-600">-</span>}
                         </td>}

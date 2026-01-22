@@ -41,10 +41,10 @@ export function useAuth() {
         if (session?.user) {
           setUser(session.user)
 
-          // Fetch user role
+          // ✅ Query user_roles table with correct columns
           const { data: roleData, error: roleError } = await supabase
             .from('user_roles')
-            .select('*')
+            .select('id, user_id, email, full_name, role, allowed_pages, is_active')
             .eq('user_id', session.user.id)
             .single()
 
@@ -52,14 +52,13 @@ export function useAuth() {
 
           if (roleError) {
             console.error('Role fetch error:', roleError)
-          }
-
-          if (roleData && roleData.is_active) {
-            setUserRole(roleData)
+            setUserRole(null)
+          } else if (roleData && roleData.is_active) {
+            setUserRole(roleData as UserRole)
           } else {
             setUserRole(null)
-            // If user has no active role, sign them out
-            if (!roleData?.is_active) {
+            // Sign out inactive users
+            if (roleData && !roleData.is_active) {
               await supabase.auth.signOut()
               setUser(null)
             }
@@ -75,9 +74,7 @@ export function useAuth() {
           setUserRole(null)
         }
       } finally {
-        // CRITICAL: Always set loading to false (only place to set it!)
         if (isMounted) {
-          console.log('✅ Auth loading complete')
           setLoading(false)
         }
       }
@@ -85,24 +82,23 @@ export function useAuth() {
 
     checkUser()
 
-    // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
 
-        console.log('🔔 Auth state changed:', event)
+        console.log('Auth event:', event)
 
         if (session?.user) {
           setUser(session.user)
 
           const { data: roleData } = await supabase
             .from('user_roles')
-            .select('*')
+            .select('id, user_id, email, full_name, role, allowed_pages, is_active')
             .eq('user_id', session.user.id)
             .single()
 
           if (isMounted && roleData && roleData.is_active) {
-            setUserRole(roleData)
+            setUserRole(roleData as UserRole)
           } else {
             setUserRole(null)
           }
@@ -110,7 +106,6 @@ export function useAuth() {
           setUser(null)
           setUserRole(null)
         }
-        // DON'T set loading here - already handled in finally block!
       }
     )
 
@@ -120,11 +115,14 @@ export function useAuth() {
     }
   }, [])
 
-  const hasPageAccess = (pagePath: string): boolean => {
+  const hasPageAccess = (pageKey: string): boolean => {
     if (!userRole) return false
     if (userRole.role === 'admin') return true
-    if (userRole.allowed_pages.includes('*')) return true
-    return userRole.allowed_pages.some(page => pagePath.includes(page))
+    return (
+      userRole.allowed_pages.includes('*') ||
+      userRole.allowed_pages.includes('all') ||
+      userRole.allowed_pages.includes(pageKey)
+    )
   }
 
   const logout = async () => {

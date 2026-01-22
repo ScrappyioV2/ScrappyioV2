@@ -14,7 +14,8 @@ import {
   ChevronDown, 
   ChevronRight, 
   Rocket,
-  MapPin
+  MapPin,
+  ShieldCheck
 } from 'lucide-react'
 
 // --- Types ---
@@ -36,7 +37,6 @@ type MenuItem = {
   href: string
   icon: React.ReactNode
   requiresPage?: string | null
-  requiresAdmin?: boolean
   submenu: SubMenuItem[] | null
   adminOnly?: boolean
 }
@@ -50,10 +50,10 @@ export default function Sidebar() {
   const [expandedMenu, setExpandedMenu] = useState<string | null>('Manage Sellers')
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null)
 
-  // --- Menu Configurations ---
+  // --- Menu Configurations (Aligned with SQL Permission Keys) ---
 
   const manageSellerSubmenu: SubMenuItem[] = [
-    { label: 'Link Generator', href: '/dashboard/manage-sellers/add-seller', requiresPage: 'manage-sellers' },
+    { label: 'Link Generator', href: '/dashboard/manage-sellers/add-seller', requiresPage: 'link-generator' },
     { label: 'USA Sellers', href: '/dashboard/manage-sellers/usa-sellers', requiresPage: 'manage-sellers' },
     { label: 'India Sellers', href: '/dashboard/manage-sellers/india-sellers', requiresPage: 'manage-sellers' },
     { label: 'UK Sellers', href: '/dashboard/manage-sellers/uk-sellers', requiresPage: 'manage-sellers' },
@@ -61,26 +61,26 @@ export default function Sidebar() {
   ]
 
   const brandCheckingSellers: NestedMenuItem[] = [
-    { label: 'Golden Aura', href: '/dashboard/usa-selling/brand-checking/golden-aura', requiresPage: 'usa-selling' },
-    { label: 'Rudra Retail', href: '/dashboard/usa-selling/brand-checking/rudra-retail', requiresPage: 'usa-selling' },
-    { label: 'UBeauty', href: '/dashboard/usa-selling/brand-checking/ubeauty', requiresPage: 'usa-selling' },
-    { label: 'Velvet Vista', href: '/dashboard/usa-selling/brand-checking/velvet-vista', requiresPage: 'usa-selling' },
+    { label: 'Golden Aura', href: '/dashboard/usa-selling/brand-checking/golden-aura', requiresPage: 'brand-checking' },
+    { label: 'Rudra Retail', href: '/dashboard/usa-selling/brand-checking/rudra-retail', requiresPage: 'brand-checking' },
+    { label: 'UBeauty', href: '/dashboard/usa-selling/brand-checking/ubeauty', requiresPage: 'brand-checking' },
+    { label: 'Velvet Vista', href: '/dashboard/usa-selling/brand-checking/velvet-vista', requiresPage: 'brand-checking' },
   ]
 
   const listingErrorSellers: NestedMenuItem[] = [
-    { label: 'Golden Aura', href: '/dashboard/usa-selling/listing-error/golden-aura', requiresPage: 'usa-selling' },
-    { label: 'Rudra Retail', href: '/dashboard/usa-selling/listing-error/rudra-retail', requiresPage: 'usa-selling' },
-    { label: 'UBeauty', href: '/dashboard/usa-selling/listing-error/ubeauty', requiresPage: 'usa-selling' },
-    { label: 'Velvet Vista', href: '/dashboard/usa-selling/listing-error/velvet-vista', requiresPage: 'usa-selling' },
+    { label: 'Golden Aura', href: '/dashboard/usa-selling/listing-error/golden-aura', requiresPage: 'listing' },
+    { label: 'Rudra Retail', href: '/dashboard/usa-selling/listing-error/rudra-retail', requiresPage: 'listing' },
+    { label: 'UBeauty', href: '/dashboard/usa-selling/listing-error/ubeauty', requiresPage: 'listing' },
+    { label: 'Velvet Vista', href: '/dashboard/usa-selling/listing-error/velvet-vista', requiresPage: 'listing' },
   ]
 
   const usaSellingSubmenu: SubMenuItem[] = [
-    { label: 'Brand Checking', href: '/dashboard/usa-selling/brand-checking', requiresPage: 'usa-selling', submenu: brandCheckingSellers },
-    { label: 'Validation', href: '/dashboard/usa-selling/validation', requiresPage: 'usa-selling/validation' },
-    { label: 'Admin Validation', href: '/dashboard/usa-selling/admin-validation', requiresPage: 'usa-selling/admin-validation' },
-    { label: 'Listing & Error', href: '/dashboard/usa-selling/listing-error', requiresPage: 'usa-selling', submenu: listingErrorSellers },
-    { label: 'Purchase', href: '/dashboard/usa-selling/purchases', requiresPage: 'usa-selling/purchases' },
-    { label: 'Reorder', href: '/dashboard/usa-selling/reorder', requiresPage: 'usa-selling/reorder' },
+    { label: 'Brand Checking', href: '/dashboard/usa-selling/brand-checking', requiresPage: 'brand-checking', submenu: brandCheckingSellers },
+    { label: 'Validation', href: '/dashboard/usa-selling/validation', requiresPage: 'validation' },
+    { label: 'Admin Validation', href: '/dashboard/usa-selling/admin-validation', requiresPage: 'admin-validation' },
+    { label: 'Listing & Error', href: '/dashboard/usa-selling/listing-error', requiresPage: 'listing', submenu: listingErrorSellers },
+    { label: 'Purchase', href: '/dashboard/usa-selling/purchases', requiresPage: 'purchase' },
+    { label: 'Reorder', href: '/dashboard/usa-selling/reorder', requiresPage: 'reorder' },
   ]
 
   const menuItems: MenuItem[] = [
@@ -94,14 +94,21 @@ export default function Sidebar() {
     { label: 'Jio Mart', href: '/dashboard/jio-mart', icon: <ShoppingBag size={18} />, requiresPage: 'jio-mart', submenu: null },
   ]
 
-  // RBAC Check
+  // ✅ FINAL RBAC CHECK LOGIC
   const canAccessMenuItem = (item: MenuItem | SubMenuItem | NestedMenuItem): boolean => {
     if (!userRole) return false
     if (userRole.role === 'admin') return true
+    
+    // Admin only sections
     if ('adminOnly' in item && item.adminOnly) return false
-    if ('requiresAdmin' in item && item.requiresAdmin) return false
+    
+    // If no specific page requirement, allow access
     if (!item.requiresPage) return true
-    return userRole.allowed_pages.includes('*') || userRole.allowed_pages.some(page => item.requiresPage?.includes(page))
+
+    // Check if the required page key is in the user's allowed_pages array
+    return userRole.allowed_pages.includes('*') || 
+           userRole.allowed_pages.includes('all') ||
+           userRole.allowed_pages.some(page => item.requiresPage === page);
   }
 
   const toggleMenu = (label: string, e: React.MouseEvent) => {
@@ -132,9 +139,12 @@ export default function Sidebar() {
         <div className="flex flex-col">
           <h1 className="text-lg font-bold text-slate-200">Scrappy v2</h1>
           {userRole && (
-            <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider font-semibold">
-              {userRole.role}
-            </span>
+            <div className="flex items-center gap-1">
+              <ShieldCheck size={10} className="text-indigo-400" />
+              <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider font-semibold">
+                {userRole.role}
+              </span>
+            </div>
           )}
         </div>
       </div>
@@ -142,14 +152,15 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
         {menuItems.map((item) => {
-          if (!canAccessMenuItem(item)) return null
+          // Check if parent menu or ANY of its submenus are accessible
+          const hasAccessibleSubmenu = item.submenu?.some(sub => canAccessMenuItem(sub));
+          if (!canAccessMenuItem(item) && !hasAccessibleSubmenu) return null
 
           const active = isActive(item.href)
           const expanded = expandedMenu === item.label
 
           return (
             <div key={item.label} className="mb-1">
-              {/* Main Item */}
               <button
                 onClick={() => handleMenuClick(item.href, !!item.submenu, item.label)}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -171,7 +182,6 @@ export default function Sidebar() {
                 )}
               </button>
 
-              {/* Submenus */}
               {item.submenu && expanded && (
                 <div className="mt-1 ml-4 pl-3 border-l border-slate-800 space-y-1">
                   {item.submenu.map((subItem) => {
@@ -182,12 +192,11 @@ export default function Sidebar() {
                     return (
                       <div key={subItem.label}>
                         {subItem.submenu ? (
-                          // Nested Trigger
                           <div className="relative">
                             <button
                               onClick={(e) => {
                                 router.push(subItem.href)
-                                toggleSubMenu(subItem.label, e) // ✅ FIX: Passed event 'e' correctly
+                                toggleSubMenu(subItem.label, e)
                               }}
                               className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${
                                 subActive ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
@@ -197,10 +206,10 @@ export default function Sidebar() {
                               <ChevronRight size={12} className={subExpanded ? 'rotate-90' : ''} />
                             </button>
 
-                            {/* Nested Level */}
                             {subExpanded && (
                               <div className="mt-1 ml-2 pl-3 border-l border-slate-800 space-y-1">
                                 {subItem.submenu.map((nested) => {
+                                  // Check granular access for nested items (e.g., specific sellers)
                                   if (!canAccessMenuItem(nested)) return null
                                   const nestedActive = pathname === nested.href
                                   return (
@@ -221,7 +230,6 @@ export default function Sidebar() {
                             )}
                           </div>
                         ) : (
-                          // Standard Sub Item
                           <Link
                             href={subItem.href}
                             className={`block px-3 py-2 rounded-md text-xs font-medium transition-colors ${
@@ -256,4 +264,3 @@ export default function Sidebar() {
     </aside>
   )
 }
-

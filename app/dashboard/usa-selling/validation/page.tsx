@@ -1,5 +1,5 @@
 'use client'
-import PageGuard from '../../../components/PageGuard'
+import PageGuard from '@/components/PageGuard'
 import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
@@ -1134,7 +1134,7 @@ export default function ValidationPage() {
 
     return (
         <PageTransition>
-            <PageGuard>
+            <PageGuard requiredPage="validation">
                 <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
                     <div className="w-full flex flex-col flex-1 overflow-hidden">
                         {/* Fixed Header Section */}

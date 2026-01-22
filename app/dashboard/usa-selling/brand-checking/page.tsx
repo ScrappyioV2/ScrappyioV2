@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
-import PageGuard from '../../../components/PageGuard'
+import PageGuard from '@/components/PageGuard'
 import {
   ShieldCheck,
   LayoutDashboard,
@@ -220,7 +220,7 @@ export default function BrandCheckingPage() {
 
   return (
     <PageTransition>
-      <PageGuard>
+      <PageGuard requiredPage="brand-checking">
         <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
 
           {/* === HEADER === */}

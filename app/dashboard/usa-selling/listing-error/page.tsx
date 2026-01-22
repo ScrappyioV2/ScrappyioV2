@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
-import PageGuard from '@/app/components/PageGuard';
+import PageGuard from '@/components/PageGuard';
 import { motion } from "framer-motion";
-import { 
-  LayoutDashboard, 
-  ArrowRight, 
-  Clock, 
-  CheckCircle2, 
+import {
+  LayoutDashboard,
+  ArrowRight,
+  Clock,
+  CheckCircle2,
   AlertOctagon,
   Loader2
 } from "lucide-react";
@@ -45,14 +45,14 @@ type SellerUI = {
 export default function ListingErrorDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  
+
   // Initialize sellers with 0 progress
   const [sellers, setSellers] = useState<SellerUI[]>(
     ALL_SELLERS.map((s) => ({
       ...s,
       totalPending: 0,
       listed: 0,
-      error: 0, 
+      error: 0,
     }))
   );
 
@@ -100,11 +100,11 @@ export default function ListingErrorDashboard() {
             setSellers((prev) => prev.map((seller) =>
               seller.id === data.seller_id
                 ? {
-                    ...seller,
-                    totalPending: data.total_pending,
-                    listed: data.listed,
-                    error: data.error,
-                  }
+                  ...seller,
+                  totalPending: data.total_pending,
+                  listed: data.listed,
+                  error: data.error,
+                }
                 : seller
             ));
           }
@@ -117,9 +117,9 @@ export default function ListingErrorDashboard() {
 
   return (
     <PageTransition>
-      <PageGuard>
+      <PageGuard requiredPage="listing">
         <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
-          
+
           {/* === HEADER === */}
           <header className="flex items-center justify-between mb-10 pb-6 border-b border-slate-800/60">
             <div className="space-y-1">
@@ -137,10 +137,10 @@ export default function ListingErrorDashboard() {
 
           {/* === GRID === */}
           {loading ? (
-             <div className="flex items-center justify-center h-64 text-slate-500 gap-3">
-               <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-               <span className="text-sm font-medium tracking-widest">LOADING METRICS...</span>
-             </div>
+            <div className="flex items-center justify-center h-64 text-slate-500 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+              <span className="text-sm font-medium tracking-widest">LOADING METRICS...</span>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
               {sellers.map((seller, index) => {
@@ -165,7 +165,7 @@ export default function ListingErrorDashboard() {
                         <h3 className="text-xl font-bold text-slate-100 group-hover:text-white transition-colors">{seller.name}</h3>
                         <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">USA Marketplace</p>
                       </div>
-                      
+
                       {/* Pending Badge */}
                       <div className="flex flex-col items-end">
                         <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/20 mb-1">
@@ -178,7 +178,7 @@ export default function ListingErrorDashboard() {
 
                     {/* Progress Bars */}
                     <div className="space-y-5 relative z-10">
-                      
+
                       {/* Listed Bar */}
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-medium">
@@ -189,7 +189,7 @@ export default function ListingErrorDashboard() {
                           <span className="text-slate-300 font-mono">{seller.listed}</span>
                         </div>
                         <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${listedPercent}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}
@@ -208,7 +208,7 @@ export default function ListingErrorDashboard() {
                           <span className="text-slate-300 font-mono">{seller.error}</span>
                         </div>
                         <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${errorPercent}%` }}
                             transition={{ duration: 1, ease: "easeOut" }}

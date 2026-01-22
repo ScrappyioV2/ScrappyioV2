@@ -1,14 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth"; // ✅ Import Auth
 import PageTransition from "@/components/layout/PageTransition";
-import { 
-  ShieldCheck, 
-  FileCheck, 
-  UserCheck, 
-  LayoutList, 
-  ShoppingBag, 
+import {
+  ShieldCheck,
+  FileCheck,
+  UserCheck,
+  LayoutList,
+  ShoppingBag,
   RefreshCw,
-  TrendingUp
+  TrendingUp,
+  Loader2 // ✅ Import Loader
 } from 'lucide-react';
 
 // Mock data for sellers (Logic Kept Intact)
@@ -86,10 +90,38 @@ const stagesData = {
 };
 
 export default function USASellingPage() {
+  const router = useRouter();
+  const { userRole, loading } = useAuth();
+
+  // ✅ REDIRECT LOGIC
+  useEffect(() => {
+    if (!loading && userRole) {
+      const pages = userRole.allowed_pages || [];
+
+      // 1. If they have specific access to Validation, go there
+      if (pages.includes('validation')) {
+        router.replace('/dashboard/usa-selling/validation');
+        return;
+      }
+
+      // 2. If they ONLY have access to Brand Checking, go there
+      if (pages.includes('brand-checking')) {
+        router.replace('/dashboard/usa-selling/brand-checking');
+        return;
+      }
+
+      // 3. If they are just "Purchase" role
+      if (pages.includes('purchase')) {
+        router.replace('/dashboard/usa-selling/purchases');
+        return;
+      }
+    }
+  }, [loading, userRole, router]);
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
-        
+
         {/* === HEADER === */}
         <div className="mb-10 border-b border-slate-800/60 pb-6">
           <div className="flex items-center gap-3 mb-2">
@@ -113,7 +145,7 @@ export default function USASellingPage() {
               </div>
               <h2 className="text-xl font-bold text-white">Brand Checking Status</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {stagesData.brandChecking.sellers.map((seller) => (
                 <div key={seller.id} className="bg-slate-950 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors shadow-lg shadow-black/20">
