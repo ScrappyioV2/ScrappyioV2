@@ -1,8 +1,14 @@
 'use client'
-import PageGuard from '../../../components/PageGuard'
+import PageGuard from '@/components/PageGuard';
 import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
+import { useAuth } from '@/lib/hooks/useAuth';
+import PageTransition from '@/components/layout/PageTransition'
+import { supabase } from '@/lib/supabaseClient'
+import Toast from '@/components/Toast'
+import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
+import { Loader2 } from 'lucide-react';
 
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -24,11 +30,6 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     total_revenue: 100,
     profit: 100,
 };
-
-import PageTransition from '@/components/layout/PageTransition'
-import { supabase } from '@/lib/supabaseClient'
-import Toast from '@/components/Toast'
-import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
 
 const formatUSD = (value: number | null) =>
     value !== null ? `$${value.toFixed(2)}` : ''
@@ -180,6 +181,7 @@ const ResizableTH = ({
 
 
 export default function ValidationPage() {
+    const { user, loading: authLoading } = useAuth();
     const [editingValue, setEditingValue] = useState<{
         id: string
         field: string
@@ -260,10 +262,13 @@ export default function ValidationPage() {
     };
 
     useEffect(() => {
+        if (authLoading) return; // Wait for auth
+
         fetchProducts();
         fetchStats();
         fetchConstants();
 
+        // Realtime Subscription
         const channel = supabase
             .channel('validation-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_main_file' }, () => {
@@ -272,12 +277,23 @@ export default function ValidationPage() {
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_pass_file' }, () => fetchStats())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_fail_file' }, () => fetchStats())
-            .subscribe()
+            .subscribe();
+
+        // Auto-refresh logic
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('🔄 Tab visible: Refreshing Validation Data...');
+                fetchProducts();
+                fetchStats();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [activeTab])
+            supabase.removeChannel(channel);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [activeTab, authLoading]); // Added authLoading dependency
 
     useEffect(() => {
         applyFilters();
@@ -591,7 +607,6 @@ export default function ValidationPage() {
             // ⚠️ DO NOT call fetchStats() here - it causes page refresh!
             // Stats will update via Supabase realtime subscription
 
-            // Update local state
             // Update local state
             setProducts((prev) =>
                 prev.map((p) =>
@@ -1131,10 +1146,19 @@ export default function ValidationPage() {
         fetchProducts()
         fetchStats()
     }
-
+    if (authLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-slate-950">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+                    <p className="text-slate-400 animate-pulse font-medium">Authenticating...</p>
+                </div>
+            </div>
+        );
+    }
     return (
         <PageTransition>
-            <PageGuard>
+            <PageGuard requiredPage="validation">
                 <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
                     <div className="w-full flex flex-col flex-1 overflow-hidden">
                         {/* Fixed Header Section */}
