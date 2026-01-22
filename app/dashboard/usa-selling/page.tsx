@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import {
   ShieldCheck, FileCheck, LayoutList, TrendingUp,
-  Loader2, ShoppingBag, AlertTriangle
+  Loader2, ShoppingBag
 } from 'lucide-react';
 
 /* ================= CONFIGURATION ================= */
@@ -21,39 +21,71 @@ const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; b
   4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/10", border: "border-emerald-500/20" }
 };
 
+// Custom Tooltip to handle the dual axis context
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-2xl">
+        <p className="text-slate-300 font-bold mb-2">{label}</p>
+        <div className="space-y-1">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-slate-400 w-24">{entry.name}:</span>
+              <span className="font-mono font-bold text-white">
+                {entry.value.toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function USASellingPage() {
   const router = useRouter();
   const { userRole, loading: authLoading } = useAuth();
-  const { stats, loading: statsLoading } = useDashboardStats();
+  
+  // 1. Determine if user is restricted (needs redirect)
+  const redirectTarget = useMemo(() => {
+    if (authLoading || !userRole) return null;
+    const pages = userRole.allowed_pages || [];
+    
+    if (pages.includes('validation')) return '/dashboard/usa-selling/validation';
+    if (pages.includes('brand-checking')) return '/dashboard/usa-selling/brand-checking';
+    if (pages.includes('purchase')) return '/dashboard/usa-selling/purchases';
+    
+    return null; // Admin or Manager
+  }, [authLoading, userRole]);
 
-  // Redirect Logic
+  // 2. Execute Redirect
   useEffect(() => {
-    if (!authLoading && userRole) {
-      const pages = userRole.allowed_pages || [];
-      if (pages.includes('validation')) router.replace('/dashboard/usa-selling/validation');
-      else if (pages.includes('brand-checking')) router.replace('/dashboard/usa-selling/brand-checking');
-      else if (pages.includes('purchase')) router.replace('/dashboard/usa-selling/purchases');
+    if (redirectTarget) {
+      router.replace(redirectTarget);
     }
-  }, [authLoading, userRole, router]);
+  }, [redirectTarget, router]);
 
-  // Chart Data Preparation
-  const pipelineData = useMemo(() => {
-    if (!stats) return [];
-    return [1, 2, 3, 4].map(id => {
-      const bc = stats.brandChecking.sellers.find((s: any) => s.id === id)?.pending || 0;
-      const val = stats.validation.sellers.find((s: any) => s.id === id)?.pending || 0;
-      const pur = stats.purchasing.sellers.find((s: any) => s.id === id)?.pending || 0;
+  // 3. Only fetch stats if NOT redirecting
+  const { stats, loading: statsLoading } = useDashboardStats({ enabled: !redirectTarget });
 
-      return {
-        name: SELLER_CONFIG[id].name,
-        "Brand Check": bc,
-        "Validation": val,
-        "Purchasing": pur,
-      };
-    });
-  }, [stats]);
+  // 4. Show Loader if redirecting OR loading auth
+  if (authLoading || redirectTarget) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+          <p className="text-slate-400 animate-pulse font-medium">
+            {redirectTarget ? "Redirecting..." : "Authenticating..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  if (authLoading || statsLoading || !stats) {
+  // 5. Safe to render Dashboard (Only Admins see this now)
+  if (statsLoading || !stats) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
         <div className="flex flex-col items-center gap-4">
@@ -65,6 +97,19 @@ export default function USASellingPage() {
   }
 
   // Calculate Header Totals
+  const pipelineData = [1, 2, 3, 4].map(id => {
+    const bc = stats.brandChecking.sellers.find((s: any) => s.id === id)?.pending || 0;
+    const val = stats.validation.sellers.find((s: any) => s.id === id)?.pending || 0;
+    const pur = stats.purchasing.sellers.find((s: any) => s.id === id)?.pending || 0;
+
+    return {
+      name: SELLER_CONFIG[id].name,
+      "Brand Check": bc,
+      "Validation": val,
+      "Purchasing": pur,
+    };
+  });
+
   const totalActive = pipelineData.reduce((acc, curr) => acc + curr["Brand Check"] + curr["Validation"] + curr["Purchasing"], 0);
 
   return (
@@ -87,7 +132,7 @@ export default function USASellingPage() {
 
           <div className="bg-slate-900 px-6 py-4 rounded-2xl border border-slate-800 shadow-xl flex flex-col items-center min-w-[160px]">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Active</span>
-            <span className="text-3xl font-mono font-bold text-white">{totalActive}</span>
+            <span className="text-3xl font-mono font-bold text-white">{totalActive.toLocaleString()}</span>
           </div>
         </div>
 
@@ -97,25 +142,59 @@ export default function USASellingPage() {
           {/* === LEFT: PIPELINE CHART === */}
           <div className="xl:col-span-2 space-y-8">
             <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl shadow-xl backdrop-blur-sm">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-indigo-400" />
-                Pipeline Volume
-              </h2>
-              {/* ✅ FIXED: Added inline style with explicit height */}
-              <div style={{ width: '100%', height: 300 }}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-indigo-400" />
+                  Pipeline Volume
+                </h2>
+                <div className="text-xs text-slate-500 flex gap-4">
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"></div> Right Scale (High Vol)</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-purple-500"></div> Left Scale (Low Vol)</span>
+                </div>
+              </div>
+              
+              <div className="w-full h-[350px] min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={pipelineData} barGap={4} barSize={32}>
+                  <BarChart data={pipelineData} barGap={8}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                    <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc', borderRadius: '12px' }}
-                      cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                    <XAxis 
+                        dataKey="name" 
+                        stroke="#64748b" 
+                        fontSize={12} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        dy={10} 
                     />
+                    
+                    {/* Left Axis: For Validation & Purchasing (Small Numbers) */}
+                    <YAxis 
+                        yAxisId="left"
+                        orientation="left"
+                        stroke="#8b5cf6" 
+                        fontSize={12} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        label={{ value: 'Active Items', angle: -90, position: 'insideLeft', fill: '#8b5cf6', fontSize: 10 }}
+                    />
+
+                    {/* Right Axis: For Brand Check (Huge Numbers) */}
+                    <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        stroke="#3b82f6" 
+                        fontSize={12} 
+                        tickLine={false} 
+                        axisLine={false}
+                        label={{ value: 'Brand Check Volume', angle: 90, position: 'insideRight', fill: '#3b82f6', fontSize: 10 }}
+                    />
+
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
                     <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                    <Bar dataKey="Brand Check" stackId="a" fill="#3b82f6" radius={[0, 0, 4, 4]} />
-                    <Bar dataKey="Validation" stackId="a" fill="#8b5cf6" />
-                    <Bar dataKey="Purchasing" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+
+                    {/* Bars side-by-side, tied to specific axes */}
+                    <Bar yAxisId="right" dataKey="Brand Check" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Bar yAxisId="left" dataKey="Validation" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Bar yAxisId="left" dataKey="Purchasing" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
