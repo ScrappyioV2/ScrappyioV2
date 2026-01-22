@@ -1,6 +1,8 @@
 'use client';
 
-import PageGuard from '@/components/PageGuard'
+// ✅ 1. ADDED: useAuth import
+import { useAuth } from '@/lib/hooks/useAuth';
+import PageGuard from '@/components/PageGuard';
 import { useState, useEffect, useRef } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
@@ -34,7 +36,6 @@ interface ProductRow {
 
 type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
 
-// ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
   asin: 140,
   product_name: 350,
@@ -47,9 +48,12 @@ const DEFAULT_WIDTHS: Record<string, number> = {
 };
 
 export default function RudraRetailPage() {
+  // ✅ 2. ADDED: Auth Hook
+  const { loading: authLoading } = useAuth();
+  
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // This is for DATA loading
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [processingId, setProcessingId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -67,22 +71,18 @@ export default function RudraRetailPage() {
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
 
-  // Toast state
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
   } | null>(null);
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const rowsPerPage = 100;
 
-  // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // ✅ 2. UPDATE: Initialize widths with DEFAULT_WIDTHS
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('rudra_retail_widths');
@@ -91,20 +91,17 @@ export default function RudraRetailPage() {
     return DEFAULT_WIDTHS;
   });
 
-  // ✅ 3. ADD: Resize Logic Ref
   const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
-  // Column order state
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('rudra_retailer');
+      const saved = localStorage.getItem('rudra_retail_column_order');
       return saved ? JSON.parse(saved) : Object.keys(DEFAULT_WIDTHS);
     }
     return Object.keys(DEFAULT_WIDTHS);
   });
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
-  // Roll back state
   const [movementHistory, setMovementHistory] = useState<{
     [key: string]: {
       product: ProductRow;
@@ -113,7 +110,6 @@ export default function RudraRetailPage() {
     } | null;
   }>({});
 
-  // Reject Modal State
   const [rejectModal, setRejectModal] = useState<{
     isOpen: boolean;
     product: ProductRow | null;
@@ -123,7 +119,6 @@ export default function RudraRetailPage() {
   });
 
   const SELLER_ID = 2;
-
   const SELLER_CODE_MAP: Record<number, string> = {
     1: 'GR',
     2: 'RR',
@@ -131,7 +126,6 @@ export default function RudraRetailPage() {
     4: 'VV',
   };
 
-  // ✅ 4. ADD: Resize Handlers
   const startResize = (key: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -148,7 +142,7 @@ export default function RudraRetailPage() {
   };
 
   const handleMouseUp = () => {
-    if (resizeRef.current) localStorage.setItem('rudra_retailths', JSON.stringify(columnWidths));
+    if (resizeRef.current) localStorage.setItem('rudra_retail_widths', JSON.stringify(columnWidths));
     resizeRef.current = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
@@ -158,7 +152,6 @@ export default function RudraRetailPage() {
     return term.replace(/'/g, "''").trim();
   };
 
-  // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -167,7 +160,6 @@ export default function RudraRetailPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Ctrl+Z keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -183,10 +175,12 @@ export default function RudraRetailPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // Fetch products
   useEffect(() => {
-    fetchProducts();
-  }, [activeTab, currentPage, debouncedSearch]);
+    // Only fetch if auth is done
+    if (!authLoading) {
+      fetchProducts();
+    }
+  }, [activeTab, currentPage, debouncedSearch, authLoading]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -459,7 +453,6 @@ export default function RudraRetailPage() {
     setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
   };
 
-  // ✅ 5. UPDATE: Enhanced Column Header (Center align + Resize)
   const renderColumnHeader = (columnKey: string, displayName: string) => {
     if (!visibleColumns[columnKey as keyof typeof visibleColumns]) return null;
     return (
@@ -469,15 +462,12 @@ export default function RudraRetailPage() {
         onDragStart={() => handleDragStart(columnKey)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
-        // Added 'relative' and 'text-center'
         className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none group"
         style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
         <div className="flex items-center justify-center gap-2">
           {displayName}
         </div>
-
-        {/* Resize Handle */}
         <div
           onMouseDown={(e) => startResize(columnKey, e)}
           className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-500/50 z-10"
@@ -490,7 +480,6 @@ export default function RudraRetailPage() {
   const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
   const hasRollback = !!movementHistory[currentTable];
 
-  // Tab Styles
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
     <button
       onClick={() => setActiveTab(tabName)}
@@ -508,6 +497,19 @@ export default function RudraRetailPage() {
     </button>
   );
 
+  // ✅ 3. ADDED: Loading Check
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+           <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+           <p className="text-slate-400 font-medium animate-pulse">Verifying Access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 4. CORRECT RETURN
   return (
     <PageTransition>
       <PageGuard requiredPage="brand-checking">
@@ -618,11 +620,9 @@ export default function RudraRetailPage() {
                 </div>
               ) : (
                 <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                  {/* ✅ 6. UPDATE: Added table-fixed */}
                   <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
                     <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
                       <tr>
-                        {/* ✅ 7. UPDATE: Fixed Width Checkbox */}
                         <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
@@ -644,7 +644,6 @@ export default function RudraRetailPage() {
                           return renderColumnHeader(col, columnNames[col]);
                         })}
                         {activeTab !== 'reject' && (
-                          /* ✅ FIXED: Changed bg-slate-950 to bg-slate-900 */
                           <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '220px' }}>Actions</th>
                         )}
                       </tr>
@@ -652,7 +651,6 @@ export default function RudraRetailPage() {
                     <tbody className="divide-y divide-slate-800/50">
                       {products.map((product, index) => (
                         <tr key={product.id} className={`group hover:bg-slate-800/40 transition-colors ${selectedIds.has(product.id) ? 'bg-indigo-900/10' : ''}`}>
-                          {/* ✅ 8. UPDATE: Fixed Width Checkbox in Body */}
                           <td className="p-3 text-center bg-slate-950/50 sticky left-0 z-10 border-r border-slate-800 group-hover:bg-slate-900 transition-colors" style={{ width: '60px' }}>
                             <input
                               type="checkbox"
@@ -669,9 +667,7 @@ export default function RudraRetailPage() {
 
                             return (
                               <td key={col}
-                                // ✅ 9. UPDATE: Added truncate and center alignment
                                 className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
-                                // ✅ 10. UPDATE: Use dynamic width
                                 style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                                 title={String(product[col as keyof ProductRow] || '-')}
                               >
