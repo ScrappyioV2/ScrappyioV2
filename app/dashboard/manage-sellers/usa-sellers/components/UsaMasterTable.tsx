@@ -1,19 +1,18 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
 
-import { Filter, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Filter, ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from 'lucide-react';
 import FilterDropdown from '@/components/shared/master-table/FilterDropdown';
 import NumericFilter from '@/components/shared/master-table/NumericFilter';
 import TextFilter from '@/components/shared/master-table/TextFilter';
 import MultiSelectFilter from '@/components/shared/master-table/MultiSelectFilter';
 import ActiveFilters from '@/components/shared/master-table/ActiveFilters';
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient';
 
 interface MasterData {
   id: string;
   asin: string;
   display_number: number;
-  
   amz_link: string;
   product_name: string;
   brand: string;
@@ -45,73 +44,38 @@ interface UsaMasterTableProps {
 }
 
 const ALL_COLUMNS = [
-  's_no',
-  'asin',
-  // 'link',
-  'amz_link',
-  'product_name',
-  'brand',
-  'price',
-  'monthly_unit',
-  'monthly_sales',
-  'bsr',
-  'seller',
-  'category',
-  'dimensions',
-  'weight',
+  's_no', 'asin', 'amz_link', 'product_name', 'brand', 'price',
+  'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'dimensions', 'weight',
 ];
 
 const NUMERIC_COLUMNS = ['price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'weight'];
 
 const COLUMN_LABELS: Record<string, string> = {
-  s_no: 'S.No',
-  asin: 'ASIN',
-  'amz_link': 'Link',
-  product_name: 'Product Name',
-  brand: 'Brand',
-  price: 'Price',
-  monthly_unit: 'Monthly Units',
-  monthly_sales: 'Monthly Sales',
-  bsr: 'BSR',
-  seller: 'Sellers',
-  category: 'Category',
-  dimensions: 'Dimensions',
-  weight: 'Weight',
+  s_no: 'S.No', asin: 'ASIN', 'amz_link': 'Link', product_name: 'Product Name',
+  brand: 'Brand', price: 'Price', monthly_unit: 'Monthly Units', monthly_sales: 'Monthly Sales',
+  bsr: 'BSR', seller: 'Sellers', category: 'Category', dimensions: 'Dimensions', weight: 'Weight',
 };
 
 const SORTABLE_COLUMNS = ['s_no', 'asin', 'product_name', 'brand', 'price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'weight'];
 
 export default function UsaMasterTable({
-  searchTerm,
-  hiddenColumns,
-  columnWidths,
-  onColumnWidthChange,
-  filters,
-  onFiltersChange,
-  refreshTrigger,
-  currentPage,
-  itemsPerPage,
-  onTotalProductsChange,
-  onTotalPagesChange,
-  selectedIds,
-  onSelectedIdsChange,
+  searchTerm, hiddenColumns, columnWidths, onColumnWidthChange, filters, onFiltersChange,
+  refreshTrigger, currentPage, itemsPerPage, onTotalProductsChange, onTotalPagesChange,
+  selectedIds, onSelectedIdsChange,
 }: UsaMasterTableProps) {
   const [data, setData] = useState<MasterData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string[] | { value: string; count: number }[]>>({});
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
-  const localFilters = filters; // Use parent's filters directly
+  const localFilters = filters;
+
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
-    key: 'display_number',
-    direction: 'asc',
+    key: 'display_number', direction: 'asc',
   });
 
-  // Selection states
   const [isSelectingAll, setIsSelectingAll] = useState(false);
   const [selectAllProgress, setSelectAllProgress] = useState({ current: 0, total: 0 });
-
-  // Resize states
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
@@ -130,96 +94,53 @@ export default function UsaMasterTable({
     }
   }, [isSomeSelected]);
 
+  // --- 1. DATA FETCHING LOGIC ---
   const fetchData = async () => {
-    if (!supabase) return
+    if (!supabase) return;
     try {
       setLoading(true);
+      let countQuery: any = supabase.from('usa_master_sellers').select('*', { count: 'exact', head: true });
 
-      let countQuery: any = supabase
-        .from('usa_master_sellers')
-        .select('*', { count: 'exact', head: true });
-
+      // Apply Search
       if (searchTerm) {
-        countQuery = countQuery.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-        );
+        countQuery = countQuery.or(`asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
       }
 
+      // Apply Filters
       Object.entries(localFilters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
-
-        // Handle text, multiselect filters
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           countQuery = countQuery.in(columnKey, filterData.values);
         }
-
         if (filterData.type === 'numeric' && filterData.value !== null) {
           const value = parseFloat(filterData.value);
           if (!isNaN(value)) {
-            switch (filterData.operator) {
-              case 'eq':
-                countQuery = countQuery.eq(columnKey, value);
-                break;
-              case 'gt':
-                countQuery = countQuery.gt(columnKey, value);
-                break;
-              case 'lt':
-                countQuery = countQuery.lt(columnKey, value);
-                break;
-              case 'gte':
-                countQuery = countQuery.gte(columnKey, value);
-                break;
-              case 'lte':
-                countQuery = countQuery.lte(columnKey, value);
-                break;
-            }
+            countQuery = countQuery[filterData.operator](columnKey, value);
           }
         }
       });
 
       const { count } = await countQuery;
       const totalCount = count || 0;
-      const totalPages = Math.ceil(totalCount / itemsPerPage);
-
       onTotalProductsChange(totalCount);
-      onTotalPagesChange(totalPages);
+      onTotalPagesChange(Math.ceil(totalCount / itemsPerPage));
 
       let query: any = supabase.from('usa_master_sellers').select('*');
 
+      // Re-apply Search & Filters to Main Query
       if (searchTerm) {
-        query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-        );
+        query = query.or(`asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
       }
 
       Object.entries(localFilters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
-
-        // Handle text, multiselect filters
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           query = query.in(columnKey, filterData.values);
         }
-
         if (filterData.type === 'numeric' && filterData.value !== null) {
           const value = parseFloat(filterData.value);
           if (!isNaN(value)) {
-            switch (filterData.operator) {
-              case 'eq':
-                query = query.eq(columnKey, value);
-                break;
-              case 'gt':
-                query = query.gt(columnKey, value);
-                break;
-              case 'lt':
-                query = query.lt(columnKey, value);
-                break;
-              case 'gte':
-                query = query.gte(columnKey, value);
-                break;
-              case 'lte':
-                query = query.lte(columnKey, value);
-                break;
-            }
+            query = query[filterData.operator](columnKey, value);
           }
         }
       });
@@ -241,8 +162,9 @@ export default function UsaMasterTable({
     }
   };
 
+  // --- 2. SELECT ALL LOGIC (BATCHED) ---
   const handleSelectAll = async (checked: boolean) => {
-    if (!supabase) return
+    if (!supabase) return;
     if (!checked) {
       onSelectedIdsChange(new Set());
       return;
@@ -255,6 +177,25 @@ export default function UsaMasterTable({
       let hasMore = true;
       const allIds = new Set<string>();
 
+      // Initial count query to set progress total
+      let countQuery: any = supabase.from('usa_master_sellers').select('*', { count: 'exact', head: true });
+      if (searchTerm) {
+        countQuery = countQuery.or(`asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      }
+      Object.entries(localFilters).forEach(([column, filter]) => {
+        if (!filter) return;
+        if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
+          countQuery = countQuery.in(column, filter.values);
+        }
+        if (filter.type === 'numeric' && filter.value !== null) {
+          const v = parseFloat(filter.value);
+          if (!isNaN(v)) countQuery = countQuery[filter.operator](column, v);
+        }
+      });
+      const { count } = await countQuery;
+      setSelectAllProgress({ current: 0, total: count || 0 });
+
+      // Fetch IDs in batches
       while (hasMore) {
         let query: any = supabase
           .from('usa_master_sellers')
@@ -262,23 +203,17 @@ export default function UsaMasterTable({
           .range(page * BATCH_SIZE, page * BATCH_SIZE + BATCH_SIZE - 1);
 
         if (searchTerm) {
-          query = query.or(
-            `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-          );
+          query = query.or(`asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
         }
 
         Object.entries(localFilters).forEach(([column, filter]) => {
           if (!filter) return;
-
           if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
             query = query.in(column, filter.values);
           }
-
           if (filter.type === 'numeric' && filter.value !== null) {
             const v = parseFloat(filter.value);
-            if (!isNaN(v)) {
-              query = query[filter.operator](column, v);
-            }
+            if (!isNaN(v)) query = query[filter.operator](column, v);
           }
         });
 
@@ -291,7 +226,7 @@ export default function UsaMasterTable({
         }
 
         data.forEach((row: any) => allIds.add(row.id));
-
+        setSelectAllProgress(prev => ({ ...prev, current: allIds.size }));
         hasMore = data.length === BATCH_SIZE;
         page++;
       }
@@ -304,92 +239,15 @@ export default function UsaMasterTable({
     }
   };
 
-
   const handleSelectRow = (id: string, checked: boolean) => {
     const newSelected = new Set(selectedIds);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
+    checked ? newSelected.add(id) : newSelected.delete(id);
     onSelectedIdsChange(newSelected);
   };
 
-
-  // Column resize handlers
-  const handleResizeStart = (e: React.MouseEvent, columnKey: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setResizingColumn(columnKey);
-    setResizeStartX(e.pageX);
-    setResizeStartWidth(columnWidths[columnKey] || 100);
-  };
-
-  const handleResizeMove = (e: MouseEvent) => {
-    if (!resizingColumn) return;
-
-    const diff = e.pageX - resizeStartX;
-    const newWidth = Math.max(50, resizeStartWidth + diff); // Minimum 50px
-
-    const updatedWidths = {
-      ...columnWidths,
-      [resizingColumn]: newWidth,
-    };
-
-    onColumnWidthChange(updatedWidths);
-  };
-
-  const handleResizeEnd = () => {
-    setResizingColumn(null);
-  };
-
-  useEffect(() => {
-    if (resizingColumn) {
-      document.addEventListener('mousemove', handleResizeMove);
-      document.addEventListener('mouseup', handleResizeEnd);
-      return () => {
-        document.removeEventListener('mousemove', handleResizeMove);
-        document.removeEventListener('mouseup', handleResizeEnd);
-      };
-    }
-  }, [resizingColumn, resizeStartX, resizeStartWidth]);
-
-  const handleSort = (columnKey: string) => {
-    if (!SORTABLE_COLUMNS.includes(columnKey)) return;
-
-    // Map s_no to display_number for sorting
-    const sortKey = columnKey === 's_no' ? 'display_number' : columnKey;
-
-    setSortConfig((prev) => ({
-      key: sortKey,
-      direction: prev.key === sortKey && prev.direction === 'asc' ? 'desc' : 'asc',
-    }));
-  };
-
-  const getSortIcon = (columnKey: string) => {
-    if (!SORTABLE_COLUMNS.includes(columnKey)) return null;
-
-    const sortKey = columnKey === 's_no' ? 'display_number' : columnKey;
-
-    if (sortConfig.key !== sortKey) {
-      return <ArrowUpDown className="w-3 h-3 text-gray-400" />;
-    }
-
-    return sortConfig.direction === 'asc' ? (
-      <ArrowUp className="w-3 h-3 text-blue-600" />
-    ) : (
-      <ArrowDown className="w-3 h-3 text-blue-600" />
-    );
-  };
-
-  /**
- * Fetch unique values for a filter, respecting OTHER active filters
- */
-  /**
-   * Fetch unique values for a filter, respecting OTHER active filters
-   */
-  const fetchUniqueValuesForFilter = async (columnKey: string) => {   
-    if (!supabase) return
+  // --- 3. FILTER VALUES LOGIC ---
+  const fetchUniqueValuesForFilter = async (columnKey: string) => {
+    if (!supabase) return;
     try {
       const BATCH_SIZE = 1000;
       const valueCounts: Record<string, number> = {};
@@ -403,23 +261,17 @@ export default function UsaMasterTable({
           .range(offset, offset + BATCH_SIZE - 1);
 
         if (searchTerm) {
-          query = query.or(
-            `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-          );
+          query = query.or(`asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
         }
 
         Object.entries(localFilters).forEach(([column, filter]) => {
           if (column === columnKey || !filter) return;
-
           if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) {
             query = query.in(column, filter.values);
           }
-
           if (filter.type === 'numeric' && filter.value !== null) {
             const v = parseFloat(filter.value);
-            if (!isNaN(v)) {
-              query = query[filter.operator](column, v);
-            }
+            if (!isNaN(v)) query = query[filter.operator](column, v);
           }
         });
 
@@ -441,11 +293,8 @@ export default function UsaMasterTable({
           }
         });
 
-        if (data.length < BATCH_SIZE) {
-          hasMore = false;
-        } else {
-          offset += BATCH_SIZE;
-        }
+        if (data.length < BATCH_SIZE) hasMore = false;
+        else offset += BATCH_SIZE;
       }
 
       return Object.entries(valueCounts)
@@ -457,18 +306,11 @@ export default function UsaMasterTable({
     }
   };
 
-
   const fetchUniqueValues = async (columnKey: string) => {
     try {
-      const values =
-        (await fetchUniqueValuesForFilter(columnKey)) ?? [];
-      // Convert to simple string array for text filters
-      setFilterValues((prev) => ({
-        ...prev,
-        [columnKey]: values.map(v => v.value)
-      }));
+      const values = (await fetchUniqueValuesForFilter(columnKey)) ?? [];
+      setFilterValues((prev) => ({ ...prev, [columnKey]: values.map(v => v.value) }));
     } catch (error) {
-      console.error('Error fetching unique values:', error);
       setFilterValues((prev) => ({ ...prev, [columnKey]: [] }));
     }
   };
@@ -477,20 +319,16 @@ export default function UsaMasterTable({
     return (await fetchUniqueValuesForFilter('category')) ?? [];
   };
 
-
   const fetchBrandValues = async (): Promise<{ value: string; count: number }[]> => {
     return (await fetchUniqueValuesForFilter('brand')) ?? [];
   };
 
   const handleOpenFilter = async (columnKey: string, columnType: string) => {
     setActiveFilterColumn(columnKey);
-
     if (columnKey === 'category') {
-      // Fetch category with counts
       const categoryValues = await fetchCategoryValues();
       setFilterValues((prev) => ({ ...prev, [columnKey]: categoryValues }));
     } else if (columnKey === 'brand') {
-      // Fetch brand with counts
       const brandValues = await fetchBrandValues();
       setFilterValues((prev) => ({ ...prev, [columnKey]: brandValues }));
     } else if (columnType === 'text' && !filterValues[columnKey]) {
@@ -498,75 +336,89 @@ export default function UsaMasterTable({
     }
   };
 
+  // --- 4. RESIZE & SORT LOGIC ---
+  const handleResizeStart = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault(); e.stopPropagation();
+    setResizingColumn(columnKey);
+    setResizeStartX(e.pageX);
+    setResizeStartWidth(columnWidths[columnKey] || 100);
+  };
 
-  const handleApplyFilter = (columnKey: string, filterData: any) => {
-    const newFilters = { ...localFilters };
-    if (!filterData || (filterData.values && filterData.values.length === 0)) {
-      delete newFilters[columnKey];
-    } else {
-      newFilters[columnKey] = filterData;
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!resizingColumn) return;
+    const diff = e.pageX - resizeStartX;
+    onColumnWidthChange({ ...columnWidths, [resizingColumn]: Math.max(50, resizeStartWidth + diff) });
+  };
+
+  const handleResizeEnd = () => setResizingColumn(null);
+
+  useEffect(() => {
+    if (resizingColumn) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
     }
-    onFiltersChange(newFilters); // Update parent
-    setActiveFilterColumn(null);
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+
+  const handleSort = (columnKey: string) => {
+    if (!SORTABLE_COLUMNS.includes(columnKey)) return;
+    const sortKey = columnKey === 's_no' ? 'display_number' : columnKey;
+    setSortConfig(prev => ({ key: sortKey, direction: prev.key === sortKey && prev.direction === 'asc' ? 'desc' : 'asc' }));
   };
 
   const handleRemoveFilter = (columnKey: string) => {
     const newFilters = { ...localFilters };
     delete newFilters[columnKey];
-    onFiltersChange(newFilters); // Update parent
+    onFiltersChange(newFilters);
   };
 
-  const handleClearAllFilters = () => {
-    onFiltersChange({}); // Update parent
+  const handleClearAllFilters = () => onFiltersChange({});
+  const handleApplyFilter = (column: string, filterData: any) => {
+    const newFilters = { ...localFilters };
+    if (!filterData) delete newFilters[column];
+    else newFilters[column] = filterData;
+    onFiltersChange(newFilters);
+    setActiveFilterColumn(null);
   };
 
-  const formatColumnHeader = (column: string) => {
-    return COLUMN_LABELS[column] || column.replace(/_/g, ' ').toUpperCase();
+  // --- HELPERS ---
+  const formatColumnHeader = (column: string) => COLUMN_LABELS[column] || column.replace(/_/g, ' ').toUpperCase();
+  const getColumnType = (column: string): 'text' | 'numeric' => NUMERIC_COLUMNS.includes(column) ? 'numeric' : 'text';
+  const hasActiveFilter = (column: string) => !!localFilters[column];
+
+  const getSortIcon = (columnKey: string) => {
+    if (!SORTABLE_COLUMNS.includes(columnKey)) return null;
+    const sortKey = columnKey === 's_no' ? 'display_number' : columnKey;
+    if (sortConfig.key !== sortKey) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-400" /> : <ArrowDown className="w-3 h-3 text-indigo-400" />;
   };
 
-  const getColumnType = (column: string): 'text' | 'numeric' => {
-    return NUMERIC_COLUMNS.includes(column) ? 'numeric' : 'text';
-  };
-
-  const hasActiveFilter = (column: string) => {
-    return !!localFilters[column];
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>;
 
   return (
     <div>
-      {/* Loading modal for select all */}
+      {/* Loading Modal for Select All */}
       {isSelectingAll && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <h3 className="text-xl font-bold mb-4">Selecting Products...</h3>
-              {selectAllProgress.total > 0 && (
-                <div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-2">
-                    <div
-                      className="bg-blue-600 h-3 transition-all duration-300"
-                      style={{ width: `${(selectAllProgress.current / selectAllProgress.total) * 100}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {selectAllProgress.current.toLocaleString()} / {selectAllProgress.total.toLocaleString()} products
-                  </p>
+          <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full mx-4 text-center">
+            <Loader2 className="h-10 w-10 text-indigo-500 animate-spin mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">Selecting Products...</h3>
+            {selectAllProgress.total > 0 && (
+              <div>
+                <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden mb-2">
+                  <div className="bg-indigo-600 h-3 transition-all duration-300" style={{ width: `${(selectAllProgress.current / selectAllProgress.total) * 100}%` }}></div>
                 </div>
-              )}
-            </div>
+                <p className="text-sm text-slate-400">{selectAllProgress.current.toLocaleString()} / {selectAllProgress.total.toLocaleString()} products</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
+      {/* Dark Mode Active Filters */}
       <ActiveFilters
         filters={localFilters}
         onRemoveFilter={handleRemoveFilter}
@@ -574,53 +426,57 @@ export default function UsaMasterTable({
         columnConfig={COLUMN_LABELS}
       />
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto max-h-[calc(105vh-250px)] overflow-y-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-xs">
-            <thead className="bg-gray-50 sticky top-0 z-20">
+      {/* Main Table Container */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+        <div className="overflow-x-auto h-[calc(100vh-320px)] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+          <table className="min-w-full divide-y divide-slate-800 text-xs">
+
+            {/* Table Header */}
+            <thead className="bg-slate-950 sticky top-0 z-20 shadow-md">
               <tr>
-                {/* Checkbox column */}
-                <th className="px-2 py-2 w-12 sticky left-0 bg-gray-50 z-10">
+                {/* Checkbox Column */}
+                <th className="px-2 py-3 w-12 sticky left-0 bg-slate-950 z-10 border-r border-slate-800/80">
                   <input
                     ref={selectAllCheckboxRef}
                     type="checkbox"
                     checked={isAllCurrentPageSelected}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
                   />
                 </th>
 
+                {/* Data Columns */}
                 {visibleColumns.map((column) => (
                   <th
                     key={column}
-                    className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-tight relative select-none"
+                    className="px-2 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider relative select-none bg-slate-950 border-r border-slate-800/50 group"
                     style={{
                       width: `${columnWidths[column] || 100}px`,
                       minWidth: `${columnWidths[column] || 100}px`,
                       maxWidth: `${columnWidths[column] || 100}px`,
                     }}
                   >
-                    {/* Remove overflow-hidden from main container */}
-                    <div className="flex items-center gap-1 pr-2">
-                      {/* Wrap text+sort in overflow container */}
-                      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center justify-between gap-1 pr-2">
+                      <div className="flex items-center gap-1 overflow-hidden">
                         <button
                           onClick={() => handleSort(column)}
-                          className={`flex items-center gap-1 min-w-0 ${SORTABLE_COLUMNS.includes(column) ? 'cursor-pointer hover:text-gray-700' : ''
+                          className={`flex items-center gap-1 min-w-0 transition-colors ${SORTABLE_COLUMNS.includes(column) ? 'hover:text-white cursor-pointer' : 'cursor-default'
                             }`}
                           disabled={!SORTABLE_COLUMNS.includes(column)}
                         >
-                          <span className="truncate block">{formatColumnHeader(column)}</span>
-                          <span className="flex-shrink-0">{getSortIcon(column)}</span>
+                          <span className="truncate">{formatColumnHeader(column)}</span>
+                          <span>{getSortIcon(column)}</span>
                         </button>
                       </div>
 
-                      {/* Filter button outside overflow container */}
+                      {/* Filter Button */}
                       {column !== 's_no' && column !== 'link' && (
                         <div className="relative flex-shrink-0">
                           <button
                             onClick={() => handleOpenFilter(column, getColumnType(column))}
-                            className={`p-0.5 rounded hover:bg-gray-200 transition ${hasActiveFilter(column) ? 'text-blue-600' : 'text-gray-400'
+                            className={`p-1 rounded transition-colors ${hasActiveFilter(column)
+                              ? 'text-indigo-400 bg-indigo-500/10'
+                              : 'text-slate-600 hover:text-slate-300 hover:bg-slate-800'
                               }`}
                             title="Filter"
                           >
@@ -628,84 +484,76 @@ export default function UsaMasterTable({
                           </button>
 
                           {activeFilterColumn === column && (
-                            <FilterDropdown
-                              isOpen={true}
-                              onClose={() => setActiveFilterColumn(null)}
-                              title={`Filter ${formatColumnHeader(column)}`}
-                            >
-                              {column === 'category' || column === 'brand' ? (
-                                <MultiSelectFilter
-                                  values={filterValues[column] as { value: string; count: number }[] || []}
-                                  selectedValues={localFilters[column]?.values || []}
-                                  onApply={(values) => {
-                                    handleApplyFilter(column, values.length > 0 ? { type: 'multiselect', values } : null);
-                                    setActiveFilterColumn(null);
-                                  }}
-                                  placeholder={`Search ${formatColumnHeader(column)}...`}
-                                  loading={!filterValues[column]}
-                                />
-                              ) : getColumnType(column) === 'numeric' ? (
-                                <NumericFilter
-                                  currentFilter={localFilters[column]}
-                                  onApply={(filterData) => {
-                                    handleApplyFilter(column, filterData);
-                                    setActiveFilterColumn(null);
-                                  }}
-                                  columnName={formatColumnHeader(column)}
-                                />
-                              ) : (
-                                <TextFilter
-                                  values={filterValues[column] as string[] || []}
-                                  selectedValues={localFilters[column]?.values || []}
-                                  onApply={(values) => {
-                                    handleApplyFilter(column, values.length > 0 ? { type: 'text', values } : null);
-                                    setActiveFilterColumn(null);
-                                  }}
-                                  placeholder={`Search ${formatColumnHeader(column)}...`}
-                                />
-                              )}
-                            </FilterDropdown>
+                            <div className="absolute top-full right-0 mt-2 z-50">
+                              <FilterDropdown
+                                isOpen={true}
+                                onClose={() => setActiveFilterColumn(null)}
+                                title={`Filter ${formatColumnHeader(column)}`}
+                              >
+                                {column === 'category' || column === 'brand' ? (
+                                  <MultiSelectFilter
+                                    values={filterValues[column] as any[] || []}
+                                    selectedValues={localFilters[column]?.values || []}
+                                    onApply={(values) => handleApplyFilter(column, values.length ? { type: 'multiselect', values } : null)}
+                                    placeholder="Search..."
+                                    loading={!filterValues[column]}
+                                  />
+                                ) : getColumnType(column) === 'numeric' ? (
+                                  <NumericFilter
+                                    currentFilter={localFilters[column]}
+                                    onApply={(data) => handleApplyFilter(column, data)}
+                                    columnName={column}
+                                  />
+                                ) : (
+                                  <TextFilter
+                                    values={filterValues[column] as string[] || []}
+                                    selectedValues={localFilters[column]?.values || []}
+                                    onApply={(values) => handleApplyFilter(column, values.length ? { type: 'text', values } : null)}
+                                    placeholder="Search..."
+                                  />
+                                )}
+                              </FilterDropdown>
+                            </div>
                           )}
                         </div>
                       )}
                     </div>
 
-                    {/* Resize handle */}
+                    {/* Resize Handle */}
                     <div
                       onMouseDown={(e) => handleResizeStart(e, column)}
-                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 hover:w-1.5 transition-all"
-                      style={{ zIndex: 20 }}
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500 hover:w-1.5 transition-all z-20 opacity-0 group-hover:opacity-100"
                     />
                   </th>
                 ))}
-
               </tr>
             </thead>
 
-            <tbody className="bg-white divide-y divide-gray-200">
+            {/* Table Body */}
+            <tbody className="bg-slate-900 divide-y divide-slate-800/50">
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="px-4 py-8 text-center text-gray-500 text-sm">
+                  <td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-slate-500">
                     No data found
                   </td>
                 </tr>
               ) : (
                 data.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
-                    {/* Checkbox column */}
-                    <td className="px-2 py-2 sticky left-0 bg-white z-10">
+                  <tr key={row.id} className={`group hover:bg-slate-800/60 transition-colors ${selectedIds.has(row.id) ? 'bg-indigo-500/10' : ''}`}>
+                    {/* Checkbox Cell */}
+                    <td className="px-2 py-2 sticky left-0 bg-slate-900 group-hover:bg-slate-800/60 z-10 border-r border-slate-800/50">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(row.id)}
                         onChange={(e) => handleSelectRow(row.id, e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
                       />
                     </td>
 
                     {visibleColumns.map((column) => (
                       <td
                         key={column}
-                        className="px-2 py-2 text-xs text-gray-900"
+                        className="px-2 py-2 text-xs text-slate-300"
                         style={{
                           width: `${columnWidths[column] || 100}px`,
                           maxWidth: `${columnWidths[column] || 100}px`,
@@ -713,27 +561,30 @@ export default function UsaMasterTable({
                       >
                         <div className="truncate" title={String(row[column as keyof MasterData] || '')}>
                           {column === 's_no' ? (
-                            <span className="font-medium">{row.display_number}</span>
+                            <span className="font-mono text-slate-500">{row.display_number}</span>
                           ) : column === 'asin' ? (
-                            <span className="font-mono text-xs">{row.asin}</span>
-                          ) : column === 'link' ? (
+                            <span className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono text-[10px] select-all">
+                              {row.asin}
+                            </span>
+                          ) : column === 'amz_link' ? (
                             <a
                               href={row.amz_link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-xs"
+                              className="text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
                             >
-                              Link
+                              View
                             </a>
                           ) : column === 'weight' ? (
                             `${row.weight} ${row.weight_unit}`
-                          ) : column === 'price' || column === 'monthly_sales' ? (
+                          ) : column === 'price' ? (
+                            <span className="text-emerald-400 font-mono font-medium">{row.price ? `$${row.price}` : '-'}</span>
+                          ) : column === 'bsr' ? (
+                            <span className="text-amber-400 font-mono">{row.bsr?.toLocaleString()}</span>
+                          ) : column === 'monthly_sales' || column === 'monthly_unit' ? (
                             row[column as keyof MasterData]?.toLocaleString() || '-'
                           ) : (
-                            row[column as keyof MasterData] === null ||
-                              row[column as keyof MasterData] === undefined
-                              ? '-'
-                              : row[column as keyof MasterData]
+                            row[column as keyof MasterData] ?? '-'
                           )}
                         </div>
                       </td>
@@ -748,4 +599,3 @@ export default function UsaMasterTable({
     </div>
   );
 }
-

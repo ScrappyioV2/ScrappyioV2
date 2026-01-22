@@ -1,8 +1,6 @@
 'use client';
 
-
 export const dynamic = 'force-dynamic'
-
 
 import {
   normalizeDataForDB,
@@ -20,11 +18,19 @@ import {
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
-
-
+import PageTransition from '@/components/layout/PageTransition';
+import {
+  Search,
+  Database,
+  Upload,
+  Columns,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Loader2
+} from 'lucide-react';
 
 const TABLE_NAME = 'uae_master_sellers';
-
 
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
@@ -36,7 +42,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   's_no': 60,
   'asin': 120,
   'link': 80,
-  'amz_link': 120,  // Add this line
+  'amz_link': 120,
   'product_name': 300,
   'brand': 120,
   'price': 100,
@@ -50,6 +56,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 };
 
 export default function UaeSellersPage() {
+  // --- STATE & LOGIC (PRESERVED) ---
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -64,19 +71,15 @@ export default function UaeSellersPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
 
-
   // Upload progress state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
 
-
   const ITEMS_PER_PAGE = 50;
-
 
   useEffect(() => {
     loadColumnPreferences();
   }, []);
-
 
   const loadColumnPreferences = async () => {
     if (!supabase) return
@@ -84,14 +87,12 @@ export default function UaeSellersPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-
       const { data, error } = await supabase
         .from('user_column_preferences')
         .select('hidden_columns, column_widths')
         .eq('table_name', TABLE_NAME)
         .eq('user_id', user.id)
         .maybeSingle();
-
 
       if (data && !error) {
         setHiddenColumns(data.hidden_columns || []);
@@ -104,13 +105,11 @@ export default function UaeSellersPage() {
     }
   };
 
-
   const saveColumnPreferences = async (columns: string[], widths?: Record<string, number>) => {
     if (!supabase) return
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
 
       const updateData: any = {
         table_name: TABLE_NAME,
@@ -119,11 +118,9 @@ export default function UaeSellersPage() {
         updated_at: new Date().toISOString(),
       };
 
-
       if (widths) {
         updateData.column_widths = widths;
       }
-
 
       await supabase
         .from('user_column_preferences')
@@ -135,7 +132,6 @@ export default function UaeSellersPage() {
     }
   };
 
-
   const handleToggleColumn = (column: string) => {
     const newHiddenColumns = hiddenColumns.includes(column)
       ? hiddenColumns.filter((col) => col !== column)
@@ -144,29 +140,25 @@ export default function UaeSellersPage() {
     saveColumnPreferences(newHiddenColumns);
   };
 
-
   const handleColumnWidthChange = (widths: Record<string, number>) => {
     setColumnWidths(widths);
     saveColumnPreferences(hiddenColumns, widths);
   };
-
 
   const handleFiltersChange = (newFilters: Record<string, any>) => {
     setFilters(newFilters);
     setCurrentPage(1);
   };
 
-
-  // Auto-generate Amazon link from ASIN
+  // Auto-generate Amazon link from ASIN (UAE Logic Preserved)
   const generateAmazonLink = (asin: string, country: 'uae' | 'india'): string => {
     if (!asin) return '';
+    // UAE specific domain logic preserved
     const domain = country === "uae" ? "amazon.ae" : "amazon.com";
     return `https://www.${domain}/dp/${asin}`;
   };
 
-
   // FIXED: Handle multiple file uploads with batch insert
-  // FIXED: Handle multiple file uploads with PARALLEL batch insert
   const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
@@ -199,12 +191,10 @@ export default function UaeSellersPage() {
         const normalizedData = normalizeDataForDB(data)
           .map((product) => {
             if (product && product.asin) {
-              // Generate amz_link if missing
-              // Generate amz_link if missing (use underscore!)
               if (!product.amz_link) {
+                // UAE logic applied here
                 product.amz_link = generateAmazonLink(product.asin, "uae")
               }
-              // Also set link if missing
               if (!product.link) {
                 product.link = product.amz_link;
               }
@@ -221,7 +211,6 @@ export default function UaeSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
-      // If no new products after processing all files
       if (allNewProducts.length === 0) {
         toast.error(
           `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
@@ -235,7 +224,6 @@ export default function UaeSellersPage() {
       const uniqueProductsMap = new Map();
       allNewProducts.forEach(product => {
         if (product.asin) {
-          // Keep the last occurrence (or you can keep first by checking !uniqueProductsMap.has)
           uniqueProductsMap.set(product.asin, product);
         }
       });
@@ -244,7 +232,7 @@ export default function UaeSellersPage() {
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
       // Step 2: OPTIMIZED Batch insert
-      const batchSize = 100; // Smaller batches
+      const batchSize = 100;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
@@ -256,14 +244,12 @@ export default function UaeSellersPage() {
         totalBatches,
       });
 
-      // Split into batches
       const batches: any[][] = [];
       for (let i = 0; i < allNewProducts.length; i += batchSize) {
         const batch = allNewProducts.slice(i, i + batchSize);
         batches.push(batch);
       }
 
-      // Upload batch function
       const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
         const maxRetries = 3;
         let attempt = 0;
@@ -287,28 +273,19 @@ export default function UaeSellersPage() {
                 ignoreDuplicates: false
               });
 
-            if (error) {
-              throw error;
-            }
+            if (error) throw error;
 
             return { success: true, count: batch.length };
           } catch (error: any) {
             attempt++;
             console.error(`Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
-
-            if (attempt >= maxRetries) {
-              return { success: false, count: 0 };
-            }
-
-            // Wait before retry
+            if (attempt >= maxRetries) return { success: false, count: 0 };
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
-
         return { success: false, count: 0 };
       };
 
-      // Process batches SEQUENTIALLY
       for (let i = 0; i < batches.length; i++) {
         toast.loading(
           `Uploading batch ${i + 1} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
@@ -330,26 +307,15 @@ export default function UaeSellersPage() {
           totalBatches,
         });
 
-        // Small delay to prevent rate limiting
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
 
-      // Step 3: Show final summary
       const summaryLines = [];
-
-      if (successCount > 0) {
-        summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
-      }
-
-      if (totalDuplicates > 0) {
-        summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
-      }
-
-      if (failedBatches > 0) {
-        summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
-      }
+      if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
+      if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
+      if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
       if (successCount > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
@@ -374,9 +340,7 @@ export default function UaeSellersPage() {
       setIsExporting(true);
       setExportProgress({ current: 0, total: 0 });
 
-
       let baseQuery: any = supabase.from(TABLE_NAME).select('*', { count: 'exact', head: true });
-
 
       if (searchTerm) {
         baseQuery = baseQuery.or(
@@ -384,16 +348,11 @@ export default function UaeSellersPage() {
         );
       }
 
-
       Object.entries(filters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
-
-
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           baseQuery = baseQuery.in(columnKey, filterData.values);
         }
-
-
         if (filterData.type === 'numeric' && filterData.value !== null) {
           const value = parseFloat(filterData.value);
           if (!isNaN(value)) {
@@ -408,10 +367,8 @@ export default function UaeSellersPage() {
         }
       });
 
-
       const { count } = await baseQuery;
       const totalCount = count || 0;
-
 
       if (totalCount === 0) {
         alert('No data to export');
@@ -419,19 +376,15 @@ export default function UaeSellersPage() {
         return;
       }
 
-
       setExportProgress({ current: 0, total: totalCount });
-
 
       let allData: any[] = [];
       let offset = 0;
       const batchSize = 1000;
       let hasMore = true;
 
-
       while (hasMore) {
         let query: any = supabase.from(TABLE_NAME).select('*');
-
 
         if (searchTerm) {
           query = query.or(
@@ -439,16 +392,11 @@ export default function UaeSellersPage() {
           );
         }
 
-
         Object.entries(filters).forEach(([columnKey, filterData]) => {
           if (!filterData) return;
-
-
           if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
             query = query.in(columnKey, filterData.values);
           }
-
-
           if (filterData.type === 'numeric' && filterData.value !== null) {
             const value = parseFloat(filterData.value);
             if (!isNaN(value)) {
@@ -463,12 +411,9 @@ export default function UaeSellersPage() {
           }
         });
 
-
         const { data, error } = await query.range(offset, offset + batchSize - 1);
 
-
         if (error) throw error;
-
 
         if (data && data.length > 0) {
           allData.push(...data);
@@ -479,7 +424,6 @@ export default function UaeSellersPage() {
           hasMore = false;
         }
       }
-
 
       exportData(allData, TABLE_NAME, format);
       alert(`Successfully exported ${allData.length} products!`);
@@ -492,218 +436,179 @@ export default function UaeSellersPage() {
     }
   };
 
-
   const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1;
   const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalProducts);
 
-
+  // --- UPDATED DARK MODE UI ---
   return (
-    <div className="p-6 space-y-6">
-      <Toaster position="top-right" />
+    <PageTransition>
+      <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
+        <Toaster position="top-right"
+          toastOptions={{
+            style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' },
+          }}
+        />
 
-
-      {/* Upload Progress Modal */}
-      {isUploading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
-            <div className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+        {/* Upload Progress Modal - Dark */}
+        {isUploading && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <Loader2 className="h-16 w-16 text-indigo-500 animate-spin" />
+                </div>
+                <h3 className="text-xl font-bold mb-4 text-white">Uploading Products...</h3>
+                {uploadProgress.total > 0 && (
+                  <>
+                    <p className="text-slate-400 mb-2">Batch {uploadProgress.batch} of {uploadProgress.totalBatches}</p>
+                    <p className="text-2xl font-bold text-indigo-400 mb-4">{uploadProgress.current.toLocaleString()} / {uploadProgress.total.toLocaleString()}</p>
+                    <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden">
+                      <div className="bg-indigo-600 h-3 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }}></div>
+                    </div>
+                    <p className="text-sm text-slate-500">{Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete</p>
+                  </>
+                )}
               </div>
-
-
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">
-                Uploading Products...
-              </h3>
-
-
-              {uploadProgress.total > 0 && (
-                <>
-                  <p className="text-gray-600 mb-2">
-                    Batch {uploadProgress.batch} of {uploadProgress.totalBatches}
-                  </p>
-
-
-                  <p className="text-2xl font-bold text-blue-600 mb-4">
-                    {uploadProgress.current.toLocaleString()} / {uploadProgress.total.toLocaleString()}
-                  </p>
-
-
-                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
-                    <div
-                      className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-out"
-                      style={{
-                        width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%`
-                      }}
-                    ></div>
-                  </div>
-
-
-                  <p className="text-sm text-gray-500">
-                    {Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete
-                  </p>
-                </>
-              )}
             </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* Export Loading Modal */}
-      {isExporting && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full shadow-2xl">
-            <div className="text-center">
-              <div className="flex justify-center mb-4">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600"></div>
-              </div>
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">
-                Exporting Data...
-              </h3>
-              {exportProgress.total > 0 && (
-                <>
-                  <p className="text-2xl font-bold text-green-600 mb-4">
-                    {exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} products
-                  </p>
-                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
-                    <div
-                      className="bg-green-600 h-4 rounded-full transition-all duration-300"
-                      style={{
-                        width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%`
-                      }}
-                    ></div>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    {Math.round((exportProgress.current / exportProgress.total) * 100)}% complete
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <svg
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by ASIN, Product Name, or Brand..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsColumnToggleOpen(true)}
-            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            Columns
-          </button>
-
-
-          <ExportButton
-            onExport={handleExport}
-          // selectedCount={selectedIds.size}
-          />
-
-
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Upload
-          </button>
-        </div>
-      </div>
-      <div className="text-sm text-gray-600">
-        Showing {totalProducts > 0 ? startItem : 0}-{endItem} of {totalProducts.toLocaleString()}
-      </div>
-
-
-      {/* Table */}
-      <UaeMasterTable
-        searchTerm={searchTerm}
-        hiddenColumns={hiddenColumns}  // ADD THIS
-        columnWidths={columnWidths}
-        onColumnWidthChange={handleColumnWidthChange}
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        // tableName={TABLE_NAME}
-        refreshTrigger={refreshTrigger}
-        currentPage={currentPage}
-        itemsPerPage={ITEMS_PER_PAGE}
-        onTotalProductsChange={setTotalProducts}
-        onTotalPagesChange={setTotalPages}
-        selectedIds={selectedIds}
-        onSelectedIdsChange={setSelectedIds}
-      />
-
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              &lt; Previous
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next &gt;
-            </button>
           </div>
         )}
+
+        {/* Export Loading Modal - Dark */}
+        {isExporting && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <Loader2 className="h-16 w-16 text-emerald-500 animate-spin" />
+                </div>
+                <h3 className="text-xl font-bold mb-4 text-white">Exporting Data...</h3>
+                {exportProgress.total > 0 && (
+                  <>
+                    <p className="text-2xl font-bold text-emerald-400 mb-4">{exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} products</p>
+                    <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden">
+                      <div className="bg-emerald-600 h-3 rounded-full transition-all duration-300" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }}></div>
+                    </div>
+                    <p className="text-sm text-slate-500">{Math.round((exportProgress.current / exportProgress.total) * 100)}% complete</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* === HEADER === */}
+        <div className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 -mx-10 px-10 py-4 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Title */}
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/10">
+                <Database className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">UAE Sellers Database</h1>
+                <p className="text-sm text-slate-400">Master inventory records (UAE)</p>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search by ASIN, Brand..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-72 pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+                />
+              </div>
+
+              <button
+                onClick={() => setIsColumnToggleOpen(true)}
+                className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg hover:bg-slate-800 text-slate-300 text-sm font-medium flex items-center gap-2 transition-colors"
+              >
+                <Columns className="w-4 h-4" /> Columns
+              </button>
+
+              <div onClick={() => handleExport('csv')} className="cursor-pointer">
+                <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
+                  <Download className="w-4 h-4" /> Export
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all"
+              >
+                <Upload className="w-4 h-4" /> Upload
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-xs text-slate-500 font-mono mb-4">
+          Showing <span className="text-slate-200">{totalProducts > 0 ? startItem : 0}-{endItem}</span> of <span className="text-white font-bold">{totalProducts.toLocaleString()}</span> records
+        </div>
+
+        {/* Table Component */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <UaeMasterTable
+            searchTerm={searchTerm}
+            hiddenColumns={hiddenColumns}
+            columnWidths={columnWidths}
+            onColumnWidthChange={handleColumnWidthChange}
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            refreshTrigger={refreshTrigger}
+            currentPage={currentPage}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onTotalProductsChange={setTotalProducts}
+            onTotalPagesChange={setTotalPages}
+            selectedIds={selectedIds}
+            onSelectedIdsChange={setSelectedIds}
+          />
+
+          {/* Pagination */}
+          <div className="border-t border-slate-800 bg-slate-900/50 p-4 flex items-center justify-between">
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
+                >
+                  <ChevronLeft className="w-3 h-3" /> Previous
+                </button>
+                <span className="text-xs text-slate-500">
+                  Page <span className="text-slate-200">{currentPage}</span> of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
+                >
+                  Next <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Modals */}
+        <ColumnToggle
+          isOpen={isColumnToggleOpen}
+          onClose={() => setIsColumnToggleOpen(false)}
+          columns={ALL_COLUMNS}
+          hiddenColumns={hiddenColumns}
+          onToggleColumn={handleToggleColumn}
+        />
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUpload={handleUpload}
+          multiple={true}
+        />
       </div>
-
-
-      {/* Modals */}
-      <ColumnToggle
-        isOpen={isColumnToggleOpen}
-        onClose={() => setIsColumnToggleOpen(false)}
-        columns={ALL_COLUMNS}
-        hiddenColumns={hiddenColumns}
-        onToggleColumn={handleToggleColumn}
-      />
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUpload={handleUpload}
-        multiple={true}
-      />
-    </div>
+    </PageTransition>
   );
 }
