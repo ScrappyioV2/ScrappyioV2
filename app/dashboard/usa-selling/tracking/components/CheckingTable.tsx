@@ -9,6 +9,10 @@ type InvoiceItem = {
   id: string;
   invoice_number: string;
   asin: string;
+  product_name: string | null;
+  product_weight: number | null;
+  buying_price: number | null;
+  buying_quantity: number | null;
   invoice_date: string | null;
   gst_number: string | null;
   amount: number | null;
@@ -19,6 +23,7 @@ type InvoiceItem = {
   uploaded_invoice_name: string | null;
   seller_company: string | null;
   action_status: string | null;
+  product_received: boolean | null; // ✅ NEW
 };
 
 type GroupedInvoice = {
@@ -48,27 +53,26 @@ export default function CheckingTable() {
     fetchCheckingData();
   }, []);
 
-const fetchCheckingData = async () => {
-  try {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('usa_checking')
-      .select('*')
-      .order('moved_at', { ascending: false });
+  const fetchCheckingData = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('usa_checking')
+        .select('*')
+        .order('moved_at', { ascending: false });
 
-    if (error) throw error;
-    
-    console.log('✅ Checking data fetched:', data); // ADD THIS
-    console.log('✅ Number of items:', data?.length); // ADD THIS
-    
-    setItems(data || []);
-  } catch (error) {
-    console.error('Error fetching checking data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+      if (error) throw error;
 
+      console.log('✅ Checking data fetched:', data);
+      console.log('✅ Number of items:', data?.length);
+
+      setItems(data || []);
+    } catch (error) {
+      console.error('Error fetching checking data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Group items by invoice_number
   const groupedInvoices: GroupedInvoice[] = Object.values(
@@ -106,6 +110,31 @@ const fetchCheckingData = async () => {
     });
   };
 
+  // ✅ NEW: Handle checkbox change
+  const handleCheckboxChange = async (itemId: string, checked: boolean) => {
+    try {
+      // Update database
+      const { error } = await supabase
+        .from('usa_checking')
+        .update({ product_received: checked })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      // Update local state
+      setItems((prevItems) =>
+        prevItems.map((item) =>
+          item.id === itemId ? { ...item, product_received: checked } : item
+        )
+      );
+
+      console.log(`✅ Checkbox ${checked ? 'checked' : 'unchecked'} for item ${itemId}`);
+    } catch (error: any) {
+      console.error('Error updating checkbox:', error);
+      alert('Failed to update checkbox: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -125,19 +154,26 @@ const fetchCheckingData = async () => {
               <th className="px-4 py-3 text-left text-sm font-semibold">Invoice No</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Invoice Date</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">GST Number</th>
+              {/* ✅ NEW COLUMNS */}
+              <th className="px-4 py-3 text-left text-sm font-semibold">Product Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Weight</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Qty</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Price</th>
+              {/* EXISTING COLUMNS */}
               <th className="px-4 py-3 text-left text-sm font-semibold">Amount</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Tax Amount</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Tracking Details</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Delivery Date</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Company</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Upload</th>
-              {/* ❌ NO ACTION COLUMN */}
+              {/* ✅ NEW ACTION COLUMN */}
+              <th className="px-4 py-3 text-center text-sm font-semibold">Action</th>
             </tr>
           </thead>
           <tbody>
             {groupedInvoices.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-8 text-gray-500">
+                <td colSpan={15} className="text-center py-8 text-gray-500">
                   No checking items available
                 </td>
               </tr>
@@ -176,13 +212,44 @@ const fetchCheckingData = async () => {
                           : '-'}
                       </td>
                       <td className="px-4 py-3">{group.gst_number || '-'}</td>
+
+                      {/* ✅ NEW COLUMNS - Show actual data for single, "Multiple" for multiple */}
+                      <td className="px-4 py-3">
+                        {!hasMultipleItems ? (
+                          group.items[0].product_name || '-'
+                        ) : (
+                          <span className="text-gray-500 text-sm">Multiple</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!hasMultipleItems ? (
+                          group.items[0].product_weight ? `${group.items[0].product_weight} kg` : '-'
+                        ) : (
+                          <span className="text-gray-500 text-sm">Multiple</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!hasMultipleItems ? (
+                          group.items[0].buying_quantity || '-'
+                        ) : (
+                          <span className="text-gray-500 text-sm">Multiple</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!hasMultipleItems ? (
+                          group.items[0].buying_price ? `₹ ${group.items[0].buying_price}` : '-'
+                        ) : (
+                          <span className="text-gray-500 text-sm">Multiple</span>
+                        )}
+                      </td>
+
+                      {/* EXISTING COLUMNS */}
                       <td className="px-4 py-3 font-semibold">
                         ₹ {group.total_amount.toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
                         {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
                       </td>
-                      {/* TRACKING DETAILS COLUMN */}
                       <td className="px-4 py-3">
                         {!hasMultipleItems ? (
                           group.items[0].tracking_details || '-'
@@ -190,7 +257,6 @@ const fetchCheckingData = async () => {
                           <span className="text-gray-500 text-sm">Multiple</span>
                         )}
                       </td>
-                      {/* DELIVERY DATE COLUMN */}
                       <td className="px-4 py-3">
                         {!hasMultipleItems && group.items[0].delivery_date ? (
                           new Date(group.items[0].delivery_date).toLocaleDateString()
@@ -233,28 +299,84 @@ const fetchCheckingData = async () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      {/* ❌ NO ACTION COLUMN */}
+
+                      {/* ✅ NEW ACTION COLUMN - Checkbox for single invoice only */}
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {!hasMultipleItems ? (
+                          <input
+                            type="checkbox"
+                            checked={group.items[0].product_received || false}
+                            onChange={(e) =>
+                              handleCheckboxChange(group.items[0].id, e.target.checked)
+                            }
+                            className={`w-5 h-5 cursor-pointer ${
+                              group.items[0].product_received
+                                ? 'accent-green-600'
+                                : 'accent-gray-400'
+                            }`}
+                          />
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                     </tr>
 
-                    {/* Expanded Card - Show individual items */}
+                    {/* Expanded Card - Show individual items with NEW columns */}
                     {isExpanded && hasMultipleItems && (
                       <tr>
-                        <td colSpan={10} className="bg-gray-50 px-4 py-2">
+                        <td colSpan={15} className="bg-gray-50 px-4 py-2">
                           <div className="ml-8 space-y-2">
                             {group.items.map((item) => (
                               <div
                                 key={item.id}
                                 className="bg-white border rounded-lg p-3 shadow-sm"
                               >
-                                <div className="grid grid-cols-4 gap-4 text-sm">
+                                <div className="grid grid-cols-7 gap-4 text-sm">
                                   <div>
                                     <span className="font-semibold text-gray-600">ASIN:</span>{' '}
                                     {item.asin}
                                   </div>
+                                  {/* ✅ NEW FIELDS */}
+                                  <div>
+                                    <span className="font-semibold text-gray-600">Product:</span>{' '}
+                                    {item.product_name || '-'}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-gray-600">Weight:</span>{' '}
+                                    {item.product_weight ? `${item.product_weight} kg` : '-'}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-gray-600">Qty:</span>{' '}
+                                    {item.buying_quantity || '-'}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-gray-600">Price:</span>{' '}
+                                    {item.buying_price ? `₹ ${item.buying_price}` : '-'}
+                                  </div>
+                                  {/* EXISTING FIELDS */}
                                   <div>
                                     <span className="font-semibold text-gray-600">Amount:</span>{' '}
                                     {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
                                   </div>
+                                  {/* ✅ NEW CHECKBOX */}
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={item.product_received || false}
+                                      onChange={(e) =>
+                                        handleCheckboxChange(item.id, e.target.checked)
+                                      }
+                                      className={`w-5 h-5 cursor-pointer ${
+                                        item.product_received
+                                          ? 'accent-green-600'
+                                          : 'accent-gray-400'
+                                      }`}
+                                    />
+                                    <span className="text-xs text-gray-500">Received</span>
+                                  </div>
+                                </div>
+                                {/* Second row for tracking and delivery */}
+                                <div className="grid grid-cols-2 gap-4 text-sm mt-2 pt-2 border-t">
                                   <div>
                                     <span className="font-semibold text-gray-600">Tracking:</span>{' '}
                                     {item.tracking_details || '-'}
@@ -279,6 +401,9 @@ const fetchCheckingData = async () => {
           </tbody>
         </table>
       </div>
+
+
+      
 
       {/* Uploaded Invoice Modal */}
       {selectedInvoice && (
