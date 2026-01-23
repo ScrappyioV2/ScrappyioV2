@@ -2,9 +2,8 @@
 
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-// ✅ Ensure this path is correct for your project
 import Sidebar from '@/components/layout/Sidebar'; 
 
 export default function DashboardLayout({
@@ -12,23 +11,36 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  
+  // Local state to control the spinner
+  const [showSpinner, setShowSpinner] = useState(true);
 
   useEffect(() => {
-    // 1. Wait for loading to finish
-    if (loading) return;
+    // 1. If auth is done loading, hide spinner
+    if (!authLoading) {
+      setShowSpinner(false);
+    }
 
-    // 2. If no user found, redirect to login
-    if (!user) {
+    // 2. FAILSAFE: Force spinner to hide after 2 seconds no matter what
+    const safetyTimer = setTimeout(() => {
+      setShowSpinner(false);
+    }, 2000);
+
+    return () => clearTimeout(safetyTimer);
+  }, [authLoading]);
+
+  // Redirect if spinner is gone and still no user
+  useEffect(() => {
+    if (!showSpinner && !user && !authLoading) {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [showSpinner, user, authLoading, router]);
 
   // === RENDER ===
 
-  // Show spinner ONLY while strictly loading
-  if (loading) {
+  if (showSpinner) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-950 gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
@@ -37,7 +49,7 @@ export default function DashboardLayout({
     );
   }
 
-  // If not logged in (and waiting for redirect), show nothing
+  // Prevent flash of content if user is missing (waiting for redirect)
   if (!user) return null;
 
   return (

@@ -24,7 +24,7 @@ export function useAuth() {
   useEffect(() => {
     let isMounted = true
 
-    // Helper: Fetch Role
+    // Helper: Fetch Role (Runs in background)
     const fetchUserRole = async (userId: string) => {
       try {
         const { data, error } = await supabase
@@ -33,53 +33,51 @@ export function useAuth() {
           .eq('user_id', userId)
           .single()
         
-        if (error || !data) return null
-        return data as UserRole
+        if (isMounted && data) {
+          setUserRole(data as UserRole)
+        }
       } catch (err) {
-        return null
+        console.error("Background role fetch failed", err)
       }
     }
 
-    // 1. Initial Session Check
-    const checkSession = async () => {
+    // 1. Check Session
+    const initAuth = async () => {
       try {
+        // Get session from local storage immediately
         const { data: { session } } = await supabase.auth.getSession()
-        if (!isMounted) return
-
-        if (session?.user) {
-          setUser(session.user)
-          const role = await fetchUserRole(session.user.id)
-          if (isMounted) setUserRole(role)
+        
+        if (isMounted) {
+          if (session?.user) {
+            setUser(session.user)
+            // ⚡️ NON-BLOCKING: Fetch role in background
+            fetchUserRole(session.user.id) 
+          }
+          // ✅ STOP LOADING IMMEDIATELY
+          setLoading(false) 
         }
       } catch (error) {
-        console.error('Session check failed', error)
-      } finally {
-        // ✅ CRITICAL FIX: Always stop loading after initial check
         if (isMounted) setLoading(false)
       }
     }
 
-    checkSession()
+    initAuth()
 
-    // 2. Realtime Listener
+    // 2. Listen for Changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
         
         if (session?.user) {
           setUser(session.user)
-          // Only fetch role if we don't have it yet or user changed
-          if (!userRole || userRole.user_id !== session.user.id) {
-             const role = await fetchUserRole(session.user.id)
-             if (isMounted) setUserRole(role)
-          }
+          // ⚡️ NON-BLOCKING
+          if (!userRole) fetchUserRole(session.user.id)
         } else {
           setUser(null)
           setUserRole(null)
         }
         
-        // ✅ CRITICAL FIX: Force loading to false when auth state changes
-        // This stops the infinite spinner immediately upon login
+        // ✅ STOP LOADING IMMEDIATELY
         setLoading(false)
       }
     )
