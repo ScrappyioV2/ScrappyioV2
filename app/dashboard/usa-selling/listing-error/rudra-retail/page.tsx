@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import PageGuard from '@/components/PageGuard';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -295,17 +294,8 @@ export default function RudraRetailListingPage() {
 
   const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
-
   return (
     <PageTransition>
-      <PageGuard requiredPage="listing">
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
 
           <div className="max-w-[1600px] mx-auto p-6 space-y-8">
@@ -566,7 +556,6 @@ export default function RudraRetailListingPage() {
             )}
           </div>
         </div>
-      </PageGuard>
     </PageTransition>
   );
 }

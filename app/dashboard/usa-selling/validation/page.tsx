@@ -1,5 +1,5 @@
 'use client'
-import PageGuard from '@/components/PageGuard';
+
 import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
@@ -1174,188 +1174,177 @@ export default function ValidationPage() {
         fetchProducts()
         fetchStats()
     }
-    if (authLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-slate-950">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
-                    <p className="text-slate-400 animate-pulse font-medium">Authenticating...</p>
-                </div>
-            </div>
-        );
-    }
     return (
         <PageTransition>
-            <PageGuard requiredPage="validation">
-                <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
-                    <div className="w-full flex flex-col flex-1 overflow-hidden">
-                        {/* Fixed Header Section */}
-                        <div className="flex-none">
-                            {/* Header */}
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-bold text-white">USA Selling - Validation</h1>
-                                <p className="text-slate-400 mt-1">Manage validation files and product status</p>
-                            </div>
-                            {/* Stats Cards */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                                <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-slate-700/50">
-                                    <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products</div>
-                                    <div className="text-3xl font-bold mt-1">{stats.total}</div>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-900/20 rounded-xl px-5 py-4 text-emerald-100 shadow-lg border border-emerald-500/20">
-                                    <div className="text-xs font-medium text-emerald-400 uppercase tracking-wider">✓ Passed</div>
-                                    <div className="text-3xl font-bold mt-1 text-white">{stats.passed}</div>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-rose-900/50 to-rose-900/20 rounded-xl px-5 py-4 text-rose-100 shadow-lg border border-rose-500/20">
-                                    <div className="text-xs font-medium text-rose-400 uppercase tracking-wider">✗ Failed</div>
-                                    <div className="text-3xl font-bold mt-1 text-white">{stats.failed}</div>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-amber-900/50 to-amber-900/20 rounded-xl px-5 py-4 text-amber-100 shadow-lg border border-amber-500/20">
-                                    <div className="text-xs font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</div>
-                                    <div className="text-3xl font-bold mt-1 text-white">{stats.pending}</div>
-                                </div>
+            <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
+                <div className="w-full flex flex-col flex-1 overflow-hidden">
+                    {/* Fixed Header Section */}
+                    <div className="flex-none">
+                        {/* Header */}
+                        <div className="mb-6">
+                            <h1 className="text-3xl font-bold text-white">USA Selling - Validation</h1>
+                            <p className="text-slate-400 mt-1">Manage validation files and product status</p>
+                        </div>
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-slate-700/50">
+                                <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products</div>
+                                <div className="text-3xl font-bold mt-1">{stats.total}</div>
                             </div>
 
-                            {/* File Tabs */}
-                            <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
-                                {[
-                                    { id: 'main_file', label: 'Main File' },
-                                    { id: 'pass_file', label: 'Pass File' },
-                                    { id: 'fail_file', label: 'Failed File' },
-                                    { id: 'pending', label: 'Pending' }
-                                ].map((tab) => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id as FileTab)}
-                                        className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
-                                            ? 'text-white bg-slate-800 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] border border-slate-700'
-                                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
-                                            }`}
-                                    >
-                                        {tab.label}
-                                    </button>
-                                ))}
+                            <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-900/20 rounded-xl px-5 py-4 text-emerald-100 shadow-lg border border-emerald-500/20">
+                                <div className="text-xs font-medium text-emerald-400 uppercase tracking-wider">✓ Passed</div>
+                                <div className="text-3xl font-bold mt-1 text-white">{stats.passed}</div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="mb-4">
-                                <div className="flex items-center justify-between gap-3">
-                                    {/* LEFT SIDE - Search + Filter */}
-                                    <div className="flex gap-3 flex-1 min-w-[300px]">
-                                        {/* Search Bar */}
-                                        <div className="relative flex-1 max-w-md group">
-                                            <svg
-                                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
-                                            <input
-                                                type="text"
-                                                placeholder="Search by ASIN, Product Name, or Brand..."
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full pl-9 pr-10 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
-                                            />
-                                            {searchQuery && (
-                                                <button
-                                                    onClick={() => setSearchQuery('')}
-                                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
+                            <div className="bg-gradient-to-br from-rose-900/50 to-rose-900/20 rounded-xl px-5 py-4 text-rose-100 shadow-lg border border-rose-500/20">
+                                <div className="text-xs font-medium text-rose-400 uppercase tracking-wider">✗ Failed</div>
+                                <div className="text-3xl font-bold mt-1 text-white">{stats.failed}</div>
+                            </div>
 
-                                        {/* Filter Button */}
-                                        <div className="relative">
+                            <div className="bg-gradient-to-br from-amber-900/50 to-amber-900/20 rounded-xl px-5 py-4 text-amber-100 shadow-lg border border-amber-500/20">
+                                <div className="text-xs font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</div>
+                                <div className="text-3xl font-bold mt-1 text-white">{stats.pending}</div>
+                            </div>
+                        </div>
+
+                        {/* File Tabs */}
+                        <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
+                            {[
+                                { id: 'main_file', label: 'Main File' },
+                                { id: 'pass_file', label: 'Pass File' },
+                                { id: 'fail_file', label: 'Failed File' },
+                                { id: 'pending', label: 'Pending' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id as FileTab)}
+                                    className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
+                                        ? 'text-white bg-slate-800 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] border border-slate-700'
+                                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="mb-4">
+                            <div className="flex items-center justify-between gap-3">
+                                {/* LEFT SIDE - Search + Filter */}
+                                <div className="flex gap-3 flex-1 min-w-[300px]">
+                                    {/* Search Bar */}
+                                    <div className="relative flex-1 max-w-md group">
+                                        <svg
+                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input
+                                            type="text"
+                                            placeholder="Search by ASIN, Product Name, or Brand..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full pl-9 pr-10 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
+                                        />
+                                        {searchQuery && (
                                             <button
-                                                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                                className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                                onClick={() => setSearchQuery('')}
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-300"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                                Add Filter
-                                            </button>
-
-                                            {isFilterOpen && (
-                                                <>
-                                                    <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                    <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
-                                                        <h3 className="font-semibold text-slate-200 mb-3">Filter Products</h3>
-                                                        <div className="space-y-3">
-                                                            <div>
-                                                                <label className="block text-xs font-medium text-slate-400 mb-1">Seller Tag</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={filters.seller_tag}
-                                                                    onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
-                                                                    placeholder="Enter seller name"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-xs font-medium text-slate-400 mb-1">Brand</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={filters.brand}
-                                                                    onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
-                                                                    placeholder="Enter brand"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-xs font-medium text-slate-400 mb-1">Funnel</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={filters.funnel}
-                                                                    onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
-                                                                    placeholder="Enter funnel"
-                                                                />
-                                                            </div>
-                                                            <button
-                                                                onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
-                                                                className="w-full px-3 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white font-medium text-sm transition-colors"
-                                                            >
-                                                                Clear Filters
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* RIGHT SIDE - Action Buttons */}
-                                    <div className="flex gap-3 flex-wrap">
-                                        {/* Move to Main */}
-                                        {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
-                                            <button
-                                                onClick={handleMoveToMainClick}
-                                                disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                    : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
-                                                    }`}
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                                Move to Main
                                             </button>
                                         )}
+                                    </div>
 
-                                        {/* Move to Pass */}
-                                        {/* {activeTab === 'pending' && (
+                                    {/* Filter Button */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                            </svg>
+                                            Add Filter
+                                        </button>
+
+                                        {isFilterOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
+                                                <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                                    <h3 className="font-semibold text-slate-200 mb-3">Filter Products</h3>
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Seller Tag</label>
+                                                            <input
+                                                                type="text"
+                                                                value={filters.seller_tag}
+                                                                onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
+                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                placeholder="Enter seller name"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Brand</label>
+                                                            <input
+                                                                type="text"
+                                                                value={filters.brand}
+                                                                onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
+                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                placeholder="Enter brand"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Funnel</label>
+                                                            <input
+                                                                type="text"
+                                                                value={filters.funnel}
+                                                                onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
+                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                placeholder="Enter funnel"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
+                                                            className="w-full px-3 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white font-medium text-sm transition-colors"
+                                                        >
+                                                            Clear Filters
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* RIGHT SIDE - Action Buttons */}
+                                <div className="flex gap-3 flex-wrap">
+                                    {/* Move to Main */}
+                                    {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
+                                        <button
+                                            onClick={handleMoveToMainClick}
+                                            disabled={selectedIds.size === 0}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
+                                                }`}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            Move to Main
+                                        </button>
+                                    )}
+
+                                    {/* Move to Pass */}
+                                    {/* {activeTab === 'pending' && (
                                             <button
                                                 onClick={handleMoveToPassClick}
                                                 disabled={selectedIds.size === 0}
@@ -1371,8 +1360,8 @@ export default function ValidationPage() {
                                             </button>
                                         )} */}
 
-                                        {/* Move to Fail */}
-                                        {/* {activeTab === 'pending' && (
+                                    {/* Move to Fail */}
+                                    {/* {activeTab === 'pending' && (
                                             <button
                                                 onClick={handleMoveToFailClick}
                                                 disabled={selectedIds.size === 0}
@@ -1388,405 +1377,404 @@ export default function ValidationPage() {
                                             </button>
                                         )} */}
 
-                                        {/* Download CSV */}
-                                        <button
-                                            onClick={downloadCSV}
-                                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                            </svg>
-                                            Download CSV
-                                        </button>
+                                    {/* Download CSV */}
+                                    <button
+                                        onClick={downloadCSV}
+                                        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download CSV
+                                    </button>
 
-                                        {/* Upload CSV */}
-                                        <button
-                                            onClick={handleUploadCSV}
-                                            className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                            </svg>
-                                            Upload CSV
-                                        </button>
-                                        <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
+                                    {/* Upload CSV */}
+                                    <button
+                                        onClick={handleUploadCSV}
+                                        className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                        Upload CSV
+                                    </button>
+                                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
 
-                                        {/* Bulk USA Price Update */}
-                                        <button
-                                            onClick={() => usaPriceCSVInputRef.current?.click()}
-                                            className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
-                                        >
-                                            Bulk USA Price Update
-                                        </button>
-                                        <input type="file" accept=".csv" ref={usaPriceCSVInputRef} onChange={handleUSAPriceCSVUpload} className="hidden" />
+                                    {/* Bulk USA Price Update */}
+                                    <button
+                                        onClick={() => usaPriceCSVInputRef.current?.click()}
+                                        className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
+                                    >
+                                        Bulk USA Price Update
+                                    </button>
+                                    <input type="file" accept=".csv" ref={usaPriceCSVInputRef} onChange={handleUSAPriceCSVUpload} className="hidden" />
 
-                                        {/* Configure Constants */}
-                                        <button
-                                            onClick={openConstantsModal}
-                                            className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                            Configure Constants
-                                        </button>
-                                    </div>
+                                    {/* Configure Constants */}
+                                    <button
+                                        onClick={openConstantsModal}
+                                        className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Configure Constants
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                        <div className="flex-1 min-h-0 bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-800">
-                            {loading ? (
-                                <div className="flex flex-col items-center justify-center p-16">
-                                    <div className="relative">
-                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500/30"></div>
-                                        <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-indigo-500"></div>
-                                    </div>
-                                    <p className="mt-4 text-slate-400 font-medium tracking-wide animate-pulse">Loading products...</p>
-                                </div>
-                            ) : filteredProducts.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center p-12 text-slate-500">
-                                    <svg className="w-16 h-16 mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                    </svg>
-                                    <p className="text-lg font-semibold text-slate-400 mb-2">No products found</p>
-                                    <p className="text-sm text-slate-600 max-w-md text-center">
-                                        {activeTab === 'pending'
-                                            ? 'Products with incomplete data will appear here'
-                                            : activeTab === 'pass_file'
-                                                ? 'Products with PASS judgement will appear here'
-                                                : activeTab === 'fail_file'
-                                                    ? 'Products with FAIL judgement will appear here'
-                                                    : 'All products will appear here'
-                                        }
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                                        <table className="w-full table-fixed">
-                                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
-                                                <tr>
-                                                    {/* ✅ Fixed width for checkbox to prevent overlap */}
-                                                    <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
-                                                            onChange={(e) => handleSelectAll(e.target.checked)}
-                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
-                                                        />
-                                                    </th>
-
-                                                    {/* ✅ Resizable Columns */}
-                                                    {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
-                                                    {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
-                                                    {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
-                                                    {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
-                                                    {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
-                                                    {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
-                                                    {visibleColumns.usa_link && <ResizableTH width={columnWidths.usa_link} columnKey="usa_link" label="USA" onResizeStart={startResize} />}
-
-                                                    {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
-
-                                                    {visibleColumns.product_weight && <ResizableTH width={columnWidths.product_weight} columnKey="product_weight" label="Weight (g)" onResizeStart={startResize} />}
-                                                    {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD $" onResizeStart={startResize} />}
-                                                    {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR ₹" onResizeStart={startResize} />}
-
-                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="Source Link" onResizeStart={startResize} />}
-
-                                                    {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
-
-                                                    {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Status" onResizeStart={startResize} />}
-                                                </tr>
-                                            </thead>
-
-                                            <tbody className="divide-y divide-slate-800">
-                                                {filteredProducts.map((product) => (
-                                                    <tr key={product.id} className="hover:bg-slate-800/50 transition-colors">
-                                                        <td className="p-3">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedIds.has(product.id)}
-                                                                onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                                className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
-                                                            />
-                                                        </td>
-
-                                                        {visibleColumns.asin && (
-                                                            <td className="p-3 font-mono text-sm text-slate-300">{product.asin}</td>
-                                                        )}
-                                                        {visibleColumns.product_name && (
-                                                            <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
-                                                                {/* ✅ Truncate long names */}
-                                                                <div className="truncate text-slate-300 text-xs" title={product.product_name || ''}>
-                                                                    {product.product_name || '-'}
-                                                                </div>
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns.brand && <td className="p-3 text-slate-300">{product.brand || '-'}</td>}
-                                                        {visibleColumns.seller_tag && <td className="p-3">{renderSellerTags(product.seller_tag)}</td>}
-                                                        {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
-                                                        {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
-
-                                                        {visibleColumns.usa_link && (
-                                                            <td className="p-3">
-                                                                {product.usa_link ? (
-                                                                    <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline">
-                                                                        View
-                                                                    </a>
-                                                                ) : '-'}
-                                                            </td>
-                                                        )}
-
-                                                        {activeTab === 'pass_file' && (
-                                                            <td className="p-3">
-                                                                <div className="flex flex-col gap-1 text-sm text-slate-300">
-                                                                    <label className="flex items-center gap-2">
-                                                                        <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                        India
-                                                                    </label>
-                                                                    <label className="flex items-center gap-2">
-                                                                        <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                        China
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns.product_weight && (
-                                                            <td className="p-3 text-slate-300">
-                                                                {activeTab === 'main_file' ? (
-                                                                    <input
-                                                                        type="number"
-                                                                        value={product.product_weight ?? ''}
-                                                                        onChange={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
-                                                                        className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                    />
-                                                                ) : (product.product_weight ?? '-')}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns.usd_price && (
-                                                            <td className="p-3 text-slate-300">
-                                                                {activeTab === 'main_file' ? (
-                                                                    <input
-                                                                        type="text"
-                                                                        value={editingValue?.id === product.id && editingValue.field === 'usd_price' ? editingValue.value : formatUSD(product.usd_price)}
-                                                                        onFocus={() => setEditingValue({ id: product.id, field: 'usd_price', value: product.usd_price?.toString() || '' })}
-                                                                        onChange={(e) => setEditingValue({ id: product.id, field: 'usd_price', value: e.target.value })}
-                                                                        onBlur={() => {
-                                                                            const parsed = parseCurrency(editingValue?.value || '')
-                                                                            handleCellEdit(product.id, 'usd_price', parsed)
-                                                                            setEditingValue(null)
-                                                                        }}
-                                                                        className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                    />
-                                                                ) : formatUSD(product.usd_price)}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns.inr_purchase && (
-                                                            <td className="p-3 text-slate-300">
-                                                                {activeTab === 'main_file' ? (
-                                                                    <input
-                                                                        type="text"
-                                                                        value={editingValue?.id === product.id && editingValue.field === 'inr_purchase' ? editingValue.value : formatINR(product.inr_purchase)}
-                                                                        onFocus={() => setEditingValue({ id: product.id, field: 'inr_purchase', value: product.inr_purchase?.toString() || '' })}
-                                                                        onChange={(e) => setEditingValue({ id: product.id, field: 'inr_purchase', value: e.target.value })}
-                                                                        onBlur={() => {
-                                                                            const parsed = parseCurrency(editingValue?.value || '')
-                                                                            handleCellEdit(product.id, 'inr_purchase', parsed)
-                                                                            setEditingValue(null)
-                                                                        }}
-                                                                        className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                    />
-                                                                ) : formatINR(product.inr_purchase)}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                            <td className="px-4 py-3 text-sm">
-                                                                <input
-                                                                    type="url"
-                                                                    value={product.inr_purchase_link || ''}
-                                                                    onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
-                                                                    placeholder="Enter supplier link..."
-                                                                    className="w-full min-w-[200px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
-                                                                />
-                                                            </td>
-                                                        )}
-
-                                                        {activeTab === 'pass_file' && (
-                                                            <td className="p-3">
-                                                                {/* ✅ FIX: Require Checklist AND Origin to show OK button */}
-                                                                {product.check_brand &&
-                                                                    product.check_item_expire &&
-                                                                    product.check_small_size &&
-                                                                    product.check_multi_seller &&
-                                                                    (product.origin_india || product.origin_china) ? (
-                                                                    <button
-                                                                        onClick={() => handleChecklistOk(product.id)}
-                                                                        className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
-                                                                    >
-                                                                        OK
-                                                                    </button>
-                                                                ) : (
-                                                                    <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                                                                        {/* ... existing checkboxes ... */}
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Brand Checking">
-                                                                            <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                            <span>Brand</span>
-                                                                        </label>
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Item Expire">
-                                                                            <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                            <span>Expire</span>
-                                                                        </label>
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Small Size">
-                                                                            <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                            <span>Size</span>
-                                                                        </label>
-                                                                        <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Multi Sellers">
-                                                                            <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                            <span>Multi</span>
-                                                                        </label>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        )}
-
-                                                        {visibleColumns.judgement && (
-                                                            <td className="p-3">
-                                                                {(() => {
-                                                                    // Use calculated judgement for visual feedback, fallback to DB judgement
-                                                                    const displayJudgement = product.calculated_judgement || product.judgement;
-
-                                                                    return displayJudgement ? (
-                                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${displayJudgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                                                            displayJudgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                                                                displayJudgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                                                                                    'bg-slate-700 text-slate-300'
-                                                                            }`}>
-                                                                            {displayJudgement}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
-                                                                    );
-                                                                })()}
-                                                            </td>
-                                                        )}
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    {/* Footer Stats - Fixed at bottom of table */}
-                                    <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
-                                        <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
-                                            <span className="font-medium">
-                                                Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{products.length}</span> products
-                                            </span>
-                                            {selectedIds.size > 0 && (
-                                                <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-semibold border border-indigo-500/30">
-                                                    {selectedIds.size} selected
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
                         </div>
                     </div>
 
-                    {/* Constants Configuration Modal */}
-                    {isConstantsModalOpen && (
-                        <>
-                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
-                            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                                <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
-                                    <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6">
-                                        <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
-                                        <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
-                                    </div>
+                    {/* Scrollable Table Section - ONLY THIS SCROLLS */}
+                    <div className="flex-1 min-h-0 bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-800">
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center p-16">
+                                <div className="relative">
+                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500/30"></div>
+                                    <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-indigo-500"></div>
+                                </div>
+                                <p className="mt-4 text-slate-400 font-medium tracking-wide animate-pulse">Loading products...</p>
+                            </div>
+                        ) : filteredProducts.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-slate-500">
+                                <svg className="w-16 h-16 mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                                <p className="text-lg font-semibold text-slate-400 mb-2">No products found</p>
+                                <p className="text-sm text-slate-600 max-w-md text-center">
+                                    {activeTab === 'pending'
+                                        ? 'Products with incomplete data will appear here'
+                                        : activeTab === 'pass_file'
+                                            ? 'Products with PASS judgement will appear here'
+                                            : activeTab === 'fail_file'
+                                                ? 'Products with FAIL judgement will appear here'
+                                                : 'All products will appear here'
+                                    }
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                                    <table className="w-full table-fixed">
+                                        <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
+                                            <tr>
+                                                {/* ✅ Fixed width for checkbox to prevent overlap */}
+                                                <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
+                                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                    />
+                                                </th>
 
-                                    <div className="p-6 space-y-5">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
-                                            <input
-                                                type="number"
-                                                value={constants.dollar_rate}
-                                                onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
-                                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                                                step="0.01"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
-                                            <input
-                                                type="number"
-                                                value={constants.bank_conversion_rate * 100}
-                                                onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
-                                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                                                step="0.01"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
-                                            <input
-                                                type="number"
-                                                value={constants.shipping_charge_per_kg}
-                                                onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
-                                                className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                                                step="0.01"
-                                            />
-                                        </div>
-                                    </div>
+                                                {/* ✅ Resizable Columns */}
+                                                {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
+                                                {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
+                                                {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
+                                                {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
+                                                {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
+                                                {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
+                                                {visibleColumns.usa_link && <ResizableTH width={columnWidths.usa_link} columnKey="usa_link" label="USA" onResizeStart={startResize} />}
 
-                                    <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
-                                        <button
-                                            onClick={() => setIsConstantsModalOpen(false)}
-                                            className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={saveConstants}
-                                            disabled={isSavingConstants}
-                                            className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all"
-                                        >
-                                            {isSavingConstants ? (
-                                                <>
-                                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                                                    Saving...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                    Save & Recalculate
-                                                </>
-                                            )}
-                                        </button>
+                                                {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
+
+                                                {visibleColumns.product_weight && <ResizableTH width={columnWidths.product_weight} columnKey="product_weight" label="Weight (g)" onResizeStart={startResize} />}
+                                                {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD $" onResizeStart={startResize} />}
+                                                {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR ₹" onResizeStart={startResize} />}
+
+                                                {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="Source Link" onResizeStart={startResize} />}
+
+                                                {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
+
+                                                {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Status" onResizeStart={startResize} />}
+                                            </tr>
+                                        </thead>
+
+                                        <tbody className="divide-y divide-slate-800">
+                                            {filteredProducts.map((product) => (
+                                                <tr key={product.id} className="hover:bg-slate-800/50 transition-colors">
+                                                    <td className="p-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(product.id)}
+                                                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                        />
+                                                    </td>
+
+                                                    {visibleColumns.asin && (
+                                                        <td className="p-3 font-mono text-sm text-slate-300">{product.asin}</td>
+                                                    )}
+                                                    {visibleColumns.product_name && (
+                                                        <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
+                                                            {/* ✅ Truncate long names */}
+                                                            <div className="truncate text-slate-300 text-xs" title={product.product_name || ''}>
+                                                                {product.product_name || '-'}
+                                                            </div>
+                                                        </td>
+                                                    )}
+
+                                                    {visibleColumns.brand && <td className="p-3 text-slate-300">{product.brand || '-'}</td>}
+                                                    {visibleColumns.seller_tag && <td className="p-3">{renderSellerTags(product.seller_tag)}</td>}
+                                                    {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
+                                                    {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
+
+                                                    {visibleColumns.usa_link && (
+                                                        <td className="p-3">
+                                                            {product.usa_link ? (
+                                                                <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline">
+                                                                    View
+                                                                </a>
+                                                            ) : '-'}
+                                                        </td>
+                                                    )}
+
+                                                    {activeTab === 'pass_file' && (
+                                                        <td className="p-3">
+                                                            <div className="flex flex-col gap-1 text-sm text-slate-300">
+                                                                <label className="flex items-center gap-2">
+                                                                    <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    India
+                                                                </label>
+                                                                <label className="flex items-center gap-2">
+                                                                    <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    China
+                                                                </label>
+                                                            </div>
+                                                        </td>
+                                                    )}
+
+                                                    {visibleColumns.product_weight && (
+                                                        <td className="p-3 text-slate-300">
+                                                            {activeTab === 'main_file' ? (
+                                                                <input
+                                                                    type="number"
+                                                                    value={product.product_weight ?? ''}
+                                                                    onChange={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
+                                                                    className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                />
+                                                            ) : (product.product_weight ?? '-')}
+                                                        </td>
+                                                    )}
+
+                                                    {visibleColumns.usd_price && (
+                                                        <td className="p-3 text-slate-300">
+                                                            {activeTab === 'main_file' ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingValue?.id === product.id && editingValue.field === 'usd_price' ? editingValue.value : formatUSD(product.usd_price)}
+                                                                    onFocus={() => setEditingValue({ id: product.id, field: 'usd_price', value: product.usd_price?.toString() || '' })}
+                                                                    onChange={(e) => setEditingValue({ id: product.id, field: 'usd_price', value: e.target.value })}
+                                                                    onBlur={() => {
+                                                                        const parsed = parseCurrency(editingValue?.value || '')
+                                                                        handleCellEdit(product.id, 'usd_price', parsed)
+                                                                        setEditingValue(null)
+                                                                    }}
+                                                                    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                />
+                                                            ) : formatUSD(product.usd_price)}
+                                                        </td>
+                                                    )}
+
+                                                    {visibleColumns.inr_purchase && (
+                                                        <td className="p-3 text-slate-300">
+                                                            {activeTab === 'main_file' ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingValue?.id === product.id && editingValue.field === 'inr_purchase' ? editingValue.value : formatINR(product.inr_purchase)}
+                                                                    onFocus={() => setEditingValue({ id: product.id, field: 'inr_purchase', value: product.inr_purchase?.toString() || '' })}
+                                                                    onChange={(e) => setEditingValue({ id: product.id, field: 'inr_purchase', value: e.target.value })}
+                                                                    onBlur={() => {
+                                                                        const parsed = parseCurrency(editingValue?.value || '')
+                                                                        handleCellEdit(product.id, 'inr_purchase', parsed)
+                                                                        setEditingValue(null)
+                                                                    }}
+                                                                    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                />
+                                                            ) : formatINR(product.inr_purchase)}
+                                                        </td>
+                                                    )}
+
+                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <input
+                                                                type="url"
+                                                                value={product.inr_purchase_link || ''}
+                                                                onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
+                                                                placeholder="Enter supplier link..."
+                                                                className="w-full min-w-[200px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                            />
+                                                        </td>
+                                                    )}
+
+                                                    {activeTab === 'pass_file' && (
+                                                        <td className="p-3">
+                                                            {/* ✅ FIX: Require Checklist AND Origin to show OK button */}
+                                                            {product.check_brand &&
+                                                                product.check_item_expire &&
+                                                                product.check_small_size &&
+                                                                product.check_multi_seller &&
+                                                                (product.origin_india || product.origin_china) ? (
+                                                                <button
+                                                                    onClick={() => handleChecklistOk(product.id)}
+                                                                    className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
+                                                                >
+                                                                    OK
+                                                                </button>
+                                                            ) : (
+                                                                <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                                                                    {/* ... existing checkboxes ... */}
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Brand Checking">
+                                                                        <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                        <span>Brand</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Item Expire">
+                                                                        <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                        <span>Expire</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Small Size">
+                                                                        <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                        <span>Size</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Multi Sellers">
+                                                                        <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                        <span>Multi</span>
+                                                                    </label>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    )}
+
+                                                    {visibleColumns.judgement && (
+                                                        <td className="p-3">
+                                                            {(() => {
+                                                                // Use calculated judgement for visual feedback, fallback to DB judgement
+                                                                const displayJudgement = product.calculated_judgement || product.judgement;
+
+                                                                return displayJudgement ? (
+                                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${displayJudgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                                                        displayJudgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                                                                            displayJudgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                                                                                'bg-slate-700 text-slate-300'
+                                                                        }`}>
+                                                                        {displayJudgement}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
+                                                                );
+                                                            })()}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Footer Stats - Fixed at bottom of table */}
+                                <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
+                                    <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
+                                        <span className="font-medium">
+                                            Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{products.length}</span> products
+                                        </span>
+                                        {selectedIds.size > 0 && (
+                                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-semibold border border-indigo-500/30">
+                                                {selectedIds.size} selected
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                        </>
-                    )}
-
-                    {/* Toast Notification */}
-                    {toast && (
-                        <Toast
-                            message={toast.message}
-                            type={toast.type}
-                            onClose={() => setToast(null)}
-                        />
-                    )}
+                            </>
+                        )}
+                    </div>
                 </div>
-            </PageGuard>
+
+                {/* Constants Configuration Modal */}
+                {isConstantsModalOpen && (
+                    <>
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
+                        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+                                <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6">
+                                    <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
+                                    <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
+                                </div>
+
+                                <div className="p-6 space-y-5">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
+                                        <input
+                                            type="number"
+                                            value={constants.dollar_rate}
+                                            onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
+                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
+                                        <input
+                                            type="number"
+                                            value={constants.bank_conversion_rate * 100}
+                                            onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
+                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
+                                        <input
+                                            type="number"
+                                            value={constants.shipping_charge_per_kg}
+                                            onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
+                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
+                                    <button
+                                        onClick={() => setIsConstantsModalOpen(false)}
+                                        className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={saveConstants}
+                                        disabled={isSavingConstants}
+                                        className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all"
+                                    >
+                                        {isSavingConstants ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Save & Recalculate
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Toast Notification */}
+                {toast && (
+                    <Toast
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => setToast(null)}
+                    />
+                )}
+            </div>
         </PageTransition>
     )
 }

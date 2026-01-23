@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/lib/hooks/useAuth'
-import PageGuard from '@/components/PageGuard'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
@@ -48,7 +47,6 @@ const DEFAULT_WIDTHS: Record<string, number> = {
 };
 
 export default function VelvetVistaPage() {
-  const { user, loading: authLoading, hasPageAccess } = useAuth()
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -510,23 +508,12 @@ export default function VelvetVistaPage() {
     </button>
   );
 
-  if (authLoading && !user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-medium animate-pulse">Verifying Access...</p>
-        </div>
-      </div>
-    );
-  }
   // ------------------------------------------------------------------
   // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
   // ------------------------------------------------------------------
   return (
     <PageTransition>
       {/* Ensure requiredPage matches your Sidebar/DB key exactly */}
-      <PageGuard requiredPage="brand-checking">
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
 
           {/* HEADER */}
@@ -754,7 +741,6 @@ export default function VelvetVistaPage() {
             <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
           )}
         </div>
-      </PageGuard>
     </PageTransition>
   );
 }

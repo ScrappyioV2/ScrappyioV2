@@ -500,14 +500,6 @@ export default function UkMasterTable({
     return !!localFilters[column];
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div>
       {/* Loading modal for select all */}

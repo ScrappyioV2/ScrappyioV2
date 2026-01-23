@@ -33,19 +33,7 @@ export default function DashboardPage() {
       }
     }
   }, [user, userRole, loading, router]);
-
-  // Loading State (Dark Theme)
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-mono text-sm tracking-widest animate-pulse">INITIALIZING...</p>
-        </div>
-      </div>
-    );
-  }
-
+  
   if (!user || !userRole || userRole.role !== 'admin') return null;
 
   // Animations

@@ -395,9 +395,7 @@ export default function UsaMasterTable({
     if (sortConfig.key !== sortKey) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
     return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-400" /> : <ArrowDown className="w-3 h-3 text-indigo-400" />;
   };
-
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>;
-
+  
   return (
     <div>
       {/* Loading Modal for Select All */}
