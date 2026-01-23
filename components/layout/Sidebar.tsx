@@ -80,6 +80,11 @@ export default function Sidebar() {
     { label: 'Admin Validation', href: '/dashboard/usa-selling/admin-validation', requiresPage: 'admin-validation' },
     { label: 'Listing & Error', href: '/dashboard/usa-selling/listing-error', requiresPage: 'listing', submenu: listingErrorSellers },
     { label: 'Purchase', href: '/dashboard/usa-selling/purchases', requiresPage: 'purchase' },
+     {
+    label: 'Tracking',
+    href: '/dashboard/usa-selling/tracking',
+    requiresPage: 'usa-selling/tracking'
+  },
     { label: 'Reorder', href: '/dashboard/usa-selling/reorder', requiresPage: 'reorder' },
   ]
 
