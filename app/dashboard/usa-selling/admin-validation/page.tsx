@@ -470,9 +470,11 @@ export default function AdminValidationPage() {
     // Tab filter
     switch (activeTab) {
       case 'india':
-        return product.origin_india === true;
+        // ✅ Hide Confirmed/Rejected items (work like Overview)
+        return product.origin_india === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
       case 'china':
-        return product.origin_china === true;
+        // ✅ Hide Confirmed/Rejected items (work like Overview)
+        return product.origin_china === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
       case 'pending':
         return product.admin_status === 'pending' || !product.admin_status;
       case 'confirm':
@@ -744,13 +746,13 @@ export default function AdminValidationPage() {
     }
   };
 
-  // Handle individual product reject
+  // ✅ COMPLETE HANDLE REJECT FUNCTION
   const handleRejectProduct = async (productId: string) => {
     try {
       const product = products.find((p) => p.id === productId);
       if (!product) return;
 
-      // ✅ SAVE TO HISTORY FIRST!
+      // 1. Save to history for undo
       setMovementHistory((prev) => ({
         ...prev,
         [activeTab]: {
@@ -760,7 +762,26 @@ export default function AdminValidationPage() {
         },
       }));
 
-      // ... rest of the function
+      // 2. Update Database
+      const { error: updateAdminError } = await supabase
+        .from('usa_admin_validation')
+        .update({
+          admin_status: 'rejected',
+          rejected_at: new Date().toISOString(),
+        })
+        .eq('id', productId);
+
+      if (updateAdminError) throw updateAdminError;
+
+      // 3. Update Local State (Item will disappear from filtered list)
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, admin_status: 'rejected' } : p
+        )
+      );
+
+      setToast({ message: 'Product rejected', type: 'info' });
+
     } catch (error: any) {
       alert(`Error rejecting product: ${error.message}`);
     }
@@ -858,8 +879,8 @@ export default function AdminValidationPage() {
   const pendingCount = products.filter((p) => p.admin_status === 'pending' || !p.admin_status).length;
   const rejectedCount = products.filter((p) => p.admin_status === 'rejected').length;
   const confirmedCount = products.filter(p => p.admin_status === 'confirmed').length; // ✅ ADD THIS
-  const indiaCount = products.filter((p) => p.origin_india).length;
-  const chinaCount = products.filter((p) => p.origin_china).length;
+  const indiaCount = products.filter((p) => p.origin_india && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
+  const chinaCount = products.filter((p) => p.origin_china && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">

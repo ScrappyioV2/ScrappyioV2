@@ -476,12 +476,11 @@ export default function ValidationPage() {
     };
 
     // Get products for current tab (before search/filters)
-    // Get products for current tab (before search/filters)
     const getTabProducts = () => {
         let tabProducts = [...products];
 
         // Filter based on active tab
-        if (activeTab === 'pass_file') {
+        if (activeTab === 'pass_file') {    
             // ✅ FIX: Hide items already sent to purchases
             tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
         } else if (activeTab === 'fail_file') {
