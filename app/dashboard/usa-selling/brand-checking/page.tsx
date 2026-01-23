@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
@@ -104,19 +104,14 @@ export default function BrandCheckingPage() {
   };
 
   /* ===== INITIAL LOAD FROM SUPABASE ===== */
-  useEffect(() => {
-    if (!user) return;
-    const fetchProgress = async () => {
-      console.log("📊 Fetching initial brand check progress...");
-
+  const refreshProgressSilently = useCallback(async () => {
+    try {
+      console.log("📊 Silently refreshing brand progress...");
       const { data, error } = await supabase
         .from("brand_check_progress")
         .select("*");
 
-      if (error) {
-        console.error("❌ Error fetching brand check progress:", error);
-        return;
-      }
+      if (error) throw error;
 
       if (data) {
         setSellers((prev) =>
@@ -135,10 +130,33 @@ export default function BrandCheckingPage() {
           })
         );
       }
+    } catch (err) {
+      console.error("Silent refresh error:", err);
+    }
+  }, []);
+
+  /* ===== 2. INITIAL FETCH + TAB LISTENER (The Fix) ===== */
+  useEffect(() => {
+    if (!user) return;
+
+    // A. Initial Load
+    refreshProgressSilently();
+
+    // B. The Fix: Listen for when user switches back to this tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👀 Tab active: Refreshing data...');
+        refreshProgressSilently();
+      }
     };
 
-    fetchProgress();
-  }, [user]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup listener when leaving
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, refreshProgressSilently]);
 
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {

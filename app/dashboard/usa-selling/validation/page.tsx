@@ -261,10 +261,39 @@ export default function ValidationPage() {
         document.addEventListener('mouseup', onMouseUp);
     };
 
-    useEffect(() => {
-        if (authLoading) return; // Wait for auth
+    const refreshProductsSilently = async () => {
+        try {
+            // Note: No setLoading(true) here!
+            const { data: validationData, error: validationError } = await supabase
+                .from('usa_validation_main_file')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-        fetchProducts();
+            if (validationError) throw validationError;
+
+            const asins = validationData.map(p => p.asin).filter(Boolean);
+            const { data: masterData } = await supabase
+                .from('usa_master_sellers')
+                .select('asin, seller')
+                .in('asin', asins);
+
+            const sellerMap = new Map(masterData?.map(item => [item.asin, item.seller]) || []);
+
+            const mergedData = validationData.map(product => ({
+                ...product,
+                no_of_seller: sellerMap.get(product.asin) || product.no_of_seller || 1
+            }));
+
+            setProducts(mergedData);
+        } catch (err) {
+            console.error('Silent refresh error:', err);
+        }
+    };
+
+    useEffect(() => {
+        if (authLoading) return;
+
+        fetchProducts(); // Runs once on mount (showing spinner)
         fetchStats();
         fetchConstants();
 
@@ -273,17 +302,16 @@ export default function ValidationPage() {
             .channel('validation-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_main_file' }, () => {
                 fetchStats();
-                fetchProducts();
+                refreshProductsSilently(); // ✅ NEW: Updates without spinner
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_pass_file' }, () => fetchStats())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_fail_file' }, () => fetchStats())
             .subscribe();
 
-        // Auto-refresh logic
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('🔄 Tab visible: Refreshing Validation Data...');
-                fetchProducts();
+                console.log('🔄 Tab visible: Refreshing...');
+                refreshProductsSilently(); // ✅ NEW: Silent update on tab focus
                 fetchStats();
             }
         };
@@ -293,7 +321,7 @@ export default function ValidationPage() {
             supabase.removeChannel(channel);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [activeTab, authLoading]); // Added authLoading dependency
+    }, [authLoading]); // ✅ FIXED: Removed 'activeTab' dependency
 
     useEffect(() => {
         applyFilters();

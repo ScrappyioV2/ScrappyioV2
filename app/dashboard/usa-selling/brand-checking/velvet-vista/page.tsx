@@ -1,9 +1,8 @@
 'use client';
 
-// ✅ 1. ADDED: useAuth import
-import { useAuth } from '@/lib/hooks/useAuth';
-import PageGuard from '@/components/PageGuard';
-import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth'
+import PageGuard from '@/components/PageGuard'
+import { useState, useEffect, useRef, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
@@ -36,6 +35,7 @@ interface ProductRow {
 
 type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
 
+// ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
   asin: 140,
   product_name: 350,
@@ -48,9 +48,7 @@ const DEFAULT_WIDTHS: Record<string, number> = {
 };
 
 export default function VelvetVistaPage() {
-  // ✅ 2. ADDED: Auth Hook
-  const { loading: authLoading } = useAuth();
-
+  const { user, loading: authLoading, hasPageAccess } = useAuth()
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,6 +84,7 @@ export default function VelvetVistaPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // ✅ 2. UPDATE: Initialize widths with DEFAULT_WIDTHS
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('velvet_vista_column_widths');
@@ -94,8 +93,10 @@ export default function VelvetVistaPage() {
     return DEFAULT_WIDTHS;
   });
 
+  // ✅ 3. ADD: Resize Logic Ref
   const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
+  // Column order state
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('velvet_vista_column_order');
@@ -105,6 +106,7 @@ export default function VelvetVistaPage() {
   });
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
+  // Roll back state
   const [movementHistory, setMovementHistory] = useState<{
     [key: string]: {
       product: ProductRow;
@@ -113,6 +115,7 @@ export default function VelvetVistaPage() {
     } | null;
   }>({});
 
+  // Reject Modal State
   const [rejectModal, setRejectModal] = useState<{
     isOpen: boolean;
     product: ProductRow | null;
@@ -130,6 +133,7 @@ export default function VelvetVistaPage() {
     4: 'VV',
   };
 
+  // ✅ 4. ADD: Resize Handlers
   const startResize = (key: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -156,6 +160,7 @@ export default function VelvetVistaPage() {
     return term.replace(/'/g, "''").trim();
   };
 
+  // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -164,6 +169,7 @@ export default function VelvetVistaPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Ctrl+Z keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -179,15 +185,13 @@ export default function VelvetVistaPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
+  // Fetch products
   useEffect(() => {
-    // ✅ 3. UPDATE: Only fetch data when auth is ready
-    if (!authLoading) {
-      fetchProducts();
-    }
-  }, [activeTab, currentPage, debouncedSearch, authLoading]);
+    fetchProducts(false);
+  }, [activeTab, currentPage, debouncedSearch]);
 
-  const fetchProducts = async () => {
-    setLoading(true);
+  const fetchProducts = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const tableName = `usa_seller_${SELLER_ID}_${activeTab}`;
       const start = (currentPage - 1) * rowsPerPage;
@@ -228,7 +232,7 @@ export default function VelvetVistaPage() {
       setProducts([]);
       setTotalCount(0);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -311,7 +315,7 @@ export default function VelvetVistaPage() {
 
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts();
+        await fetchProducts(true);
         setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
       } else if (action === 'not_approved') {
@@ -323,7 +327,7 @@ export default function VelvetVistaPage() {
 
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts();
+        await fetchProducts(true);
         setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
       } else if (action === 'reject') {
@@ -335,7 +339,7 @@ export default function VelvetVistaPage() {
 
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts();
+        await fetchProducts(true);
         setToast({ message: `Product rejected!`, type: 'success' });
       }
     } catch (err: any) {
@@ -379,7 +383,7 @@ export default function VelvetVistaPage() {
 
       setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-      fetchProducts();
+      fetchProducts(true);
     } catch (error) {
       console.error('Error rolling back:', error);
       setToast({ message: 'Rollback failed', type: 'error' });
@@ -457,6 +461,7 @@ export default function VelvetVistaPage() {
     setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
   };
 
+  // ✅ 5. UPDATE: Enhanced Column Header (Center align + Resize)
   const renderColumnHeader = (columnKey: string, displayName: string) => {
     if (!visibleColumns[columnKey as keyof typeof visibleColumns]) return null;
     return (
@@ -466,12 +471,15 @@ export default function VelvetVistaPage() {
         onDragStart={() => handleDragStart(columnKey)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
+        // Added 'relative' and 'text-center'
         className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none group"
         style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
         <div className="flex items-center justify-center gap-2">
           {displayName}
         </div>
+
+        {/* Resize Handle */}
         <div
           onMouseDown={(e) => startResize(columnKey, e)}
           className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-500/50 z-10"
@@ -484,6 +492,7 @@ export default function VelvetVistaPage() {
   const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
   const hasRollback = !!movementHistory[currentTable];
 
+  // Tab Styles
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
     <button
       onClick={() => setActiveTab(tabName)}
@@ -501,22 +510,25 @@ export default function VelvetVistaPage() {
     </button>
   );
 
-  // ✅ 4. ADDED: Loading Check
-  if (authLoading) {
+  if (authLoading && !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="flex flex-col items-center gap-4">
-           <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-           <p className="text-slate-400 font-medium animate-pulse">Verifying Access...</p>
+          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+          <p className="text-slate-400 font-medium animate-pulse">Verifying Access...</p>
         </div>
       </div>
     );
   }
-
+  // ------------------------------------------------------------------
+  // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
+  // ------------------------------------------------------------------
   return (
     <PageTransition>
+      {/* Ensure requiredPage matches your Sidebar/DB key exactly */}
       <PageGuard requiredPage="brand-checking">
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+
           {/* HEADER */}
           <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
             <div className="max-w-[1920px] mx-auto">
@@ -743,6 +755,6 @@ export default function VelvetVistaPage() {
           )}
         </div>
       </PageGuard>
-    </PageTransition >
+    </PageTransition>
   );
 }

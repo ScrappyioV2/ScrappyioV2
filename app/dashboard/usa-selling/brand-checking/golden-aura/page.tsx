@@ -187,11 +187,11 @@ export default function GoldenAuraPage() {
 
   // Fetch products
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(false);
   }, [activeTab, currentPage, debouncedSearch]);
 
-  const fetchProducts = async () => {
-    setLoading(true);
+  const fetchProducts = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const tableName = `usa_seller_${SELLER_ID}_${activeTab}`;
       const start = (currentPage - 1) * rowsPerPage;
@@ -232,7 +232,7 @@ export default function GoldenAuraPage() {
       setProducts([]);
       setTotalCount(0);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -315,7 +315,7 @@ export default function GoldenAuraPage() {
 
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts();
+        await fetchProducts(true);
         setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
       } else if (action === 'not_approved') {
@@ -327,7 +327,7 @@ export default function GoldenAuraPage() {
 
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts();
+        await fetchProducts(true);
         setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
       } else if (action === 'reject') {
@@ -339,7 +339,7 @@ export default function GoldenAuraPage() {
 
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts();
+        await fetchProducts(true);
         setToast({ message: `Product rejected!`, type: 'success' });
       }
     } catch (err: any) {
@@ -383,7 +383,7 @@ export default function GoldenAuraPage() {
 
       setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-      fetchProducts();
+      fetchProducts(true);
     } catch (error) {
       console.error('Error rolling back:', error);
       setToast({ message: 'Rollback failed', type: 'error' });
@@ -510,18 +510,16 @@ export default function GoldenAuraPage() {
     </button>
   );
 
-  if (authLoading) {
+  if (authLoading && !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="flex flex-col items-center gap-4">
-          {/* You can import Loader2 from lucide-react if not imported */}
           <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
           <p className="text-slate-400 font-medium animate-pulse">Verifying Access...</p>
         </div>
       </div>
     );
   }
-
   // ------------------------------------------------------------------
   // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
   // ------------------------------------------------------------------
