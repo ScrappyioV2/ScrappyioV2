@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import PageTransition from "@/components/layout/PageTransition";
@@ -23,13 +23,6 @@ const ALL_SELLERS = [
 ];
 
 /* ================= TYPES ================= */
-type ListingProgressRow = {
-  seller_id: number;
-  total_pending: number;
-  listed: number;
-  error: number;
-};
-
 type SellerUI = {
   id: number;
   slug: string;
@@ -40,79 +33,90 @@ type SellerUI = {
   error: number;
 };
 
-/* ================= PAGE ================= */
 export default function ListingErrorDashboard() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
 
-  // Initialize sellers with 0 progress
-  const [sellers, setSellers] = useState<SellerUI[]>(
-    ALL_SELLERS.map((s) => ({
+  // Initialize with Cache
+  const [sellers, setSellers] = useState<SellerUI[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('listing_error_real_counts');
+      if (cached) return JSON.parse(cached);
+    }
+    return ALL_SELLERS.map((s) => ({
       ...s,
       totalPending: 0,
       listed: 0,
       error: 0,
-    }))
-  );
+    }));
+  });
+
+  const [loading, setLoading] = useState(false);
 
   const handleSellerCardClick = (sellerSlug: string) => {
     router.push(`/dashboard/usa-selling/listing-error/${sellerSlug}`);
   };
 
-  /* ===== DATA FETCHING ===== */
-  useEffect(() => {
-    const fetchProgress = async () => {
-      // Fetching all rows - No limit applied
-      const { data, error } = await supabase
-        .from("listing_error_progress")
-        .select("*");
+  /* ===== FETCH REAL COUNTS DIRECTLY ===== */
+  const fetchRealCounts = useCallback(async () => {
+    try {
+      // console.log("📊 Fetching counts from usa_listing_error tables...");
+      
+      const promises = ALL_SELLERS.map(async (seller) => {
+        // ✅ UPDATED: Exact table names from your screenshot
+        const pendingTable = `usa_listing_error_seller_${seller.id}_pending`; 
+        const listedTable = `usa_listing_error_seller_${seller.id}_done`; // 'done' = listed
+        const errorTable = `usa_listing_error_seller_${seller.id}_error`; 
 
-      if (error) {
-        console.error("❌ Error fetching progress:", error);
-      } else if (data) {
-        setSellers((prev) =>
-          prev.map((seller) => {
-            const row = data.find((d: ListingProgressRow) => d.seller_id === seller.id);
-            return row ? {
-              ...seller,
-              totalPending: row.total_pending,
-              listed: row.listed,
-              error: row.error,
-            } : seller;
-          })
-        );
-      }
+        // Run counts in parallel
+        const [pending, listed, error] = await Promise.all([
+          supabase.from(pendingTable).select('*', { count: 'exact', head: true }),
+          supabase.from(listedTable).select('*', { count: 'exact', head: true }),
+          supabase.from(errorTable).select('*', { count: 'exact', head: true }),
+        ]);
+
+        return {
+          id: seller.id,
+          totalPending: pending.count || 0,
+          listed: listed.count || 0,
+          error: error.count || 0,
+        };
+      });
+
+      const results = await Promise.all(promises);
+
+      setSellers((prev) => {
+        const updated = prev.map((s) => {
+          const freshData = results.find((r) => r.id === s.id);
+          return freshData ? { ...s, ...freshData } : s;
+        });
+
+        localStorage.setItem('listing_error_real_counts', JSON.stringify(updated));
+        return updated;
+      });
+
+    } catch (err) {
+      console.error("❌ Error counting rows:", err);
+    } finally {
       setLoading(false);
-    };
-
-    fetchProgress();
-
-    /* ===== REALTIME SUBSCRIPTION ===== */
-    const channel = supabase
-      .channel("listing-error-progress-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "listing_error_progress" },
-        (payload) => {
-          const data = payload.new as ListingProgressRow;
-          if (data && data.seller_id) {
-            setSellers((prev) => prev.map((seller) =>
-              seller.id === data.seller_id
-                ? {
-                  ...seller,
-                  totalPending: data.total_pending,
-                  listed: data.listed,
-                  error: data.error,
-                }
-                : seller
-            ));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    }
   }, []);
+
+  /* ===== LIFECYCLE ===== */
+  useEffect(() => {
+    fetchRealCounts();
+
+    // Auto-refresh when tab is active
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRealCounts();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => { 
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchRealCounts]);
 
   return (
     <PageTransition>
@@ -128,16 +132,23 @@ export default function ListingErrorDashboard() {
               <h1 className="text-3xl font-bold tracking-tight text-white">Listing Overview</h1>
             </div>
             <p className="text-slate-400 pl-[3.5rem] max-w-lg">
-              Real-time overview of product distribution, listings, and error resolution across all marketplaces.
+              Real-time overview of product distribution, listings, and error resolution.
             </p>
           </div>
+          
+          <button 
+             onClick={() => { setLoading(true); fetchRealCounts(); }}
+             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-slate-700"
+          >
+             Refresh Data
+          </button>
         </header>
 
         {/* === GRID === */}
-        {loading ? (
+        {loading && sellers[0].totalPending === 0 ? (
           <div className="flex items-center justify-center h-64 text-slate-500 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-            <span className="text-sm font-medium tracking-widest">LOADING METRICS...</span>
+            <span className="text-sm font-medium tracking-widest">CALCULATING METRICS...</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
@@ -155,7 +166,6 @@ export default function ListingErrorDashboard() {
                   onClick={() => handleSellerCardClick(seller.slug)}
                   className="group relative bg-slate-900/40 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-6 cursor-pointer backdrop-blur-sm transition-all hover:bg-slate-900/60 hover:shadow-2xl hover:shadow-black/50 overflow-hidden"
                 >
-                  {/* Glow Effect on Hover */}
                   <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 bg-gradient-to-br ${seller.color}`} />
 
                   <div className="flex justify-between items-start mb-6 relative z-10">
@@ -164,7 +174,6 @@ export default function ListingErrorDashboard() {
                       <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">USA Marketplace</p>
                     </div>
 
-                    {/* Pending Badge */}
                     <div className="flex flex-col items-end">
                       <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/20 mb-1">
                         <Clock className="w-4 h-4" />
@@ -174,10 +183,7 @@ export default function ListingErrorDashboard() {
                     </div>
                   </div>
 
-                  {/* Progress Bars */}
                   <div className="space-y-5 relative z-10">
-
-                    {/* Listed Bar */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs font-medium">
                         <div className="flex items-center gap-1.5 text-emerald-400">
@@ -196,7 +202,6 @@ export default function ListingErrorDashboard() {
                       </div>
                     </div>
 
-                    {/* Error Bar */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs font-medium">
                         <div className="flex items-center gap-1.5 text-rose-400">
@@ -214,10 +219,8 @@ export default function ListingErrorDashboard() {
                         />
                       </div>
                     </div>
-
                   </div>
 
-                  {/* Action Footer */}
                   <div className="mt-6 pt-4 border-t border-slate-800/50 flex items-center justify-between text-sm group-hover:text-white transition-colors relative z-10">
                     <span className="text-slate-500 group-hover:text-slate-300 transition-colors">Manage Listings</span>
                     <div className={`p-2 rounded-full bg-slate-800 group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>

@@ -16,13 +16,16 @@ import {
   AlertOctagon,
   Loader2,
   LayoutList,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 /* === CONFIGURATION === */
 const SELLER_ID = 4;
 const SELLER_NAME = "Velvet Vista";
 const BASE_TABLE_PREFIX = `usa_listing_error_seller_${SELLER_ID}`;
+const ITEMS_PER_PAGE = 100; // Matches your screenshot
 
 interface ListingProduct {
   id: string;
@@ -40,7 +43,6 @@ interface ListingProduct {
 
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
 
-// ✨ DARK MODE TAB CONFIG
 const TABS = [
   { id: 'high_demand', label: 'High Demand', color: 'text-emerald-400', glow: 'shadow-[0_0_20px_-5px_rgba(52,211,153,0.5)]' },
   { id: 'low_demand', label: 'Low Demand', color: 'text-blue-400', glow: 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.5)]' },
@@ -52,16 +54,19 @@ const TABS = [
 ];
 
 export default function VelvetVistaListingPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('high_demand');
   const [products, setProducts] = useState<ListingProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Reason Modal State
   const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
   const [selectedForError, setSelectedForError] = useState<ListingProduct | null>(null);
   const [errorReasonInput, setErrorReasonInput] = useState('');
@@ -76,17 +81,24 @@ export default function VelvetVistaListingPage() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Debounce Search
+  // Reset page when tab changes
+  useEffect(() => {
+    setPage(1);
+    setSearchQuery('');
+  }, [activeTab]);
+
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setDebouncedSearch('');
       return;
     }
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to page 1 on new search
+    }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Undo Shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'z' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
@@ -98,14 +110,14 @@ export default function VelvetVistaListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // ✅ OPTIMIZED FETCH LOGIC
+  // ✅ UPDATED FETCH LOGIC WITH PAGINATION
   const fetchProducts = useCallback(async () => {
     if (!user) return;
-    setLoading(true); // Show loader for smoother transitions
+    setLoading(true);
 
     try {
       const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-      let query = supabase.from(tableName).select('*').order('id', { ascending: false });
+      let query = supabase.from(tableName).select('*', { count: 'exact' });
 
       // Apply Search
       if (debouncedSearch.trim()) {
@@ -113,20 +125,28 @@ export default function VelvetVistaListingPage() {
         query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
       }
 
-      // Limit results for performance (Pagination can be added later if needed)
-      const { data, error } = await query.limit(100);
+      // Calculate Range for Pagination
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      const { data, count, error } = await query
+        .order('id', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
+
       setProducts(data || []);
+      setTotalItems(count || 0);
+
     } catch (err: any) {
       console.error('Fetch error:', err);
       setToast({ message: 'Failed to load data', type: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, user]);
+  }, [activeTab, debouncedSearch, user, page]); // Added 'page' dependency
 
-  // Real-time Subscription
+  // Fetch on change
   useEffect(() => {
     fetchProducts();
 
@@ -149,7 +169,6 @@ export default function VelvetVistaListingPage() {
     };
   }, [fetchProducts, activeTab]);
 
-  // Stats Logic
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
     const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).single();
     if (stats) {
@@ -163,7 +182,6 @@ export default function VelvetVistaListingPage() {
     }
   };
 
-  // Log History
   const logHistory = async (product: ListingProduct, fromTable: string, toTable: string) => {
     try {
       await supabase.from(`${BASE_TABLE_PREFIX}_movement_history`).insert({
@@ -183,7 +201,6 @@ export default function VelvetVistaListingPage() {
     } catch (err) { console.error("Log error:", err); }
   };
 
-  // Move Logic
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
     try {
@@ -201,14 +218,11 @@ export default function VelvetVistaListingPage() {
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
 
-      // 1. Insert into target
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
 
-      // 2. Log History
       await logHistory(product, sourceTableName, targetTableName);
 
-      // 3. Delete from source tables (ALL POSSIBLE SOURCES to prevent duplicates)
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
@@ -218,7 +232,6 @@ export default function VelvetVistaListingPage() {
 
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
-      // 4. Update Stats
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
@@ -226,22 +239,26 @@ export default function VelvetVistaListingPage() {
         if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
       }
 
-      // 5. Update UI
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
+
+      // Refetch if page becomes empty
+      if (products.length === 1 && page > 1) {
+        setPage(prev => prev - 1);
+      } else {
+        fetchProducts(); // Refresh count
+      }
 
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
     } finally {
       setProcessingId(null);
-      // Close modal if open
       setIsReasonModalOpen(false);
       setSelectedForError(null);
       setErrorReasonInput('');
     }
   };
 
-  // Rollback
   const handleRollBack = async () => {
     const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
     const lastMovement = movementHistory[currentTable];
@@ -255,11 +272,8 @@ export default function VelvetVistaListingPage() {
       const { product, fromTable, toTable } = lastMovement;
       const { id, ...rest } = product;
 
-      // ✅ 1. Restore to the original Funnel table (High Demand, etc.)
       await supabase.from(fromTable).insert(rest);
 
-      // ✅ 2. SYNC LOGIC: If the product originated from a funnel tab, 
-      // it must also be restored to the PENDING table.
       const funnelTables = [
         `${BASE_TABLE_PREFIX}_high_demand`,
         `${BASE_TABLE_PREFIX}_low_demand`,
@@ -270,10 +284,8 @@ export default function VelvetVistaListingPage() {
         await supabase.from(`${BASE_TABLE_PREFIX}_pending`).upsert(rest, { onConflict: 'asin' });
       }
 
-      // ✅ 3. Delete from the target table where it was just moved to
       await supabase.from(toTable).delete().eq('asin', product.asin);
 
-      // ✅ 4. Update Stats (Reverse the increments)
       if (toTable.includes('done')) await updateProgressStats('listed', -1);
       else if (toTable.includes('error')) await updateProgressStats('error', -1);
       else if (toTable.includes('removed')) {
@@ -293,127 +305,117 @@ export default function VelvetVistaListingPage() {
   };
 
   const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
-
-        <div className="max-w-[1600px] mx-auto p-6 space-y-8">
-
-          {/* === HEADER === */}
-          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800/60">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                  <LayoutList className="w-6 h-6 text-indigo-400" />
+      <div className="h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col w-full mx-auto p-3 overflow-hidden">
+          {/* === HEADER & CONTROLS === */}
+          <div className="flex-none space-y-4 pb-4">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800/60">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                    <LayoutList className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
+                <p className="text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
               </div>
-              <p className="text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
-                TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{products.length}</span>
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
+                  TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{totalItems}</span>
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
 
-          {/* === CONTROLS === */}
-          <div className="space-y-6">
-
-            {/* TABS */}
-            <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-fit">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
-                  className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                >
-                  {activeTab === tab.id && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm -z-10"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                    />
-                  )}
-                  <span className="relative flex items-center gap-2">
-                    {tab.label}
-                    {activeTab === tab.id && <Sparkles className={`w-3 h-3 ${tab.color}`} />}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* TOOLBAR */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
-              {/* Search */}
-              <div className="relative w-full sm:w-96 group">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search by ASIN, Name, or SKU..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
-                />
-                {searchQuery && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-fit">
+                {TABS.map((tab) => (
                   <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
+                    className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'}`}
                   >
-                    <X className="w-4 h-4" />
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700/50 shadow-sm -z-10"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <span className="relative flex items-center gap-2">
+                      {tab.label}
+                      {activeTab === tab.id && <Sparkles className={`w-3 h-3 ${tab.color}`} />}
+                    </span>
                   </button>
-                )}
+                ))}
               </div>
 
-              {/* Undo Button */}
-              <motion.button
-                whileHover={hasRollback ? { scale: 1.02 } : {}}
-                whileTap={hasRollback ? { scale: 0.98 } : {}}
-                onClick={handleRollBack}
-                disabled={!hasRollback}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  }`}
-              >
-                <RotateCcw className="w-4 h-4" />
-                Undo Action
-              </motion.button>
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
+                <div className="relative w-full sm:w-96 group">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Search by ASIN, Name, or SKU..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none text-sm placeholder:text-slate-600 text-slate-200"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <motion.button
+                  whileHover={hasRollback ? { scale: 1.02 } : {}}
+                  whileTap={hasRollback ? { scale: 0.98 } : {}}
+                  onClick={handleRollBack}
+                  disabled={!hasRollback}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'}`}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Undo Action
+                </motion.button>
+              </div>
             </div>
           </div>
 
-          {/* === DATA TABLE === */}
-          <div className="bg-slate-900/40 rounded-2xl border border-slate-800/60 overflow-hidden backdrop-blur-sm flex flex-col max-h-[75vh]">
-            {loading ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
-                <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
-                <span className="text-sm font-medium tracking-wide">SYNCING DATA...</span>
-              </div>
-            ) : products.length === 0 ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
-                <div className="p-4 bg-slate-900 rounded-full border border-slate-800">
-                  <AlertOctagon className="w-8 h-8 text-slate-500" />
+          {/* === TABLE CONTAINER === */}
+          <div className="flex-1 min-h-0 bg-slate-900/40 rounded-2xl border border-slate-800/60 backdrop-blur-sm flex flex-col relative overflow-hidden">
+
+            {/* Scrollable Table Area */}
+            <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+
+              {loading ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
+                  <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                  <span className="text-sm font-medium tracking-wide">SYNCING DATA...</span>
                 </div>
-                <p className="text-sm">No items found in {activeTab.replace('_', ' ')}.</p>
-              </div>
-            ) : (
-              <div className="overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-950/95 border-b border-slate-800 sticky top-0 backdrop-blur-md z-20 shadow-md">
+              ) : products.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3">
+                  <div className="p-4 bg-slate-900 rounded-full border border-slate-800">
+                    <AlertOctagon className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <p className="text-sm">No items found.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-950/95 border-b border-slate-800 sticky top-0 z-20 shadow-md">
                     <tr>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">ASIN</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider w-1/3">Product Details</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">SKU</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Price</th>
-                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Source</th>
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">ASIN</th>
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider w-1/3 border-r border-slate-800 last:border-r-0">Product Details</th>
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">SKU</th>
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">Price</th>
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Source</th>
                       {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
-                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Actions</th>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Actions</th>
                       )}
                       {activeTab === 'error' && (
-                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Reason</th>
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">Reason</th>
                       )}
                     </tr>
                   </thead>
@@ -428,35 +430,26 @@ export default function VelvetVistaListingPage() {
                           transition={{ delay: index * 0.03, duration: 0.2 }}
                           className="group hover:bg-slate-800/40 transition-colors"
                         >
-                          <td className="px-6 py-4 text-sm font-medium text-slate-300 font-mono tracking-tight">
-                            {product.asin}
+                          <td className="px-6 py-4 text-sm font-medium text-slate-300 font-mono tracking-tight border-r border-slate-800/50 last:border-r-0">{product.asin}</td>
+                          <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
+                            <div className="text-sm text-slate-200 truncate max-w-sm" title={product.product_name || ''}>{product.product_name}</div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-slate-200 truncate max-w-sm" title={product.product_name || ''}>
-                              {product.product_name}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-500 font-mono">{product.sku}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 text-sm text-slate-500 font-mono border-r border-slate-800/50 last:border-r-0">{product.sku}</td>
+                          <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
                             <span className="inline-flex px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-semibold font-mono">
                               {product.selling_price ? `₹${product.selling_price}` : '-'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
                             {product.seller_link ? (
-                              <a
-                                href={product.seller_link}
-                                target="_blank"
-                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200"
-                              >
+                              <a href={product.seller_link} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200">
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : <span className="text-slate-700">-</span>}
                           </td>
 
-                          {/* === ACTION BUTTONS === */}
                           {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
                               <div className="flex items-center justify-center gap-3">
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
@@ -472,10 +465,7 @@ export default function VelvetVistaListingPage() {
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
-                                  onClick={() => {
-                                    setSelectedForError(product);
-                                    setIsReasonModalOpen(true);
-                                  }}
+                                  onClick={() => { setSelectedForError(product); setIsReasonModalOpen(true); }}
                                   disabled={processingId === product.id}
                                   className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
                                   title="Mark as Error"
@@ -498,7 +488,7 @@ export default function VelvetVistaListingPage() {
                           )}
 
                           {activeTab === 'error' && (
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
                                 <AlertOctagon className="w-3 h-3" />
                                 {product.error_reason}
@@ -510,8 +500,40 @@ export default function VelvetVistaListingPage() {
                     </AnimatePresence>
                   </tbody>
                 </table>
+              )}
+            </div>
+
+            {/* ✅ PAGINATION FOOTER */}
+            <div className="flex-none border-t border-slate-800 bg-slate-900/50 p-4 flex items-center justify-between">
+              <span className="text-sm text-slate-400">
+                Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span> products
+              </span>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </button>
+
+                <span className="text-sm font-mono text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                  Page <span className="text-white">{page}</span> / {totalPages || 1}
+                </span>
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages || totalPages === 0}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-            )}
+            </div>
+
           </div>
 
           {/* CUSTOM ERROR REASON MODAL */}
@@ -529,12 +551,7 @@ export default function VelvetVistaListingPage() {
                   className="w-full p-3 bg-slate-950 border border-slate-800 rounded-lg text-white focus:border-rose-500 outline-none mb-6"
                 />
                 <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setIsReasonModalOpen(false)}
-                    className="px-4 py-2 text-slate-400 hover:text-white transition"
-                  >
-                    Cancel
-                  </button>
+                  <button onClick={() => setIsReasonModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white transition">Cancel</button>
                   <button
                     onClick={() => selectedForError && handleMoveProduct(selectedForError, 'error', errorReasonInput)}
                     disabled={!errorReasonInput.trim()}
@@ -548,11 +565,7 @@ export default function VelvetVistaListingPage() {
           )}
 
           {toast && (
-            <Toast
-              message={toast.message}
-              type={toast.type}
-              onClose={() => setToast(null)}
-            />
+            <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
           )}
         </div>
       </div>
