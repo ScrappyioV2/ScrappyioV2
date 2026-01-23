@@ -24,7 +24,7 @@ export function useAuth() {
   useEffect(() => {
     let isMounted = true
 
-    // 1. Define the role fetcher to reuse it
+    // Helper: Fetch Role
     const fetchUserRole = async (userId: string) => {
       try {
         const { data, error } = await supabase
@@ -33,21 +33,17 @@ export function useAuth() {
           .eq('user_id', userId)
           .single()
         
-        if (error) {
-          console.warn('Error fetching role:', error.message)
-          return null
-        }
+        if (error || !data) return null
         return data as UserRole
       } catch (err) {
         return null
       }
     }
 
-    // 2. Initial Session Check
+    // 1. Initial Session Check
     const checkSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
+        const { data: { session } } = await supabase.auth.getSession()
         if (!isMounted) return
 
         if (session?.user) {
@@ -58,29 +54,32 @@ export function useAuth() {
       } catch (error) {
         console.error('Session check failed', error)
       } finally {
+        // ✅ CRITICAL FIX: Always stop loading after initial check
         if (isMounted) setLoading(false)
       }
     }
 
     checkSession()
 
-    // 3. Realtime Listener (The Fix: Now handles loading state)
+    // 2. Realtime Listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
         
-        // console.log('Auth event:', event) // Uncomment for debugging
-
         if (session?.user) {
           setUser(session.user)
-          const role = await fetchUserRole(session.user.id)
-          if (isMounted) setUserRole(role)
+          // Only fetch role if we don't have it yet or user changed
+          if (!userRole || userRole.user_id !== session.user.id) {
+             const role = await fetchUserRole(session.user.id)
+             if (isMounted) setUserRole(role)
+          }
         } else {
           setUser(null)
           setUserRole(null)
         }
         
-        // ✅ CRITICAL FIX: Ensure loading is disabled after any auth event
+        // ✅ CRITICAL FIX: Force loading to false when auth state changes
+        // This stops the infinite spinner immediately upon login
         setLoading(false)
       }
     )

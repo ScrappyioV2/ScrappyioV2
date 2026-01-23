@@ -4,7 +4,8 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar'; // ✅ Ensure this path is correct
+// ✅ Ensure this path is correct for your project
+import Sidebar from '@/components/layout/Sidebar'; 
 
 export default function DashboardLayout({
   children,
