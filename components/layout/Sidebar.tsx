@@ -4,15 +4,15 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Globe, 
-  ShoppingCart, 
-  ShoppingBag, 
-  LogOut, 
-  ChevronDown, 
-  ChevronRight, 
+import {
+  LayoutDashboard,
+  Users,
+  Globe,
+  ShoppingCart,
+  ShoppingBag,
+  LogOut,
+  ChevronDown,
+  ChevronRight,
   Rocket,
   MapPin,
   ShieldCheck
@@ -45,7 +45,7 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { userRole, logout } = useAuth()
-  
+
   // State for menu expansion
   const [expandedMenu, setExpandedMenu] = useState<string | null>('Manage Sellers')
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null)
@@ -53,12 +53,13 @@ export default function Sidebar() {
   // --- Menu Configurations (Aligned with SQL Permission Keys) ---
 
   const manageSellerSubmenu: SubMenuItem[] = [
-    { label: 'Link Generator', href: '/dashboard/manage-sellers/add-seller', requiresPage: 'link-generator' },
-    { label: 'USA Sellers', href: '/dashboard/manage-sellers/usa-sellers', requiresPage: 'manage-sellers' },
-    { label: 'India Sellers', href: '/dashboard/manage-sellers/india-sellers', requiresPage: 'manage-sellers' },
-    { label: 'UK Sellers', href: '/dashboard/manage-sellers/uk-sellers', requiresPage: 'manage-sellers' },
-    { label: 'UAE Sellers', href: '/dashboard/manage-sellers/uae-sellers', requiresPage: 'manage-sellers' },
-  ]
+    { label: "Link Generator", href: "/dashboard/manage-sellers/add-seller", requiresPage: "link-generator" },
+    { label: "USA Sellers", href: "/dashboard/manage-sellers/usa-sellers", requiresPage: "manage-sellers" },
+    { label: "India Sellers", href: "/dashboard/manage-sellers/india-sellers", requiresPage: "manage-sellers" },
+    { label: "UK Sellers", href: "/dashboard/manage-sellers/uk-sellers", requiresPage: "manage-sellers" },
+    { label: "UAE Sellers", href: "/dashboard/manage-sellers/uae-sellers", requiresPage: "manage-sellers" },
+     { label: "Dropy Master", href: "/dashboard/manage-sellers/dropy", requiresPage: "manage-sellers" }
+  ];
 
   const brandCheckingSellers: NestedMenuItem[] = [
     { label: 'Golden Aura', href: '/dashboard/usa-selling/brand-checking/golden-aura', requiresPage: 'brand-checking' },
@@ -80,11 +81,11 @@ export default function Sidebar() {
     { label: 'Admin Validation', href: '/dashboard/usa-selling/admin-validation', requiresPage: 'admin-validation' },
     { label: 'Listing & Error', href: '/dashboard/usa-selling/listing-error', requiresPage: 'listing', submenu: listingErrorSellers },
     { label: 'Purchase', href: '/dashboard/usa-selling/purchases', requiresPage: 'purchase' },
-     {
-    label: 'Tracking',
-    href: '/dashboard/usa-selling/tracking',
-    requiresPage: 'usa-selling/tracking'
-  },
+    {
+      label: 'Tracking',
+      href: '/dashboard/usa-selling/tracking',
+      requiresPage: 'usa-selling/tracking'
+    },
     { label: 'Reorder', href: '/dashboard/usa-selling/reorder', requiresPage: 'reorder' },
   ]
 
@@ -103,17 +104,17 @@ export default function Sidebar() {
   const canAccessMenuItem = (item: MenuItem | SubMenuItem | NestedMenuItem): boolean => {
     if (!userRole) return false
     if (userRole.role === 'admin') return true
-    
+
     // Admin only sections
     if ('adminOnly' in item && item.adminOnly) return false
-    
+
     // If no specific page requirement, allow access
     if (!item.requiresPage) return true
 
     // Check if the required page key is in the user's allowed_pages array
-    return userRole.allowed_pages.includes('*') || 
-           userRole.allowed_pages.includes('all') ||
-           userRole.allowed_pages.some(page => item.requiresPage === page);
+    return userRole.allowed_pages.includes('*') ||
+      userRole.allowed_pages.includes('all') ||
+      userRole.allowed_pages.some(page => item.requiresPage === page);
   }
 
   const toggleMenu = (label: string, e: React.MouseEvent) => {
@@ -135,7 +136,7 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 min-h-screen bg-slate-950 border-r border-slate-800 text-slate-400 flex flex-col">
-      
+
       {/* Header */}
       <div className="p-6 border-b border-slate-800 flex items-center gap-3">
         <div className="p-2 bg-indigo-600 rounded-lg shadow-md shadow-indigo-900/20">
@@ -168,11 +169,10 @@ export default function Sidebar() {
             <div key={item.label} className="mb-1">
               <button
                 onClick={() => handleMenuClick(item.href, !!item.submenu, item.label)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active 
-                    ? 'bg-indigo-600 text-white shadow-md' 
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'hover:bg-slate-900 hover:text-slate-200'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className={active ? 'text-white' : 'text-slate-500'}>
@@ -203,9 +203,8 @@ export default function Sidebar() {
                                 router.push(subItem.href)
                                 toggleSubMenu(subItem.label, e)
                               }}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                                subActive ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                              }`}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${subActive ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                                }`}
                             >
                               <span className="truncate">{subItem.label}</span>
                               <ChevronRight size={12} className={subExpanded ? 'rotate-90' : ''} />
@@ -221,11 +220,10 @@ export default function Sidebar() {
                                     <Link
                                       key={nested.label}
                                       href={nested.href}
-                                      className={`block px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
-                                        nestedActive 
-                                          ? 'text-indigo-400 bg-indigo-500/10' 
+                                      className={`block px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors ${nestedActive
+                                          ? 'text-indigo-400 bg-indigo-500/10'
                                           : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'
-                                      }`}
+                                        }`}
                                     >
                                       {nested.label}
                                     </Link>
@@ -237,11 +235,10 @@ export default function Sidebar() {
                         ) : (
                           <Link
                             href={subItem.href}
-                            className={`block px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                              subActive 
-                                ? 'text-indigo-400 bg-indigo-500/10' 
+                            className={`block px-3 py-2 rounded-md text-xs font-medium transition-colors ${subActive
+                                ? 'text-indigo-400 bg-indigo-500/10'
                                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                            }`}
+                              }`}
                           >
                             {subItem.label}
                           </Link>
