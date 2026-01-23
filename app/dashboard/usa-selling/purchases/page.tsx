@@ -46,11 +46,11 @@ type PassFileProduct = {
   validation_funnel?: string | null  // ✅ Underscore
   productweight?: number | null    // ✅ NEW
   product_weight?: number | null
-    target_price_validation?: number | null
+  target_price_validation?: number | null
   target_price_link_validation?: string | null
   profit?: number | null
-origin?: string | null
-admin_target_quantity?: number | null
+  origin?: string | null
+  admin_target_quantity?: number | null
 }
 
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
@@ -96,38 +96,57 @@ export default function PurchasesPage() {
     try {
       setLoading(true)
 
-      // Fetch purchases
+      // 1. Fetch all purchases (Batch 1)
       const { data: purchasesData, error: purchasesError } = await supabase
-        .from('usa_purchases')  // ✅ Correct table name
-        .select()
-        .order('created_at', { ascending: false })  // ✅ Underscore
+        .from('usa_purchases')
+        .select('*') // Select all columns
+        .order('created_at', { ascending: false })
 
       if (purchasesError) throw purchasesError
 
-      // Fetch validation data for sellertag and funnel badges
-      const enrichedData = await Promise.all(
-        purchasesData.map(async (product) => {
-          // Fetch from validation main file table
-          const { data: validationData } = await supabase
-            .from('usa_validation_main_file')
-            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')  // ✅ ADDED 3 fields
-            .eq('asin', product.asin)
-            .maybeSingle()
+      if (!purchasesData || purchasesData.length === 0) {
+        setProducts([])
+        return
+      }
 
-          return {
-            ...product,
-            productname: (product as any).product_name ?? null,
-            originindia: (product as any).origin_india ?? false,
-            originchina: (product as any).origin_china ?? false,
-            validation_funnel: validationData?.funnel ?? null,
-            validation_seller_tag: validationData?.seller_tag ?? null,
-            // ✅ ADD THESE 3 NEW FIELDS
-            product_weight: validationData?.product_weight ?? null,
-            usd_price: validationData?.usd_price ?? null,
-            inr_purchase_from_validation: validationData?.inr_purchase ?? null,
-          }
-        })
+      // 2. Extract all ASINs for bulk querying
+      const allAsins = purchasesData.map((p) => p.asin)
+
+      // 3. Fetch ALL validation data in ONE query (Batch 2)
+      // This replaces the loop that was causing the lag
+      const { data: validationDataArray, error: valError } = await supabase
+        .from('usa_validation_main_file')
+        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue')
+        .in('asin', allAsins)
+
+      if (valError) console.error('Validation fetch error:', valError)
+
+      // 4. Create a Map for instant lookup (O(1) complexity)
+      const validationMap = new Map(
+        (validationDataArray || []).map((v) => [v.asin, v])
       )
+
+      // 5. Merge data in memory
+      const enrichedData = purchasesData.map((product) => {
+        const validationData = validationMap.get(product.asin)
+
+        return {
+          ...product,
+          product_name: product.product_name ?? null,
+          origin_india: product.origin_india ?? false,
+          origin_china: product.origin_china ?? false,
+
+          // Validation Fields
+          validation_funnel: validationData?.funnel ?? null,
+          validation_seller_tag: validationData?.seller_tag ?? null,
+          product_weight: validationData?.product_weight ?? null,
+          usd_price: validationData?.usd_price ?? null,
+          inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+
+          // Ensure these are passed for other calculations
+          profit: validationData?.profit ?? null,
+        }
+      })
 
       setProducts(enrichedData)
     } catch (error) {
@@ -445,59 +464,59 @@ export default function PurchasesPage() {
     }
     // ✅ NO finally block - no setLoading(false)
   }
-    const handleMoveToTracking = async (product: PassFileProduct) => {
-  if (!product.admin_confirmed) {
-    alert('Only Order Confirmed items can be moved');
-    return;
-  }
+  const handleMoveToTracking = async (product: PassFileProduct) => {
+    if (!product.admin_confirmed) {
+      alert('Only Order Confirmed items can be moved');
+      return;
+    }
 
-  const { error: insertError } = await supabase
-    .from('usa_traking')   // ✅ TRACKING TABLE
-    .insert({
-      asin: product.asin,
-      product_link: product.product_link,
-      product_name: product.product_name,
-      target_price: product.target_price,
-      target_quantity: product.target_quantity,
-      buying_price: product.buying_price,
-      buying_quantity: product.buying_quantity,
-      seller_link: product.seller_link,
-      seller_phone: product.seller_phone,
-      payment_method: product.payment_method,
-      tracking_details: product.tracking_details,
-      delivery_date: product.delivery_date,
-      origin_india: product.origin_india,
-      origin_china: product.origin_china,
-      brand: product.brand,
-      seller_tag: product.seller_tag,
-      funnel: product.funnel,
-      inr_purchase_link: product.inr_purchase_link,
-      profit: product.profit,
-      product_weight: product.product_weight,
-      usd_price: product.usd_price,
-      inr_purchase: product.inr_purchase,
-      admin_target_price: product.admin_target_price,
-      admin_target_quantity: product.admin_target_quantity,
-      target_price_validation: product.target_price_validation,
-      target_price_link_validation: product.target_price_link_validation,
-      origin: product.origin,
-      funnel_quantity: product.funnel_quantity,
-      funnel_seller: product.funnel_seller
-    });
+    const { error: insertError } = await supabase
+      .from('usa_traking')   // ✅ TRACKING TABLE
+      .insert({
+        asin: product.asin,
+        product_link: product.product_link,
+        product_name: product.product_name,
+        target_price: product.target_price,
+        target_quantity: product.target_quantity,
+        buying_price: product.buying_price,
+        buying_quantity: product.buying_quantity,
+        seller_link: product.seller_link,
+        seller_phone: product.seller_phone,
+        payment_method: product.payment_method,
+        tracking_details: product.tracking_details,
+        delivery_date: product.delivery_date,
+        origin_india: product.origin_india,
+        origin_china: product.origin_china,
+        brand: product.brand,
+        seller_tag: product.seller_tag,
+        funnel: product.funnel,
+        inr_purchase_link: product.inr_purchase_link,
+        profit: product.profit,
+        product_weight: product.product_weight,
+        usd_price: product.usd_price,
+        inr_purchase: product.inr_purchase,
+        admin_target_price: product.admin_target_price,
+        admin_target_quantity: product.admin_target_quantity,
+        target_price_validation: product.target_price_validation,
+        target_price_link_validation: product.target_price_link_validation,
+        origin: product.origin,
+        funnel_quantity: product.funnel_quantity,
+        funnel_seller: product.funnel_seller
+      });
 
-  if (insertError) {
-    alert(insertError.message);
-    return;
-  }
+    if (insertError) {
+      alert(insertError.message);
+      return;
+    }
 
-  // ✅ DELETE FROM PURCHASES
-  await supabase
-    .from('usa_purchases')
-    .delete()
-    .eq('id', product.id);
+    // ✅ DELETE FROM PURCHASES
+    await supabase
+      .from('usa_purchases')
+      .delete()
+      .eq('id', product.id);
 
-  await refreshProductsSilently();
-};
+    await refreshProductsSilently();
+  };
 
 
   // Handle column resize
@@ -1019,20 +1038,20 @@ export default function PurchasesPage() {
                       {/* Move To Actions */}
                       {visibleColumns.moveto && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
                         <div className="flex gap-1 justify-center">
-                           <button
-                                type="button"
-                                onClick={() => {
-                                  if (activeTab === 'order_confirmed') {
-                                    handleMoveToTracking(product);   // ✅ NEW
-                                  } else {
-                                    handleSendToAdmin(product);      // ✅ OLD AS-IS
-                                  }
-                                }}
-                                className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
-                                title="Done"
-                              >
-                                D
-                              </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (activeTab === 'order_confirmed') {
+                                handleMoveToTracking(product);   // ✅ NEW
+                              } else {
+                                handleSendToAdmin(product);      // ✅ OLD AS-IS
+                              }
+                            }}
+                            className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
+                            title="Done"
+                          >
+                            D
+                          </button>
                           <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
                           <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
                         </div>
