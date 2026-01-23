@@ -4,8 +4,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-// Check your path (e.g. components/dashboard/Sidebar)
-import Sidebar from '@/components/layout/Sidebar'; 
+import Sidebar from '@/components/layout/Sidebar'; // ✅ Ensure this path is correct
 
 export default function DashboardLayout({
   children,
@@ -13,19 +12,21 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, loading } = useAuth();
-  const router = useRouter(); 
+  const router = useRouter();
 
   useEffect(() => {
-    // 1. Wait for loading
+    // 1. Wait for loading to finish
     if (loading) return;
 
-    // 2. If NOT logged in, send to login
+    // 2. If no user found, redirect to login
     if (!user) {
       router.push('/login');
     }
   }, [user, loading, router]);
 
-  // Loading Spinner (Only for initial auth check)
+  // === RENDER ===
+
+  // Show spinner ONLY while strictly loading
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-950 gap-4">

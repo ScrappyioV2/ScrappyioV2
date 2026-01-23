@@ -24,88 +24,64 @@ export function useAuth() {
   useEffect(() => {
     let isMounted = true
 
-    const checkUser = async () => {
+    // 1. Define the role fetcher to reuse it
+    const fetchUserRole = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+        
+        if (error) {
+          console.warn('Error fetching role:', error.message)
+          return null
+        }
+        return data as UserRole
+      } catch (err) {
+        return null
+      }
+    }
+
+    // 2. Initial Session Check
+    const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (!isMounted) return
 
-        if (error) {
-          console.error('Auth error:', error)
-          setUser(null)
-          setUserRole(null)
-          setLoading(false)
-          return
-        }
-
         if (session?.user) {
           setUser(session.user)
-
-          // ✅ Query user_roles table with correct columns
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('id, user_id, email, full_name, role, allowed_pages, is_active')
-            .eq('user_id', session.user.id)
-            .single()
-
-          if (!isMounted) return
-
-          if (roleError) {
-            console.error('Role fetch error:', roleError)
-            setUserRole(null)
-          } else if (roleData && roleData.is_active) {
-            setUserRole(roleData as UserRole)
-          } else {
-            setUserRole(null)
-            // Sign out inactive users
-            if (roleData && !roleData.is_active) {
-              await supabase.auth.signOut()
-              setUser(null)
-            }
-          }
-        } else {
-          setUser(null)
-          setUserRole(null)
+          const role = await fetchUserRole(session.user.id)
+          if (isMounted) setUserRole(role)
         }
       } catch (error) {
-        console.error('Unexpected auth error:', error)
-        if (isMounted) {
-          setUser(null)
-          setUserRole(null)
-        }
+        console.error('Session check failed', error)
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        if (isMounted) setLoading(false)
       }
     }
 
-    checkUser()
+    checkSession()
 
+    // 3. Realtime Listener (The Fix: Now handles loading state)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
-
-        console.log('Auth event:', event)
+        
+        // console.log('Auth event:', event) // Uncomment for debugging
 
         if (session?.user) {
           setUser(session.user)
-
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('id, user_id, email, full_name, role, allowed_pages, is_active')
-            .eq('user_id', session.user.id)
-            .single()
-
-          if (isMounted && roleData && roleData.is_active) {
-            setUserRole(roleData as UserRole)
-          } else {
-            setUserRole(null)
-          }
+          const role = await fetchUserRole(session.user.id)
+          if (isMounted) setUserRole(role)
         } else {
           setUser(null)
           setUserRole(null)
         }
+        
+        // ✅ CRITICAL FIX: Ensure loading is disabled after any auth event
+        setLoading(false)
       }
     )
 
@@ -115,28 +91,17 @@ export function useAuth() {
     }
   }, [])
 
-  const hasPageAccess = (pageKey: string): boolean => {
-    if (!userRole) return false
-    if (userRole.role === 'admin') return true
-    return (
-      userRole.allowed_pages.includes('*') ||
-      userRole.allowed_pages.includes('all') ||
-      userRole.allowed_pages.includes(pageKey)
-    )
-  }
-
   const logout = async () => {
     await supabase.auth.signOut()
     setUser(null)
     setUserRole(null)
-    router.push('/')
+    router.push('/login')
   }
 
   return {
     user,
     userRole,
     loading,
-    hasPageAccess,
     logout,
     isAdmin: userRole?.role === 'admin',
   }
