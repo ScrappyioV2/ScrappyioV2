@@ -1,3 +1,6 @@
+import { type LucideIcon } from 'lucide-react';
+
+// --- Existing Domain Types (Product, Seller) ---
 export type Product = {
   id: string;
   asin?: string;
@@ -26,4 +29,36 @@ export type Seller = {
   user_id: string;
   created_at: string;
   updated_at: string;
+};
+
+// --- New Authentication & Routing Types ---
+
+export type PermissionKey = 
+  // Menu Groups (Parent Access)
+  | 'manage-sellers'
+  | 'usa-selling'
+  | 'india-selling'
+  | 'uk-selling'
+  | 'uae-selling'
+  | 'flipkart'
+  | 'jio-mart'
+  
+  // Specific Page Permissions (Granular)
+  | 'view-brand-checking'
+  | 'view-validation'
+  | 'view-listing-errors'
+  | 'view-purchases'
+  | 'view-reorder'
+  
+  // System
+  | 'admin-access' 
+  | 'public';
+
+export type AppRoute = {
+  path: string;            
+  label: string;           
+  icon?: LucideIcon;       
+  permission: PermissionKey; 
+  subRoutes?: AppRoute[];  
+  exactMatch?: boolean;    
 };

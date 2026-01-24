@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import PageTransition from '@/components/layout/PageTransition';
@@ -25,7 +25,7 @@ import {
 const SELLER_ID = 4;
 const SELLER_NAME = "Velvet Vista";
 const BASE_TABLE_PREFIX = `usa_listing_error_seller_${SELLER_ID}`;
-const ITEMS_PER_PAGE = 100; // Matches your screenshot
+const ITEMS_PER_PAGE = 100;
 
 interface ListingProduct {
   id: string;
@@ -110,7 +110,6 @@ export default function VelvetVistaListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // ✅ UPDATED FETCH LOGIC WITH PAGINATION
   const fetchProducts = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -144,14 +143,25 @@ export default function VelvetVistaListingPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, user, page]); // Added 'page' dependency
+  }, [activeTab, debouncedSearch, user, page]);
 
-  // Fetch on change
+  // --- STABLE REFERENCE FOR FETCHING ---
+  // We use a ref so the Subscription Effect doesn't need 'fetchProducts' as a dependency
+  const fetchProductsRef = useRef(fetchProducts);
+  useEffect(() => {
+    fetchProductsRef.current = fetchProducts;
+  }, [fetchProducts]);
+
+  // 1. DATA FETCHING EFFECT (Runs on page/search change)
   useEffect(() => {
     fetchProducts();
+  }, [fetchProducts]);
 
+  // 2. SUBSCRIPTION EFFECT (Runs ONLY when tab changes)
+  // This prevents the WebSocket from closing/reopening when you type or change pages
+  useEffect(() => {
     const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-    const channelName = `realtime_${tableName}`;
+    const channelName = `realtime_${tableName}_${Date.now()}`; // Unique ID to prevent collisions
 
     const channel = supabase
       .channel(channelName)
@@ -159,7 +169,10 @@ export default function VelvetVistaListingPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: tableName },
         () => {
-          fetchProducts();
+          // Trigger fetch using the stable ref
+          if (fetchProductsRef.current) {
+            fetchProductsRef.current();
+          }
         }
       )
       .subscribe();
@@ -167,7 +180,7 @@ export default function VelvetVistaListingPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchProducts, activeTab]);
+  }, [activeTab]); // Only re-subscribe if the table changes
 
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
     const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).single();

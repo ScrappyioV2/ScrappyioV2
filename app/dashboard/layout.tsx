@@ -1,44 +1,51 @@
 "use client";
 
-import { useAuth } from '@/lib/hooks/useAuth';
-import { useRouter } from 'next/navigation';
+import { useAuth, AuthProvider } from '@/lib/hooks/useAuth';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import Sidebar from '@/components/layout/Sidebar'; 
+import Sidebar from '@/components/layout/Sidebar';
+import { APP_ROUTES } from '@/lib/config/routes';
+import { AppRoute } from '@/lib/types';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user, loading: authLoading } = useAuth();
+// 1. Inner Component
+function DashboardContent({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading, hasPageAccess } = useAuth();
   const router = useRouter();
-  
-  // Local state to control the spinner
+  const pathname = usePathname();
   const [showSpinner, setShowSpinner] = useState(true);
 
   useEffect(() => {
-    // 1. If auth is done loading, hide spinner
-    if (!authLoading) {
-      setShowSpinner(false);
-    }
-
-    // 2. FAILSAFE: Force spinner to hide after 2 seconds no matter what
-    const safetyTimer = setTimeout(() => {
-      setShowSpinner(false);
-    }, 2000);
-
+    if (!authLoading) setShowSpinner(false);
+    const safetyTimer = setTimeout(() => setShowSpinner(false), 2000);
     return () => clearTimeout(safetyTimer);
   }, [authLoading]);
 
-  // Redirect if spinner is gone and still no user
   useEffect(() => {
-    if (!showSpinner && !user && !authLoading) {
+    if (authLoading || showSpinner) return;
+    if (!user) {
       router.push('/login');
+      return;
     }
-  }, [showSpinner, user, authLoading, router]);
 
-  // === RENDER ===
+    const flattenRoutes = (routes: AppRoute[]): AppRoute[] => {
+      return routes.reduce((acc, route) => {
+        acc.push(route);
+        if (route.subRoutes) acc.push(...flattenRoutes(route.subRoutes));
+        return acc;
+      }, [] as AppRoute[]);
+    };
+
+    const allRoutes = flattenRoutes(APP_ROUTES);
+    const matchedRoute = allRoutes
+      .sort((a, b) => b.path.length - a.path.length)
+      .find(r => pathname === r.path || pathname.startsWith(`${r.path}/`));
+
+    if (matchedRoute && !hasPageAccess(matchedRoute.permission)) {
+       router.push('/unauthorized');
+    }
+
+  }, [pathname, user, authLoading, showSpinner, hasPageAccess, router]);
 
   if (showSpinner) {
     return (
@@ -49,7 +56,6 @@ export default function DashboardLayout({
     );
   }
 
-  // Prevent flash of content if user is missing (waiting for redirect)
   if (!user) return null;
 
   return (
@@ -59,5 +65,16 @@ export default function DashboardLayout({
         {children}
       </main>
     </div>
+  );
+}
+
+// 2. Main Layout Wrapper
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <DashboardContent>
+        {children}
+      </DashboardContent>
+    </AuthProvider>
   );
 }
