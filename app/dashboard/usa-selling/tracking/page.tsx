@@ -63,6 +63,9 @@ export default function TrackingPage() {
     const [activeTab, setActiveTab] = useState<TabType>('main_file');
     const [products, setProducts] = useState<PassFileProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [companyInvoiceCount, setCompanyInvoiceCount] = useState(0);
+    const [checkingCount, setCheckingCount] = useState(0);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [invoiceOpen, setInvoiceOpen] = useState(false)
@@ -116,74 +119,47 @@ export default function TrackingPage() {
 
     const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
 
-    const fetchProducts = async () => {
-        try {
-            setLoading(true)
+const fetchProducts = async () => {
+    try {
+        setLoading(true)
 
+        // ✅ Recursive fetch to handle 1000+ rows
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
             const { data: purchasesData, error: purchasesError } = await supabase
                 .from('usa_traking')
                 .select()
                 .order('created_at', { ascending: false })
+                .range(from, from + batchSize - 1);
 
-            if (purchasesError) throw purchasesError
+            if (purchasesError) throw purchasesError;
 
-            const enrichedData = await Promise.all(
-                purchasesData.map(async (product) => {
-                    const { data: validationData } = await supabase
-                        .from('usa_validation_main_file')
-                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                        .eq('asin', product.asin)
-                        .maybeSingle()
-
-                    return {
-                        ...product,
-                        productname: (product as any).product_name ?? null,
-                        originindia: (product as any).origin_india ?? false,
-                        originchina: (product as any).origin_china ?? false,
-                        validation_funnel: validationData?.funnel ?? null,
-                        validation_seller_tag: validationData?.seller_tag ?? null,
-                        product_weight: validationData?.product_weight ?? null,
-                        usd_price: validationData?.usd_price ?? null,
-                        inr_purchase_from_validation: validationData?.inr_purchase ?? null,
-                    }
-                })
-            )
-
-            setProducts(enrichedData)
-        } catch (error) {
-            console.error('Error fetching products:', error)
-        } finally {
-            setLoading(false)
+            if (purchasesData && purchasesData.length > 0) {
+                allData = [...allData, ...purchasesData];
+                from += batchSize;
+                hasMore = purchasesData.length === batchSize;
+            } else {
+                hasMore = false;
+            }
         }
-    }
 
-    const refreshProductsSilently = async () => {
-        try {
-            const { data: purchasesData, error: purchasesError } = await supabase
-                .from('usa_traking')
-                .select('*')
-                .order('created_at', { ascending: false })
-
-            if (purchasesError) throw purchasesError
-
-            const allAsins = purchasesData.map((p: any) => p.asin)
-            const { data: validationDataArray } = await supabase
-                .from('usa_validation_main_file')
-                .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                .in('asin', allAsins)
-
-            const validationMap = new Map(
-                (validationDataArray || []).map((v: any) => [v.asin, v])
-            )
-
-            const enrichedData = purchasesData.map((product: any) => {
-                const validationData = validationMap.get(product.asin)
+        const enrichedData = await Promise.all(
+            allData.map(async (product) => {
+                const { data: validationData } = await supabase
+                    .from('usa_validation_main_file')
+                    .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                    .eq('asin', product.asin)
+                    .maybeSingle()
 
                 return {
                     ...product,
-                    product_name: product.product_name ?? null,
-                    origin_india: product.origin_india ?? false,
-                    origin_china: product.origin_china ?? false,
+                    productname: (product as any).product_name ?? null,
+                    originindia: (product as any).origin_india ?? false,
+                    originchina: (product as any).origin_china ?? false,
                     validation_funnel: validationData?.funnel ?? null,
                     validation_seller_tag: validationData?.seller_tag ?? null,
                     product_weight: validationData?.product_weight ?? null,
@@ -191,20 +167,120 @@ export default function TrackingPage() {
                     inr_purchase_from_validation: validationData?.inr_purchase ?? null,
                 }
             })
+        )
 
-            setProducts(enrichedData)
-        } catch (error) {
-            console.error('Error refreshing products:', error)
-        }
+        setProducts(enrichedData)
+    } catch (error) {
+        console.error('Error fetching products:', error)
+    } finally {
+        setLoading(false)
     }
+}
+
+
+    const fetchCounts = async () => {
+        try {
+            // Fetch Company Invoice Details count
+            const { count: invoiceCount, error: invoiceError } = await supabase
+                .from('usa_tracking_company_invoice')
+                .select('*', { count: 'exact', head: true });
+
+            if (invoiceError) {
+                console.error('Error fetching invoice count:', invoiceError);
+            } else {
+                setCompanyInvoiceCount(invoiceCount || 0);
+            }
+
+            // Fetch Checking count
+            const { count: checkCount, error: checkError } = await supabase
+                .from('usa_checking')
+                .select('*', { count: 'exact', head: true });
+                 console.log('🔍 Checking Count Result:', { checkCount, checkError });
+
+            if (checkError) {
+                console.error('Error fetching checking count:', checkError);
+            } else {
+                setCheckingCount(checkCount || 0);
+            }
+        } catch (error) {
+            console.error('Error fetching counts:', error);
+        }
+    };
+
+
+    const refreshProductsSilently = async () => {
+    try {
+        // ✅ Recursive fetch to handle 1000+ rows
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data: purchasesData, error: purchasesError } = await supabase
+                .from('usa_traking')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .range(from, from + batchSize - 1);
+
+            if (purchasesError) throw purchasesError;
+
+            if (purchasesData && purchasesData.length > 0) {
+                allData = [...allData, ...purchasesData];
+                from += batchSize;
+                hasMore = purchasesData.length === batchSize;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        const allAsins = allData.map((p: any) => p.asin)
+        const { data: validationDataArray } = await supabase
+            .from('usa_validation_main_file')
+            .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+            .in('asin', allAsins)
+
+        const validationMap = new Map(
+            (validationDataArray || []).map((v: any) => [v.asin, v])
+        )
+
+        const enrichedData = allData.map((product: any) => {
+            const validationData = validationMap.get(product.asin)
+
+            return {
+                ...product,
+                product_name: product.product_name ?? null,
+                origin_india: product.origin_india ?? false,
+                origin_china: product.origin_china ?? false,
+                validation_funnel: validationData?.funnel ?? null,
+                validation_seller_tag: validationData?.seller_tag ?? null,
+                product_weight: validationData?.product_weight ?? null,
+                usd_price: validationData?.usd_price ?? null,
+                inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+            }
+        })
+
+        setProducts(enrichedData)
+    } catch (error) {
+        console.error('Error refreshing products:', error)
+    }
+}
+
 
     useEffect(() => {
         fetchProducts()
+        fetchCounts()  // ✅ ADD THIS LINE
 
         const channel = supabase
-            .channel('purchases-changes')
+            .channel('tracking-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_traking' }, () => {
                 refreshProductsSilently()
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_tracking_company_invoice' }, () => {
+                fetchCounts()  // ✅ Refresh counts when invoice changes
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_checking' }, () => {
+                fetchCounts()  // ✅ Refresh counts when checking changes
             })
             .subscribe()
 
@@ -212,6 +288,7 @@ export default function TrackingPage() {
             channel.unsubscribe()
         }
     }, [])
+
 
     const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
         checkbox: 50,
@@ -394,22 +471,23 @@ export default function TrackingPage() {
                         <button
                             onClick={() => setActiveTab('company_invoice_details')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'company_invoice_details'
-                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
-                            Company Invoice Details
+                            Company Invoice Details ({companyInvoiceCount})
                         </button>
 
                         <button
                             onClick={() => setActiveTab('checking')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'checking'
-                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
-                            Checking
+                            Checking ({checkingCount})
                         </button>
+
                     </div>
                 </div>
 
@@ -534,8 +612,8 @@ export default function TrackingPage() {
                         onClick={() => activeTab === 'main_file' && setRollbackOpen(true)}
                         disabled={activeTab !== 'main_file'}
                         className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'main_file'
-                                ? 'bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50 cursor-pointer'
-                                : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
+                            ? 'bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50 cursor-pointer'
+                            : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
                             }`}
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

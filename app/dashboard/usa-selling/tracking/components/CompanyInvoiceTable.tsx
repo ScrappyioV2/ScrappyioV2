@@ -58,22 +58,42 @@ export default function CompanyInvoiceTable() {
     fetchInvoiceData();
   }, []);
 
-  const fetchInvoiceData = async () => {
+const fetchInvoiceData = async () => {
     try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('usa_tracking_company_invoice')
-        .select('*')
-        .order('created_at', { ascending: false });
+        setLoading(true);
 
-      if (error) throw error;
-      setItems(data || []);
+        // ✅ Recursive fetch to handle 1000+ rows
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('usa_tracking_company_invoice')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .range(from, from + batchSize - 1);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                allData = [...allData, ...data];
+                from += batchSize;
+                hasMore = data.length === batchSize;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        setItems(allData);
     } catch (error) {
-      console.error('Error fetching invoice data:', error);
+        console.error('Error fetching invoice data:', error);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
+
 
   // Group items by invoice_number
   const groupedInvoices: GroupedInvoice[] = Object.values(

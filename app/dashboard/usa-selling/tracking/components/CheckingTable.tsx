@@ -92,24 +92,43 @@ export default function CheckingTable() {
 
   const fetchCheckingData = async () => {
     try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('usa_checking')
-        .select('*')
-        .order('moved_at', { ascending: false });
+        setLoading(true);
 
-      if (error) throw error;
+        // ✅ Recursive fetch to handle 1000+ rows
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
 
-      console.log('✅ Checking data fetched:', data);
-      console.log('✅ Number of items:', data?.length);
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('usa_checking')
+                .select('*')
+                .order('moved_at', { ascending: false })
+                .range(from, from + batchSize - 1);
 
-      setItems(data || []);
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                allData = [...allData, ...data];
+                from += batchSize;
+                hasMore = data.length === batchSize;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        console.log('✅ Checking data fetched:', allData);
+        console.log('✅ Number of items:', allData?.length);
+
+        setItems(allData);
     } catch (error) {
-      console.error('Error fetching checking data:', error);
+        console.error('Error fetching checking data:', error);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
+
 
   // Group items by invoice_number
   const groupedInvoices: GroupedInvoice[] = Object.values(
