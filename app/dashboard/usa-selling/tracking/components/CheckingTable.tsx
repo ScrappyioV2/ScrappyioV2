@@ -174,57 +174,57 @@ export default function CheckingTable() {
   };
 
   // Handle edit field with auto-save
-const handleEditField = async (itemId: string, field: string, value: number | null) => {
-  try {
-    // Update local state immediately for instant feedback
-    setItems((prevItems) => {
-      const newItems = prevItems.map((item) => {
-        if (item.id === itemId) {
-          const updatedItem = { ...item, [field]: value };
-          
-          // Auto-calculate amount if qty or price changed
-          if (field === 'buying_quantity' || field === 'buying_price') {
-            const qty = field === 'buying_quantity' ? value : item.buying_quantity;
-            const price = field === 'buying_price' ? value : item.buying_price;
-            updatedItem.amount = (qty || 0) * (price || 0);
+  const handleEditField = async (itemId: string, field: string, value: number | null) => {
+    try {
+      // Update local state immediately for instant feedback
+      setItems((prevItems) => {
+        const newItems = prevItems.map((item) => {
+          if (item.id === itemId) {
+            const updatedItem = { ...item, [field]: value };
+
+            // Auto-calculate amount if qty or price changed
+            if (field === 'buying_quantity' || field === 'buying_price') {
+              const qty = field === 'buying_quantity' ? value : item.buying_quantity;
+              const price = field === 'buying_price' ? value : item.buying_price;
+              updatedItem.amount = (qty || 0) * (price || 0);
+            }
+
+            return updatedItem;
           }
-          
-          return updatedItem;
-        }
-        return item;
+          return item;
+        });
+        return [...newItems]; // Force new array reference
       });
-      return [...newItems]; // Force new array reference
-    });
 
-    // Prepare update data
-    const updateData: any = { [field]: value };
-    
-    // If qty or price changed, recalculate amount
-    if (field === 'buying_quantity' || field === 'buying_price') {
-      const currentItem = items.find(i => i.id === itemId);
-      if (currentItem) {
-        const qty = field === 'buying_quantity' ? value : currentItem.buying_quantity;
-        const price = field === 'buying_price' ? value : currentItem.buying_price;
-        updateData.amount = (qty || 0) * (price || 0);
+      // Prepare update data
+      const updateData: any = { [field]: value };
+
+      // If qty or price changed, recalculate amount
+      if (field === 'buying_quantity' || field === 'buying_price') {
+        const currentItem = items.find(i => i.id === itemId);
+        if (currentItem) {
+          const qty = field === 'buying_quantity' ? value : currentItem.buying_quantity;
+          const price = field === 'buying_price' ? value : currentItem.buying_price;
+          updateData.amount = (qty || 0) * (price || 0);
+        }
       }
+
+      // Update database
+      const { error } = await supabase
+        .from('usa_checking')
+        .update(updateData)
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      console.log(`✅ Updated ${field} for item ${itemId}: ${value}`);
+    } catch (error: any) {
+      console.error('Error updating field:', error);
+      alert('Failed to update: ' + error.message);
+      // Revert on error
+      fetchCheckingData();
     }
-
-    // Update database
-    const { error } = await supabase
-      .from('usa_checking')
-      .update(updateData)
-      .eq('id', itemId);
-
-    if (error) throw error;
-
-    console.log(`✅ Updated ${field} for item ${itemId}: ${value}`);
-  } catch (error: any) {
-    console.error('Error updating field:', error);
-    alert('Failed to update: ' + error.message);
-    // Revert on error
-    fetchCheckingData();
-  }
-};
+  };
 
 
   // ✅ NEW: Truncate text helper function
@@ -294,7 +294,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
               <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.expand }}>
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -317,7 +317,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Invoice No
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -340,7 +340,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Invoice Date
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -363,7 +363,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 GST Number
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -386,7 +386,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Product Name
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -406,73 +406,73 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
 
               {/* Weight */}
               {/* Weight */}
-<th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
-  Weight
-  <div
-    className="absolute top-0 right-0 cursor-col-resize select-none"
-    style={{ 
-      width: '8px',
-      height: '100%',
-      backgroundColor: 'transparent',
-      borderRight: '2px solid #475569',
-      zIndex: 10,
-      userSelect: 'none'
-    }}
-    onMouseDown={(e) => handleResizeStart('weight', e)}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.borderRight = '2px solid #6366f1';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.borderRight = '2px solid #475569';
-    }}
-  />
-</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
+                Weight
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #475569',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('weight', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #6366f1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #475569';
+                  }}
+                />
+              </th>
 
-{/* Qty */}
-<th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
-  Qty
-  <div
-    className="absolute top-0 right-0 cursor-col-resize select-none"
-    style={{ 
-      width: '8px',
-      height: '100%',
-      backgroundColor: 'transparent',
-      borderRight: '2px solid #475569',
-      zIndex: 10,
-      userSelect: 'none'
-    }}
-    onMouseDown={(e) => handleResizeStart('qty', e)}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.borderRight = '2px solid #6366f1';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.borderRight = '2px solid #475569';
-    }}
-  />
-</th>
+              {/* Qty */}
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
+                Qty
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #475569',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('qty', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #6366f1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #475569';
+                  }}
+                />
+              </th>
 
-{/* Price */}
-<th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
-  Price
-  <div
-    className="absolute top-0 right-0 cursor-col-resize select-none"
-    style={{ 
-      width: '8px',
-      height: '100%',
-      backgroundColor: 'transparent',
-      borderRight: '2px solid #475569',
-      zIndex: 10,
-      userSelect: 'none'
-    }}
-    onMouseDown={(e) => handleResizeStart('price', e)}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.borderRight = '2px solid #6366f1';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.borderRight = '2px solid #475569';
-    }}
-  />
-</th>
+              {/* Price */}
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
+                Price
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #475569',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('price', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #6366f1';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #475569';
+                  }}
+                />
+              </th>
 
 
               {/* Amount */}
@@ -480,7 +480,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Amount
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -503,7 +503,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Tax Amount
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -526,7 +526,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Tracking Details
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -549,7 +549,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Delivery Date
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -572,7 +572,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Company
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -595,7 +595,7 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
                 Upload
                 <div
                   className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{ 
+                  style={{
                     width: '8px',
                     height: '100%',
                     backgroundColor: 'transparent',
@@ -664,66 +664,66 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
 
                       {/* ✅ Product Name - WITH TRUNCATION */}
                       {/* ✅ Product Name - WITH TRUNCATION */}
-<td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
-  {!hasMultipleItems ? (
-    truncateText(group.items[0].product_name || '', 30)
-  ) : (
-    <span className="text-slate-500 text-sm">Multiple</span>
-  )}
-</td>
+                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
+                        {!hasMultipleItems ? (
+                          truncateText(group.items[0].product_name || '', 30)
+                        ) : (
+                          <span className="text-slate-500 text-sm">Multiple</span>
+                        )}
+                      </td>
 
-{/* Weight - EDITABLE when single item */}
-<td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
-  {!hasMultipleItems ? (
-    <input
-      type="number"
-      step="0.01"
-      value={group.items[0].product_weight || ''}
-      onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
-      onClick={(e) => e.stopPropagation()}
-      className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-      placeholder="kg"
-    />
-  ) : (
-    <span className="text-slate-500 text-sm">Multiple</span>
-  )}
-</td>
+                      {/* Weight - EDITABLE when single item */}
+                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
+                        {!hasMultipleItems ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={group.items[0].product_weight || ''}
+                            onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                            placeholder="kg"
+                          />
+                        ) : (
+                          <span className="text-slate-500 text-sm">Multiple</span>
+                        )}
+                      </td>
 
-{/* Qty - EDITABLE when single item */}
-<td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
-  {!hasMultipleItems ? (
-    <input
-      type="number"
-      value={group.items[0].buying_quantity || ''}
-      onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
-      onClick={(e) => e.stopPropagation()}
-      className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-      placeholder="0"
-    />
-  ) : (
-    <span className="text-slate-500 text-sm">Multiple</span>
-  )}
-</td>
+                      {/* Qty - EDITABLE when single item */}
+                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
+                        {!hasMultipleItems ? (
+                          <input
+                            type="number"
+                            value={group.items[0].buying_quantity || ''}
+                            onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span className="text-slate-500 text-sm">Multiple</span>
+                        )}
+                      </td>
 
-{/* Price - EDITABLE when single item */}
-<td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
-  {!hasMultipleItems ? (
-    <div className="flex items-center gap-1">
-      <span className="text-slate-400 text-sm">₹</span>
-      <input
-        type="number"
-        step="0.01"
-        value={group.items[0].buying_price || ''}
-        onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
-        onClick={(e) => e.stopPropagation()}
-        className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-        placeholder="0.00"
-      />
-    </div>
-  ) : (
-    <span className="text-slate-500 text-sm">Multiple</span>
-  )}
-</td>
+                      {/* Price - EDITABLE when single item */}
+                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
+                        {!hasMultipleItems ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 text-sm">₹</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={group.items[0].buying_price || ''}
+                              onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 text-sm">Multiple</span>
+                        )}
+                      </td>
 
 
                       {/* EXISTING COLUMNS */}
@@ -806,131 +806,131 @@ const handleEditField = async (itemId: string, field: string, value: number | nu
 
                     {/* Expanded Card - Show individual items */}
                     {/* Expanded Card - Show individual items */}
-{/* Expanded Card - Show individual items */}
-{isExpanded && hasMultipleItems && (
-  <tr>
-    <td colSpan={15} className="bg-slate-800/30 px-4 py-3">
-      <div className="ml-8 space-y-2">
-        {group.items.map((item, idx) => (
-          <div
-            key={item.id}
-            className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-md hover:border-indigo-500/50 transition-all"
-          >
-            <div className="flex items-center gap-6 text-sm">
-              {/* ASIN */}
-              <div className="flex items-center gap-2 min-w-[120px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">ASIN:</span>
-                <span className="font-mono text-indigo-400 font-semibold">{item.asin}</span>
-              </div>
+                    {/* Expanded Card - Show individual items */}
+                    {isExpanded && hasMultipleItems && (
+                      <tr>
+                        <td colSpan={15} className="bg-slate-800/30 px-4 py-3">
+                          <div className="ml-8 space-y-2">
+                            {group.items.map((item, idx) => (
+                              <div
+                                key={item.id}
+                                className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-md hover:border-indigo-500/50 transition-all"
+                              >
+                                <div className="flex items-center gap-6 text-sm">
+                                  {/* ASIN */}
+                                  <div className="flex items-center gap-2 min-w-[120px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">ASIN:</span>
+                                    <span className="font-mono text-indigo-400 font-semibold">{item.asin}</span>
+                                  </div>
 
-              {/* Product Name */}
-              <div className="flex items-center gap-2 flex-1 min-w-0" title={item.product_name || ''}>
-                <span className="text-xs font-semibold text-slate-500 uppercase">Product:</span>
-                <span className="text-slate-200 truncate">{item.product_name || '-'}</span>
-              </div>
+                                  {/* Product Name */}
+                                  <div className="flex items-center gap-2 flex-1 min-w-0" title={item.product_name || ''}>
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Product:</span>
+                                    <span className="text-slate-200 truncate">{item.product_name || '-'}</span>
+                                  </div>
 
-              {/* Weight - EDITABLE */}
-              <div className="flex items-center gap-2 min-w-[120px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Weight:</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={item.product_weight || ''}
-                  onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                  placeholder="kg"
-                />
-              </div>
+                                  {/* Weight - EDITABLE */}
+                                  <div className="flex items-center gap-2 min-w-[120px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Weight:</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.product_weight || ''}
+                                      onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                      placeholder="kg"
+                                    />
+                                  </div>
 
-              {/* Quantity - EDITABLE */}
-              <div className="flex items-center gap-2 min-w-[100px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Qty:</span>
-                <input
-                  type="number"
-                  value={item.buying_quantity || ''}
-                  onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                  placeholder="0"
-                />
-              </div>
+                                  {/* Quantity - EDITABLE */}
+                                  <div className="flex items-center gap-2 min-w-[100px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Qty:</span>
+                                    <input
+                                      type="number"
+                                      value={item.buying_quantity || ''}
+                                      onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                      placeholder="0"
+                                    />
+                                  </div>
 
-              {/* Price - EDITABLE */}
-              <div className="flex items-center gap-2 min-w-[130px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Price:</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400 text-sm">₹</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={item.buying_price || ''}
-                    onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
+                                  {/* Price - EDITABLE */}
+                                  <div className="flex items-center gap-2 min-w-[130px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Price:</span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-slate-400 text-sm">₹</span>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={item.buying_price || ''}
+                                        onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                        placeholder="0.00"
+                                      />
+                                    </div>
+                                  </div>
 
-              {/* Amount - AUTO-CALCULATED */}
-              <div className="flex items-center gap-2 min-w-[120px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Amount:</span>
-                <span className="font-bold text-green-400">
-                  {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
-                </span>
-              </div>
+                                  {/* Amount - AUTO-CALCULATED */}
+                                  <div className="flex items-center gap-2 min-w-[120px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Amount:</span>
+                                    <span className="font-bold text-green-400">
+                                      {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
+                                    </span>
+                                  </div>
 
-              {/* Tracking */}
-              <div className="flex items-center gap-2 min-w-[140px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Tracking:</span>
-                <span className="text-slate-200 truncate" title={item.tracking_details || ''}>
-                  {item.tracking_details || '-'}
-                </span>
-              </div>
+                                  {/* Tracking */}
+                                  <div className="flex items-center gap-2 min-w-[140px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Tracking:</span>
+                                    <span className="text-slate-200 truncate" title={item.tracking_details || ''}>
+                                      {item.tracking_details || '-'}
+                                    </span>
+                                  </div>
 
-              {/* Delivery Date */}
-              <div className="flex items-center gap-2 min-w-[120px]">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Delivery:</span>
-                <span className="text-slate-200">
-                  {item.delivery_date
-                    ? new Date(item.delivery_date).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                      })
-                    : '-'}
-                </span>
-              </div>
+                                  {/* Delivery Date */}
+                                  <div className="flex items-center gap-2 min-w-[120px]">
+                                    <span className="text-xs font-semibold text-slate-500 uppercase">Delivery:</span>
+                                    <span className="text-slate-200">
+                                      {item.delivery_date
+                                        ? new Date(item.delivery_date).toLocaleDateString('en-IN', {
+                                          day: '2-digit',
+                                          month: 'short',
+                                        })
+                                        : '-'}
+                                    </span>
+                                  </div>
 
-              {/* Action - Checkbox OR Done */}
-              <div className="flex items-center min-w-[100px] justify-end">
-                {item.product_received ? (
-                  <span className="flex items-center gap-1.5 bg-green-600/20 text-green-400 px-3 py-1 rounded-md font-semibold text-xs border border-green-600/30">
-                    <span>✓</span> Done
-                  </span>
-                ) : (
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={item.product_received || false}
-                      onChange={(e) =>
-                        handleCheckboxChange(item.id, e.target.checked)
-                      }
-                      className="w-4 h-4 cursor-pointer accent-green-600"
-                    />
-                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
-                      Received
-                    </span>
-                  </label>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </td>
-  </tr>
-)}
+                                  {/* Action - Checkbox OR Done */}
+                                  <div className="flex items-center min-w-[100px] justify-end">
+                                    {item.product_received ? (
+                                      <span className="flex items-center gap-1.5 bg-green-600/20 text-green-400 px-3 py-1 rounded-md font-semibold text-xs border border-green-600/30">
+                                        <span>✓</span> Done
+                                      </span>
+                                    ) : (
+                                      <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          checked={item.product_received || false}
+                                          onChange={(e) =>
+                                            handleCheckboxChange(item.id, e.target.checked)
+                                          }
+                                          className="w-4 h-4 cursor-pointer accent-green-600"
+                                        />
+                                        <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
+                                          Received
+                                        </span>
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
 
 
                   </React.Fragment>

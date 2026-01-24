@@ -28,7 +28,7 @@ export default function RollbackModal({
     const [searchQuery, setSearchQuery] = useState('');
     const [processing, setProcessing] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    
+
     // Fetch invoices grouped by invoice_number
     useEffect(() => {
         if (open) {
@@ -37,64 +37,64 @@ export default function RollbackModal({
     }, [open]);
 
     const fetchInvoices = async () => {
-    try {
-        setLoading(true);
+        try {
+            setLoading(true);
 
-        // Step 1: Get the most recent invoice from MASTER table (usa_company_invoice)
-        const { data: latestInvoice, error: latestError } = await supabase
-            .from('usa_company_invoice')  // ✅ CHANGED: Fetch from MASTER table
-            .select('invoice_number, invoice_date, created_at')
-            .order('created_at', { ascending: false })  // ✅ Sort by when it was moved
-            .limit(1)
-            .single();
+            // Step 1: Get the most recent invoice from MASTER table (usa_company_invoice)
+            const { data: latestInvoice, error: latestError } = await supabase
+                .from('usa_company_invoice')  // ✅ CHANGED: Fetch from MASTER table
+                .select('invoice_number, invoice_date, created_at')
+                .order('created_at', { ascending: false })  // ✅ Sort by when it was moved
+                .limit(1)
+                .single();
 
-        if (latestError) {
-            // If no invoices found, just show empty
-            if (latestError.code === 'PGRST116') {
+            if (latestError) {
+                // If no invoices found, just show empty
+                if (latestError.code === 'PGRST116') {
+                    setInvoices([]);
+                    setLoading(false);
+                    return;
+                }
+                throw latestError;
+            }
+
+            if (!latestInvoice) {
                 setInvoices([]);
                 setLoading(false);
                 return;
             }
-            throw latestError;
-        }
 
-        if (!latestInvoice) {
-            setInvoices([]);
+            // Step 2: Get ALL rows for that invoice_number from DETAIL table
+            const { data, error } = await supabase
+                .from('usa_tracking_company_invoice')
+                .select('invoice_number, invoice_date, amount')
+                .eq('invoice_number', latestInvoice.invoice_number);
+
+            if (error) throw error;
+
+            // Group by invoice_number (should be only 1 group since we filtered by invoice_number)
+            const grouped = data.reduce((acc: Record<string, InvoiceGroup>, item) => {
+                if (!acc[item.invoice_number]) {
+                    acc[item.invoice_number] = {
+                        invoice_number: item.invoice_number,
+                        invoice_date: item.invoice_date,
+                        asin_count: 0,
+                        total_amount: 0,
+                    };
+                }
+                acc[item.invoice_number].asin_count += 1;
+                acc[item.invoice_number].total_amount += item.amount || 0;
+                return acc;
+            }, {});
+
+            setInvoices(Object.values(grouped));
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
+            alert('Failed to load invoices');
+        } finally {
             setLoading(false);
-            return;
         }
-
-        // Step 2: Get ALL rows for that invoice_number from DETAIL table
-        const { data, error } = await supabase
-            .from('usa_tracking_company_invoice')
-            .select('invoice_number, invoice_date, amount')
-            .eq('invoice_number', latestInvoice.invoice_number);
-
-        if (error) throw error;
-
-        // Group by invoice_number (should be only 1 group since we filtered by invoice_number)
-        const grouped = data.reduce((acc: Record<string, InvoiceGroup>, item) => {
-            if (!acc[item.invoice_number]) {
-                acc[item.invoice_number] = {
-                    invoice_number: item.invoice_number,
-                    invoice_date: item.invoice_date,
-                    asin_count: 0,
-                    total_amount: 0,
-                };
-            }
-            acc[item.invoice_number].asin_count += 1;
-            acc[item.invoice_number].total_amount += item.amount || 0;
-            return acc;
-        }, {});
-
-        setInvoices(Object.values(grouped));
-    } catch (error) {
-        console.error('Error fetching invoices:', error);
-        alert('Failed to load invoices');
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
 
     // Handle select all
@@ -371,11 +371,10 @@ export default function RollbackModal({
                         <button
                             onClick={handleRollback}
                             disabled={selectedInvoices.size === 0 || processing}
-                            className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${
-                                selectedInvoices.size === 0 || processing
+                            className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${selectedInvoices.size === 0 || processing
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                                     : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/50'
-                            }`}
+                                }`}
                         >
                             {processing ? 'Processing...' : 'Rollback Selected'}
                         </button>
@@ -387,11 +386,10 @@ export default function RollbackModal({
             {toast && (
                 <div className="fixed top-6 right-6 z-[100] animate-slide-in">
                     <div
-                        className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] border ${
-                            toast.type === 'success'
+                        className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] border ${toast.type === 'success'
                                 ? 'bg-green-600 text-white border-green-500'
                                 : 'bg-red-600 text-white border-red-500'
-                        }`}
+                            }`}
                     >
                         <span className="text-2xl">
                             {toast.type === 'success' ? '✅' : '❌'}

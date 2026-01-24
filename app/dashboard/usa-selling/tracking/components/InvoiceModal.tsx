@@ -519,8 +519,8 @@ export default function InvoiceModal({
         <div className="fixed top-4 right-4 z-[100] animate-slide-in">
           <div
             className={`px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === 'success'
-                ? 'bg-green-600 text-white'
-                : 'bg-red-600 text-white'
+              ? 'bg-green-600 text-white'
+              : 'bg-red-600 text-white'
               }`}
           >
             <span className="text-2xl">

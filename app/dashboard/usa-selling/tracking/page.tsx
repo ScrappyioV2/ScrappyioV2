@@ -384,8 +384,8 @@ export default function TrackingPage() {
                         <button
                             onClick={() => setActiveTab('main_file')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'main_file'
-                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})
@@ -394,8 +394,8 @@ export default function TrackingPage() {
                         <button
                             onClick={() => setActiveTab('company_invoice_details')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'company_invoice_details'
-                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Company Invoice Details
@@ -404,8 +404,8 @@ export default function TrackingPage() {
                         <button
                             onClick={() => setActiveTab('checking')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'checking'
-                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Checking
@@ -427,8 +427,8 @@ export default function TrackingPage() {
                         disabled={selectedIds.size === 0}
                         onClick={() => setInvoiceOpen(true)}
                         className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${selectedIds.size === 0
-                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                                : 'bg-green-600 text-white hover:bg-green-500 shadow-lg'
+                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                            : 'bg-green-600 text-white hover:bg-green-500 shadow-lg'
                             }`}
                     >
                         Convert to Invoice
@@ -529,21 +529,20 @@ export default function TrackingPage() {
                     </div>
 
                     {/* ✅ Rollback Button - ONLY SHOW IN CHECKING TAB */}
-                   {/* ✅ Rollback Button - Active only in Main File */}
-<button
-    onClick={() => activeTab === 'main_file' && setRollbackOpen(true)}
-    disabled={activeTab !== 'main_file'}
-    className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all ${
-        activeTab === 'main_file'
-            ? 'bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50 cursor-pointer'
-            : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
-    }`}
->
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-    </svg>
-    Rollback
-</button>
+                    {/* ✅ Rollback Button - Active only in Main File */}
+                    <button
+                        onClick={() => activeTab === 'main_file' && setRollbackOpen(true)}
+                        disabled={activeTab !== 'main_file'}
+                        className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'main_file'
+                                ? 'bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50 cursor-pointer'
+                                : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
+                            }`}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        Rollback
+                    </button>
 
 
                 </div>
