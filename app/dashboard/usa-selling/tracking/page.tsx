@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import InvoiceModal from './components/InvoiceModal'
 import CompanyInvoiceTable from './components/CompanyInvoiceTable'
 import CheckingTable from './components/CheckingTable';
-
+import RollbackModal from './components/RollbackModal'
 
 type PassFileProduct = {
     id: string
@@ -67,33 +67,34 @@ export default function TrackingPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [invoiceOpen, setInvoiceOpen] = useState(false)
+    const [rollbackOpen, setRollbackOpen] = useState(false)
     const selectedItems = products
-  .filter((p) => selectedIds.has(p.id))
-  .map((p) => ({
-    asin: p.asin,
-    product_name: p.product_name,
-    target_price: p.target_price,
-    target_quantity: p.target_quantity,
-    buying_price: p.buying_price,
-    buying_quantity: p.buying_quantity,
-    seller_link: p.seller_link,
-    seller_phone: p.seller_phone,
-    payment_method: p.payment_method,
-    tracking_details: p.tracking_details,
-    delivery_date: p.delivery_date,
-    origin_india: p.origin_india,
-    origin_china: p.origin_china,
-    brand: p.brand,
-    seller_tag: p.seller_tag || p.validation_seller_tag,
-    funnel: p.funnel || p.validation_funnel,
-    admin_target_price: (p as any).admin_target_price,
-    inr_purchase_link: (p as any).inr_purchase_link,
-    product_weight: p.product_weight || 0,
-  }));
+        .filter((p) => selectedIds.has(p.id))
+        .map((p) => ({
+            asin: p.asin,
+            product_name: p.product_name,
+            target_price: p.target_price,
+            target_quantity: p.target_quantity,
+            buying_price: p.buying_price,
+            buying_quantity: p.buying_quantity,
+            seller_link: p.seller_link,
+            seller_phone: p.seller_phone,
+            payment_method: p.payment_method,
+            tracking_details: p.tracking_details,
+            delivery_date: p.delivery_date,
+            origin_india: p.origin_india,
+            origin_china: p.origin_china,
+            brand: p.brand,
+            seller_tag: p.seller_tag || p.validation_seller_tag,
+            funnel: p.funnel || p.validation_funnel,
+            admin_target_price: (p as any).admin_target_price,
+            inr_purchase_link: (p as any).inr_purchase_link,
+            product_weight: p.product_weight || 0,
+        }));
 
 
-// Debug: Check selected items
-console.log('✅ Selected items for invoice:', selectedItems);
+    // Debug: Check selected items
+    console.log('✅ Selected items for invoice:', selectedItems);
 
 
     // Column visibility state - ALL columns visible by default
@@ -380,7 +381,6 @@ console.log('✅ Selected items for invoice:', selectedItems);
     };
 
 
-
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -429,8 +429,8 @@ console.log('✅ Selected items for invoice:', selectedItems);
                         <button
                             onClick={() => setActiveTab('checking')}
                             className={`px-6 py-3 font-semibold text-sm border-b-2 ${activeTab === 'checking'
-                                    ? 'border-blue-600 text-blue-600'
-                                    : 'border-transparent text-gray-600'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-gray-600'
                                 }`}
                         >
                             Checking
@@ -548,6 +548,15 @@ console.log('✅ Selected items for invoice:', selectedItems);
                             </>
                         )}
                     </div>
+                     <button
+                            onClick={() => setRollbackOpen(true)}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Rollback
+                        </button>
                 </div>
 
                 {/* Table Container - SCROLLABLE ONLY */}
@@ -679,6 +688,12 @@ console.log('✅ Selected items for invoice:', selectedItems);
                                                     Seller Link
                                                 </th>
                                             )}
+
+                                            {visibleColumns.sellerphno && (
+    <th className="px-3 py-3 text-xs font-semibold uppercase">
+        Seller Ph No.
+    </th>
+)}
 
                                             {visibleColumns.paymentmethod && (
                                                 <th className="px-3 py-3 text-xs font-semibold uppercase">
@@ -957,10 +972,10 @@ console.log('✅ Selected items for invoice:', selectedItems);
                             </div>
                         )}
                         {activeTab === 'checking' && (
-  <div className="p-4 bg-white min-h-full">
-    <CheckingTable />
-  </div>
-)}
+                            <div className="p-4 bg-white min-h-full">
+                                <CheckingTable />
+                            </div>
+                        )}
                         {/* Footer Stats - FIXED */}
                         <div className="flex-none border-t bg-gray-50 px-4 py-3">
                             <div className="text-sm text-gray-600">
@@ -971,17 +986,24 @@ console.log('✅ Selected items for invoice:', selectedItems);
                     </div>
                 </div>
             </div>
-<InvoiceModal
-  open={invoiceOpen}
-  onClose={() => setInvoiceOpen(false)}
-  items={selectedItems}
-  onSuccess={() => {
-    // Refresh the page data
-    fetchProducts(); // Your existing fetch function
-    setSelectedIds(new Set()); // Clear selections
-  }}
-/>
-
+            <InvoiceModal
+                open={invoiceOpen}
+                onClose={() => setInvoiceOpen(false)}
+                items={selectedItems}
+                onSuccess={() => {
+                    // Refresh the page data
+                    fetchProducts(); // Your existing fetch function
+                    setSelectedIds(new Set()); // Clear selections
+                }}
+            />
+            <RollbackModal
+                open={rollbackOpen}
+                onClose={() => setRollbackOpen(false)}
+                onSuccess={() => {
+                    fetchProducts(); // Refresh Main File
+                    setRollbackOpen(false);
+                }}
+            />
 
         </PageGuard>
     );
