@@ -2,32 +2,30 @@
 
 import { useAuth, AuthProvider } from '@/lib/hooks/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import { APP_ROUTES } from '@/lib/config/routes';
 import { AppRoute } from '@/lib/types';
 
-// 1. Inner Component
+// 1. Inner Component (The Logic)
 function DashboardContent({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading, hasPageAccess } = useAuth();
+  const { user, loading, hasPageAccess } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [showSpinner, setShowSpinner] = useState(true);
 
+  // Redirect Logic
   useEffect(() => {
-    if (!authLoading) setShowSpinner(false);
-    const safetyTimer = setTimeout(() => setShowSpinner(false), 2000);
-    return () => clearTimeout(safetyTimer);
-  }, [authLoading]);
+    // Wait for auth to finish loading
+    if (loading) return;
 
-  useEffect(() => {
-    if (authLoading || showSpinner) return;
+    // 1. No User -> Login
     if (!user) {
-      router.push('/login');
+      router.replace('/login'); // Use replace to prevent "Back" button loops
       return;
     }
 
+    // 2. Permission Check
     const flattenRoutes = (routes: AppRoute[]): AppRoute[] => {
       return routes.reduce((acc, route) => {
         acc.push(route);
@@ -38,37 +36,40 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     const allRoutes = flattenRoutes(APP_ROUTES);
     const matchedRoute = allRoutes
-      .sort((a, b) => b.path.length - a.path.length)
+      .sort((a, b) => b.path.length - a.path.length) // Match longest path first
       .find(r => pathname === r.path || pathname.startsWith(`${r.path}/`));
 
+    // If route is protected and user lacks permission -> Unauthorized
     if (matchedRoute && !hasPageAccess(matchedRoute.permission)) {
        router.push('/unauthorized');
     }
 
-  }, [pathname, user, authLoading, showSpinner, hasPageAccess, router]);
+  }, [user, loading, pathname, router, hasPageAccess]);
 
-  if (showSpinner) {
+  // Loading State (Minimal & Fast)
+  if (loading) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-950 gap-4">
-        <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
-        <p className="text-slate-400 animate-pulse">Loading Dashboard...</p>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
     );
   }
 
+  // If no user, render nothing while redirect happens (prevents flash)
   if (!user) return null;
 
+  // Render Dashboard
   return (
     <div className="flex h-screen bg-slate-950">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto bg-slate-50 transition-all duration-300">
         {children}
       </main>
     </div>
   );
 }
 
-// 2. Main Layout Wrapper
+// 2. Main Wrapper
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
