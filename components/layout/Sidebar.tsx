@@ -10,12 +10,13 @@ import {
   ChevronDown,
   Rocket,
   ShieldCheck,
-  Circle
+  Circle,
+  Loader2
 } from 'lucide-react'
 
 // ✅ CRITICAL: This must be "export default"
 export default function Sidebar() {
-  const { userRole, logout, hasPageAccess } = useAuth()
+  const { userRole, logout, hasPageAccess, loading } = useAuth()
   
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     '/dashboard/manage-sellers': true,
@@ -26,9 +27,14 @@ export default function Sidebar() {
     setOpenMenus(prev => ({ ...prev, [path]: !prev[path] }))
   }
 
-  // ✅ REMOVED: The specific loading spinner for Sidebar.
-  // The Main Layout handles the critical auth loading. 
-  // The sidebar will now simply render empty/safe state until data arrives instantly.
+  // Loading State
+  if (loading) {
+    return (
+      <aside className="w-64 min-h-screen bg-slate-950 border-r border-slate-800 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+      </aside>
+    )
+  }
 
   return (
     <aside className="w-64 min-h-screen bg-slate-950 border-r border-slate-800 text-slate-400 flex flex-col">
