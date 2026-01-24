@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
