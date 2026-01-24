@@ -49,6 +49,8 @@ export type PermissionKey =
   | 'view-listing-errors'
   | 'view-purchases'
   | 'view-reorder'
+  | 'view-tracking'
+  
   
   // System
   | 'admin-access' 
