@@ -10,45 +10,45 @@ import RollbackModal from './components/RollbackModal'
 type PassFileProduct = {
     id: string
     asin: string
-    product_name: string | null  // ✅ Underscore
+    product_name: string | null
     brand: string | null
-    seller_tag: string | null  // ✅ Underscore
+    seller_tag: string | null
     funnel: string | null
-    origin_india: boolean | null  // ✅ Underscore
-    origin_china: boolean | null  // ✅ Underscore
-    usd_price: number | null  // ✅ Underscore
-    inr_purchase: number | null  // ✅ Underscore
-    usa_link: string | null  // ✅ Underscore
-    product_link: string | null  // ✅ Underscore
-    target_price: number | null  // ✅ Underscore
-    admin_target_price: number | null  // ✅ Underscore
-    target_quantity: number | null  // ✅ Underscore
-    funnel_quantity?: number | null  // ✅ Underscore
-    funnel_seller?: string | null  // ✅ Underscore
-    inr_purchase_link?: string | null  // ✅ Underscore
-    buying_price: number | null  // ✅ Underscore
-    buying_quantity: number | null  // ✅ Underscore
-    seller_link: string | null  // ✅ Underscore
-    seller_phone: string | null  // ✅ Underscore
-    payment_method: string | null  // ✅ Underscore
-    tracking_details: string | null  // ✅ Underscore
-    delivery_date: string | null  // ✅ Underscore
+    origin_india: boolean | null
+    origin_china: boolean | null
+    usd_price: number | null
+    inr_purchase: number | null
+    usa_link: string | null
+    product_link: string | null
+    target_price: number | null
+    admin_target_price: number | null
+    target_quantity: number | null
+    funnel_quantity?: number | null
+    funnel_seller?: string | null
+    inr_purchase_link?: string | null
+    buying_price: number | null
+    buying_quantity: number | null
+    seller_link: string | null
+    seller_phone: string | null
+    payment_method: string | null
+    tracking_details: string | null
+    delivery_date: string | null
     status: string | null
-    move_to: string | null  // ✅ Underscore
-    sent_to_admin: boolean | null  // ✅ Underscore
-    sent_to_admin_at: string | null  // ✅ Underscore
-    admin_confirmed: boolean | null  // ✅ Underscore
-    admin_confirmed_at: string | null  // ✅ Underscore
-    check_brand: boolean | null  // ✅ Underscore
-    check_item_expire: boolean | null  // ✅ Underscore
-    check_small_size: boolean | null  // ✅ Underscore
-    check_multi_seller: boolean | null  // ✅ Underscore
-    created_at: string | null  // ✅ Underscore
-    validation_funnel_seller?: string | null  // ✅ Underscore
-    validation_funnel_quantity?: number | null  // ✅ Underscore
-    validation_seller_tag?: string | null  // ✅ Underscore
-    validation_funnel?: string | null  // ✅ Underscore
-    productweight?: number | null    // ✅ NEW
+    move_to: string | null
+    sent_to_admin: boolean | null
+    sent_to_admin_at: string | null
+    admin_confirmed: boolean | null
+    admin_confirmed_at: string | null
+    check_brand: boolean | null
+    check_item_expire: boolean | null
+    check_small_size: boolean | null
+    check_multi_seller: boolean | null
+    created_at: string | null
+    validation_funnel_seller?: string | null
+    validation_funnel_quantity?: number | null
+    validation_seller_tag?: string | null
+    validation_funnel?: string | null
+    productweight?: number | null
     product_weight?: number | null
     target_price_validation?: number | null
     target_price_link_validation?: string | null
@@ -58,7 +58,6 @@ type PassFileProduct = {
 }
 
 type TabType = 'main_file' | 'company_invoice_details' | 'checking';
-
 
 export default function TrackingPage() {
     const [activeTab, setActiveTab] = useState<TabType>('main_file');
@@ -92,12 +91,8 @@ export default function TrackingPage() {
             product_weight: p.product_weight || 0,
         }));
 
-
-    // Debug: Check selected items
     console.log('✅ Selected items for invoice:', selectedItems);
 
-
-    // Column visibility state - ALL columns visible by default
     const [visibleColumns, setVisibleColumns] = useState({
         checkbox: true,
         asin: true,
@@ -125,21 +120,18 @@ export default function TrackingPage() {
         try {
             setLoading(true)
 
-            // Fetch purchases
             const { data: purchasesData, error: purchasesError } = await supabase
-                .from('usa_traking')  // ✅ Correct table name
+                .from('usa_traking')
                 .select()
-                .order('created_at', { ascending: false })  // ✅ Underscore
+                .order('created_at', { ascending: false })
 
             if (purchasesError) throw purchasesError
 
-            // Fetch validation data for sellertag and funnel badges
             const enrichedData = await Promise.all(
                 purchasesData.map(async (product) => {
-                    // Fetch from validation main file table
                     const { data: validationData } = await supabase
                         .from('usa_validation_main_file')
-                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')  // ✅ ADDED 3 fields
+                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
                         .eq('asin', product.asin)
                         .maybeSingle()
 
@@ -150,7 +142,6 @@ export default function TrackingPage() {
                         originchina: (product as any).origin_china ?? false,
                         validation_funnel: validationData?.funnel ?? null,
                         validation_seller_tag: validationData?.seller_tag ?? null,
-                        // ✅ ADD THESE 3 NEW FIELDS
                         product_weight: validationData?.product_weight ?? null,
                         usd_price: validationData?.usd_price ?? null,
                         inr_purchase_from_validation: validationData?.inr_purchase ?? null,
@@ -166,10 +157,8 @@ export default function TrackingPage() {
         }
     }
 
-    // ✅ Silent refresh - updates data WITHOUT loading screen (OPTIMIZED)
     const refreshProductsSilently = async () => {
         try {
-            // Fetch purchases
             const { data: purchasesData, error: purchasesError } = await supabase
                 .from('usa_traking')
                 .select('*')
@@ -177,19 +166,16 @@ export default function TrackingPage() {
 
             if (purchasesError) throw purchasesError
 
-            // Fetch ALL validation data in ONE query (much faster)
             const allAsins = purchasesData.map((p: any) => p.asin)
             const { data: validationDataArray } = await supabase
                 .from('usa_validation_main_file')
                 .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
                 .in('asin', allAsins)
 
-            // Create lookup map for fast access
             const validationMap = new Map(
                 (validationDataArray || []).map((v: any) => [v.asin, v])
             )
 
-            // Enrich data
             const enrichedData = purchasesData.map((product: any) => {
                 const validationData = validationMap.get(product.asin)
 
@@ -212,8 +198,6 @@ export default function TrackingPage() {
         }
     }
 
-
-    // ✅ FIXED: Proper async handling in useEffect
     useEffect(() => {
         fetchProducts()
 
@@ -229,7 +213,6 @@ export default function TrackingPage() {
         }
     }, [])
 
-    // Column widths state for resizable columns
     const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
         checkbox: 50,
         asin: 120,
@@ -241,7 +224,7 @@ export default function TrackingPage() {
         funnelquantity: 70,
         funnelseller: 70,
         inrpurchaselink: 100,
-        origin: 70,  // ✅ ADD THIS LINE
+        origin: 70,
         buyingprice: 100,
         buyingquantity: 120,
         sellerlink: 100,
@@ -254,9 +237,6 @@ export default function TrackingPage() {
 
     const [resizing, setResizing] = useState<{ column: string, startX: number, startWidth: number } | null>(null);
 
-
-
-    // Handle column resize
     const handleMouseDown = (column: string, e: React.MouseEvent) => {
         setResizing({
             column,
@@ -265,7 +245,6 @@ export default function TrackingPage() {
         });
     };
 
-    // Handle column resize drag
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (resizing) {
@@ -296,14 +275,14 @@ export default function TrackingPage() {
         const matchesSearch =
             !searchQuery ||
             p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||  // ✅ Underscore
+            p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
 
         if (!matchesSearch) return false
 
         switch (activeTab) {
-            case 'main_file':  // ✅ Underscore
-                return !p.sent_to_admin && !p.move_to  // ✅ Underscores
+            case 'main_file':
+                return !p.sent_to_admin && !p.move_to
         }
     })
 
@@ -325,7 +304,6 @@ export default function TrackingPage() {
         setSelectedIds(newSelected);
     };
 
-
     const handleMoveToTracking = async (product: PassFileProduct) => {
         if (!product.admin_confirmed) {
             alert('Only Order Confirmed items can be moved');
@@ -333,7 +311,7 @@ export default function TrackingPage() {
         }
 
         const { error: insertError } = await supabase
-            .from('usa_traking')   // ✅ TRACKING TABLE
+            .from('usa_traking')
             .insert({
                 asin: product.asin,
                 product_link: product.product_link,
@@ -371,7 +349,6 @@ export default function TrackingPage() {
             return;
         }
 
-        // ✅ DELETE FROM PURCHASES
         await supabase
             .from('usa_purchases')
             .delete()
@@ -380,11 +357,10 @@ export default function TrackingPage() {
         await refreshProductsSilently();
     };
 
-
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <div className="text-xl">Loading purchases...</div>
+            <div className="flex items-center justify-center h-screen bg-slate-950">
+                <div className="text-xl text-slate-400">Loading purchases...</div>
             </div>
         );
     }
@@ -395,22 +371,21 @@ export default function TrackingPage() {
 
     return (
         <PageGuard>
-            <div className="h-screen flex flex-col bg-gray-50">
+            <div className="h-screen flex flex-col bg-slate-950 text-slate-200">
                 {/* Header Section - FIXED */}
-                <div className="flex-none px-6 pt-6 pb-4">
+                <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
                     <div className="mb-6">
-                        <h1 className="text-3xl font-bold text-gray-900">Tracking</h1>
-                        <p className="text-gray-600 mt-1">Order Confirmed → Tracking → Invoice</p>
+                        <h1 className="text-3xl font-bold text-white">Tracking</h1>
+                        <p className="text-slate-400 mt-1">Order Confirmed → Tracking → Invoice</p>
                     </div>
 
                     {/* Tabs - FIXED */}
-                    <div className="flex gap-2 mb-4 border-b border-gray-200">
-                        {/* 1. Main File */}
+                    <div className="flex gap-2 mb-4">
                         <button
                             onClick={() => setActiveTab('main_file')}
-                            className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === 'main_file'
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-600 hover:text-gray-900'
+                            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'main_file'
+                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})
@@ -418,55 +393,52 @@ export default function TrackingPage() {
 
                         <button
                             onClick={() => setActiveTab('company_invoice_details')}
-                            className={`px-6 py-3 font-semibold text-sm border-b-2 ${activeTab === 'company_invoice_details'
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-600'
+                            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'company_invoice_details'
+                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Company Invoice Details
                         </button>
-                        {/* 3. Checking */}
+
                         <button
                             onClick={() => setActiveTab('checking')}
-                            className={`px-6 py-3 font-semibold text-sm border-b-2 ${activeTab === 'checking'
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-600'
+                            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'checking'
+                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Checking
                         </button>
-
-                        {/* ❌ Reject tab REMOVED */}
                     </div>
                 </div>
 
                 {/* Search - FIXED */}
-                <div className="flex gap-3 items-center mb-6 px-6">
+                <div className="flex gap-3 items-center mb-6 px-6 pt-4">
                     <input
                         type="text"
                         placeholder="Search by ASIN, Product Name, or Funnel..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 max-w-md px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
                     />
 
                     <button
                         disabled={selectedIds.size === 0}
                         onClick={() => setInvoiceOpen(true)}
-                        className={`px-4 py-2 rounded-lg font-semibold text-sm ${selectedIds.size === 0
-                            ? 'bg-gray-300 cursor-not-allowed'
-                            : 'bg-green-600 text-white hover:bg-green-700'
+                        className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${selectedIds.size === 0
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                                : 'bg-green-600 text-white hover:bg-green-500 shadow-lg'
                             }`}
                     >
                         Convert to Invoice
                     </button>
 
-
                     {/* NEW: Hide Columns Button */}
                     <div className="relative">
                         <button
                             onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-                            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -477,18 +449,15 @@ export default function TrackingPage() {
                         {/* Dropdown Menu */}
                         {isColumnMenuOpen && (
                             <>
-                                {/* Backdrop */}
                                 <div
                                     className="fixed inset-0 z-10"
                                     onClick={() => setIsColumnMenuOpen(false)}
                                 />
 
-                                {/* Menu */}
-                                <div className="absolute top-full right-0 mt-2 bg-white border rounded-lg shadow-xl p-4 z-20 w-64">
-                                    <h3 className="font-semibold text-gray-900 mb-3 text-sm">Toggle Columns</h3>
+                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64">
+                                    <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
                                     <div className="space-y-2 max-h-96 overflow-y-auto">
                                         {Object.keys(visibleColumns).map((col) => {
-                                            // Custom display names for columns
                                             const columnDisplayNames: { [key: string]: string } = {
                                                 'checkbox': 'Checkbox',
                                                 'asin': 'ASIN',
@@ -497,8 +466,8 @@ export default function TrackingPage() {
                                                 'targetprice': 'Validation Target Price',
                                                 'targetquantity': 'Target Quantity',
                                                 'admintargetprice': 'Admin Target Price',
-                                                'funnelquantity': 'Funnel',  // ✅ Changed from "Funnel Quantity"
-                                                'funnelseller': 'Seller Tag',  // ✅ Changed from "Funnel Seller"
+                                                'funnelquantity': 'Funnel',
+                                                'funnelseller': 'Seller Tag',
                                                 'inrpurchaselink': 'INR Purchase Link',
                                                 'origin': 'Origin',
                                                 'buyingprice': 'Buying Price',
@@ -512,8 +481,19 @@ export default function TrackingPage() {
                                             };
 
                                             return (
-                                                <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                                                    <span className="text-sm text-gray-700">
+                                                <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={visibleColumns[col as keyof typeof visibleColumns]}
+                                                        onChange={() => {
+                                                            setVisibleColumns(prev => ({
+                                                                ...prev,
+                                                                [col]: !prev[col as keyof typeof visibleColumns]
+                                                            }));
+                                                        }}
+                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-300">
                                                         {columnDisplayNames[col] || col}
                                                     </span>
                                                 </label>
@@ -521,15 +501,14 @@ export default function TrackingPage() {
                                         })}
                                     </div>
 
-                                    {/* Quick Actions */}
-                                    <div className="mt-3 pt-3 border-t flex gap-2">
+                                    <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
                                         <button
                                             onClick={() =>
                                                 setVisibleColumns(
                                                     Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
                                                 )
                                             }
-                                            className="flex-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs font-medium"
+                                            className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
                                         >
                                             Show All
                                         </button>
@@ -539,7 +518,7 @@ export default function TrackingPage() {
                                                     Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns)
                                                 )
                                             }
-                                            className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-xs font-medium"
+                                            className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
                                         >
                                             Reset
                                         </button>
@@ -548,25 +527,35 @@ export default function TrackingPage() {
                             </>
                         )}
                     </div>
-                     <button
-                            onClick={() => setRollbackOpen(true)}
-                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                            </svg>
-                            Rollback
-                        </button>
+
+                    {/* ✅ Rollback Button - ONLY SHOW IN CHECKING TAB */}
+                   {/* ✅ Rollback Button - Active only in Main File */}
+<button
+    onClick={() => activeTab === 'main_file' && setRollbackOpen(true)}
+    disabled={activeTab !== 'main_file'}
+    className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all ${
+        activeTab === 'main_file'
+            ? 'bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50 cursor-pointer'
+            : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
+    }`}
+>
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+    </svg>
+    Rollback
+</button>
+
+
                 </div>
 
                 {/* Table Container - SCROLLABLE ONLY */}
                 <div className="flex-1 overflow-hidden px-6 pb-6">
-                    <div className="bg-white rounded-lg shadow h-full flex flex-col">
+                    <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
                         {/* Table Wrapper with Scroll */}
                         <div className="flex-1 overflow-y-auto">
                             {activeTab === 'main_file' && (
-                                <table className="w-full divide-y divide-gray-200" style={{ minWidth: '2500px' }}>
-                                    <thead className="bg-gray-100 sticky top-0 z-10">
+                                <table className="w-full divide-y divide-slate-800" style={{ minWidth: '2500px' }}>
+                                    <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
                                         <tr>
                                             {visibleColumns.checkbox && (
                                                 <th className="px-4 py-3 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
@@ -577,19 +566,20 @@ export default function TrackingPage() {
                                                             filteredProducts.every(p => selectedIds.has(p.id))
                                                         }
                                                         onChange={(e) => handleSelectAll(e.target.checked)}
+                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500"
                                                     />
                                                 </th>
                                             )}
                                             {visibleColumns.asin && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.asin}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800" style={{ width: `${columnWidths.asin}px` }}>
                                                     ASIN
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.productlink && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800"
                                                     style={{
                                                         width: `${columnWidths.productlink}px`,
                                                         maxWidth: `${columnWidths.productlink}px`,
@@ -598,112 +588,111 @@ export default function TrackingPage() {
                                                 >
                                                     PRODUCT LINK
                                                     <div
-                                                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                                                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                                                         onMouseDown={(e) => handleMouseDown('productlink', e)}
                                                     />
                                                 </th>
                                             )}
 
-                                            {/* Product Name Header */}
                                             {visibleColumns.productname && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800"
                                                     style={{
                                                         width: `${columnWidths.productname}px`,
-                                                        maxWidth: `${columnWidths.productname}px`,  // ✅ ADD THIS LINE
-                                                        minWidth: `${columnWidths.productname}px`   // ✅ ADD THIS LINE TOO
+                                                        maxWidth: `${columnWidths.productname}px`,
+                                                        minWidth: `${columnWidths.productname}px`
                                                     }}
                                                 >
                                                     PRODUCT NAME
                                                     <div
-                                                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                                                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
                                                         onMouseDown={(e) => handleMouseDown('productname', e)}
                                                     />
                                                 </th>
                                             )}
 
                                             {visibleColumns.targetprice && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetprice}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase bg-green-900/20 relative group border-r border-slate-800" style={{ width: `${columnWidths.targetprice}px` }}>
                                                     Validation Target Price
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.targetquantity && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50 relative group" style={{ width: `${columnWidths.targetquantity}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase bg-green-900/20 relative group border-r border-slate-800" style={{ width: `${columnWidths.targetquantity}px` }}>
                                                     Target Quantity
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.admintargetprice && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-purple-50 relative group" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase bg-purple-900/20 relative group border-r border-slate-800" style={{ width: `${columnWidths.admintargetprice}px` }}>
                                                     Admin Target Price
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.funnelquantity && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_quantity}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800" style={{ width: `${columnWidths.funnelquantity}px` }}>
                                                     Funnel
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.funnelseller && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.funnel_seller}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800" style={{ width: `${columnWidths.funnelseller}px` }}>
                                                     Seller Tag
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.inrpurchaselink && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                                                     INR Purchase Link
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('inrpurchaselink', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('inrpurchaselink', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.origin && (
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase relative group" style={{ width: `${columnWidths.origin}px` }}>
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800" style={{ width: `${columnWidths.origin}px` }}>
                                                     Origin
-                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500" onMouseDown={(e) => handleMouseDown('origin', e)} />
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('origin', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.buyingprice && (
-                                                <th className="px-3 py-3 text-xs font-semibold uppercase">
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                                                     Buying Price
                                                 </th>
                                             )}
 
                                             {visibleColumns.buyingquantity && (
-                                                <th className="px-3 py-3 text-xs font-semibold uppercase">
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                                                     Buying Qty
                                                 </th>
                                             )}
 
                                             {visibleColumns.sellerlink && (
-                                                <th className="px-3 py-3 text-xs font-semibold uppercase">
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                                                     Seller Link
                                                 </th>
                                             )}
 
                                             {visibleColumns.sellerphno && (
-    <th className="px-3 py-3 text-xs font-semibold uppercase">
-        Seller Ph No.
-    </th>
-)}
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
+                                                    Seller Ph No.
+                                                </th>
+                                            )}
 
                                             {visibleColumns.paymentmethod && (
-                                                <th className="px-3 py-3 text-xs font-semibold uppercase">
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                                                     Payment Method
                                                 </th>
                                             )}
 
                                             {visibleColumns.trackingdetails && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold uppercase"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
                                                     style={{ width: `${columnWidths.trackingdetails}px` }}
                                                 >
                                                     Tracking Details
@@ -712,7 +701,7 @@ export default function TrackingPage() {
 
                                             {visibleColumns.deliverydate && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold uppercase"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
                                                     style={{ width: `${columnWidths.deliverydate}px` }}
                                                 >
                                                     Delivery Date
@@ -721,37 +710,35 @@ export default function TrackingPage() {
                                         </tr>
                                     </thead>
 
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody className="divide-y divide-slate-800/50">
                                         {filteredProducts.length === 0 ? (
                                             <tr>
-                                                <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-8...">
+                                                <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-8 text-center text-slate-500">
                                                     No products available in {activeTab.replace('_', ' ')}
                                                 </td>
                                             </tr>
                                         ) : (
                                             filteredProducts.map((product) => {
                                                 return (
-                                                    <tr key={product.id} className="hover:bg-gray-50 group">
-                                                        {/* Checkbox */}
+                                                    <tr key={product.id} className="hover:bg-slate-800/40 group transition-colors">
                                                         {visibleColumns.checkbox && (
-                                                            <td className="px-4 py-2 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
+                                                            <td className="px-4 py-2 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.checkbox}px` }}>
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={selectedIds.has(product.id)}
                                                                     onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                                    className="rounded border-slate-600 bg-slate-800 text-indigo-500"
                                                                 />
                                                             </td>
                                                         )}
-                                                        {/* ASIN */}
                                                         {visibleColumns.asin && (
-                                                            <td className="px-3 py-2 font-mono text-sm overflow-hidden" style={{ width: `${columnWidths.asin}px` }}>
+                                                            <td className="px-3 py-2 font-mono text-sm text-slate-300 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.asin}px` }}>
                                                                 <div className="truncate">{product.asin}</div>
                                                             </td>
                                                         )}
-                                                        {/* Product Link Cell */}
                                                         {visibleColumns.productlink && (
                                                             <td
-                                                                className="px-3 py-2 overflow-hidden text-center"
+                                                                className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50"
                                                                 style={{
                                                                     width: `${columnWidths.productlink}px`,
                                                                     maxWidth: `${columnWidths.productlink}px`,
@@ -763,23 +750,22 @@ export default function TrackingPage() {
                                                                         href={(product.usa_link || product.product_link) ?? undefined}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-blue-600 hover:underline text-xs font-medium"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium"
                                                                     >
                                                                         View
                                                                     </a>
                                                                 ) : (
-                                                                    <span className="text-xs text-gray-400">-</span>
+                                                                    <span className="text-xs text-slate-600">-</span>
                                                                 )}
                                                             </td>
                                                         )}
-                                                        {/* Product Name Cell */}
                                                         {visibleColumns.productname && (
                                                             <td
-                                                                className="px-3 py-2 font-mono text-sm overflow-hidden"
+                                                                className="px-3 py-2 text-sm text-slate-200 overflow-hidden border-r border-slate-800/50"
                                                                 style={{
                                                                     width: `${columnWidths.productname}px`,
-                                                                    maxWidth: `${columnWidths.productname}px`,  // ✅ ADD THIS LINE
-                                                                    minWidth: `${columnWidths.productname}px`   // ✅ ADD THIS LINE TOO
+                                                                    maxWidth: `${columnWidths.productname}px`,
+                                                                    minWidth: `${columnWidths.productname}px`
                                                                 }}
                                                             >
                                                                 <div className="truncate" title={product.product_name || '-'}>
@@ -787,42 +773,38 @@ export default function TrackingPage() {
                                                                 </div>
                                                             </td>
                                                         )}
-                                                        {/* Target Price */}
                                                         {visibleColumns.targetprice && (
-                                                            <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
+                                                            <td className="px-3 py-2 bg-green-900/20 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.targetprice}px` }}>
                                                                 {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                                                                    <div className="px-2 py-1 text-sm font-medium text-gray-900">
+                                                                    <div className="px-2 py-1 text-sm font-medium text-slate-200">
                                                                         {product.target_price ?? product.usd_price ?? '-'}
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-xs text-gray-400 italic">After confirmation</span>
+                                                                    <span className="text-xs text-slate-600 italic">After confirmation</span>
                                                                 )}
                                                             </td>
                                                         )}
-                                                        {/* Target Quantity */}
                                                         {visibleColumns.targetquantity && (
-                                                            <td className="px-3 py-2 bg-green-50 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
+                                                            <td className="px-3 py-2 bg-green-900/20 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.targetquantity}px` }}>
                                                                 {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                                                                    <div className="px-2 py-1 text-sm font-medium text-gray-900">
+                                                                    <div className="px-2 py-1 text-sm font-medium text-slate-200">
                                                                         {product.target_quantity ?? 1}
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-xs text-gray-400 italic">After confirmation</span>
+                                                                    <span className="text-xs text-slate-600 italic">After confirmation</span>
                                                                 )}
                                                             </td>
                                                         )}
-                                                        {/* Admin Target Price */}
                                                         {visibleColumns.admintargetprice && (
                                                             <td
-                                                                className="px-3 py-2 bg-purple-50 overflow-hidden text-sm font-medium"
+                                                                className="px-3 py-2 bg-purple-900/20 overflow-hidden text-sm font-medium text-slate-200 border-r border-slate-800/50"
                                                                 style={{ width: `${columnWidths.admintargetprice}px` }}
                                                             >
                                                                 {product.admin_target_price ?? '-'}
                                                             </td>
                                                         )}
-                                                        {/* Funnel Quantity - Shows Funnel Badge from Validation */}
                                                         {visibleColumns.funnelquantity && (
-                                                            <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: `${columnWidths.funnelquantity}px` }}>
                                                                 {product.validation_funnel ? (
                                                                     <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
                                                                         product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
@@ -832,15 +814,14 @@ export default function TrackingPage() {
                                                                         {product.validation_funnel}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-xs text-gray-400 italic">-</span>
+                                                                    <span className="text-xs text-slate-600 italic">-</span>
                                                                 )}
                                                             </td>
                                                         )}
-                                                        {/* Funnel Seller - Shows Seller Tags from Validation */}
                                                         {visibleColumns.funnelseller && (
-                                                            <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.funnelseller}px` }}>
                                                                 {product.validation_seller_tag ? (
-                                                                    <div className="flex flex-wrap gap-2">
+                                                                    <div className="flex flex-wrap gap-2 justify-center">
                                                                         {product.validation_seller_tag.split(',').map((tag) => {
                                                                             const cleanTag = tag.trim();
                                                                             return (
@@ -859,31 +840,29 @@ export default function TrackingPage() {
                                                                         })}
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-xs text-gray-400 italic">-</span>
+                                                                    <span className="text-xs text-slate-600 italic">-</span>
                                                                 )}
                                                             </td>
                                                         )}
-                                                        {/* INR Purchase Link - Auto-fetched from Validation */}
                                                         {visibleColumns.inrpurchaselink && (
-                                                            <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                                                                 {product.inr_purchase_link ? (
                                                                     <a
                                                                         href={product.inr_purchase_link}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-blue-600 hover:underline text-xs truncate block"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium"
                                                                     >
                                                                         View
                                                                     </a>
                                                                 ) : (
-                                                                    <span className="text-xs text-gray-400 italic">-</span>
+                                                                    <span className="text-xs text-slate-600 italic">-</span>
                                                                 )}
                                                             </td>
                                                         )}
-                                                        {/* Origin - Auto-fetched from Validation (Badges) */}
                                                         {visibleColumns.origin && (
-                                                            <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
-                                                                <div className="flex flex-wrap gap-2">
+                                                            <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.origin}px` }}>
+                                                                <div className="flex flex-wrap gap-2 justify-center">
                                                                     {product.origin_india && (
                                                                         <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold">
                                                                             India
@@ -895,63 +874,56 @@ export default function TrackingPage() {
                                                                         </span>
                                                                     )}
                                                                     {!product.origin_india && !product.origin_china && (
-                                                                        <span className="text-xs text-gray-400 italic">-</span>
+                                                                        <span className="text-xs text-slate-600 italic">-</span>
                                                                     )}
                                                                 </div>
                                                             </td>
                                                         )}
-                                                        {/* Buying Price */}
                                                         {visibleColumns.buyingprice && (
-                                                            <td className="px-3 py-2 overflow-hidden text-sm" style={{ width: `${columnWidths.buyingprice}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.buyingprice}px` }}>
                                                                 {product.buying_price ?? '-'}
                                                             </td>
                                                         )}
-                                                        {/* Buying Quantity */}
                                                         {visibleColumns.buyingquantity && (
-                                                            <td className="px-3 py-2 overflow-hidden text-sm" style={{ width: `${columnWidths.buyingquantity}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.buyingquantity}px` }}>
                                                                 {product.buying_quantity ?? '-'}
                                                             </td>
                                                         )}
-                                                        {/* Seller Link */}
                                                         {visibleColumns.sellerlink && (
-                                                            <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: `${columnWidths.sellerlink}px` }}>
                                                                 {product.seller_link ? (
                                                                     <a
                                                                         href={product.seller_link}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-blue-600 underline text-xs"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium"
                                                                     >
                                                                         View
                                                                     </a>
                                                                 ) : '-'}
                                                             </td>
                                                         )}
-                                                        {/* Seller Phone */}
                                                         {visibleColumns.sellerphno && (
-                                                            <td className="px-3 py-2 overflow-hidden text-sm" style={{ width: `${columnWidths.sellerphno}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.sellerphno}px` }}>
                                                                 {product.seller_phone ?? '-'}
                                                             </td>
                                                         )}
-                                                        {/* Payment Method */}
                                                         {visibleColumns.paymentmethod && (
-                                                            <td className="px-3 py-2 overflow-hidden text-sm" style={{ width: `${columnWidths.paymentmethod}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.paymentmethod}px` }}>
                                                                 {product.payment_method ?? '-'}
                                                             </td>
                                                         )}
-                                                        {/* Tracking Details */}
                                                         {visibleColumns.trackingdetails && (
                                                             <td
-                                                                className="px-3 py-2 overflow-hidden text-sm"
+                                                                className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50"
                                                                 style={{ width: `${columnWidths.trackingdetails}px` }}
                                                             >
                                                                 {product.tracking_details ?? '-'}
                                                             </td>
                                                         )}
-                                                        {/* Delivery Date */}
                                                         {visibleColumns.deliverydate && (
                                                             <td
-                                                                className="px-3 py-2 overflow-hidden text-sm"
+                                                                className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50"
                                                                 style={{ width: `${columnWidths.deliverydate}px` }}
                                                             >
                                                                 {product.delivery_date ?? '-'}
@@ -967,18 +939,19 @@ export default function TrackingPage() {
                         </div>
 
                         {activeTab === 'company_invoice_details' && (
-                            <div className="p-4 bg-white min-h-full">
+                            <div className="p-4 bg-slate-900 min-h-full">
                                 <CompanyInvoiceTable />
                             </div>
                         )}
                         {activeTab === 'checking' && (
-                            <div className="p-4 bg-white min-h-full">
+                            <div className="p-4 bg-slate-900 min-h-full">
                                 <CheckingTable />
                             </div>
                         )}
+
                         {/* Footer Stats - FIXED */}
-                        <div className="flex-none border-t bg-gray-50 px-4 py-3">
-                            <div className="text-sm text-gray-600">
+                        <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
+                            <div className="text-sm text-slate-400">
                                 Showing {filteredProducts.length} of {products.length} products
                                 {selectedIds.size > 0 && ` | ${selectedIds.size} selected`}
                             </div>
@@ -991,20 +964,18 @@ export default function TrackingPage() {
                 onClose={() => setInvoiceOpen(false)}
                 items={selectedItems}
                 onSuccess={() => {
-                    // Refresh the page data
-                    fetchProducts(); // Your existing fetch function
-                    setSelectedIds(new Set()); // Clear selections
+                    fetchProducts();
+                    setSelectedIds(new Set());
                 }}
             />
             <RollbackModal
                 open={rollbackOpen}
                 onClose={() => setRollbackOpen(false)}
                 onSuccess={() => {
-                    fetchProducts(); // Refresh Main File
+                    fetchProducts();
                     setRollbackOpen(false);
                 }}
             />
-
         </PageGuard>
     );
 }

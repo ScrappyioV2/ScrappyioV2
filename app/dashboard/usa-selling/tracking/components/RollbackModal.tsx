@@ -28,6 +28,7 @@ export default function RollbackModal({
     const [searchQuery, setSearchQuery] = useState('');
     const [processing, setProcessing] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    
     // Fetch invoices grouped by invoice_number
     useEffect(() => {
         if (open) {
@@ -36,56 +37,64 @@ export default function RollbackModal({
     }, [open]);
 
     const fetchInvoices = async () => {
-        try {
-            setLoading(true);
+    try {
+        setLoading(true);
 
-            // Step 1: Get the most recent invoice_number
-            const { data: latestInvoice, error: latestError } = await supabase
-                .from('usa_tracking_company_invoice')
-                .select('invoice_number')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
+        // Step 1: Get the most recent invoice from MASTER table (usa_company_invoice)
+        const { data: latestInvoice, error: latestError } = await supabase
+            .from('usa_company_invoice')  // ✅ CHANGED: Fetch from MASTER table
+            .select('invoice_number, invoice_date, created_at')
+            .order('created_at', { ascending: false })  // ✅ Sort by when it was moved
+            .limit(1)
+            .single();
 
-            if (latestError) throw latestError;
-
-            if (!latestInvoice) {
+        if (latestError) {
+            // If no invoices found, just show empty
+            if (latestError.code === 'PGRST116') {
                 setInvoices([]);
                 setLoading(false);
                 return;
             }
-
-            // Step 2: Get ALL rows for that invoice_number
-            const { data, error } = await supabase
-                .from('usa_tracking_company_invoice')
-                .select('invoice_number, invoice_date, amount')
-                .eq('invoice_number', latestInvoice.invoice_number);
-
-            if (error) throw error;
-
-            // Group by invoice_number
-            const grouped = data.reduce((acc: Record<string, InvoiceGroup>, item) => {
-                if (!acc[item.invoice_number]) {
-                    acc[item.invoice_number] = {
-                        invoice_number: item.invoice_number,
-                        invoice_date: item.invoice_date,
-                        asin_count: 0,
-                        total_amount: 0,
-                    };
-                }
-                acc[item.invoice_number].asin_count += 1;
-                acc[item.invoice_number].total_amount += item.amount || 0;
-                return acc;
-            }, {});
-
-            setInvoices(Object.values(grouped));
-        } catch (error) {
-            console.error('Error fetching invoices:', error);
-            alert('Failed to load invoices');
-        } finally {
-            setLoading(false);
+            throw latestError;
         }
-    };
+
+        if (!latestInvoice) {
+            setInvoices([]);
+            setLoading(false);
+            return;
+        }
+
+        // Step 2: Get ALL rows for that invoice_number from DETAIL table
+        const { data, error } = await supabase
+            .from('usa_tracking_company_invoice')
+            .select('invoice_number, invoice_date, amount')
+            .eq('invoice_number', latestInvoice.invoice_number);
+
+        if (error) throw error;
+
+        // Group by invoice_number (should be only 1 group since we filtered by invoice_number)
+        const grouped = data.reduce((acc: Record<string, InvoiceGroup>, item) => {
+            if (!acc[item.invoice_number]) {
+                acc[item.invoice_number] = {
+                    invoice_number: item.invoice_number,
+                    invoice_date: item.invoice_date,
+                    asin_count: 0,
+                    total_amount: 0,
+                };
+            }
+            acc[item.invoice_number].asin_count += 1;
+            acc[item.invoice_number].total_amount += item.amount || 0;
+            return acc;
+        }, {});
+
+        setInvoices(Object.values(grouped));
+    } catch (error) {
+        console.error('Error fetching invoices:', error);
+        alert('Failed to load invoices');
+    } finally {
+        setLoading(false);
+    }
+};
 
 
     // Handle select all
@@ -236,27 +245,27 @@ export default function RollbackModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="bg-gray-800 text-white px-6 py-4 flex items-center justify-between">
-                    <h2 className="text-xl font-bold">Rollback Invoices to Main File</h2>
+                <div className="bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-white">Rollback Invoices to Main File</h2>
                     <button
                         onClick={onClose}
-                        className="text-white hover:text-gray-300 transition-colors"
+                        className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800 rounded-lg"
                     >
                         <X size={24} />
                     </button>
                 </div>
 
                 {/* Search Bar */}
-                <div className="px-6 py-4 border-b">
+                <div className="px-6 py-4 border-b border-slate-800">
                     <input
                         type="text"
                         placeholder="Search by Invoice Number..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 transition-all"
                     />
                 </div>
 
@@ -264,17 +273,17 @@ export default function RollbackModal({
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {loading ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="text-lg text-gray-500">Loading invoices...</div>
+                            <div className="text-lg text-slate-400">Loading invoices...</div>
                         </div>
                     ) : filteredInvoices.length === 0 ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="text-lg text-gray-500">
+                            <div className="text-lg text-slate-500">
                                 {searchQuery ? 'No invoices found' : 'No invoices available'}
                             </div>
                         </div>
                     ) : (
                         <table className="w-full">
-                            <thead className="bg-gray-100 sticky top-0">
+                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0">
                                 <tr>
                                     <th className="px-4 py-3 text-left w-12">
                                         <input
@@ -284,28 +293,28 @@ export default function RollbackModal({
                                                 filteredInvoices.every(inv => selectedInvoices.has(inv.invoice_number))
                                             }
                                             onChange={(e) => handleSelectAll(e.target.checked)}
-                                            className="w-5 h-5 cursor-pointer"
+                                            className="w-5 h-5 cursor-pointer accent-indigo-600"
                                         />
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
                                         Invoice No
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
                                         Invoice Date
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
                                         ASINs Count
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
                                         Total Amount
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="divide-y divide-slate-800">
                                 {filteredInvoices.map((invoice) => (
                                     <tr
                                         key={invoice.invoice_number}
-                                        className="hover:bg-gray-50 cursor-pointer"
+                                        className="hover:bg-slate-800/40 cursor-pointer transition-colors"
                                         onClick={() => handleSelect(invoice.invoice_number, !selectedInvoices.has(invoice.invoice_number))}
                                     >
                                         <td className="px-4 py-3">
@@ -316,23 +325,23 @@ export default function RollbackModal({
                                                     e.stopPropagation();
                                                     handleSelect(invoice.invoice_number, e.target.checked);
                                                 }}
-                                                className="w-5 h-5 cursor-pointer"
+                                                className="w-5 h-5 cursor-pointer accent-indigo-600"
                                             />
                                         </td>
-                                        <td className="px-4 py-3 font-mono text-sm">
+                                        <td className="px-4 py-3 font-mono text-sm text-slate-200">
                                             {invoice.invoice_number}
                                         </td>
-                                        <td className="px-4 py-3 text-sm">
+                                        <td className="px-4 py-3 text-sm text-slate-300">
                                             {invoice.invoice_date
                                                 ? new Date(invoice.invoice_date).toLocaleDateString()
                                                 : '-'}
                                         </td>
                                         <td className="px-4 py-3 text-sm">
-                                            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
+                                            <span className="bg-indigo-600 text-white px-3 py-1 rounded-full font-semibold text-xs">
                                                 {invoice.asin_count}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-sm font-semibold">
+                                        <td className="px-4 py-3 text-sm font-semibold text-green-400">
                                             ₹ {invoice.total_amount.toFixed(2)}
                                         </td>
                                     </tr>
@@ -343,10 +352,10 @@ export default function RollbackModal({
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-50 border-t px-6 py-4 flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
+                <div className="bg-slate-950 border-t border-slate-800 px-6 py-4 flex items-center justify-between">
+                    <div className="text-sm text-slate-400">
                         {selectedInvoices.size > 0 && (
-                            <span className="font-semibold text-blue-600">
+                            <span className="font-semibold text-indigo-400">
                                 {selectedInvoices.size} invoice(s) selected
                             </span>
                         )}
@@ -354,7 +363,7 @@ export default function RollbackModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
+                            className="px-6 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-all font-medium"
                             disabled={processing}
                         >
                             Cancel
@@ -362,10 +371,11 @@ export default function RollbackModal({
                         <button
                             onClick={handleRollback}
                             disabled={selectedInvoices.size === 0 || processing}
-                            className={`px-8 py-2 rounded-lg font-semibold text-white transition-colors ${selectedInvoices.size === 0 || processing
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-red-600 hover:bg-red-700'
-                                }`}
+                            className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${
+                                selectedInvoices.size === 0 || processing
+                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                                    : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/50'
+                            }`}
                         >
                             {processing ? 'Processing...' : 'Rollback Selected'}
                         </button>
@@ -373,21 +383,23 @@ export default function RollbackModal({
                 </div>
             </div>
 
+            {/* Toast Notification */}
             {toast && (
-                <div className="fixed top-4 right-4 z-[100] animate-slide-in">
+                <div className="fixed top-6 right-6 z-[100] animate-slide-in">
                     <div
-                        className={`px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === 'success'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-red-600 text-white'
-                            }`}
+                        className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] border ${
+                            toast.type === 'success'
+                                ? 'bg-green-600 text-white border-green-500'
+                                : 'bg-red-600 text-white border-red-500'
+                        }`}
                     >
                         <span className="text-2xl">
                             {toast.type === 'success' ? '✅' : '❌'}
                         </span>
-                        <span className="font-semibold">{toast.message}</span>
+                        <span className="font-semibold flex-1">{toast.message}</span>
                         <button
                             onClick={() => setToast(null)}
-                            className="ml-auto text-white hover:text-gray-200"
+                            className="text-white hover:text-gray-200 transition-colors p-1 hover:bg-white/20 rounded"
                         >
                             ✕
                         </button>

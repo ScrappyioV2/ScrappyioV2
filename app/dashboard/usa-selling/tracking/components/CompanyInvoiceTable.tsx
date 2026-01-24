@@ -29,7 +29,6 @@ type InvoiceItem = {
   action_status: string | null;
 };
 
-
 type GroupedInvoice = {
   invoice_number: string;
   items: InvoiceItem[];
@@ -114,95 +113,89 @@ export default function CompanyInvoiceTable() {
   };
 
   // Handle action checkbox
-// Handle action checkbox
-// Handle action checkbox
-const handleActionChange = async (
-  invoiceNumber: string,
-  action: 'pass' | 'fail'
-) => {
-  // ❌ Fail button - Do nothing for now
-  if (action === 'fail') {
-    alert('Fail action is not implemented yet.');
-    return;
-  }
-
-  // ✅ Pass button - Move to checking table
-  if (action === 'pass') {
-    try {
-      // 1. Get all items with this invoice_number
-      const itemsToMove = items.filter(
-        (item) => item.invoice_number === invoiceNumber
-      );
-
-      if (itemsToMove.length === 0) {
-        alert('No items found for this invoice.');
-        return;
-      }
-
-      // 2. Prepare data for usa_checking table (remove 'id' to generate new ones)
-     // 2. Prepare data for usa_checking table (only columns that exist)
-const dataToInsert = itemsToMove.map((item) => {
-  return {
-    // Remove id to generate new ones
-    invoice_number: item.invoice_number,
-    asin: item.asin,
-    product_name: item.product_name,
-    product_weight: item.product_weight,
-    invoice_date: item.invoice_date,
-    gst_number: item.gst_number,
-    buying_price: item.buying_price,
-    buying_quantity: item.buying_quantity,
-    amount: item.amount,
-    cgst: item.cgst,
-    sgst: item.sgst,
-    tax_amount: item.tax_amount,
-    total_amount: item.total_amount,
-    tracking_details: item.tracking_details,
-    delivery_date: item.delivery_date,
-    seller_company: item.seller_company,
-    authorized_signature: item.authorized_signature,
-    uploaded_invoice_url: item.uploaded_invoice_url,
-    uploaded_invoice_name: item.uploaded_invoice_name,
-    action_status: 'pass',
-    moved_at: new Date().toISOString(),
-  };
-});
-
-
-      // 3. Insert into usa_checking table
-      const { error: insertError } = await supabase
-        .from('usa_checking')
-        .insert(dataToInsert);
-
-      if (insertError) throw insertError;
-
-      // 4. Delete from usa_tracking_company_invoice
-      const { error: deleteError } = await supabase
-        .from('usa_tracking_company_invoice')
-        .delete()
-        .eq('invoice_number', invoiceNumber);
-
-      if (deleteError) throw deleteError;
-
-      // 5. Refresh the table
-      await fetchInvoiceData();
-
-      alert(
-        `✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`
-      );
-    } catch (error: any) {
-      console.error('Error moving invoice to checking:', error);
-      alert('Failed to move invoice: ' + error.message);
+  const handleActionChange = async (
+    invoiceNumber: string,
+    action: 'pass' | 'fail'
+  ) => {
+    // ❌ Fail button - Do nothing for now
+    if (action === 'fail') {
+      alert('Fail action is not implemented yet.');
+      return;
     }
-  }
-};
 
+    // ✅ Pass button - Move to checking table
+    if (action === 'pass') {
+      try {
+        // 1. Get all items with this invoice_number
+        const itemsToMove = items.filter(
+          (item) => item.invoice_number === invoiceNumber
+        );
 
+        if (itemsToMove.length === 0) {
+          alert('No items found for this invoice.');
+          return;
+        }
+
+        // 2. Prepare data for usa_checking table (only columns that exist)
+        const dataToInsert = itemsToMove.map((item) => {
+          return {
+            // Remove id to generate new ones
+            invoice_number: item.invoice_number,
+            asin: item.asin,
+            product_name: item.product_name,
+            product_weight: item.product_weight,
+            invoice_date: item.invoice_date,
+            gst_number: item.gst_number,
+            buying_price: item.buying_price,
+            buying_quantity: item.buying_quantity,
+            amount: item.amount,
+            cgst: item.cgst,
+            sgst: item.sgst,
+            tax_amount: item.tax_amount,
+            total_amount: item.total_amount,
+            tracking_details: item.tracking_details,
+            delivery_date: item.delivery_date,
+            seller_company: item.seller_company,
+            authorized_signature: item.authorized_signature,
+            uploaded_invoice_url: item.uploaded_invoice_url,
+            uploaded_invoice_name: item.uploaded_invoice_name,
+            action_status: 'pass',
+            moved_at: new Date().toISOString(),
+          };
+        });
+
+        // 3. Insert into usa_checking table
+        const { error: insertError } = await supabase
+          .from('usa_checking')
+          .insert(dataToInsert);
+
+        if (insertError) throw insertError;
+
+        // 4. Delete from usa_tracking_company_invoice
+        const { error: deleteError } = await supabase
+          .from('usa_tracking_company_invoice')
+          .delete()
+          .eq('invoice_number', invoiceNumber);
+
+        if (deleteError) throw deleteError;
+
+        // 5. Refresh the table
+        await fetchInvoiceData();
+
+        alert(
+          `✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`
+        );
+      } catch (error: any) {
+        console.error('Error moving invoice to checking:', error);
+        alert('Failed to move invoice: ' + error.message);
+      }
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading invoice details...</div>
+        <div className="text-lg text-slate-400">Loading invoice details...</div>
       </div>
     );
   }
@@ -210,27 +203,27 @@ const dataToInsert = itemsToMove.map((item) => {
   return (
     <div className="space-y-4">
       {/* Table */}
-      <div className="overflow-x-auto border rounded-lg">
+      <div className="overflow-x-auto border border-slate-700 rounded-xl shadow-lg">
         <table className="w-full">
-          <thead className="bg-gray-100">
+          <thead className="bg-slate-950 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold w-8"></th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Invoice No</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Invoice Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">GST Number</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Amount</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Tax Amount</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Tracking Details</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Delivery Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Company</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Upload</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 w-8"></th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice No</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice Date</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">GST Number</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Amount</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tax Amount</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking Details</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery Date</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Company</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Upload</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Action</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-800">
             {groupedInvoices.length === 0 ? (
               <tr>
-                <td colSpan={11} className="text-center py-8 text-gray-500">
+                <td colSpan={11} className="text-center py-8 text-slate-500">
                   No invoice items available
                 </td>
               </tr>
@@ -244,54 +237,54 @@ const dataToInsert = itemsToMove.map((item) => {
                     {/* Main Invoice Row */}
                     <tr
                       key={group.invoice_number}
-                      className="border-t hover:bg-gray-50 cursor-pointer"
+                      className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
                       onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
                     >
                       <td className="px-4 py-3">
                         {hasMultipleItems ? (
                           isExpanded ? (
-                            <ChevronDown size={16} className="text-gray-600" />
+                            <ChevronDown size={16} className="text-slate-400" />
                           ) : (
-                            <ChevronRight size={16} className="text-gray-600" />
+                            <ChevronRight size={16} className="text-slate-400" />
                           )
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 font-semibold">
+                      <td className="px-4 py-3 font-semibold text-slate-200">
                         {group.invoice_number}
                         {hasMultipleItems && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          <span className="ml-2 text-xs bg-indigo-600 text-white px-2 py-1 rounded">
                             {group.items.length} items
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-slate-300">
                         {group.invoice_date
                           ? new Date(group.invoice_date).toLocaleDateString()
                           : '-'}
                       </td>
-                      <td className="px-4 py-3">{group.gst_number || '-'}</td>
-                      <td className="px-4 py-3 font-semibold">
+                      <td className="px-4 py-3 text-slate-300">{group.gst_number || '-'}</td>
+                      <td className="px-4 py-3 font-semibold text-green-400">
                         ₹ {group.total_amount.toFixed(2)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-slate-300">
                         {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
                       </td>
                       {/* ✅ TRACKING DETAILS COLUMN */}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-slate-300">
                         {!hasMultipleItems ? (
                           group.items[0].tracking_details || '-'
                         ) : (
-                          <span className="text-gray-500 text-sm">Multiple</span>
+                          <span className="text-slate-500 text-sm">Multiple</span>
                         )}
                       </td>
                       {/* ✅ DELIVERY DATE COLUMN */}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-slate-300">
                         {!hasMultipleItems && group.items[0].delivery_date ? (
                           new Date(group.items[0].delivery_date).toLocaleDateString()
                         ) : !hasMultipleItems ? (
                           '-'
                         ) : (
-                          <span className="text-gray-500 text-sm">Multiple</span>
+                          <span className="text-slate-500 text-sm">Multiple</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -301,12 +294,12 @@ const dataToInsert = itemsToMove.map((item) => {
                               e.stopPropagation();
                               setSelectedCompany(group.seller_company);
                             }}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                           >
                             View
                           </button>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-slate-600">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -319,28 +312,30 @@ const dataToInsert = itemsToMove.map((item) => {
                                 name: group.uploaded_invoice_name || 'Invoice',
                               });
                             }}
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded text-sm"
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                           >
                             View
                           </button>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-slate-600">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => handleActionChange(group.invoice_number, 'pass')}
-                            className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'pass' ? 'opacity-100' : 'opacity-30'
-                              }`}
+                            className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${
+                              group.action_status === 'pass' ? 'opacity-100' : 'opacity-30'
+                            }`}
                             title="Pass"
                           >
                             ✅
                           </button>
                           <button
                             onClick={() => handleActionChange(group.invoice_number, 'fail')}
-                            className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'fail' ? 'opacity-100' : 'opacity-30'
-                              }`}
+                            className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${
+                              group.action_status === 'fail' ? 'opacity-100' : 'opacity-30'
+                            }`}
                             title="Fail"
                           >
                             ❌
@@ -352,31 +347,35 @@ const dataToInsert = itemsToMove.map((item) => {
                     {/* Expanded Card - Show individual items */}
                     {isExpanded && hasMultipleItems && (
                       <tr>
-                        <td colSpan={11} className="bg-gray-50 px-4 py-2">
+                        <td colSpan={11} className="bg-slate-800/30 px-4 py-2">
                           <div className="ml-8 space-y-2">
                             {group.items.map((item, idx) => (
                               <div
                                 key={item.id}
-                                className="bg-white border rounded-lg p-3 shadow-sm"
+                                className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-sm"
                               >
                                 <div className="grid grid-cols-4 gap-4 text-sm">
                                   <div>
-                                    <span className="font-semibold text-gray-600">ASIN:</span>{' '}
-                                    {item.asin}
+                                    <span className="font-semibold text-slate-400">ASIN:</span>{' '}
+                                    <span className="text-slate-200">{item.asin}</span>
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-gray-600">Amount:</span>{' '}
-                                    {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
+                                    <span className="font-semibold text-slate-400">Amount:</span>{' '}
+                                    <span className="text-green-400">
+                                      {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
+                                    </span>
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-gray-600">Tracking:</span>{' '}
-                                    {item.tracking_details || '-'}
+                                    <span className="font-semibold text-slate-400">Tracking:</span>{' '}
+                                    <span className="text-slate-200">{item.tracking_details || '-'}</span>
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-gray-600">Delivery:</span>{' '}
-                                    {item.delivery_date
-                                      ? new Date(item.delivery_date).toLocaleDateString()
-                                      : '-'}
+                                    <span className="font-semibold text-slate-400">Delivery:</span>{' '}
+                                    <span className="text-slate-200">
+                                      {item.delivery_date
+                                        ? new Date(item.delivery_date).toLocaleDateString()
+                                        : '-'}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -405,18 +404,18 @@ const dataToInsert = itemsToMove.map((item) => {
 
       {/* Company Info Modal */}
       {selectedCompany && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">Seller Company Details</h3>
+              <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
               <button
                 onClick={() => setSelectedCompany(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
               >
                 ✕
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-gray-700 bg-gray-50 p-4 rounded border">
+            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700">
               {selectedCompany}
             </div>
           </div>

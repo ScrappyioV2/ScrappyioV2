@@ -39,52 +39,56 @@ export default function InvoiceModal({
     new Date().toISOString().split('T')[0]
   );
   const [gstNumber, setGstNumber] = useState('');
+  const [sellerCompany, setSellerCompany] = useState(
+    'Seller Company Name :\nStreet Address :\nCity :\nState :\nPincode :\nIndia'
+  );
+
   const [shippingAddress, setShippingAddress] = useState(
-    'Company Name\nStreet Address\nCity, State, Pincode\nIndia'
+    'Company Name :\nStreet Address :\nCity :\nState :\nPincode :\nIndia'
   );
+
   const [billTo, setBillTo] = useState(
-    'Customer Name\nStreet Address\nCity, State, Pincode\nIndia'
+    'Company Name :\nStreet Address :\nCity :\nState :\nPincode :\nIndia'
   );
+
+
   const [authorizedSignature, setAuthorizedSignature] = useState('');
 
-  const [sellerCompany, setSellerCompany] = useState(
-  'Seller Company Name\nStreet Address\nCity, State, Pincode\nIndia'
-);
-
   // Editable Tax Fields
-  const [cgst, setCgst] = useState(0);
-  const [sgst, setSgst] = useState(0);
+  const [cgst, setCgst] = useState<number | ''>('');
+  const [sgst, setSgst] = useState<number | ''>('');
 
-  // Editable Item Rows - FIXED MAPPING
-// Editable Item Rows - Use useEffect to update when items prop changes
-const [editableItems, setEditableItems] = useState<any[]>([]);
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-// Update editableItems whenever items prop changes
-useEffect(() => {
-  console.log('📦 Items received in modal:', items);
-  
-  if (items && items.length > 0) {
-    const mapped = items.map((item) => {
-      console.log('🔍 Mapping item:', item);
-      return {
-        asin: item.asin,
-        product_name: item.product_name || '',
-        weight: item.product_weight || 0,
-        qty: item.buying_quantity || 0,
-        price: item.buying_price || 0,
-        amount: (item.buying_quantity || 0) * (item.buying_price || 0),
-        tracking_details: item.tracking_details || '',
-        delivery_date: item.delivery_date || '',
-      };
-    });
-    
-    console.log('📊 Mapped editable items:', mapped);
-    setEditableItems(mapped);
-  } else {
-    setEditableItems([]);
-  }
-}, [items]); // Run whenever items prop changes
+  // Editable Item Rows - Use useEffect to update when items prop changes
+  const [editableItems, setEditableItems] = useState<any[]>([]);
 
+  // Update editableItems whenever items prop changes
+  useEffect(() => {
+    console.log('📦 Items received in modal:', items);
+
+    if (items && items.length > 0) {
+      const mapped = items.map((item) => {
+        console.log('🔍 Mapping item:', item);
+        return {
+          asin: item.asin,
+          product_name: item.product_name || '',
+          weight: item.product_weight || 0,
+          qty: item.buying_quantity || 0,
+          price: item.buying_price || 0,
+          amount: (item.buying_quantity || 0) * (item.buying_price || 0),
+          tracking_details: item.tracking_details || '',
+          delivery_date: item.delivery_date || '',
+        };
+      });
+
+      console.log('📊 Mapped editable items:', mapped);
+      setEditableItems(mapped);
+    } else {
+      setEditableItems([]);
+    }
+  }, [items]); // Run whenever items prop changes
 
   // Update item field
   const updateItem = (index: number, field: string, value: any) => {
@@ -101,7 +105,7 @@ useEffect(() => {
 
   // Calculations
   const totalAmount = editableItems.reduce((sum, item) => sum + item.amount, 0);
-  const tax = cgst + sgst;
+  const tax = (Number(cgst) || 0) + (Number(sgst) || 0);
   const grandTotal = totalAmount + tax;
 
   // Handle Upload Invoice
@@ -125,10 +129,20 @@ useEffect(() => {
         name: file.name,
       });
 
-      alert('Invoice uploaded successfully!');
+      setToast({
+        message: 'Invoice uploaded successfully!',
+        type: 'success'
+      });
+
+      // Auto-hide toast after 2 seconds
+      setTimeout(() => setToast(null), 2000);
     } catch (err: any) {
-      alert('Upload failed: ' + err.message);
-    } finally {
+      setToast({
+        message: 'Upload failed: ' + err.message,
+        type: 'error'
+      });
+    }
+    finally {
       setUploading(false);
     }
   };
@@ -187,26 +201,50 @@ useEffect(() => {
 
       if (insertError) throw insertError;
 
-      alert('Invoice saved successfully!');
-      onSuccess();
-      onClose();
+      // 4. Delete ASINs from usa_traking (Main File)
+      const asinsToDelete = editableItems.map(item => item.asin);
+      const { error: deleteError } = await supabase
+        .from('usa_traking')
+        .delete()
+        .in('asin', asinsToDelete);
+
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+        // Don't throw - invoice is already saved, just log the error
+      }
+
+      setToast({
+        message: 'Invoice saved successfully!',
+        type: 'success'
+      });
+
+      // Close modal and refresh after short delay
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
+
     } catch (error: any) {
       console.error('Save Error:', error);
-      alert('Save failed: ' + error.message);
+      setToast({
+        message: 'Save failed: ' + error.message,
+        type: 'error'
+      });
     }
+
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-auto">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-auto">
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-auto">
+      <div className="bg-slate-900 rounded-xl shadow-2xl border border-slate-700 w-full max-w-7xl max-h-[95vh] overflow-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-gray-50 border-b px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">TAX INVOICE</h2>
+        <div className="sticky top-0 bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">TAX INVOICE</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-slate-400 hover:text-slate-200 transition-colors"
           >
             <X size={24} />
           </button>
@@ -217,29 +255,29 @@ useEffect(() => {
           {/* Invoice Info Row */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-slate-300">
                 Invoice No.
               </label>
               <input
                 type="text"
                 value={invoiceNo}
                 onChange={(e) => setInvoiceNo(e.target.value)}
-                className="w-full border rounded px-3 py-2"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-slate-300">
                 Invoice Date
               </label>
               <input
                 type="date"
                 value={invoiceDate}
                 onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full border rounded px-3 py-2"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-slate-300">
                 GST Number
               </label>
               <input
@@ -247,52 +285,61 @@ useEffect(() => {
                 value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value)}
                 placeholder="Enter GST Number"
-                className="w-full border rounded px-3 py-2"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
 
           {/* Addresses */}
           <div className="grid grid-cols-2 gap-4">
+            {/* Seller Company */}
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-slate-300">
                 Seller Company
               </label>
               <textarea
                 value={sellerCompany}
                 onChange={(e) => setSellerCompany(e.target.value)}
-                rows={4}
-                className="w-full border rounded px-3 py-2"
+                rows={5}
+                placeholder="Seller Company Name&#10;Street Address&#10;City&#10;State&#10;Pincode&#10;India"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
+
+            {/* Shipping Address */}
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-slate-300">
                 Shipping Address
               </label>
               <textarea
                 value={shippingAddress}
                 onChange={(e) => setShippingAddress(e.target.value)}
-                rows={4}
-                className="w-full border rounded px-3 py-2"
+                rows={5}
+                placeholder="Company Name&#10;Street Address&#10;City&#10;State&#10;Pincode&#10;India"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
+
+            {/* Bill To */}
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold mb-1 text-slate-300">
                 Bill To
               </label>
               <textarea
                 value={billTo}
                 onChange={(e) => setBillTo(e.target.value)}
-                rows={4}
-                className="w-full border rounded px-3 py-2"
+                rows={5}
+                placeholder="Company Name&#10;Street Address&#10;City&#10;State&#10;Pincode&#10;India"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
 
+
           {/* Invoice Items Table */}
-          <div className="overflow-x-auto border rounded-lg">
+          <div className="overflow-x-auto border border-slate-700 rounded-lg">
             <table className="w-full">
-              <thead className="bg-blue-600 text-white">
+              <thead className="bg-indigo-600 text-white">
                 <tr>
                   <th className="px-3 py-2 text-left">ASIN</th>
                   <th className="px-3 py-2 text-left">Product Name</th>
@@ -306,8 +353,8 @@ useEffect(() => {
               </thead>
               <tbody>
                 {editableItems.map((item, index) => (
-                  <tr key={index} className="border-t">
-                    <td className="px-3 py-2">{item.asin}</td>
+                  <tr key={index} className="border-t border-slate-800">
+                    <td className="px-3 py-2 text-slate-300">{item.asin}</td>
                     <td className="px-3 py-2">
                       <input
                         type="text"
@@ -315,7 +362,7 @@ useEffect(() => {
                         onChange={(e) =>
                           updateItem(index, 'product_name', e.target.value)
                         }
-                        className="w-full border rounded px-2 py-1"
+                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -325,7 +372,7 @@ useEffect(() => {
                         onChange={(e) =>
                           updateItem(index, 'weight', parseFloat(e.target.value) || 0)
                         }
-                        className="w-20 border rounded px-2 py-1"
+                        className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -335,7 +382,7 @@ useEffect(() => {
                         onChange={(e) =>
                           updateItem(index, 'qty', parseFloat(e.target.value) || 0)
                         }
-                        className="w-20 border rounded px-2 py-1"
+                        className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -345,10 +392,10 @@ useEffect(() => {
                         onChange={(e) =>
                           updateItem(index, 'price', parseFloat(e.target.value) || 0)
                         }
-                        className="w-24 border rounded px-2 py-1"
+                        className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </td>
-                    <td className="px-3 py-2 font-semibold">
+                    <td className="px-3 py-2 font-semibold text-slate-200">
                       ₹ {item.amount.toFixed(2)}
                     </td>
                     <td className="px-3 py-2">
@@ -358,7 +405,7 @@ useEffect(() => {
                         onChange={(e) =>
                           updateItem(index, 'tracking_details', e.target.value)
                         }
-                        className="w-32 border rounded px-2 py-1"
+                        className="w-32 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -368,7 +415,7 @@ useEffect(() => {
                         onChange={(e) =>
                           updateItem(index, 'delivery_date', e.target.value)
                         }
-                        className="w-36 border rounded px-2 py-1"
+                        className="w-36 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
                       />
                     </td>
                   </tr>
@@ -379,36 +426,34 @@ useEffect(() => {
 
           {/* Tax Calculations */}
           <div className="flex justify-end">
-            <div className="w-80 space-y-2">
+            <div className="w-80 space-y-2 bg-slate-800 border border-slate-700 rounded-lg p-4">
               <div className="flex justify-between items-center">
-                <span className="font-semibold">Amount:</span>
-                <span className="text-lg">₹ {totalAmount.toFixed(2)}</span>
+                <span className="font-semibold text-slate-300">Amount:</span>
+                <span className="text-lg text-slate-200">₹ {totalAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center gap-4">
-                <label className="font-semibold">CGST:</label>
-                <input
-                  type="number"
-                  value={cgst}
-                  onChange={(e) => setCgst(parseFloat(e.target.value) || 0)}
-                  className="w-32 border rounded px-3 py-1"
-                />
+              <input
+                type="number"
+                value={cgst}
+                onChange={(e) => setCgst(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                placeholder="Enter CGST"
+                className="w-32 bg-slate-900 border border-slate-700 rounded px-3 py-1 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+
+              <input
+                type="number"
+                value={sgst}
+                onChange={(e) => setSgst(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                placeholder="Enter SGST"
+                className="w-32 bg-slate-900 border border-slate-700 rounded px-3 py-1 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+              />
+
+              <div className="flex justify-between items-center pt-2 border-t-2 border-slate-700">
+                <span className="font-semibold text-slate-300">Tax:</span>
+                <span className="text-lg text-slate-200">₹ {tax.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center gap-4">
-                <label className="font-semibold">SGST:</label>
-                <input
-                  type="number"
-                  value={sgst}
-                  onChange={(e) => setSgst(parseFloat(e.target.value) || 0)}
-                  className="w-32 border rounded px-3 py-1"
-                />
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t-2">
-                <span className="font-semibold">Tax:</span>
-                <span className="text-lg">₹ {tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t-2">
-                <span className="font-bold text-lg">Total:</span>
-                <span className="text-xl font-bold text-green-600">
+              <div className="flex justify-between items-center pt-2 border-t-2 border-slate-700">
+                <span className="font-bold text-lg text-slate-200">Total:</span>
+                <span className="text-xl font-bold text-green-400">
                   ₹ {grandTotal.toFixed(2)}
                 </span>
               </div>
@@ -417,7 +462,7 @@ useEffect(() => {
 
           {/* Authorized Signature */}
           <div>
-            <label className="block text-sm font-semibold mb-1">
+            <label className="block text-sm font-semibold mb-1 text-slate-300">
               Authorized Signature
             </label>
             <input
@@ -425,15 +470,15 @@ useEffect(() => {
               value={authorizedSignature}
               onChange={(e) => setAuthorizedSignature(e.target.value)}
               placeholder="Enter authorized signature"
-              className="w-full border rounded px-3 py-2"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
 
         {/* Footer Buttons */}
-        <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-between items-center">
+        <div className="sticky bottom-0 bg-slate-950 border-t border-slate-800 px-6 py-4 flex justify-between items-center">
           <div>
-            <label className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded cursor-pointer inline-flex items-center gap-2">
+            <label className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg cursor-pointer inline-flex items-center gap-2 font-semibold transition-colors">
               <Upload size={18} />
               {uploading ? 'Uploading...' : 'Upload Invoice'}
               <input
@@ -448,7 +493,7 @@ useEffect(() => {
               />
             </label>
             {uploadedFile && (
-              <span className="ml-3 text-sm text-green-600">
+              <span className="ml-3 text-sm text-green-400">
                 ✓ {uploadedFile.name}
               </span>
             )}
@@ -456,19 +501,41 @@ useEffect(() => {
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-2 border rounded hover:bg-gray-100"
+              className="px-6 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors font-semibold"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded font-semibold"
+              className="bg-green-600 hover:bg-green-500 text-white px-8 py-2 rounded-lg font-semibold transition-colors shadow-lg"
             >
               Save
             </button>
           </div>
         </div>
       </div>
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-[100] animate-slide-in">
+          <div
+            className={`px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[300px] ${toast.type === 'success'
+                ? 'bg-green-600 text-white'
+                : 'bg-red-600 text-white'
+              }`}
+          >
+            <span className="text-2xl">
+              {toast.type === 'success' ? '✅' : '❌'}
+            </span>
+            <span className="font-semibold">{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              className="ml-auto text-white hover:text-gray-200"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
