@@ -34,14 +34,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isInitializing = useRef(false);
   const loadedUserId = useRef<string | null>(null);
 
-  // Fetch user role with proper error handling
+  // Fetch user role with NO abort signals - simpler approach
   const fetchUserRole = async (userId: string): Promise<boolean> => {
-    // Prevent duplicate fetches for same user
     if (loadedUserId.current === userId && userRole) {
+      console.log("✅ Role already loaded, skipping fetch");
       return true;
     }
 
     try {
+      console.log("🔍 Fetching role for user:", userId);
+      
       const { data, error } = await supabase
         .from("user_roles")
         .select("*")
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        console.error("❌ Role fetch failed:", error);
+        console.error("❌ Role fetch error:", error.message, error.details);
         return false;
       }
 
@@ -60,9 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
+      console.warn("⚠️ No role data found for user");
       return false;
-    } catch (err) {
-      console.error("❌ Role fetch exception:", err);
+    } catch (err: any) {
+      console.error("❌ Role fetch exception:", err.message || err);
       return false;
     }
   };
@@ -70,72 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize authentication on mount
   useEffect(() => {
     let isMounted = true;
-    let loadingTimeout: NodeJS.Timeout;
 
     const initAuth = async () => {
-      // Prevent multiple initializations
-      if (isInitializing.current) return;
+      if (isInitializing.current) {
+        console.log("⏭️ Already initializing, skipping");
+        return;
+      }
       isInitializing.current = true;
-
-      // Safety timeout - force complete after 5 seconds
-      loadingTimeout = setTimeout(() => {
-        if (isMounted && loading) {
-          console.warn("⚠️ Auth initialization timeout - forcing completion");
-          setLoading(false);
-          
-          // Redirect to login if still no user
-          if (!user) {
-            router.push("/login");
-          }
-        }
-      }, 5000);
 
       try {
         console.log("🔐 Initializing auth...");
         
-        // Detect production environment
-        const isProduction = typeof window !== 'undefined' && 
-                            window.location.hostname !== 'localhost';
-        
-        let session = null;
-        let error = null;
-
-        if (isProduction) {
-          // Production: Use API route for better reliability
-          try {
-            const response = await fetch("/api/auth/session", {
-              method: "GET",
-              credentials: "include",
-              cache: "no-store",
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              session = data.session;
-              error = data.error ? new Error(data.error) : null;
-            } else {
-              console.error("API session fetch failed with status:", response.status);
-              // Fallback to direct Supabase call
-              const result = await supabase.auth.getSession();
-              session = result.data.session;
-              error = result.error;
-            }
-          } catch (fetchError: any) {
-            console.error("API session fetch failed:", fetchError);
-            // Fallback to direct Supabase call
-            const result = await supabase.auth.getSession();
-            session = result.data.session;
-            error = result.error;
-          }
-        } else {
-          // Development: Direct Supabase call
-          const result = await supabase.auth.getSession();
-          session = result.data.session;
-          error = result.error;
-        }
+        const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("❌ Session error:", error);
+          console.error("❌ Session error:", error.message);
           if (isMounted) {
             setUser(null);
             setUserRole(null);
@@ -150,7 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("✅ Session found:", session.user.email);
           setUser(session.user);
           
-          // Fetch role and WAIT for it to complete
+          // Fetch role with a small delay to ensure session is fully established
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           const roleLoaded = await fetchUserRole(session.user.id);
           
           if (!roleLoaded) {
@@ -161,14 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setUserRole(null);
         }
-      } catch (error) {
-        console.error("❌ Auth initialization error:", error);
+      } catch (error: any) {
+        console.error("❌ Auth initialization error:", error.message || error);
         if (isMounted) {
           setUser(null);
           setUserRole(null);
         }
       } finally {
-        clearTimeout(loadingTimeout);
         if (isMounted) {
           console.log("✅ Auth initialization complete");
           setLoading(false);
@@ -192,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (session?.user) {
+      if (event === "SIGNED_IN" && session?.user) {
         setUser(session.user);
         
         // Only fetch role if user changed
@@ -201,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchUserRole(session.user.id);
           setLoading(false);
         }
-      } else {
+      } else if (!session) {
         setUser(null);
         setUserRole(null);
         loadedUserId.current = null;
@@ -210,7 +163,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
-      clearTimeout(loadingTimeout);
       authListener.subscription.unsubscribe();
     };
   }, []);
@@ -222,26 +174,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserRole(null);
       loadedUserId.current = null;
       router.push("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch (error: any) {
+      console.error("Logout error:", error.message || error);
     }
   };
 
-  // STRICT PERMISSION CHECKER
   const hasPageAccess = (permissionKey: string): boolean => {
-    // 1. Safety Check
     if (!userRole) return false;
-
-    // 2. ADMIN BYPASS - Only if role is EXACTLY 'admin'
     if (userRole.role === "admin") return true;
-
-    // 3. Public Pages
     if (permissionKey === "public") return true;
-
-    // 4. Admin Only Pages - Strict Block
     if (permissionKey === "admin-access") return false;
 
-    // 5. REGULAR USER CHECK - Ensure we are checking the actual allowed_pages array
     const pages = Array.isArray(userRole.allowed_pages) ? userRole.allowed_pages : [];
     return (
       pages.includes(permissionKey) ||
