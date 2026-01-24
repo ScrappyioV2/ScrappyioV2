@@ -70,17 +70,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize authentication on mount
   useEffect(() => {
     let isMounted = true;
+    let loadingTimeout: NodeJS.Timeout;
 
     const initAuth = async () => {
       // Prevent multiple initializations
       if (isInitializing.current) return;
       isInitializing.current = true;
 
+      // Safety timeout - force complete after 5 seconds
+      loadingTimeout = setTimeout(() => {
+        if (isMounted && loading) {
+          console.warn("⚠️ Auth initialization timeout - forcing completion");
+          setLoading(false);
+          
+          // Redirect to login if still no user
+          if (!user) {
+            router.push("/login");
+          }
+        }
+      }, 5000);
+
       try {
         console.log("🔐 Initializing auth...");
         
-        // Get current session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Detect production environment
+        const isProduction = typeof window !== 'undefined' && 
+                            window.location.hostname !== 'localhost';
+        
+        let session = null;
+        let error = null;
+
+        if (isProduction) {
+          // Production: Use API route for better reliability
+          try {
+            const response = await fetch("/api/auth/session", {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              session = data.session;
+              error = data.error ? new Error(data.error) : null;
+            } else {
+              console.error("API session fetch failed with status:", response.status);
+              // Fallback to direct Supabase call
+              const result = await supabase.auth.getSession();
+              session = result.data.session;
+              error = result.error;
+            }
+          } catch (fetchError: any) {
+            console.error("API session fetch failed:", fetchError);
+            // Fallback to direct Supabase call
+            const result = await supabase.auth.getSession();
+            session = result.data.session;
+            error = result.error;
+          }
+        } else {
+          // Development: Direct Supabase call
+          const result = await supabase.auth.getSession();
+          session = result.data.session;
+          error = result.error;
+        }
 
         if (error) {
           console.error("❌ Session error:", error);
@@ -116,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserRole(null);
         }
       } finally {
+        clearTimeout(loadingTimeout);
         if (isMounted) {
           console.log("✅ Auth initialization complete");
           setLoading(false);
@@ -157,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
+      clearTimeout(loadingTimeout);
       authListener.subscription.unsubscribe();
     };
   }, []);
