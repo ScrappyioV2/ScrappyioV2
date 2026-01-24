@@ -23,7 +23,7 @@ type InvoiceItem = {
   uploaded_invoice_name: string | null;
   seller_company: string | null;
   action_status: string | null;
-  product_received: boolean | null; // ✅ NEW
+  product_received: boolean | null;
 };
 
 type GroupedInvoice = {
@@ -38,6 +38,25 @@ type GroupedInvoice = {
   uploaded_invoice_name: string | null;
 };
 
+// ✅ NEW: Default column widths
+const DEFAULT_COLUMN_WIDTHS = {
+  expand: 50,
+  invoice_no: 180,
+  invoice_date: 130,
+  gst_number: 150,
+  product_name: 200,
+  weight: 100,
+  qty: 80,
+  price: 120,
+  amount: 120,
+  tax_amount: 120,
+  tracking: 180,
+  delivery_date: 130,
+  company: 100,
+  upload: 100,
+  action: 120,
+};
+
 export default function CheckingTable() {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +66,24 @@ export default function CheckingTable() {
   } | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
+
+  // ✅ NEW: Column resize state
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(0);
+
+  // ✅ NEW: Load column widths from localStorage on mount
+  useEffect(() => {
+    const savedWidths = localStorage.getItem('checking_table_column_widths');
+    if (savedWidths) {
+      try {
+        setColumnWidths(JSON.parse(savedWidths));
+      } catch (e) {
+        console.error('Failed to load column widths:', e);
+      }
+    }
+  }, []);
 
   // Fetch data from usa_checking table
   useEffect(() => {
@@ -110,30 +147,80 @@ export default function CheckingTable() {
     });
   };
 
-  // ✅ NEW: Handle checkbox change
-  const handleCheckboxChange = async (itemId: string, checked: boolean) => {
-    try {
-      // Update database
-      const { error } = await supabase
-        .from('usa_checking')
-        .update({ product_received: checked })
-        .eq('id', itemId);
+  // Handle checkbox change
+ const handleCheckboxChange = async (itemId: string, checked: boolean) => {
+  try {
+    // Update database
+    const { error } = await supabase
+      .from('usa_checking')
+      .update({ product_received: checked })
+      .eq('id', itemId);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Update local state
-      setItems((prevItems) =>
-        prevItems.map((item) =>
-          item.id === itemId ? { ...item, product_received: checked } : item
-        )
+    // Update local state - Create NEW array to force React re-render
+    setItems((prevItems) => {
+      const newItems = prevItems.map((item) =>
+        item.id === itemId ? { ...item, product_received: checked } : item
       );
-
       console.log(`✅ Checkbox ${checked ? 'checked' : 'unchecked'} for item ${itemId}`);
-    } catch (error: any) {
-      console.error('Error updating checkbox:', error);
-      alert('Failed to update checkbox: ' + error.message);
-    }
+      console.log('🔄 Updated item:', newItems.find(i => i.id === itemId));
+      return [...newItems]; // Force new array reference
+    });
+  } catch (error: any) {
+    console.error('Error updating checkbox:', error);
+    alert('Failed to update checkbox: ' + error.message);
+  }
+};
+
+
+  // ✅ NEW: Truncate text helper function
+  const truncateText = (text: string, maxLength: number): string => {
+    if (!text) return '-';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
+
+  // ✅ NEW: Handle resize start
+  const handleResizeStart = (columnKey: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setResizingColumn(columnKey);
+    setStartX(e.clientX);
+    setStartWidth(columnWidths[columnKey]);
+  };
+
+  // ✅ NEW: Handle mouse move during resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (resizingColumn) {
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(50, startWidth + diff); // Minimum 50px
+        setColumnWidths((prev) => ({
+          ...prev,
+          [resizingColumn]: newWidth,
+        }));
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (resizingColumn) {
+        // Save to localStorage
+        const updatedWidths = { ...columnWidths };
+        localStorage.setItem('checking_table_column_widths', JSON.stringify(updatedWidths));
+        setResizingColumn(null);
+      }
+    };
+
+    if (resizingColumn) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, startX, startWidth, columnWidths]);
 
   if (loading) {
     return (
@@ -146,28 +233,335 @@ export default function CheckingTable() {
   return (
     <div className="space-y-4">
       {/* Table */}
-      <div className="overflow-x-auto border rounded-lg">
-        <table className="w-full">
+      <div className="overflow-x-auto border rounded-lg" style={{ position: 'relative' }}>
+        <table className="w-full" style={{ tableLayout: 'fixed' }}>
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold w-8"></th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Invoice No</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Invoice Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">GST Number</th>
-              {/* ✅ NEW COLUMNS */}
-              <th className="px-4 py-3 text-left text-sm font-semibold">Product Name</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Weight</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Qty</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Price</th>
-              {/* EXISTING COLUMNS */}
-              <th className="px-4 py-3 text-left text-sm font-semibold">Amount</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Tax Amount</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Tracking Details</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Delivery Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Company</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Upload</th>
-              {/* ✅ NEW ACTION COLUMN */}
-              <th className="px-4 py-3 text-center text-sm font-semibold">Action</th>
+              {/* Expand Column */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.expand }}>
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('expand', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Invoice No */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.invoice_no }}>
+                Invoice No
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('invoice_no', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Invoice Date */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.invoice_date }}>
+                Invoice Date
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('invoice_date', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* GST Number */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.gst_number }}>
+                GST Number
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('gst_number', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Product Name */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.product_name }}>
+                Product Name
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('product_name', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Weight */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.weight }}>
+                Weight
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('weight', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Qty */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.qty }}>
+                Qty
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('qty', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Price */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.price }}>
+                Price
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('price', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Amount */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.amount }}>
+                Amount
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('amount', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Tax Amount */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.tax_amount }}>
+                Tax Amount
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('tax_amount', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Tracking Details */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.tracking }}>
+                Tracking Details
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('tracking', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Delivery Date */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.delivery_date }}>
+                Delivery Date
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('delivery_date', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Company */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.company }}>
+                Company
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('company', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Upload */}
+              <th className="px-4 py-3 text-left text-sm font-semibold relative" style={{ width: columnWidths.upload }}>
+                Upload
+                <div
+                  className="absolute top-0 right-0 cursor-col-resize select-none"
+                  style={{ 
+                    width: '8px',
+                    height: '100%',
+                    backgroundColor: 'transparent',
+                    borderRight: '2px solid #d1d5db',
+                    zIndex: 10,
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => handleResizeStart('upload', e)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderRight = '2px solid #d1d5db';
+                  }}
+                />
+              </th>
+
+              {/* Action */}
+              <th className="px-4 py-3 text-center text-sm font-semibold" style={{ width: columnWidths.action }}>
+                Action
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -189,7 +583,7 @@ export default function CheckingTable() {
                       className="border-t hover:bg-gray-50 cursor-pointer"
                       onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.expand }}>
                         {hasMultipleItems ? (
                           isExpanded ? (
                             <ChevronDown size={16} className="text-gray-600" />
@@ -198,7 +592,7 @@ export default function CheckingTable() {
                           )
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 font-semibold">
+                      <td className="px-4 py-3 font-semibold" style={{ width: columnWidths.invoice_no }}>
                         {group.invoice_number}
                         {hasMultipleItems && (
                           <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
@@ -206,36 +600,36 @@ export default function CheckingTable() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.invoice_date }}>
                         {group.invoice_date
                           ? new Date(group.invoice_date).toLocaleDateString()
                           : '-'}
                       </td>
-                      <td className="px-4 py-3">{group.gst_number || '-'}</td>
+                      <td className="px-4 py-3" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
 
-                      {/* ✅ NEW COLUMNS - Show actual data for single, "Multiple" for multiple */}
-                      <td className="px-4 py-3">
+                      {/* ✅ Product Name - WITH TRUNCATION */}
+                      <td className="px-4 py-3" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
                         {!hasMultipleItems ? (
-                          group.items[0].product_name || '-'
+                          truncateText(group.items[0].product_name || '', 30)
                         ) : (
                           <span className="text-gray-500 text-sm">Multiple</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.weight }}>
                         {!hasMultipleItems ? (
                           group.items[0].product_weight ? `${group.items[0].product_weight} kg` : '-'
                         ) : (
                           <span className="text-gray-500 text-sm">Multiple</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.qty }}>
                         {!hasMultipleItems ? (
                           group.items[0].buying_quantity || '-'
                         ) : (
                           <span className="text-gray-500 text-sm">Multiple</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.price }}>
                         {!hasMultipleItems ? (
                           group.items[0].buying_price ? `₹ ${group.items[0].buying_price}` : '-'
                         ) : (
@@ -244,20 +638,20 @@ export default function CheckingTable() {
                       </td>
 
                       {/* EXISTING COLUMNS */}
-                      <td className="px-4 py-3 font-semibold">
+                      <td className="px-4 py-3 font-semibold" style={{ width: columnWidths.amount }}>
                         ₹ {group.total_amount.toFixed(2)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.tax_amount }}>
                         {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.tracking }}>
                         {!hasMultipleItems ? (
                           group.items[0].tracking_details || '-'
                         ) : (
                           <span className="text-gray-500 text-sm">Multiple</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.delivery_date }}>
                         {!hasMultipleItems && group.items[0].delivery_date ? (
                           new Date(group.items[0].delivery_date).toLocaleDateString()
                         ) : !hasMultipleItems ? (
@@ -266,7 +660,7 @@ export default function CheckingTable() {
                           <span className="text-gray-500 text-sm">Multiple</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.company }}>
                         {group.seller_company ? (
                           <button
                             onClick={(e) => {
@@ -281,7 +675,7 @@ export default function CheckingTable() {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" style={{ width: columnWidths.upload }}>
                         {group.uploaded_invoice_url ? (
                           <button
                             onClick={(e) => {
@@ -300,28 +694,28 @@ export default function CheckingTable() {
                         )}
                       </td>
 
-                      {/* ✅ NEW ACTION COLUMN - Checkbox for single invoice only */}
-                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      {/* ✅ Action Column - Checkbox OR "Done" */}
+                      <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
                         {!hasMultipleItems ? (
-                          <input
-                            type="checkbox"
-                            checked={group.items[0].product_received || false}
-                            onChange={(e) =>
-                              handleCheckboxChange(group.items[0].id, e.target.checked)
-                            }
-                            className={`w-5 h-5 cursor-pointer ${
-                              group.items[0].product_received
-                                ? 'accent-green-600'
-                                : 'accent-gray-400'
-                            }`}
-                          />
+                          group.items[0].product_received ? (
+                            <span className="text-green-600 font-semibold">Done</span>
+                          ) : (
+                            <input
+                              type="checkbox"
+                              checked={group.items[0].product_received || false}
+                              onChange={(e) =>
+                                handleCheckboxChange(group.items[0].id, e.target.checked)
+                              }
+                              className="w-5 h-5 cursor-pointer accent-green-600"
+                            />
+                          )
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
                     </tr>
 
-                    {/* Expanded Card - Show individual items with NEW columns */}
+                    {/* Expanded Card - Show individual items */}
                     {isExpanded && hasMultipleItems && (
                       <tr>
                         <td colSpan={15} className="bg-gray-50 px-4 py-2">
@@ -336,10 +730,10 @@ export default function CheckingTable() {
                                     <span className="font-semibold text-gray-600">ASIN:</span>{' '}
                                     {item.asin}
                                   </div>
-                                  {/* ✅ NEW FIELDS */}
-                                  <div>
+                                  {/* ✅ Product - WITH TRUNCATION */}
+                                  <div title={item.product_name || ''}>
                                     <span className="font-semibold text-gray-600">Product:</span>{' '}
-                                    {item.product_name || '-'}
+                                    {truncateText(item.product_name || '', 30)}
                                   </div>
                                   <div>
                                     <span className="font-semibold text-gray-600">Weight:</span>{' '}
@@ -353,26 +747,27 @@ export default function CheckingTable() {
                                     <span className="font-semibold text-gray-600">Price:</span>{' '}
                                     {item.buying_price ? `₹ ${item.buying_price}` : '-'}
                                   </div>
-                                  {/* EXISTING FIELDS */}
                                   <div>
                                     <span className="font-semibold text-gray-600">Amount:</span>{' '}
                                     {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
                                   </div>
-                                  {/* ✅ NEW CHECKBOX */}
+                                  {/* ✅ Action - Checkbox OR "Done" */}
                                   <div className="flex items-center gap-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={item.product_received || false}
-                                      onChange={(e) =>
-                                        handleCheckboxChange(item.id, e.target.checked)
-                                      }
-                                      className={`w-5 h-5 cursor-pointer ${
-                                        item.product_received
-                                          ? 'accent-green-600'
-                                          : 'accent-gray-400'
-                                      }`}
-                                    />
-                                    <span className="text-xs text-gray-500">Received</span>
+                                    {item.product_received ? (
+                                      <span className="text-green-600 font-semibold">Done</span>
+                                    ) : (
+                                      <>
+                                        <input
+                                          type="checkbox"
+                                          checked={item.product_received || false}
+                                          onChange={(e) =>
+                                            handleCheckboxChange(item.id, e.target.checked)
+                                          }
+                                          className="w-5 h-5 cursor-pointer accent-green-600"
+                                        />
+                                        <span className="text-xs text-gray-500">Received</span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                                 {/* Second row for tracking and delivery */}
@@ -401,9 +796,6 @@ export default function CheckingTable() {
           </tbody>
         </table>
       </div>
-
-
-      
 
       {/* Uploaded Invoice Modal */}
       {selectedInvoice && (
@@ -436,4 +828,5 @@ export default function CheckingTable() {
       )}
     </div>
   );
+
 }
