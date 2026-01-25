@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     try {
       // LOGIN
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -42,25 +42,6 @@ export default function LoginPage() {
       if (error) throw error
 
       console.log('✅ Auth successful, checking role...', email)
-
-      // ✅ FIX: Wait for session to be fully persisted
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // ✅ FIX: Verify session is actually stored before proceeding
-      let sessionVerified = false
-      for (let i = 0; i < 5; i++) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user?.id === data.session?.user?.id) {
-          sessionVerified = true
-          console.log('✅ Session verified in storage')
-          break
-        }
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      if (!sessionVerified) {
-        throw new Error('Session could not be verified. Please try again.')
-      }
 
       // Check if user has a role assigned
       const { data: roleData, error: roleError } = await supabase
@@ -83,8 +64,8 @@ export default function LoginPage() {
 
       console.log('✅ Role check passed, redirecting based on role...')
 
-      // ✅ FIX: Small delay before redirect to ensure useAuth catches up
-      await new Promise(resolve => setTimeout(resolve, 200))
+      // ✅ FIX: Single short delay to let session settle, then redirect immediately
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // ✅ Redirect based on role
       if (roleData.role === 'admin') {
