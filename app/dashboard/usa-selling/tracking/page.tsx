@@ -74,7 +74,7 @@ export default function TrackingPage() {
         .filter((p) => selectedIds.has(p.id))
         .map((p) => ({
             asin: p.asin,
-            product_link: p.product_link, 
+            product_link: p.product_link,
             product_name: p.product_name,
             target_price: p.target_price,
             target_quantity: p.target_quantity,
@@ -119,63 +119,63 @@ export default function TrackingPage() {
 
     const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
 
-const fetchProducts = async () => {
-    try {
-        setLoading(true)
+    const fetchProducts = async () => {
+        try {
+            setLoading(true)
 
-        // ✅ Recursive fetch to handle 1000+ rows
-        let allData: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
+            // ✅ Recursive fetch to handle 1000+ rows
+            let allData: any[] = [];
+            let from = 0;
+            const batchSize = 1000;
+            let hasMore = true;
 
-        while (hasMore) {
-            const { data: purchasesData, error: purchasesError } = await supabase
-                .from('usa_traking')
-                .select()
-                .order('created_at', { ascending: false })
-                .range(from, from + batchSize - 1);
+            while (hasMore) {
+                const { data: purchasesData, error: purchasesError } = await supabase
+                    .from('usa_traking')
+                    .select()
+                    .order('created_at', { ascending: false })
+                    .range(from, from + batchSize - 1);
 
-            if (purchasesError) throw purchasesError;
+                if (purchasesError) throw purchasesError;
 
-            if (purchasesData && purchasesData.length > 0) {
-                allData = [...allData, ...purchasesData];
-                from += batchSize;
-                hasMore = purchasesData.length === batchSize;
-            } else {
-                hasMore = false;
-            }
-        }
-
-        const enrichedData = await Promise.all(
-            allData.map(async (product) => {
-                const { data: validationData } = await supabase
-                    .from('usa_validation_main_file')
-                    .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                    .eq('asin', product.asin)
-                    .maybeSingle()
-
-                return {
-                    ...product,
-                    productname: (product as any).product_name ?? null,
-                    originindia: (product as any).origin_india ?? false,
-                    originchina: (product as any).origin_china ?? false,
-                    validation_funnel: validationData?.funnel ?? null,
-                    validation_seller_tag: validationData?.seller_tag ?? null,
-                    product_weight: validationData?.product_weight ?? null,
-                    usd_price: validationData?.usd_price ?? null,
-                    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                if (purchasesData && purchasesData.length > 0) {
+                    allData = [...allData, ...purchasesData];
+                    from += batchSize;
+                    hasMore = purchasesData.length === batchSize;
+                } else {
+                    hasMore = false;
                 }
-            })
-        )
+            }
 
-        setProducts(enrichedData)
-    } catch (error) {
-        console.error('Error fetching products:', error)
-    } finally {
-        setLoading(false)
+            const enrichedData = await Promise.all(
+                allData.map(async (product) => {
+                    const { data: validationData } = await supabase
+                        .from('usa_validation_main_file')
+                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                        .eq('asin', product.asin)
+                        .maybeSingle()
+
+                    return {
+                        ...product,
+                        productname: (product as any).product_name ?? null,
+                        originindia: (product as any).origin_india ?? false,
+                        originchina: (product as any).origin_china ?? false,
+                        validation_funnel: validationData?.funnel ?? null,
+                        validation_seller_tag: validationData?.seller_tag ?? null,
+                        product_weight: validationData?.product_weight ?? null,
+                        usd_price: validationData?.usd_price ?? null,
+                        inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                    }
+                })
+            )
+
+            setProducts(enrichedData)
+        } catch (error) {
+            console.error('Error fetching products:', error)
+        } finally {
+            setLoading(false)
+        }
     }
-}
 
 
     const fetchCounts = async () => {
@@ -195,7 +195,7 @@ const fetchProducts = async () => {
             const { count: checkCount, error: checkError } = await supabase
                 .from('usa_checking')
                 .select('*', { count: 'exact', head: true });
-                 console.log('🔍 Checking Count Result:', { checkCount, checkError });
+            console.log('🔍 Checking Count Result:', { checkCount, checkError });
 
             if (checkError) {
                 console.error('Error fetching checking count:', checkError);
@@ -209,62 +209,62 @@ const fetchProducts = async () => {
 
 
     const refreshProductsSilently = async () => {
-    try {
-        // ✅ Recursive fetch to handle 1000+ rows
-        let allData: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
+        try {
+            // ✅ Recursive fetch to handle 1000+ rows
+            let allData: any[] = [];
+            let from = 0;
+            const batchSize = 1000;
+            let hasMore = true;
 
-        while (hasMore) {
-            const { data: purchasesData, error: purchasesError } = await supabase
-                .from('usa_traking')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .range(from, from + batchSize - 1);
+            while (hasMore) {
+                const { data: purchasesData, error: purchasesError } = await supabase
+                    .from('usa_traking')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .range(from, from + batchSize - 1);
 
-            if (purchasesError) throw purchasesError;
+                if (purchasesError) throw purchasesError;
 
-            if (purchasesData && purchasesData.length > 0) {
-                allData = [...allData, ...purchasesData];
-                from += batchSize;
-                hasMore = purchasesData.length === batchSize;
-            } else {
-                hasMore = false;
+                if (purchasesData && purchasesData.length > 0) {
+                    allData = [...allData, ...purchasesData];
+                    from += batchSize;
+                    hasMore = purchasesData.length === batchSize;
+                } else {
+                    hasMore = false;
+                }
             }
+
+            const allAsins = allData.map((p: any) => p.asin)
+            const { data: validationDataArray } = await supabase
+                .from('usa_validation_main_file')
+                .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                .in('asin', allAsins)
+
+            const validationMap = new Map(
+                (validationDataArray || []).map((v: any) => [v.asin, v])
+            )
+
+            const enrichedData = allData.map((product: any) => {
+                const validationData = validationMap.get(product.asin)
+
+                return {
+                    ...product,
+                    product_name: product.product_name ?? null,
+                    origin_india: product.origin_india ?? false,
+                    origin_china: product.origin_china ?? false,
+                    validation_funnel: validationData?.funnel ?? null,
+                    validation_seller_tag: validationData?.seller_tag ?? null,
+                    product_weight: validationData?.product_weight ?? null,
+                    usd_price: validationData?.usd_price ?? null,
+                    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                }
+            })
+
+            setProducts(enrichedData)
+        } catch (error) {
+            console.error('Error refreshing products:', error)
         }
-
-        const allAsins = allData.map((p: any) => p.asin)
-        const { data: validationDataArray } = await supabase
-            .from('usa_validation_main_file')
-            .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
-            .in('asin', allAsins)
-
-        const validationMap = new Map(
-            (validationDataArray || []).map((v: any) => [v.asin, v])
-        )
-
-        const enrichedData = allData.map((product: any) => {
-            const validationData = validationMap.get(product.asin)
-
-            return {
-                ...product,
-                product_name: product.product_name ?? null,
-                origin_india: product.origin_india ?? false,
-                origin_china: product.origin_china ?? false,
-                validation_funnel: validationData?.funnel ?? null,
-                validation_seller_tag: validationData?.seller_tag ?? null,
-                product_weight: validationData?.product_weight ?? null,
-                usd_price: validationData?.usd_price ?? null,
-                inr_purchase_from_validation: validationData?.inr_purchase ?? null,
-            }
-        })
-
-        setProducts(enrichedData)
-    } catch (error) {
-        console.error('Error refreshing products:', error)
     }
-}
 
 
     useEffect(() => {
@@ -471,8 +471,8 @@ const fetchProducts = async () => {
                         <button
                             onClick={() => setActiveTab('company_invoice_details')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'company_invoice_details'
-                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Company Invoice Details ({companyInvoiceCount})
@@ -481,8 +481,8 @@ const fetchProducts = async () => {
                         <button
                             onClick={() => setActiveTab('checking')}
                             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'checking'
-                                    ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
                                 }`}
                         >
                             Checking ({checkingCount})
@@ -491,139 +491,134 @@ const fetchProducts = async () => {
                     </div>
                 </div>
 
-                {/* Search - FIXED */}
-                <div className="flex gap-3 items-center mb-6 px-6 pt-4">
-                    <input
-                        type="text"
-                        placeholder="Search by ASIN, Product Name, or Funnel..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 max-w-md px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
-                    />
+                {/* Search & Buttons - ONLY SHOW IN MAIN FILE */}
+                {activeTab === 'main_file' && (
+                    <div className="flex gap-3 items-center mb-6 px-6 pt-4">
+                        <input
+                            type="text"
+                            placeholder="Search by ASIN, Product Name, or Funnel..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="flex-1 max-w-md px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
+                        />
 
-                    <button
-                        disabled={selectedIds.size === 0}
-                        onClick={() => setInvoiceOpen(true)}
-                        className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${selectedIds.size === 0
-                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                            : 'bg-green-600 text-white hover:bg-green-500 shadow-lg'
-                            }`}
-                    >
-                        Convert to Invoice
-                    </button>
-
-                    {/* NEW: Hide Columns Button */}
-                    <div className="relative">
                         <button
-                            onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-                            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                            disabled={selectedIds.size === 0}
+                            onClick={() => setInvoiceOpen(true)}
+                            className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${selectedIds.size === 0
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                                : 'bg-green-600 text-white hover:bg-green-500 shadow-lg'
+                                }`}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                            Hide Columns
+                            Convert to Invoice
                         </button>
 
-                        {/* Dropdown Menu */}
-                        {isColumnMenuOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-10"
-                                    onClick={() => setIsColumnMenuOpen(false)}
-                                />
+                        {/* Hide Columns Button */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+                                className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                                Hide Columns
+                            </button>
 
-                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64">
-                                    <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
-                                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                                        {Object.keys(visibleColumns).map((col) => {
-                                            const columnDisplayNames: { [key: string]: string } = {
-                                                'checkbox': 'Checkbox',
-                                                'asin': 'ASIN',
-                                                'productlink': 'Product Link',
-                                                'productname': 'Product Name',
-                                                'targetprice': 'Validation Target Price',
-                                                'targetquantity': 'Target Quantity',
-                                                'admintargetprice': 'Admin Target Price',
-                                                'funnelquantity': 'Funnel',
-                                                'funnelseller': 'Seller Tag',
-                                                'inrpurchaselink': 'INR Purchase Link',
-                                                'origin': 'Origin',
-                                                'buyingprice': 'Buying Price',
-                                                'buyingquantity': 'Buying Quantity',
-                                                'sellerlink': 'Seller Link',
-                                                'sellerphno': 'Seller Ph No.',
-                                                'paymentmethod': 'Payment Method',
-                                                'trackingdetails': 'Tracking Details',
-                                                'deliverydate': 'Delivery Date',
-                                                'moveto': 'Move To',
-                                            };
+                            {/* Dropdown Menu */}
+                            {isColumnMenuOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-10"
+                                        onClick={() => setIsColumnMenuOpen(false)}
+                                    />
 
-                                            return (
-                                                <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={visibleColumns[col as keyof typeof visibleColumns]}
-                                                        onChange={() => {
-                                                            setVisibleColumns(prev => ({
-                                                                ...prev,
-                                                                [col]: !prev[col as keyof typeof visibleColumns]
-                                                            }));
-                                                        }}
-                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500"
-                                                    />
-                                                    <span className="text-sm text-slate-300">
-                                                        {columnDisplayNames[col] || col}
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
+                                    <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64">
+                                        <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
+                                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                                            {Object.keys(visibleColumns).map((col) => {
+                                                const columnDisplayNames: { [key: string]: string } = {
+                                                    'checkbox': 'Checkbox',
+                                                    'asin': 'ASIN',
+                                                    'productlink': 'Product Link',
+                                                    'productname': 'Product Name',
+                                                    'targetprice': 'Validation Target Price',
+                                                    'targetquantity': 'Target Quantity',
+                                                    'admintargetprice': 'Admin Target Price',
+                                                    'funnelquantity': 'Funnel',
+                                                    'funnelseller': 'Seller Tag',
+                                                    'inrpurchaselink': 'INR Purchase Link',
+                                                    'origin': 'Origin',
+                                                    'buyingprice': 'Buying Price',
+                                                    'buyingquantity': 'Buying Quantity',
+                                                    'sellerlink': 'Seller Link',
+                                                    'sellerphno': 'Seller Ph No.',
+                                                    'paymentmethod': 'Payment Method',
+                                                    'trackingdetails': 'Tracking Details',
+                                                    'deliverydate': 'Delivery Date',
+                                                    'moveto': 'Move To',
+                                                };
+
+                                                return (
+                                                    <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={visibleColumns[col as keyof typeof visibleColumns]}
+                                                            onChange={() => {
+                                                                setVisibleColumns(prev => ({
+                                                                    ...prev,
+                                                                    [col]: !prev[col as keyof typeof visibleColumns]
+                                                                }));
+                                                            }}
+                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                                                        />
+                                                        <span className="text-sm text-slate-300">
+                                                            {columnDisplayNames[col] || col}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
+                                            <button
+                                                onClick={() =>
+                                                    setVisibleColumns(
+                                                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
+                                                    )
+                                                }
+                                                className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
+                                            >
+                                                Show All
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    setVisibleColumns(
+                                                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns)
+                                                    )
+                                                }
+                                                className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
                                     </div>
+                                </>
+                            )}
+                        </div>
 
-                                    <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
-                                        <button
-                                            onClick={() =>
-                                                setVisibleColumns(
-                                                    Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
-                                                )
-                                            }
-                                            className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
-                                        >
-                                            Show All
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                setVisibleColumns(
-                                                    Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns)
-                                                )
-                                            }
-                                            className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
-                                        >
-                                            Reset
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                        {/* Rollback Button */}
+                        <button
+                            onClick={() => setRollbackOpen(true)}
+                            className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Rollback
+                        </button>
                     </div>
-
-                    {/* ✅ Rollback Button - ONLY SHOW IN CHECKING TAB */}
-                    {/* ✅ Rollback Button - Active only in Main File */}
-                    <button
-                        onClick={() => activeTab === 'main_file' && setRollbackOpen(true)}
-                        disabled={activeTab !== 'main_file'}
-                        className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'main_file'
-                            ? 'bg-red-600 text-white hover:bg-red-700 border border-red-700 shadow-lg hover:shadow-red-500/50 cursor-pointer'
-                            : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
-                            }`}
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                        </svg>
-                        Rollback
-                    </button>
-
-
-                </div>
+                )}
 
                 {/* Table Container - SCROLLABLE ONLY */}
                 <div className="flex-1 overflow-hidden px-6 pb-6">
@@ -1026,13 +1021,16 @@ const fetchProducts = async () => {
                             </div>
                         )}
 
-                        {/* Footer Stats - FIXED */}
-                        <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-                            <div className="text-sm text-slate-400">
-                                Showing {filteredProducts.length} of {products.length} products
-                                {selectedIds.size > 0 && ` | ${selectedIds.size} selected`}
+                        {/* Footer Stats - STICKY AT BOTTOM */}
+                        {activeTab === 'main_file' && (
+                            <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
+                                <div className="text-sm text-slate-400">
+                                    Showing {filteredProducts.length} of {products.length} products
+                                    {selectedIds.size > 0 && ` | ${selectedIds.size} selected`}
+                                </div>
                             </div>
-                        </div>
+                        )}
+
                     </div>
                 </div>
             </div>

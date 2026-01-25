@@ -123,6 +123,8 @@ export default function RollbackModal({
     );
 
     // Handle rollback
+    // Handle rollback
+    // Handle rollback
     const handleRollback = async () => {
         if (selectedInvoices.size === 0) {
             alert('Please select at least one invoice to rollback');
@@ -174,24 +176,42 @@ export default function RollbackModal({
                 const dataToRestore = invoiceItems
                     .filter(item => !existingAsinSet.has(item.asin))
                     .map(item => ({
+                        // Core fields
                         asin: item.asin,
                         product_link: item.product_link,
                         product_name: item.product_name,
+                        brand: item.brand,
+
+                        // Pricing fields
                         target_price: item.target_price,
                         target_quantity: item.target_quantity,
                         admin_target_price: item.admin_target_price,
                         buying_price: item.buying_price,
                         buying_quantity: item.buying_quantity,
+
+                        // Seller fields
                         seller_link: item.seller_link,
+                        seller_phone: item.seller_phone,
+                        seller_tag: item.seller_tag,
+
+                        // Logistics fields
                         payment_method: item.payment_method,
                         tracking_details: item.tracking_details,
                         delivery_date: item.delivery_date,
-                        seller_tag: item.seller_tag,
-                        inr_purchase_link: item.inr_purchase_link,
-                        origin: item.origin,
-                        funnel: item.funnel,
                         product_weight: item.product_weight,
-                        // Note: Not restoring invoice-specific fields like gst_number, cgst, sgst, etc.
+
+                        // Origin fields - Calculate boolean flags from text field
+                        origin: item.origin || 'India',  // ✅ Default to India if null
+                        origin_india: (item.origin?.toLowerCase() === 'india') || (!item.origin),  // ✅ True if India or null
+                        origin_china: item.origin?.toLowerCase() === 'china',  // ✅ True only if China
+
+                        // Funnel fields
+                        funnel: item.funnel,
+                        funnel_quantity: item.funnel_quantity,
+                        funnel_seller: item.funnel_seller,
+
+                        // Purchase links
+                        inr_purchase_link: item.inr_purchase_link,
                     }));
 
                 // 5. Insert back to usa_traking (if any non-duplicate ASINs)
@@ -200,7 +220,10 @@ export default function RollbackModal({
                         .from('usa_traking')
                         .insert(dataToRestore);
 
-                    if (restoreError) throw restoreError;
+                    if (restoreError) {
+                        console.error('❌ Restore error:', restoreError);
+                        throw restoreError;
+                    }
                 }
 
                 // 6. Delete from usa_tracking_company_invoice
@@ -244,6 +267,8 @@ export default function RollbackModal({
             setProcessing(false);
         }
     };
+
+
 
     if (!open) return null;
 
@@ -375,8 +400,8 @@ export default function RollbackModal({
                             onClick={handleRollback}
                             disabled={selectedInvoices.size === 0 || processing}
                             className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${selectedInvoices.size === 0 || processing
-                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                                    : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/50'
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                                : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/50'
                                 }`}
                         >
                             {processing ? 'Processing...' : 'Rollback Selected'}
@@ -390,8 +415,8 @@ export default function RollbackModal({
                 <div className="fixed top-6 right-6 z-[100] animate-slide-in">
                     <div
                         className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] border ${toast.type === 'success'
-                                ? 'bg-green-600 text-white border-green-500'
-                                : 'bg-red-600 text-white border-red-500'
+                            ? 'bg-green-600 text-white border-green-500'
+                            : 'bg-red-600 text-white border-red-500'
                             }`}
                     >
                         <span className="text-2xl">

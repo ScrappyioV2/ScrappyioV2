@@ -66,6 +66,25 @@ export default function CheckingTable() {
   } | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
+  const [visibleColumns, setVisibleColumns] = useState({  // ✅ ADDED
+    expand: true,
+    invoice_no: true,
+    invoice_date: true,
+    gst_number: true,
+    product_name: true,
+    weight: true,
+    qty: true,
+    price: true,
+    amount: true,
+    tax_amount: true,
+    tracking: true,
+    delivery_date: true,
+    company: true,
+    upload: true,
+    action: true,
+  });
 
   // ✅ NEW: Column resize state
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -151,6 +170,11 @@ export default function CheckingTable() {
       acc[item.invoice_number].total_tax += item.tax_amount || 0;
       return acc;
     }, {} as Record<string, GroupedInvoice>)
+  );
+
+  // ✅ Filter by search query
+  const filteredInvoices = groupedInvoices.filter(inv =>
+    inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Toggle expanded state
@@ -304,6 +328,106 @@ export default function CheckingTable() {
 
   return (
     <div className="h-full flex flex-col">
+      {/* Search Bar & Hide Columns */}
+      <div className="flex-none px-4 pb-4 flex gap-3 items-center">
+        <input
+          type="text"
+          placeholder="Search by Invoice Number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+        />
+
+        {/* Hide Columns Button */}
+        <div className="relative">
+          <button
+            onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            Hide Columns
+          </button>
+
+          {isColumnMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setIsColumnMenuOpen(false)}
+              />
+
+              <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64 max-h-[500px] overflow-y-auto">
+                <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
+                <div className="space-y-2">
+                  {Object.keys(visibleColumns).map((col) => {
+                    const columnDisplayNames: { [key: string]: string } = {
+                      'expand': 'Expand',
+                      'invoice_no': 'Invoice No',
+                      'invoice_date': 'Invoice Date',
+                      'gst_number': 'GST Number',
+                      'product_name': 'Product Name',
+                      'weight': 'Weight',
+                      'qty': 'Qty',
+                      'price': 'Price',
+                      'amount': 'Amount',
+                      'tax_amount': 'Tax Amount',
+                      'tracking': 'Tracking Details',
+                      'delivery_date': 'Delivery Date',
+                      'company': 'Company',
+                      'upload': 'Upload',
+                      'action': 'Action',
+                    };
+
+                    return (
+                      <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[col as keyof typeof visibleColumns]}
+                          onChange={() => {
+                            setVisibleColumns(prev => ({
+                              ...prev,
+                              [col]: !prev[col as keyof typeof visibleColumns]
+                            }));
+                          }}
+                          className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                        />
+                        <span className="text-sm text-slate-300">
+                          {columnDisplayNames[col] || col}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
+                  <button
+                    onClick={() =>
+                      setVisibleColumns(
+                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
+                      )
+                    }
+                    className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
+                  >
+                    Show All
+                  </button>
+                  <button
+                    onClick={() =>
+                      setVisibleColumns(
+                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'invoice_no' }), {} as typeof visibleColumns)
+                      )
+                    }
+                    className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Table Wrapper - Same as page.tsx */}
       <div className="flex-1 overflow-hidden">
         <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
@@ -311,346 +435,374 @@ export default function CheckingTable() {
           <div className="flex-1 overflow-y-auto">
             <table className="w-full divide-y divide-slate-800" style={{ minWidth: '2000px' }}>
 
-              <thead className="bg-slate-950 border-b border-slate-800">
+              <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
                 <tr>
                   {/* Expand Column */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.expand }}>
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('expand', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.expand && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.expand }}>
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('expand', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Invoice No */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_no }}>
-                    Invoice No
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('invoice_no', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.invoice_no && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_no }}>
+                      Invoice No
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('invoice_no', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Invoice Date */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_date }}>
-                    Invoice Date
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('invoice_date', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.invoice_date && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_date }}>
+                      Invoice Date
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('invoice_date', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* GST Number */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.gst_number }}>
-                    GST Number
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('gst_number', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.gst_number && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.gst_number }}>
+                      GST Number
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('gst_number', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Product Name */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.product_name }}>
-                    Product Name
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('product_name', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.product_name && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.product_name }}>
+                      Product Name
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('product_name', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Weight */}
-                  {/* Weight */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
-                    Weight
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('weight', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.weight && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
+                      Weight
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('weight', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Qty */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
-                    Qty
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('qty', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.qty && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
+                      Qty
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('qty', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Price */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
-                    Price
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('price', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
-
+                  {visibleColumns.price && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
+                      Price
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('price', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Amount */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.amount }}>
-                    Amount
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('amount', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.amount && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.amount }}>
+                      Amount
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('amount', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Tax Amount */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tax_amount }}>
-                    Tax Amount
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('tax_amount', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.tax_amount && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tax_amount }}>
+                      Tax Amount
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('tax_amount', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Tracking Details */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tracking }}>
-                    Tracking Details
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('tracking', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.tracking && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tracking }}>
+                      Tracking Details
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('tracking', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Delivery Date */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.delivery_date }}>
-                    Delivery Date
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('delivery_date', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.delivery_date && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.delivery_date }}>
+                      Delivery Date
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('delivery_date', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Company */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.company }}>
-                    Company
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('company', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.company && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.company }}>
+                      Company
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('company', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Upload */}
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.upload }}>
-                    Upload
-                    <div
-                      className="absolute top-0 right-0 cursor-col-resize select-none"
-                      style={{
-                        width: '8px',
-                        height: '100%',
-                        backgroundColor: 'transparent',
-                        borderRight: '2px solid #475569',
-                        zIndex: 10,
-                        userSelect: 'none'
-                      }}
-                      onMouseDown={(e) => handleResizeStart('upload', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
-                    />
-                  </th>
+                  {visibleColumns.upload && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.upload }}>
+                      Upload
+                      <div
+                        className="absolute top-0 right-0 cursor-col-resize select-none"
+                        style={{
+                          width: '8px',
+                          height: '100%',
+                          backgroundColor: 'transparent',
+                          borderRight: '2px solid #475569',
+                          zIndex: 10,
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => handleResizeStart('upload', e)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #6366f1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderRight = '2px solid #475569';
+                        }}
+                      />
+                    </th>
+                  )}
 
                   {/* Action */}
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400" style={{ width: columnWidths.action }}>
-                    Action
-                  </th>
+                  {visibleColumns.action && (
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400" style={{ width: columnWidths.action }}>
+                      Action
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {groupedInvoices.length === 0 ? (
+                {filteredInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={15} className="text-center py-8 text-slate-500">
-                      No checking items available
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center py-8 text-slate-500">
+                      {searchQuery ? 'No invoices found' : 'No checking items available'}
                     </td>
                   </tr>
                 ) : (
-                  groupedInvoices.map((group) => {
+                  filteredInvoices.map((group) => {
                     const isExpanded = expandedInvoices.has(group.invoice_number);
                     const hasMultipleItems = group.items.length > 1;
 
@@ -661,180 +813,206 @@ export default function CheckingTable() {
                           className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
                           onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
                         >
-                          <td className="px-4 py-3" style={{ width: columnWidths.expand }}>
-                            {hasMultipleItems ? (
-                              isExpanded ? (
-                                <ChevronDown size={16} className="text-slate-400" />
-                              ) : (
-                                <ChevronRight size={16} className="text-slate-400" />
-                              )
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-slate-200" style={{ width: columnWidths.invoice_no }}>
-                            {group.invoice_number}
-                            {hasMultipleItems && (
-                              <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
-                                {group.items.length} items
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.invoice_date }}>
-                            {group.invoice_date
-                              ? new Date(group.invoice_date).toLocaleDateString()
-                              : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
+                          {visibleColumns.expand && (
+                            <td className="px-4 py-3" style={{ width: columnWidths.expand }}>
+                              {hasMultipleItems ? (
+                                isExpanded ? (
+                                  <ChevronDown size={16} className="text-slate-400" />
+                                ) : (
+                                  <ChevronRight size={16} className="text-slate-400" />
+                                )
+                              ) : null}
+                            </td>
+                          )}
+                          {visibleColumns.invoice_no && (
+                            <td className="px-4 py-3 font-semibold text-slate-200" style={{ width: columnWidths.invoice_no }}>
+                              {group.invoice_number}
+                              {hasMultipleItems && (
+                                <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
+                                  {group.items.length} items
+                                </span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.invoice_date && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.invoice_date }}>
+                              {group.invoice_date
+                                ? new Date(group.invoice_date).toLocaleDateString()
+                                : '-'}
+                            </td>
+                          )}
+                          {visibleColumns.gst_number && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
+                          )}
 
-                          {/* ✅ Product Name - WITH TRUNCATION */}
-                          {/* ✅ Product Name - WITH TRUNCATION */}
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
-                            {!hasMultipleItems ? (
-                              truncateText(group.items[0].product_name || '', 30)
-                            ) : (
-                              <span className="text-slate-500 text-sm">Multiple</span>
-                            )}
-                          </td>
+                          {/* Product Name - WITH TRUNCATION */}
+                          {visibleColumns.product_name && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
+                              {!hasMultipleItems ? (
+                                truncateText(group.items[0].product_name || '', 30)
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
 
                           {/* Weight - EDITABLE when single item */}
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
-                            {!hasMultipleItems ? (
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={group.items[0].product_weight || ''}
-                                onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                placeholder="kg"
-                              />
-                            ) : (
-                              <span className="text-slate-500 text-sm">Multiple</span>
-                            )}
-                          </td>
-
-                          {/* Qty - EDITABLE when single item */}
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
-                            {!hasMultipleItems ? (
-                              <input
-                                type="number"
-                                value={group.items[0].buying_quantity || ''}
-                                onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                placeholder="0"
-                              />
-                            ) : (
-                              <span className="text-slate-500 text-sm">Multiple</span>
-                            )}
-                          </td>
-
-                          {/* Price - EDITABLE when single item */}
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
-                            {!hasMultipleItems ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-slate-400 text-sm">₹</span>
+                          {visibleColumns.weight && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
+                              {!hasMultipleItems ? (
                                 <input
                                   type="number"
                                   step="0.01"
-                                  value={group.items[0].buying_price || ''}
-                                  onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
+                                  value={group.items[0].product_weight || ''}
+                                  onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                  placeholder="0.00"
+                                  className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                  placeholder="kg"
                                 />
-                              </div>
-                            ) : (
-                              <span className="text-slate-500 text-sm">Multiple</span>
-                            )}
-                          </td>
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
 
+                          {/* Qty - EDITABLE when single item */}
+                          {visibleColumns.qty && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
+                              {!hasMultipleItems ? (
+                                <input
+                                  type="number"
+                                  value={group.items[0].buying_quantity || ''}
+                                  onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
+
+                          {/* Price - EDITABLE when single item */}
+                          {visibleColumns.price && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
+                              {!hasMultipleItems ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-slate-400 text-sm">₹</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={group.items[0].buying_price || ''}
+                                    onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
 
                           {/* EXISTING COLUMNS */}
-                          <td className="px-4 py-3 font-semibold text-green-400" style={{ width: columnWidths.amount }}>
-                            ₹ {group.total_amount.toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tax_amount }}>
-                            {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tracking }}>
-                            {!hasMultipleItems ? (
-                              group.items[0].tracking_details || '-'
-                            ) : (
-                              <span className="text-slate-500 text-sm">Multiple</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.delivery_date }}>
-                            {!hasMultipleItems && group.items[0].delivery_date ? (
-                              new Date(group.items[0].delivery_date).toLocaleDateString()
-                            ) : !hasMultipleItems ? (
-                              '-'
-                            ) : (
-                              <span className="text-slate-500 text-sm">Multiple</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3" style={{ width: columnWidths.company }}>
-                            {group.seller_company ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedCompany(group.seller_company);
-                                }}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                              >
-                                View
-                              </button>
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3" style={{ width: columnWidths.upload }}>
-                            {group.uploaded_invoice_url ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedInvoice({
-                                    url: group.uploaded_invoice_url!,
-                                    name: group.uploaded_invoice_name || 'Invoice',
-                                  });
-                                }}
-                                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                              >
-                                View
-                              </button>
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
-                          </td>
-
-                          {/* ✅ Action Column - Checkbox OR "Done" */}
-                          <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
-                            {!hasMultipleItems ? (
-                              group.items[0].product_received ? (
-                                <span className="text-green-400 font-semibold">Done</span>
+                          {visibleColumns.amount && (
+                            <td className="px-4 py-3 font-semibold text-green-400" style={{ width: columnWidths.amount }}>
+                              ₹ {group.total_amount.toFixed(2)}
+                            </td>
+                          )}
+                          {visibleColumns.tax_amount && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tax_amount }}>
+                              {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
+                            </td>
+                          )}
+                          {visibleColumns.tracking && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tracking }}>
+                              {!hasMultipleItems ? (
+                                group.items[0].tracking_details || '-'
                               ) : (
-                                <input
-                                  type="checkbox"
-                                  checked={group.items[0].product_received || false}
-                                  onChange={(e) =>
-                                    handleCheckboxChange(group.items[0].id, e.target.checked)
-                                  }
-                                  className="w-5 h-5 cursor-pointer accent-green-600"
-                                />
-                              )
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
-                          </td>
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.delivery_date && (
+                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.delivery_date }}>
+                              {!hasMultipleItems && group.items[0].delivery_date ? (
+                                new Date(group.items[0].delivery_date).toLocaleDateString()
+                              ) : !hasMultipleItems ? (
+                                '-'
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.company && (
+                            <td className="px-4 py-3" style={{ width: columnWidths.company }}>
+                              {group.seller_company ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCompany(group.seller_company);
+                                  }}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.upload && (
+                            <td className="px-4 py-3" style={{ width: columnWidths.upload }}>
+                              {group.uploaded_invoice_url ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvoice({
+                                      url: group.uploaded_invoice_url!,
+                                      name: group.uploaded_invoice_name || 'Invoice',
+                                    });
+                                  }}
+                                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                            </td>
+                          )}
+
+                          {/* Action Column - Checkbox OR "Done" */}
+                          {visibleColumns.action && (
+                            <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
+                              {!hasMultipleItems ? (
+                                group.items[0].product_received ? (
+                                  <span className="text-green-400 font-semibold">Done</span>
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    checked={group.items[0].product_received || false}
+                                    onChange={(e) =>
+                                      handleCheckboxChange(group.items[0].id, e.target.checked)
+                                    }
+                                    className="w-5 h-5 cursor-pointer accent-green-600"
+                                  />
+                                )
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                            </td>
+                          )}
                         </tr>
 
                         {/* Expanded Card - Show individual items */}
-                        {/* Expanded Card - Show individual items */}
-                        {/* Expanded Card - Show individual items */}
                         {isExpanded && hasMultipleItems && (
                           <tr>
-                            <td colSpan={15} className="bg-slate-800/30 px-4 py-3">
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-slate-800/30 px-4 py-3">
                               <div className="ml-8 space-y-2">
-                                {group.items.map((item, idx) => (
+                                {group.items.map((item) => (
                                   <div
                                     key={item.id}
                                     className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-md hover:border-indigo-500/50 transition-all"
@@ -954,14 +1132,19 @@ export default function CheckingTable() {
                             </td>
                           </tr>
                         )}
-
-
                       </React.Fragment>
                     );
                   })
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Footer Count - STICKY AT BOTTOM */}
+          <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
+            <div className="text-sm text-slate-400">
+              Showing {filteredInvoices.length} of {groupedInvoices.length} invoices
+            </div>
           </div>
         </div>
       </div>

@@ -52,47 +52,62 @@ export default function CompanyInvoiceTable() {
   } | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
+  const [visibleColumns, setVisibleColumns] = useState({  // ✅ ADDED
+    expand: true,
+    invoice_no: true,
+    invoice_date: true,
+    gst_number: true,
+    amount: true,
+    tax_amount: true,
+    tracking_details: true,
+    delivery_date: true,
+    company: true,
+    upload: true,
+    action: true,
+  });
 
   // Fetch data
   useEffect(() => {
     fetchInvoiceData();
   }, []);
 
-const fetchInvoiceData = async () => {
+  const fetchInvoiceData = async () => {
     try {
-        setLoading(true);
+      setLoading(true);
 
-        // ✅ Recursive fetch to handle 1000+ rows
-        let allData: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
+      // ✅ Recursive fetch to handle 1000+ rows
+      let allData: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-        while (hasMore) {
-            const { data, error } = await supabase
-                .from('usa_tracking_company_invoice')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .range(from, from + batchSize - 1);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('usa_tracking_company_invoice')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + batchSize - 1);
 
-            if (error) throw error;
+        if (error) throw error;
 
-            if (data && data.length > 0) {
-                allData = [...allData, ...data];
-                from += batchSize;
-                hasMore = data.length === batchSize;
-            } else {
-                hasMore = false;
-            }
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
         }
+      }
 
-        setItems(allData);
+      setItems(allData);
     } catch (error) {
-        console.error('Error fetching invoice data:', error);
+      console.error('Error fetching invoice data:', error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
 
   // Group items by invoice_number
@@ -117,6 +132,11 @@ const fetchInvoiceData = async () => {
       acc[item.invoice_number].total_tax += item.tax_amount || 0;
       return acc;
     }, {} as Record<string, GroupedInvoice>)
+  );
+
+  // ✅ Filter by search query
+  const filteredInvoices = groupedInvoices.filter(inv =>
+    inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Toggle expanded state
@@ -221,193 +241,342 @@ const fetchInvoiceData = async () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Table */}
-      <div className="overflow-x-auto border border-slate-700 rounded-xl shadow-lg">
-        <table className="w-full">
-          <thead className="bg-slate-950 border-b border-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 w-8"></th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice No</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">GST Number</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Amount</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tax Amount</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking Details</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery Date</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Company</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Upload</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {groupedInvoices.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="text-center py-8 text-slate-500">
-                  No invoice items available
-                </td>
-              </tr>
-            ) : (
-              groupedInvoices.map((group) => {
-                const isExpanded = expandedInvoices.has(group.invoice_number);
-                const hasMultipleItems = group.items.length > 1;
+    <div className="h-full flex flex-col">
+      {/* Search Bar & Hide Columns */}
+      <div className="flex-none px-4 pb-4 flex gap-3 items-center">
+        <input
+          type="text"
+          placeholder="Search by Invoice Number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+        />
 
-                return (
-                  <React.Fragment key={group.invoice_number}>
-                    {/* Main Invoice Row */}
-                    <tr
-                      key={group.invoice_number}
-                      className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
-                      onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
-                    >
-                      <td className="px-4 py-3">
-                        {hasMultipleItems ? (
-                          isExpanded ? (
-                            <ChevronDown size={16} className="text-slate-400" />
-                          ) : (
-                            <ChevronRight size={16} className="text-slate-400" />
-                          )
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-slate-200">
-                        {group.invoice_number}
-                        {hasMultipleItems && (
-                          <span className="ml-2 text-xs bg-indigo-600 text-white px-2 py-1 rounded">
-                            {group.items.length} items
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">
-                        {group.invoice_date
-                          ? new Date(group.invoice_date).toLocaleDateString()
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">{group.gst_number || '-'}</td>
-                      <td className="px-4 py-3 font-semibold text-green-400">
-                        ₹ {group.total_amount.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">
-                        {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
-                      </td>
-                      {/* ✅ TRACKING DETAILS COLUMN */}
-                      <td className="px-4 py-3 text-slate-300">
-                        {!hasMultipleItems ? (
-                          group.items[0].tracking_details || '-'
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-                      {/* ✅ DELIVERY DATE COLUMN */}
-                      <td className="px-4 py-3 text-slate-300">
-                        {!hasMultipleItems && group.items[0].delivery_date ? (
-                          new Date(group.items[0].delivery_date).toLocaleDateString()
-                        ) : !hasMultipleItems ? (
-                          '-'
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {group.seller_company ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedCompany(group.seller_company);
-                            }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                          >
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {group.uploaded_invoice_url ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedInvoice({
-                                url: group.uploaded_invoice_url!,
-                                name: group.uploaded_invoice_name || 'Invoice',
-                              });
-                            }}
-                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                          >
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => handleActionChange(group.invoice_number, 'pass')}
-                            className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'pass' ? 'opacity-100' : 'opacity-30'
-                              }`}
-                            title="Pass"
-                          >
-                            ✅
-                          </button>
-                          <button
-                            onClick={() => handleActionChange(group.invoice_number, 'fail')}
-                            className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'fail' ? 'opacity-100' : 'opacity-30'
-                              }`}
-                            title="Fail"
-                          >
-                            ❌
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+        {/* Hide Columns Button */}
+        <div className="relative">
+          <button
+            onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            Hide Columns
+          </button>
 
-                    {/* Expanded Card - Show individual items */}
-                    {isExpanded && hasMultipleItems && (
-                      <tr>
-                        <td colSpan={11} className="bg-slate-800/30 px-4 py-2">
-                          <div className="ml-8 space-y-2">
-                            {group.items.map((item, idx) => (
-                              <div
-                                key={item.id}
-                                className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-sm"
-                              >
-                                <div className="grid grid-cols-4 gap-4 text-sm">
-                                  <div>
-                                    <span className="font-semibold text-slate-400">ASIN:</span>{' '}
-                                    <span className="text-slate-200">{item.asin}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-semibold text-slate-400">Amount:</span>{' '}
-                                    <span className="text-green-400">
-                                      {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span className="font-semibold text-slate-400">Tracking:</span>{' '}
-                                    <span className="text-slate-200">{item.tracking_details || '-'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-semibold text-slate-400">Delivery:</span>{' '}
-                                    <span className="text-slate-200">
-                                      {item.delivery_date
-                                        ? new Date(item.delivery_date).toLocaleDateString()
-                                        : '-'}
-                                    </span>
-                                  </div>
-                                </div>
+          {isColumnMenuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setIsColumnMenuOpen(false)}
+              />
+
+              <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64">
+                <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {Object.keys(visibleColumns).map((col) => {
+                    const columnDisplayNames: { [key: string]: string } = {
+                      'expand': 'Expand',
+                      'invoice_no': 'Invoice No',
+                      'invoice_date': 'Invoice Date',
+                      'gst_number': 'GST Number',
+                      'amount': 'Amount',
+                      'tax_amount': 'Tax Amount',
+                      'tracking_details': 'Tracking Details',
+                      'delivery_date': 'Delivery Date',
+                      'company': 'Company',
+                      'upload': 'Upload',
+                      'action': 'Action',
+                    };
+
+                    return (
+                      <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[col as keyof typeof visibleColumns]}
+                          onChange={() => {
+                            setVisibleColumns(prev => ({
+                              ...prev,
+                              [col]: !prev[col as keyof typeof visibleColumns]
+                            }));
+                          }}
+                          className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                        />
+                        <span className="text-sm text-slate-300">
+                          {columnDisplayNames[col] || col}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
+                  <button
+                    onClick={() =>
+                      setVisibleColumns(
+                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
+                      )
+                    }
+                    className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
+                  >
+                    Show All
+                  </button>
+                  <button
+                    onClick={() =>
+                      setVisibleColumns(
+                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'invoice_no' }), {} as typeof visibleColumns)
+                      )
+                    }
+                    className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Table Wrapper */}
+      <div className="flex-1 overflow-hidden">
+        <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
+          {/* Table Scroll Container */}
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full">
+              <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
+                <tr>
+                  {visibleColumns.expand && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 w-8"></th>
+                  )}
+                  {visibleColumns.invoice_no && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice No</th>
+                  )}
+                  {visibleColumns.invoice_date && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice Date</th>
+                  )}
+                  {visibleColumns.gst_number && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">GST Number</th>
+                  )}
+                  {visibleColumns.amount && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Amount</th>
+                  )}
+                  {visibleColumns.tax_amount && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tax Amount</th>
+                  )}
+                  {visibleColumns.tracking_details && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking Details</th>
+                  )}
+                  {visibleColumns.delivery_date && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery Date</th>
+                  )}
+                  {visibleColumns.company && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Company</th>
+                  )}
+                  {visibleColumns.upload && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Upload</th>
+                  )}
+                  {visibleColumns.action && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Action</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filteredInvoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center py-8 text-slate-500">
+                      {searchQuery ? 'No invoices found' : 'No invoice items available'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredInvoices.map((group) => {
+                    const isExpanded = expandedInvoices.has(group.invoice_number);
+                    const hasMultipleItems = group.items.length > 1;
+
+                    return (
+                      <React.Fragment key={group.invoice_number}>
+                        {/* Main Invoice Row */}
+                        <tr
+                          className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
+                          onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
+                        >
+                          {visibleColumns.expand && (
+                            <td className="px-4 py-3">
+                              {hasMultipleItems ? (
+                                isExpanded ? (
+                                  <ChevronDown size={16} className="text-slate-400" />
+                                ) : (
+                                  <ChevronRight size={16} className="text-slate-400" />
+                                )
+                              ) : null}
+                            </td>
+                          )}
+                          {visibleColumns.invoice_no && (
+                            <td className="px-4 py-3 font-semibold text-slate-200">
+                              {group.invoice_number}
+                              {hasMultipleItems && (
+                                <span className="ml-2 text-xs bg-indigo-600 text-white px-2 py-1 rounded">
+                                  {group.items.length} items
+                                </span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.invoice_date && (
+                            <td className="px-4 py-3 text-slate-300">
+                              {group.invoice_date
+                                ? new Date(group.invoice_date).toLocaleDateString()
+                                : '-'}
+                            </td>
+                          )}
+                          {visibleColumns.gst_number && (
+                            <td className="px-4 py-3 text-slate-300">{group.gst_number || '-'}</td>
+                          )}
+                          {visibleColumns.amount && (
+                            <td className="px-4 py-3 font-semibold text-green-400">
+                              ₹ {group.total_amount.toFixed(2)}
+                            </td>
+                          )}
+                          {visibleColumns.tax_amount && (
+                            <td className="px-4 py-3 text-slate-300">
+                              {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
+                            </td>
+                          )}
+                          {visibleColumns.tracking_details && (
+                            <td className="px-4 py-3 text-slate-300">
+                              {!hasMultipleItems ? (
+                                group.items[0].tracking_details || '-'
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.delivery_date && (
+                            <td className="px-4 py-3 text-slate-300">
+                              {!hasMultipleItems && group.items[0].delivery_date ? (
+                                new Date(group.items[0].delivery_date).toLocaleDateString()
+                              ) : !hasMultipleItems ? (
+                                '-'
+                              ) : (
+                                <span className="text-slate-500 text-sm">Multiple</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.company && (
+                            <td className="px-4 py-3">
+                              {group.seller_company ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCompany(group.seller_company);
+                                  }}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.upload && (
+                            <td className="px-4 py-3">
+                              {group.uploaded_invoice_url ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedInvoice({
+                                      url: group.uploaded_invoice_url!,
+                                      name: group.uploaded_invoice_name || 'Invoice',
+                                    });
+                                  }}
+                                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  View
+                                </button>
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.action && (
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => handleActionChange(group.invoice_number, 'pass')}
+                                  className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'pass' ? 'opacity-100' : 'opacity-30'
+                                    }`}
+                                  title="Pass"
+                                >
+                                  ✅
+                                </button>
+                                <button
+                                  onClick={() => handleActionChange(group.invoice_number, 'fail')}
+                                  className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'fail' ? 'opacity-100' : 'opacity-30'
+                                    }`}
+                                  title="Fail"
+                                >
+                                  ❌
+                                </button>
                               </div>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                            </td>
+                          )}
+                        </tr>
+
+                        {/* Expanded Card - Show individual items */}
+                        {isExpanded && hasMultipleItems && (
+                          <tr>
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-slate-800/30 px-4 py-2">
+                              <div className="ml-8 space-y-2">
+                                {group.items.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-sm"
+                                  >
+                                    <div className="grid grid-cols-4 gap-4 text-sm">
+                                      <div>
+                                        <span className="font-semibold text-slate-400">ASIN:</span>{' '}
+                                        <span className="text-slate-200">{item.asin}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold text-slate-400">Amount:</span>{' '}
+                                        <span className="text-green-400">
+                                          {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold text-slate-400">Tracking:</span>{' '}
+                                        <span className="text-slate-200">{item.tracking_details || '-'}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold text-slate-400">Delivery:</span>{' '}
+                                        <span className="text-slate-200">
+                                          {item.delivery_date
+                                            ? new Date(item.delivery_date).toLocaleDateString()
+                                            : '-'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer Count - STICKY AT BOTTOM */}
+          <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
+            <div className="text-sm text-slate-400">
+              Showing {filteredInvoices.length} of {groupedInvoices.length} invoices
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Uploaded Invoice Modal */}
