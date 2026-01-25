@@ -179,6 +179,7 @@ export default function RollbackModal({
                         product_name: item.product_name,
                         target_price: item.target_price,
                         target_quantity: item.target_quantity,
+                        admin_target_price: item.admin_target_price,
                         buying_price: item.buying_price,
                         buying_quantity: item.buying_quantity,
                         seller_link: item.seller_link,
@@ -186,6 +187,8 @@ export default function RollbackModal({
                         tracking_details: item.tracking_details,
                         delivery_date: item.delivery_date,
                         seller_tag: item.seller_tag,
+                        inr_purchase_link: item.inr_purchase_link,
+                        origin: item.origin,
                         funnel: item.funnel,
                         product_weight: item.product_weight,
                         // Note: Not restoring invoice-specific fields like gst_number, cgst, sgst, etc.

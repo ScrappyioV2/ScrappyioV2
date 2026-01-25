@@ -92,42 +92,42 @@ export default function CheckingTable() {
 
   const fetchCheckingData = async () => {
     try {
-        setLoading(true);
+      setLoading(true);
 
-        // ✅ Recursive fetch to handle 1000+ rows
-        let allData: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
+      // ✅ Recursive fetch to handle 1000+ rows
+      let allData: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-        while (hasMore) {
-            const { data, error } = await supabase
-                .from('usa_checking')
-                .select('*')
-                .order('moved_at', { ascending: false })
-                .range(from, from + batchSize - 1);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('usa_checking')
+          .select('*')
+          .order('moved_at', { ascending: false })
+          .range(from, from + batchSize - 1);
 
-            if (error) throw error;
+        if (error) throw error;
 
-            if (data && data.length > 0) {
-                allData = [...allData, ...data];
-                from += batchSize;
-                hasMore = data.length === batchSize;
-            } else {
-                hasMore = false;
-            }
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
         }
+      }
 
-        console.log('✅ Checking data fetched:', allData);
-        console.log('✅ Number of items:', allData?.length);
+      console.log('✅ Checking data fetched:', allData);
+      console.log('✅ Number of items:', allData?.length);
 
-        setItems(allData);
+      setItems(allData);
     } catch (error) {
-        console.error('Error fetching checking data:', error);
+      console.error('Error fetching checking data:', error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
 
   // Group items by invoice_number
@@ -303,661 +303,667 @@ export default function CheckingTable() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Table */}
-      <div className="overflow-x-auto border border-slate-700 rounded-xl shadow-lg" style={{ position: 'relative' }}>
-        <table className="w-full" style={{ tableLayout: 'fixed' }}>
-          <thead className="bg-slate-950 border-b border-slate-800">
-            <tr>
-              {/* Expand Column */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.expand }}>
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('expand', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+    <div className="h-full flex flex-col">
+      {/* Table Wrapper - Same as page.tsx */}
+      <div className="flex-1 overflow-hidden">
+        <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
+          {/* Table Scroll Container */}
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full divide-y divide-slate-800" style={{ minWidth: '2000px' }}>
 
-              {/* Invoice No */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_no }}>
-                Invoice No
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('invoice_no', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+              <thead className="bg-slate-950 border-b border-slate-800">
+                <tr>
+                  {/* Expand Column */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.expand }}>
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('expand', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-              {/* Invoice Date */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_date }}>
-                Invoice Date
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('invoice_date', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+                  {/* Invoice No */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_no }}>
+                    Invoice No
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('invoice_no', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-              {/* GST Number */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.gst_number }}>
-                GST Number
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('gst_number', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+                  {/* Invoice Date */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_date }}>
+                    Invoice Date
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('invoice_date', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-              {/* Product Name */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.product_name }}>
-                Product Name
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('product_name', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+                  {/* GST Number */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.gst_number }}>
+                    GST Number
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('gst_number', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-              {/* Weight */}
-              {/* Weight */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
-                Weight
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('weight', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+                  {/* Product Name */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.product_name }}>
+                    Product Name
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('product_name', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-              {/* Qty */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
-                Qty
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('qty', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+                  {/* Weight */}
+                  {/* Weight */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
+                    Weight
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('weight', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-              {/* Price */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
-                Price
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('price', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
+                  {/* Qty */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
+                    Qty
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('qty', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-
-              {/* Amount */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.amount }}>
-                Amount
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('amount', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
-
-              {/* Tax Amount */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tax_amount }}>
-                Tax Amount
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('tax_amount', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
-
-              {/* Tracking Details */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tracking }}>
-                Tracking Details
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('tracking', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
-
-              {/* Delivery Date */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.delivery_date }}>
-                Delivery Date
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('delivery_date', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
-
-              {/* Company */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.company }}>
-                Company
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('company', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
-
-              {/* Upload */}
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.upload }}>
-                Upload
-                <div
-                  className="absolute top-0 right-0 cursor-col-resize select-none"
-                  style={{
-                    width: '8px',
-                    height: '100%',
-                    backgroundColor: 'transparent',
-                    borderRight: '2px solid #475569',
-                    zIndex: 10,
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => handleResizeStart('upload', e)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #6366f1';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderRight = '2px solid #475569';
-                  }}
-                />
-              </th>
-
-              {/* Action */}
-              <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400" style={{ width: columnWidths.action }}>
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {groupedInvoices.length === 0 ? (
-              <tr>
-                <td colSpan={15} className="text-center py-8 text-slate-500">
-                  No checking items available
-                </td>
-              </tr>
-            ) : (
-              groupedInvoices.map((group) => {
-                const isExpanded = expandedInvoices.has(group.invoice_number);
-                const hasMultipleItems = group.items.length > 1;
-
-                return (
-                  <React.Fragment key={group.invoice_number}>
-                    {/* Main Invoice Row */}
-                    <tr
-                      className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
-                      onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
-                    >
-                      <td className="px-4 py-3" style={{ width: columnWidths.expand }}>
-                        {hasMultipleItems ? (
-                          isExpanded ? (
-                            <ChevronDown size={16} className="text-slate-400" />
-                          ) : (
-                            <ChevronRight size={16} className="text-slate-400" />
-                          )
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-slate-200" style={{ width: columnWidths.invoice_no }}>
-                        {group.invoice_number}
-                        {hasMultipleItems && (
-                          <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
-                            {group.items.length} items
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.invoice_date }}>
-                        {group.invoice_date
-                          ? new Date(group.invoice_date).toLocaleDateString()
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
-
-                      {/* ✅ Product Name - WITH TRUNCATION */}
-                      {/* ✅ Product Name - WITH TRUNCATION */}
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
-                        {!hasMultipleItems ? (
-                          truncateText(group.items[0].product_name || '', 30)
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-
-                      {/* Weight - EDITABLE when single item */}
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
-                        {!hasMultipleItems ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={group.items[0].product_weight || ''}
-                            onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                            placeholder="kg"
-                          />
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-
-                      {/* Qty - EDITABLE when single item */}
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
-                        {!hasMultipleItems ? (
-                          <input
-                            type="number"
-                            value={group.items[0].buying_quantity || ''}
-                            onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                            placeholder="0"
-                          />
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-
-                      {/* Price - EDITABLE when single item */}
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
-                        {!hasMultipleItems ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-slate-400 text-sm">₹</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={group.items[0].buying_price || ''}
-                              onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
+                  {/* Price */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
+                    Price
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('price', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
 
-                      {/* EXISTING COLUMNS */}
-                      <td className="px-4 py-3 font-semibold text-green-400" style={{ width: columnWidths.amount }}>
-                        ₹ {group.total_amount.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tax_amount }}>
-                        {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tracking }}>
-                        {!hasMultipleItems ? (
-                          group.items[0].tracking_details || '-'
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.delivery_date }}>
-                        {!hasMultipleItems && group.items[0].delivery_date ? (
-                          new Date(group.items[0].delivery_date).toLocaleDateString()
-                        ) : !hasMultipleItems ? (
-                          '-'
-                        ) : (
-                          <span className="text-slate-500 text-sm">Multiple</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" style={{ width: columnWidths.company }}>
-                        {group.seller_company ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedCompany(group.seller_company);
-                            }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                          >
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" style={{ width: columnWidths.upload }}>
-                        {group.uploaded_invoice_url ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedInvoice({
-                                url: group.uploaded_invoice_url!,
-                                name: group.uploaded_invoice_name || 'Invoice',
-                              });
-                            }}
-                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                          >
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
-                      </td>
+                  {/* Amount */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.amount }}>
+                    Amount
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('amount', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-                      {/* ✅ Action Column - Checkbox OR "Done" */}
-                      <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
-                        {!hasMultipleItems ? (
-                          group.items[0].product_received ? (
-                            <span className="text-green-400 font-semibold">Done</span>
-                          ) : (
-                            <input
-                              type="checkbox"
-                              checked={group.items[0].product_received || false}
-                              onChange={(e) =>
-                                handleCheckboxChange(group.items[0].id, e.target.checked)
-                              }
-                              className="w-5 h-5 cursor-pointer accent-green-600"
-                            />
-                          )
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
-                      </td>
-                    </tr>
+                  {/* Tax Amount */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tax_amount }}>
+                    Tax Amount
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('tax_amount', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
 
-                    {/* Expanded Card - Show individual items */}
-                    {/* Expanded Card - Show individual items */}
-                    {/* Expanded Card - Show individual items */}
-                    {isExpanded && hasMultipleItems && (
-                      <tr>
-                        <td colSpan={15} className="bg-slate-800/30 px-4 py-3">
-                          <div className="ml-8 space-y-2">
-                            {group.items.map((item, idx) => (
-                              <div
-                                key={item.id}
-                                className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-md hover:border-indigo-500/50 transition-all"
+                  {/* Tracking Details */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tracking }}>
+                    Tracking Details
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('tracking', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
+
+                  {/* Delivery Date */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.delivery_date }}>
+                    Delivery Date
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('delivery_date', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
+
+                  {/* Company */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.company }}>
+                    Company
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('company', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
+
+                  {/* Upload */}
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.upload }}>
+                    Upload
+                    <div
+                      className="absolute top-0 right-0 cursor-col-resize select-none"
+                      style={{
+                        width: '8px',
+                        height: '100%',
+                        backgroundColor: 'transparent',
+                        borderRight: '2px solid #475569',
+                        zIndex: 10,
+                        userSelect: 'none'
+                      }}
+                      onMouseDown={(e) => handleResizeStart('upload', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    />
+                  </th>
+
+                  {/* Action */}
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400" style={{ width: columnWidths.action }}>
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {groupedInvoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={15} className="text-center py-8 text-slate-500">
+                      No checking items available
+                    </td>
+                  </tr>
+                ) : (
+                  groupedInvoices.map((group) => {
+                    const isExpanded = expandedInvoices.has(group.invoice_number);
+                    const hasMultipleItems = group.items.length > 1;
+
+                    return (
+                      <React.Fragment key={group.invoice_number}>
+                        {/* Main Invoice Row */}
+                        <tr
+                          className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
+                          onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
+                        >
+                          <td className="px-4 py-3" style={{ width: columnWidths.expand }}>
+                            {hasMultipleItems ? (
+                              isExpanded ? (
+                                <ChevronDown size={16} className="text-slate-400" />
+                              ) : (
+                                <ChevronRight size={16} className="text-slate-400" />
+                              )
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-slate-200" style={{ width: columnWidths.invoice_no }}>
+                            {group.invoice_number}
+                            {hasMultipleItems && (
+                              <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
+                                {group.items.length} items
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.invoice_date }}>
+                            {group.invoice_date
+                              ? new Date(group.invoice_date).toLocaleDateString()
+                              : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
+
+                          {/* ✅ Product Name - WITH TRUNCATION */}
+                          {/* ✅ Product Name - WITH TRUNCATION */}
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
+                            {!hasMultipleItems ? (
+                              truncateText(group.items[0].product_name || '', 30)
+                            ) : (
+                              <span className="text-slate-500 text-sm">Multiple</span>
+                            )}
+                          </td>
+
+                          {/* Weight - EDITABLE when single item */}
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
+                            {!hasMultipleItems ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={group.items[0].product_weight || ''}
+                                onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                placeholder="kg"
+                              />
+                            ) : (
+                              <span className="text-slate-500 text-sm">Multiple</span>
+                            )}
+                          </td>
+
+                          {/* Qty - EDITABLE when single item */}
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
+                            {!hasMultipleItems ? (
+                              <input
+                                type="number"
+                                value={group.items[0].buying_quantity || ''}
+                                onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span className="text-slate-500 text-sm">Multiple</span>
+                            )}
+                          </td>
+
+                          {/* Price - EDITABLE when single item */}
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
+                            {!hasMultipleItems ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-slate-400 text-sm">₹</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={group.items[0].buying_price || ''}
+                                  onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 text-sm">Multiple</span>
+                            )}
+                          </td>
+
+
+                          {/* EXISTING COLUMNS */}
+                          <td className="px-4 py-3 font-semibold text-green-400" style={{ width: columnWidths.amount }}>
+                            ₹ {group.total_amount.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tax_amount }}>
+                            {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tracking }}>
+                            {!hasMultipleItems ? (
+                              group.items[0].tracking_details || '-'
+                            ) : (
+                              <span className="text-slate-500 text-sm">Multiple</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.delivery_date }}>
+                            {!hasMultipleItems && group.items[0].delivery_date ? (
+                              new Date(group.items[0].delivery_date).toLocaleDateString()
+                            ) : !hasMultipleItems ? (
+                              '-'
+                            ) : (
+                              <span className="text-slate-500 text-sm">Multiple</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3" style={{ width: columnWidths.company }}>
+                            {group.seller_company ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCompany(group.seller_company);
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                               >
-                                <div className="flex items-center gap-6 text-sm">
-                                  {/* ASIN */}
-                                  <div className="flex items-center gap-2 min-w-[120px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">ASIN:</span>
-                                    <span className="font-mono text-indigo-400 font-semibold">{item.asin}</span>
-                                  </div>
+                                View
+                              </button>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3" style={{ width: columnWidths.upload }}>
+                            {group.uploaded_invoice_url ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedInvoice({
+                                    url: group.uploaded_invoice_url!,
+                                    name: group.uploaded_invoice_name || 'Invoice',
+                                  });
+                                }}
+                                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                              >
+                                View
+                              </button>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
 
-                                  {/* Product Name */}
-                                  <div className="flex items-center gap-2 flex-1 min-w-0" title={item.product_name || ''}>
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Product:</span>
-                                    <span className="text-slate-200 truncate">{item.product_name || '-'}</span>
-                                  </div>
+                          {/* ✅ Action Column - Checkbox OR "Done" */}
+                          <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
+                            {!hasMultipleItems ? (
+                              group.items[0].product_received ? (
+                                <span className="text-green-400 font-semibold">Done</span>
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={group.items[0].product_received || false}
+                                  onChange={(e) =>
+                                    handleCheckboxChange(group.items[0].id, e.target.checked)
+                                  }
+                                  className="w-5 h-5 cursor-pointer accent-green-600"
+                                />
+                              )
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+                        </tr>
 
-                                  {/* Weight - EDITABLE */}
-                                  <div className="flex items-center gap-2 min-w-[120px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Weight:</span>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={item.product_weight || ''}
-                                      onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                      placeholder="kg"
-                                    />
-                                  </div>
+                        {/* Expanded Card - Show individual items */}
+                        {/* Expanded Card - Show individual items */}
+                        {/* Expanded Card - Show individual items */}
+                        {isExpanded && hasMultipleItems && (
+                          <tr>
+                            <td colSpan={15} className="bg-slate-800/30 px-4 py-3">
+                              <div className="ml-8 space-y-2">
+                                {group.items.map((item, idx) => (
+                                  <div
+                                    key={item.id}
+                                    className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-md hover:border-indigo-500/50 transition-all"
+                                  >
+                                    <div className="flex items-center gap-6 text-sm">
+                                      {/* ASIN */}
+                                      <div className="flex items-center gap-2 min-w-[120px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">ASIN:</span>
+                                        <span className="font-mono text-indigo-400 font-semibold">{item.asin}</span>
+                                      </div>
 
-                                  {/* Quantity - EDITABLE */}
-                                  <div className="flex items-center gap-2 min-w-[100px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Qty:</span>
-                                    <input
-                                      type="number"
-                                      value={item.buying_quantity || ''}
-                                      onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                      placeholder="0"
-                                    />
-                                  </div>
+                                      {/* Product Name */}
+                                      <div className="flex items-center gap-2 flex-1 min-w-0" title={item.product_name || ''}>
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Product:</span>
+                                        <span className="text-slate-200 truncate">{item.product_name || '-'}</span>
+                                      </div>
 
-                                  {/* Price - EDITABLE */}
-                                  <div className="flex items-center gap-2 min-w-[130px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Price:</span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-slate-400 text-sm">₹</span>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={item.buying_price || ''}
-                                        onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                        placeholder="0.00"
-                                      />
+                                      {/* Weight - EDITABLE */}
+                                      <div className="flex items-center gap-2 min-w-[120px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Weight:</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={item.product_weight || ''}
+                                          onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                          placeholder="kg"
+                                        />
+                                      </div>
+
+                                      {/* Quantity - EDITABLE */}
+                                      <div className="flex items-center gap-2 min-w-[100px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Qty:</span>
+                                        <input
+                                          type="number"
+                                          value={item.buying_quantity || ''}
+                                          onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                          placeholder="0"
+                                        />
+                                      </div>
+
+                                      {/* Price - EDITABLE */}
+                                      <div className="flex items-center gap-2 min-w-[130px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Price:</span>
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-slate-400 text-sm">₹</span>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={item.buying_price || ''}
+                                            onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                                            placeholder="0.00"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Amount - AUTO-CALCULATED */}
+                                      <div className="flex items-center gap-2 min-w-[120px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Amount:</span>
+                                        <span className="font-bold text-green-400">
+                                          {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
+                                        </span>
+                                      </div>
+
+                                      {/* Tracking */}
+                                      <div className="flex items-center gap-2 min-w-[140px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Tracking:</span>
+                                        <span className="text-slate-200 truncate" title={item.tracking_details || ''}>
+                                          {item.tracking_details || '-'}
+                                        </span>
+                                      </div>
+
+                                      {/* Delivery Date */}
+                                      <div className="flex items-center gap-2 min-w-[120px]">
+                                        <span className="text-xs font-semibold text-slate-500 uppercase">Delivery:</span>
+                                        <span className="text-slate-200">
+                                          {item.delivery_date
+                                            ? new Date(item.delivery_date).toLocaleDateString('en-IN', {
+                                              day: '2-digit',
+                                              month: 'short',
+                                            })
+                                            : '-'}
+                                        </span>
+                                      </div>
+
+                                      {/* Action - Checkbox OR Done */}
+                                      <div className="flex items-center min-w-[100px] justify-end">
+                                        {item.product_received ? (
+                                          <span className="flex items-center gap-1.5 bg-green-600/20 text-green-400 px-3 py-1 rounded-md font-semibold text-xs border border-green-600/30">
+                                            <span>✓</span> Done
+                                          </span>
+                                        ) : (
+                                          <label className="flex items-center gap-2 cursor-pointer group">
+                                            <input
+                                              type="checkbox"
+                                              checked={item.product_received || false}
+                                              onChange={(e) =>
+                                                handleCheckboxChange(item.id, e.target.checked)
+                                              }
+                                              className="w-4 h-4 cursor-pointer accent-green-600"
+                                            />
+                                            <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
+                                              Received
+                                            </span>
+                                          </label>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-
-                                  {/* Amount - AUTO-CALCULATED */}
-                                  <div className="flex items-center gap-2 min-w-[120px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Amount:</span>
-                                    <span className="font-bold text-green-400">
-                                      {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
-                                    </span>
-                                  </div>
-
-                                  {/* Tracking */}
-                                  <div className="flex items-center gap-2 min-w-[140px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Tracking:</span>
-                                    <span className="text-slate-200 truncate" title={item.tracking_details || ''}>
-                                      {item.tracking_details || '-'}
-                                    </span>
-                                  </div>
-
-                                  {/* Delivery Date */}
-                                  <div className="flex items-center gap-2 min-w-[120px]">
-                                    <span className="text-xs font-semibold text-slate-500 uppercase">Delivery:</span>
-                                    <span className="text-slate-200">
-                                      {item.delivery_date
-                                        ? new Date(item.delivery_date).toLocaleDateString('en-IN', {
-                                          day: '2-digit',
-                                          month: 'short',
-                                        })
-                                        : '-'}
-                                    </span>
-                                  </div>
-
-                                  {/* Action - Checkbox OR Done */}
-                                  <div className="flex items-center min-w-[100px] justify-end">
-                                    {item.product_received ? (
-                                      <span className="flex items-center gap-1.5 bg-green-600/20 text-green-400 px-3 py-1 rounded-md font-semibold text-xs border border-green-600/30">
-                                        <span>✓</span> Done
-                                      </span>
-                                    ) : (
-                                      <label className="flex items-center gap-2 cursor-pointer group">
-                                        <input
-                                          type="checkbox"
-                                          checked={item.product_received || false}
-                                          onChange={(e) =>
-                                            handleCheckboxChange(item.id, e.target.checked)
-                                          }
-                                          className="w-4 h-4 cursor-pointer accent-green-600"
-                                        />
-                                        <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
-                                          Received
-                                        </span>
-                                      </label>
-                                    )}
-                                  </div>
-                                </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
+                            </td>
+                          </tr>
+                        )}
 
 
-                  </React.Fragment>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Uploaded Invoice Modal */}

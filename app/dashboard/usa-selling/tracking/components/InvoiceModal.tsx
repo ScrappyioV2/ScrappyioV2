@@ -6,9 +6,19 @@ import { X, Upload } from 'lucide-react';
 
 type InvoiceItem = {
   asin: string;
+  product_link?: string | null;
   product_name: string | null;
+  target_price?: number | null;  // ✅ ADDED
+  target_quantity?: number | null;  // ✅ ADDED
+  admin_target_price?: number | null;  // ✅ ADDED
+  funnel?: string | null;  // ✅ ADDED
+  seller_tag?: string | null;  // ✅ ADDED
+  inr_purchase_link?: string | null;  // ✅ ADDED
+  origin?: string | null;
   buying_price: number | null;
   buying_quantity: number | null;
+  seller_link?: string | null;  // ✅ ADDED
+  payment_method?: string | null;
   tracking_details: string | null;
   delivery_date: string | null;
   product_weight?: number | null;
@@ -64,31 +74,41 @@ export default function InvoiceModal({
   // Editable Item Rows - Use useEffect to update when items prop changes
   const [editableItems, setEditableItems] = useState<any[]>([]);
 
-  // Update editableItems whenever items prop changes
   useEffect(() => {
-    console.log('📦 Items received in modal:', items);
+  console.log('📦 Items received in modal:', items);
 
-    if (items && items.length > 0) {
-      const mapped = items.map((item) => {
-        console.log('🔍 Mapping item:', item);
-        return {
-          asin: item.asin,
-          product_name: item.product_name || '',
-          weight: item.product_weight || 0,
-          qty: item.buying_quantity || 0,
-          price: item.buying_price || 0,
-          amount: (item.buying_quantity || 0) * (item.buying_price || 0),
-          tracking_details: item.tracking_details || '',
-          delivery_date: item.delivery_date || '',
-        };
-      });
+  if (items && items.length > 0) {
+    const mapped = items.map((item) => {
+      console.log('🔍 Mapping item:', item);
+      return {
+        asin: item.asin,
+        product_link: item.product_link || '',  // ✅ ADDED
+        product_name: item.product_name || '',
+        target_price: item.target_price || 0,  // ✅ ADDED
+        target_quantity: item.target_quantity || 0,  // ✅ ADDED
+        admin_target_price: item.admin_target_price || 0,  // ✅ ADDED
+        funnel: item.funnel || '',  // ✅ ADDED
+        seller_tag: item.seller_tag || '',  // ✅ ADDED
+        inr_purchase_link: item.inr_purchase_link || '',  // ✅ ADDED
+        origin: item.origin || '',  // ✅ ADDED
+        weight: item.product_weight || 0,
+        qty: item.buying_quantity || 0,
+        price: item.buying_price || 0,
+        amount: (item.buying_quantity || 0) * (item.buying_price || 0),
+        seller_link: item.seller_link || '',  // ✅ ADDED
+        payment_method: item.payment_method || '',  // ✅ ADDED
+        tracking_details: item.tracking_details || '',
+        delivery_date: item.delivery_date || '',
+      };
+    });
 
-      console.log('📊 Mapped editable items:', mapped);
-      setEditableItems(mapped);
-    } else {
-      setEditableItems([]);
-    }
-  }, [items]); // Run whenever items prop changes
+    console.log('📊 Mapped editable items:', mapped);
+    setEditableItems(mapped);
+  } else {
+    setEditableItems([]);
+  }
+}, [items]);
+
 
   // Update item field
   const updateItem = (index: number, field: string, value: any) => {
@@ -171,28 +191,38 @@ export default function InvoiceModal({
 
       if (masterError) throw masterError;
 
-      // 2. Prepare payload for DETAIL table (usa_tracking_company_invoice)
       const payload = editableItems.map((item) => ({
-        invoice_number: invoiceNo,
-        invoice_date: invoiceDate,
-        asin: item.asin,
-        product_name: item.product_name,
-        product_weight: item.weight,
-        buying_quantity: item.qty,
-        buying_price: item.price,
-        amount: item.amount,
-        tracking_details: item.tracking_details,
-        delivery_date: item.delivery_date || null,
-        gst_number: gstNumber,
-        cgst: cgst,
-        sgst: sgst,
-        tax_amount: tax,
-        total_amount: grandTotal,
-        authorized_signature: authorizedSignature,
-        seller_company: sellerCompany,
-        uploaded_invoice_url: uploadedFile.url, // Same URL for all ASINs
-        uploaded_invoice_name: uploadedFile.name, // Same name for all ASINs
-      }));
+  invoice_number: invoiceNo,
+  invoice_date: invoiceDate,
+  asin: item.asin,
+  product_link: item.product_link || null,  // ✅ ADDED
+  product_name: item.product_name,
+  target_price: item.target_price || null,  // ✅ ADDED
+  target_quantity: item.target_quantity || null,  // ✅ ADDED
+  admin_target_price: item.admin_target_price || null,  // ✅ ADDED
+  funnel: item.funnel || null,  // ✅ ADDED
+  seller_tag: item.seller_tag || null,  // ✅ ADDED
+  inr_purchase_link: item.inr_purchase_link || null,  // ✅ ADDED
+  origin: item.origin || null,  // ✅ ADDED
+  product_weight: item.weight,
+  buying_quantity: item.qty,
+  buying_price: item.price,
+  amount: item.amount,
+  seller_link: item.seller_link || null,  // ✅ ADDED
+  payment_method: item.payment_method || null,  // ✅ ADDED
+  tracking_details: item.tracking_details,
+  delivery_date: item.delivery_date || null,
+  gst_number: gstNumber,
+  cgst: cgst,
+  sgst: sgst,
+  tax_amount: tax,
+  total_amount: grandTotal,
+  authorized_signature: authorizedSignature,
+  seller_company: sellerCompany,
+  uploaded_invoice_url: uploadedFile.url,
+  uploaded_invoice_name: uploadedFile.name,
+}));
+
 
       // 3. Insert into detail table
       const { error: insertError } = await supabase

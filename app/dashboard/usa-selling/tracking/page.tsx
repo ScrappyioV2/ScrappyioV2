@@ -74,9 +74,16 @@ export default function TrackingPage() {
         .filter((p) => selectedIds.has(p.id))
         .map((p) => ({
             asin: p.asin,
+            product_link: p.product_link, 
             product_name: p.product_name,
             target_price: p.target_price,
             target_quantity: p.target_quantity,
+            admin_target_price: (p as any).admin_target_price,
+            funnel: p.funnel || p.validation_funnel,
+            seller_tag: p.seller_tag || p.validation_seller_tag,
+            inr_purchase_link: (p as any).inr_purchase_link,
+            origin: p.origin,
+            product_weight: p.product_weight || 0,
             buying_price: p.buying_price,
             buying_quantity: p.buying_quantity,
             seller_link: p.seller_link,
@@ -84,14 +91,7 @@ export default function TrackingPage() {
             payment_method: p.payment_method,
             tracking_details: p.tracking_details,
             delivery_date: p.delivery_date,
-            origin_india: p.origin_india,
-            origin_china: p.origin_china,
             brand: p.brand,
-            seller_tag: p.seller_tag || p.validation_seller_tag,
-            funnel: p.funnel || p.validation_funnel,
-            admin_target_price: (p as any).admin_target_price,
-            inr_purchase_link: (p as any).inr_purchase_link,
-            product_weight: p.product_weight || 0,
         }));
 
     console.log('✅ Selected items for invoice:', selectedItems);
