@@ -39,6 +39,8 @@ interface ListingProduct {
   listing_notes?: string | null;
   error_reason?: string | null;
   source_admin_validation_id?: string;
+  journey_id?: string | null;
+  journey_number?: number | null;
 }
 
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
@@ -203,10 +205,17 @@ export default function GoldenAuraListingPage() {
 
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
+
+    // ✅ SELF-HEALING: If no journey_id exists (old data), start a fresh chain now.
+    // This ensures the item will work correctly when it reaches the Reorder page.
+    const journeyId = product.journey_id || crypto.randomUUID();
+    const journeyNum = product.journey_number || 1;
+
     try {
       const sourceTableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       const targetTableName = `${BASE_TABLE_PREFIX}_${target}`;
 
+      // 1. Prepare Payload (With Journey Data)
       const payload = {
         source_admin_validation_id: product.source_admin_validation_id,
         asin: product.asin,
@@ -214,15 +223,45 @@ export default function GoldenAuraListingPage() {
         sku: product.sku,
         selling_price: product.selling_price,
         seller_link: product.seller_link,
+
+        // 🔗 THE CRITICAL LINK
+        journey_id: journeyId,
+        journey_number: journeyNum,
+
         ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
 
+      // 2. 📸 HISTORY SNAPSHOT (Only if Listed)
+      if (target === 'done') {
+        const { error: historyError } = await supabase.from('usa_asin_history').insert({
+          asin: product.asin,
+          journey_id: journeyId,
+          journey_number: journeyNum,
+          stage: 'listing_done',
+          status: 'listed',
+          profit: null, // We don't verify profit at this stage, just listing
+          snapshot_data: {
+            final_price: product.selling_price,
+            sku: product.sku,
+            listed_at: new Date().toISOString()
+          }
+        });
+
+        if (historyError) {
+          console.error("⚠️ History snapshot failed:", historyError);
+          // We continue anyway, don't block the user
+        }
+      }
+
+      // 3. Move Data (Upsert to Target)
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
 
+      // 4. Log Movement
       await logHistory(product, sourceTableName, targetTableName);
 
+      // 5. Clean Up Source (Delete from potential source tables)
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
@@ -232,6 +271,7 @@ export default function GoldenAuraListingPage() {
 
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
+      // 6. Update Stats
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
@@ -239,14 +279,15 @@ export default function GoldenAuraListingPage() {
         if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
       }
 
+      // 7. UI Update
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
 
-      // Refetch if page becomes empty
+      // Handle empty page
       if (products.length === 1 && page > 1) {
         setPage(prev => prev - 1);
       } else {
-        fetchProducts(); // Refresh count
+        fetchProducts();
       }
 
     } catch (err: any) {

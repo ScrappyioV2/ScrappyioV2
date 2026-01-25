@@ -64,6 +64,8 @@ interface ValidationProduct {
     total_cost: number | null
     total_revenue: number | null
     profit: number | null
+    journey_number?: number | null
+    current_journey_id?: string | null
 
     status: string | null
     origin_india: boolean | null
@@ -480,7 +482,7 @@ export default function ValidationPage() {
         let tabProducts = [...products];
 
         // Filter based on active tab
-        if (activeTab === 'pass_file') {    
+        if (activeTab === 'pass_file') {
             // ✅ FIX: Hide items already sent to purchases
             tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
         } else if (activeTab === 'fail_file') {
@@ -857,67 +859,115 @@ export default function ValidationPage() {
         const product = products.find(p => p.id === id)
         if (!product) return
 
-        // ✅ Calculate origin text BEFORE the insert call
-        const originText =
-            (product.origin_india && product.origin_china) ? 'Both' :
-                product.origin_china ? 'China' :
-                    product.origin_india ? 'India' : 'India';
+        // ✅ LOGIC: Resolve Journey ID (Start Cycle 1 if missing)
+        // If it's a reorder, it will already have current_journey_id from the DB
+        const journeyId = product.current_journey_id || crypto.randomUUID()
+        const journeyNum = product.journey_number || 1
 
-        // INSERT into usa_purchases table with CORRECT column names (underscores)
-        const { error: insertError } = await supabase
-            .from('usa_purchases')
-            .insert({
-                asin: product.asin,
-                product_name: product.product_name,
-                brand: product.brand,
-                seller_tag: product.seller_tag,
-                funnel: product.funnel,
-                origin: originText,  // ✅ Now this variable is in scope
-                origin_india: product.origin_india ?? false,
-                origin_china: product.origin_china ?? false,
-                product_link: product.usa_link,
-                target_price: product.inr_purchase,
-                target_quantity: 1,
-                funnel_quantity: 1,
-                funnel_seller: product.funnel,
-                inr_purchase_link: product.inr_purchase_link ?? '',
-                buying_price: null,
-                buying_quantity: null,
-                seller_link: null,
-                seller_phone: '',
-                payment_method: '',
-                tracking_details: '',
-                delivery_date: null,
-                status: 'pending',
-                admin_confirmed: false,
-                product_weight: product.product_weight,
+        try {
+            // ✅ STEP 1: Snapshot to History (The "Bag")
+            const snapshotData = {
+                source: 'validation_pass',
                 usd_price: product.usd_price,
                 inr_purchase: product.inr_purchase,
-            })
+                product_weight: product.product_weight,
+                profit: product.profit,
+                total_cost: product.total_cost,
+                total_revenue: product.total_revenue,
+                origin_india: product.origin_india,
+                origin_china: product.origin_china,
+                timestamp: new Date().toISOString()
+            }
 
-        if (insertError) {
-            console.error('Insert error:', insertError)
-            setToast({ message: `Failed: ${insertError.message}`, type: 'error' })
-            return
+            const { error: historyError } = await supabase
+                .from('usa_asin_history')
+                .insert({
+                    asin: product.asin,
+                    journey_id: journeyId,
+                    journey_number: journeyNum,
+                    stage: 'validation_to_purchase',
+                    snapshot_data: snapshotData,
+                    profit: product.profit,
+                    total_cost: product.total_cost,
+                    status: 'passed'
+                })
+
+            if (historyError) {
+                console.error('History snapshot failed:', historyError)
+                // We don't stop the flow for history error, but we log it
+            }
+
+            // ✅ STEP 2: Insert into Purchases with Journey ID
+            const originText =
+                (product.origin_india && product.origin_china) ? 'Both' :
+                    product.origin_china ? 'China' :
+                        product.origin_india ? 'India' : 'India';
+
+            const { error: insertError } = await supabase
+                .from('usa_purchases')
+                .insert({
+                    asin: product.asin,
+                    product_name: product.product_name,
+                    brand: product.brand,
+                    seller_tag: product.seller_tag,
+                    funnel: product.funnel,
+                    origin: originText,
+                    origin_india: product.origin_india ?? false,
+                    origin_china: product.origin_china ?? false,
+                    product_link: product.usa_link,
+                    target_price: product.inr_purchase,
+                    target_quantity: 1,
+                    funnel_quantity: 1,
+                    funnel_seller: product.funnel,
+                    inr_purchase_link: product.inr_purchase_link ?? '',
+                    buying_price: null,
+                    buying_quantity: null,
+                    seller_link: null,
+                    seller_phone: '',
+                    payment_method: '',
+                    tracking_details: '',
+                    delivery_date: null,
+                    status: 'pending',
+                    admin_confirmed: false,
+                    product_weight: product.product_weight,
+                    usd_price: product.usd_price,
+                    inr_purchase: product.inr_purchase,
+
+                    // 🔗 LINKING THE CYCLE
+                    journey_id: journeyId,
+                    journey_number: journeyNum
+                })
+
+            if (insertError) {
+                console.error('Insert error:', insertError)
+                setToast({ message: `Failed: ${insertError.message}`, type: 'error' })
+                return
+            }
+
+            // ✅ STEP 3: Mark as sent in main file
+            // We also save the generated journey_id back to validation file for consistency
+            const { error: updateError } = await supabase
+                .from('usa_validation_main_file')
+                .update({
+                    sent_to_purchases: true,
+                    sent_to_purchases_at: new Date().toISOString(),
+                    current_journey_id: journeyId, // Persist ID if we just generated it
+                    journey_number: journeyNum
+                })
+                .eq('id', id)
+
+            if (updateError) {
+                console.error('Update error:', updateError)
+            }
+
+            // Remove from local state
+            setProducts((prev) => prev.filter((p) => p.id !== id))
+            setToast({ message: 'Sent to Purchases with History!', type: 'success' })
+
+        } catch (err) {
+            console.error('Unexpected error:', err)
+            setToast({ message: 'An unexpected error occurred', type: 'error' })
         }
-
-        // Mark as sent in main file
-        const { error } = await supabase
-            .from('usa_validation_main_file')  // ✅ Underscores
-            .update({
-                sent_to_purchases: true,  // ✅ Underscores
-                sent_to_purchases_at: new Date().toISOString(),  // ✅ Underscores
-            })
-            .eq('id', id)
-
-        if (error) {
-            console.error('Update error:', error)
-        }
-
-        // Remove from local state
-        setProducts((prev) => prev.filter((p) => p.id !== id))
-
-        setToast({ message: 'Sent to Purchases!', type: 'success' })
     }
 
     const handleMoveToMainClick = async () => {

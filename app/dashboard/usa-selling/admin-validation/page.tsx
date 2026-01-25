@@ -77,6 +77,7 @@ export default function AdminValidationPage() {
   } | undefined>>({});
 
   // Fetch products from usa_admin_validation table
+  // Fetch products from usa_admin_validation table
   const fetchProducts = async (showLoader: boolean = false) => {
     try {
       if (showLoader) setLoading(true)
@@ -87,10 +88,7 @@ export default function AdminValidationPage() {
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (adminError) {
-        console.error('❌ Admin validation fetch error:', adminError)
-        throw adminError
-      }
+      if (adminError) throw adminError
 
       if (!adminData || adminData.length === 0) {
         setProducts([])
@@ -98,38 +96,26 @@ export default function AdminValidationPage() {
         return
       }
 
-      // 2️⃣ Get all ASINs for batch fetching
+      // 2️⃣ Get all ASINs
       const asins = adminData.map(p => p.asin)
 
-      // 3️⃣ Batch fetch from BOTH tables (2 queries total, not 100+)
+      // 3️⃣ Batch fetch from BOTH tables
       const [purchaseResult, validationResult] = await Promise.all([
-        supabase.from('usa_purchases').select('asin, buying_price, buying_quantity, seller_link, seller_phone, payment_method').in('asin', asins),
-        // ✅ REMOVED 'funnel_stage' to prevent crash
-        supabase.from('usa_validation_main_file').select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase').in('asin', asins)
+        // ✅ UPDATED: Added target_price and target_quantity to the select list
+        supabase.from('usa_purchases')
+          .select('asin, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, target_quantity')
+          .in('asin', asins),
+
+        supabase.from('usa_validation_main_file')
+          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+          .in('asin', asins)
       ])
 
-      // Handle errors gracefully
-      if (purchaseResult.error) {
-        console.error('⚠️ Purchase data fetch error:', purchaseResult.error)
-      }
+      // 4️⃣ Create lookup maps
+      const purchaseMap = new Map(purchaseResult.data?.map(p => [p.asin, p]) ?? [])
+      const validationMap = new Map(validationResult.data?.map(v => [v.asin, v]) ?? [])
 
-      if (validationResult.error) {
-        console.error('⚠️ Validation data fetch error:', validationResult.error)
-      }
-
-      // 4️⃣ Create lookup maps for O(1) access
-      const purchaseMap = new Map(
-        purchaseResult.data?.map(p => [p.asin, p]) ?? []
-      )
-
-      const validationMap = new Map(
-        validationResult.data?.map(v => [v.asin, v]) ?? []
-      )
-
-      console.log('📦 Fetched purchase data for', purchaseMap.size, 'products')
-      console.log('📦 Fetched validation data for', validationMap.size, 'products')
-
-      // 5️⃣ Enrich data - merge all sources with CORRECT field names
+      // 5️⃣ Enrich data
       const enrichedData: AdminProduct[] = adminData.map((product) => {
         const purchase = purchaseMap.get(product.asin)
         const validation = validationMap.get(product.asin)
@@ -141,25 +127,28 @@ export default function AdminValidationPage() {
           product_link: product.product_link,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
-          target_price: product.target_price,
-          target_quantity: product.target_quantity,
+
+          // ✅ FIX: Fallback to Purchase table data if Admin table data is missing
+          target_price: product.target_price ?? purchase?.target_price ?? null,
+          target_quantity: product.target_quantity ?? purchase?.target_quantity ?? null,
+
           admin_target_price: product.admin_target_price,
 
-          // ✅ FROM PURCHASE TEAM (usa_purchases table)
+          // ✅ FROM PURCHASE TEAM
           buying_price: purchase?.buying_price ?? product.buying_price ?? null,
           buying_quantity: purchase?.buying_quantity ?? product.buying_quantity ?? null,
           seller_link: purchase?.seller_link ?? product.seller_link ?? null,
           seller_phone: purchase?.seller_phone ?? product.seller_phone ?? null,
           payment_method: purchase?.payment_method ?? product.payment_method ?? null,
 
-          // ✅ FROM VALIDATION TEAM (usa_validation_main_file table)
+          // ✅ FROM VALIDATION TEAM
           funnel: validation?.funnel ?? product.funnel ?? null,
           seller_tag: validation?.seller_tag ?? product.seller_tag ?? null,
           product_weight: validation?.product_weight ?? product.product_weight ?? null,
           usd_price: validation?.usd_price ?? product.usd_price ?? null,
           inr_purchase: validation?.inr_purchase ?? product.inr_purchase ?? null,
 
-          // ✅ FROM ADMIN VALIDATION TABLE (always)
+          // ✅ FROM ADMIN VALIDATION TABLE
           status: product.status,
           admin_status: product.admin_status,
           admin_notes: product.admin_notes,
@@ -172,16 +161,13 @@ export default function AdminValidationPage() {
       })
 
       setProducts(enrichedData)
-      console.log('✅ Loaded', enrichedData.length, 'products successfully')
     } catch (error: any) {
       console.error('❌ Error in fetchProducts:', error)
       setToast({ message: 'Error loading data', type: 'error' })
-      setProducts([])
     } finally {
       if (showLoader) setLoading(false)
     }
   }
-
 
   useEffect(() => {
     // ✅ FIRST LOAD → show loader
@@ -621,7 +607,7 @@ export default function AdminValidationPage() {
   }
 
   // =========================================================
-  // ✅ ROBUST AUTO-DISTRIBUTE (Handles Typos & Whitespace)
+  // ✅ ROBUST AUTO-DISTRIBUTE (Handles Typos & MULTIPLE TAGS)
   // =========================================================
   const handleConfirmProduct = async (productId: string) => {
     try {
@@ -632,7 +618,6 @@ export default function AdminValidationPage() {
       console.log(`🚀 Confirming: ${cleanAsin}`);
 
       // 1. FRESH FETCH (Only existing columns)
-      // Removed 'funnel_stage' so this query works
       const { data: validationData, error: fetchError } = await supabase
         .from('usa_validation_main_file')
         .select('funnel, seller_tag')
@@ -643,9 +628,9 @@ export default function AdminValidationPage() {
       if (fetchError) console.warn("⚠️ DB Fetch Warning:", fetchError.message);
 
       // 2. DETERMINE SELLER TAG (With Fallback)
-      const sellerTag = validationData?.seller_tag || product.seller_tag;
+      const rawSellerTag = validationData?.seller_tag || product.seller_tag;
 
-      if (!sellerTag) {
+      if (!rawSellerTag) {
         alert("Error: Missing Seller Tag. Please check product data.");
         return;
       }
@@ -666,55 +651,75 @@ export default function AdminValidationPage() {
         }
       }
 
-      console.log(`📊 Distributing: Tag=${sellerTag} | Funnel=${finalFunnelId}`);
+      // 4. PARSE MULTIPLE TAGS (Fix for 'VV,GR' error)
+      // We split by comma to handle cases where a product belongs to multiple sellers
+      const tags = rawSellerTag.split(',').map((t: string) => t.trim().toUpperCase());
+      const validSellerIds: number[] = [];
 
-      // 4. Determine Seller ID
-      let sellerIdForStats = 0;
-      switch (sellerTag.toUpperCase()) {
-        case 'GR': sellerIdForStats = 1; break;
-        case 'RR': sellerIdForStats = 2; break;
-        case 'UB': sellerIdForStats = 3; break;
-        case 'VV': sellerIdForStats = 4; break;
-        default:
-          alert(`Error: Unrecognized Seller Tag '${sellerTag}'`);
-          return;
+      for (const tag of tags) {
+        switch (tag) {
+          case 'GR': validSellerIds.push(1); break;
+          case 'RR': validSellerIds.push(2); break;
+          case 'UB': validSellerIds.push(3); break;
+          case 'VV': validSellerIds.push(4); break;
+          default:
+            console.warn(`⚠️ Skipping unrecognized tag part: '${tag}'`);
+        }
       }
 
-      // 5. Prepare Payload
-      const payload = {
-        source_admin_validation_id: product.id,
-        asin: cleanAsin,
-        product_name: product.product_name,
-        sku: cleanAsin,
-        selling_price: product.buying_price || product.admin_target_price || 0,
-        seller_link: product.seller_link,
-        min_price: null,
-        max_price: null,
-      };
-
-      // 6. Select Tables (Always Pending + Specific Funnel)
-      const tablesToInsert = [`usa_listing_error_seller_${sellerIdForStats}_pending`];
-
-      if (finalFunnelId === 1) tablesToInsert.push(`usa_listing_error_seller_${sellerIdForStats}_high_demand`);
-      else if (finalFunnelId === 2) tablesToInsert.push(`usa_listing_error_seller_${sellerIdForStats}_low_demand`);
-      else if (finalFunnelId === 3) tablesToInsert.push(`usa_listing_error_seller_${sellerIdForStats}_dropshipping`);
-
-      // 7. Execute UPSERTS (Prevents "Duplicate Key" errors)
-      const insertPromises = tablesToInsert.map(table =>
-        supabase.from(table).upsert(payload, { onConflict: 'asin' })
-      );
-
-      await Promise.all(insertPromises);
-
-      // 8. Update Stats
-      const { data: currentStats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', sellerIdForStats).single();
-      if (currentStats) {
-        await supabase.from('listing_error_progress')
-          .update({ total_pending: currentStats.total_pending + 1, updated_at: new Date().toISOString() })
-          .eq('seller_id', sellerIdForStats);
+      if (validSellerIds.length === 0) {
+        alert(`Error: No valid seller tags found in '${rawSellerTag}'`);
+        return;
       }
 
-      // 9. Update Statuses
+      console.log(`📊 Distributing to Sellers: ${validSellerIds.join(', ')} | Funnel=${finalFunnelId}`);
+
+      // 5. LOOP THROUGH ALL VALID SELLERS (Distribute to each)
+      for (const sellerId of validSellerIds) {
+        // A. Prepare Payload
+        const payload = {
+          source_admin_validation_id: product.id,
+          asin: cleanAsin,
+          product_name: product.product_name,
+          sku: cleanAsin,
+          selling_price: product.buying_price || product.admin_target_price || 0,
+          seller_link: product.seller_link,
+          min_price: null,
+          max_price: null,
+        };
+
+        // B. Select Tables for THIS seller
+        const tablesToInsert = [`usa_listing_error_seller_${sellerId}_pending`];
+
+        if (finalFunnelId === 1) tablesToInsert.push(`usa_listing_error_seller_${sellerId}_high_demand`);
+        else if (finalFunnelId === 2) tablesToInsert.push(`usa_listing_error_seller_${sellerId}_low_demand`);
+        else if (finalFunnelId === 3) tablesToInsert.push(`usa_listing_error_seller_${sellerId}_dropshipping`);
+
+        // C. Execute UPSERTS
+        const insertPromises = tablesToInsert.map(table =>
+          supabase.from(table).upsert(payload, { onConflict: 'asin' })
+        );
+
+        await Promise.all(insertPromises);
+
+        // D. Update Stats for THIS seller
+        const { data: currentStats } = await supabase
+          .from('listing_error_progress')
+          .select('total_pending')
+          .eq('seller_id', sellerId)
+          .single();
+
+        if (currentStats) {
+          await supabase.from('listing_error_progress')
+            .update({
+              total_pending: currentStats.total_pending + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('seller_id', sellerId);
+        }
+      }
+
+      // 6. Update FINAL Statuses (Once per product)
       await supabase.from('usa_purchases').update({
         admin_confirmed: true,
         admin_confirmed_at: new Date().toISOString(),
@@ -736,7 +741,7 @@ export default function AdminValidationPage() {
       const dest = finalFunnelId === 1 ? "High Demand" : finalFunnelId === 2 ? "Low Demand" : finalFunnelId === 3 ? "Dropshipping" : "Pending Only";
 
       setToast({
-        message: `Success! Sent to Purchase Page and Listing & Error (${dest})`,
+        message: `Success! Distributed to ${validSellerIds.length} Seller(s) (${dest})`,
         type: "success"
       });
 

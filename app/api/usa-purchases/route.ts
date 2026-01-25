@@ -29,7 +29,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { passFileData, purchaseData } = body;
 
-    // 1. Insert into usa_purchases
+    // ✅ SELF-HEALING: Generate IDs if missing (Legacy Data Support)
+    const journeyId = passFileData.current_journey_id || crypto.randomUUID();
+    const journeyNum = passFileData.journey_number || 1;
+
+    // 1. Insert into usa_purchases (Carry the Bag)
     const { data: purchaseRecord, error: purchaseError } = await supabase
       .from('usa_purchases')
       .insert({
@@ -49,13 +53,17 @@ export async function POST(request: NextRequest) {
         origin_china: passFileData.origin_china,
         status: 'sent_to_admin',
         sent_to_admin_at: new Date().toISOString(),
+        
+        // 🔗 PASS THE BAG (History Link)
+        journey_id: journeyId,
+        journey_number: journeyNum
       })
       .select()
       .single();
 
     if (purchaseError) throw purchaseError;
 
-    // 2. Insert into usa_admin_validation
+    // 2. Insert into usa_admin_validation (Carry the Bag)
     const { error: adminError } = await supabase.from('usa_admin_validation').insert({
       purchase_id: purchaseRecord.id,
       asin: passFileData.asin,
@@ -73,6 +81,10 @@ export async function POST(request: NextRequest) {
       origin_india: passFileData.origin_india,
       origin_china: passFileData.origin_china,
       admin_status: 'pending',
+
+      // 🔗 PASS THE BAG
+      journey_id: journeyId,
+      journey_number: journeyNum
     });
 
     if (adminError) throw adminError;
