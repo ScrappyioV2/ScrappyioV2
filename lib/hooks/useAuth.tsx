@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchInProgress.current = true;
       console.log("🔍 Fetching role for user:", userId);
       
-      // ✅ FIX: Add error handling and timeout
+      // ✅ FIX: Increased timeout to 10 seconds
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Role fetch timeout')), 5000)
+        setTimeout(() => reject(new Error('Role fetch timeout')), 10000)
       );
       
       const fetchPromise = supabase
@@ -234,6 +234,7 @@ export function useAuth() {
   }
   return context;
 }
+
 
 
 
