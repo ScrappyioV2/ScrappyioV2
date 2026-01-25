@@ -33,50 +33,75 @@ export default function LoginPage() {
     setMessage({ type: '', text: '' })
 
     try {
+      console.log('🔐 Starting login for:', email)
+      
       // LOGIN
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Auth failed:', error)
+        throw error
+      }
 
       console.log('✅ Auth successful, checking role...', email)
+      console.log('📦 Session data:', data.session?.user?.id)
+
+      // ✅ Wait for session to fully establish
+      console.log('⏳ Waiting 500ms for session...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      console.log('✅ Wait complete')
 
       // Check if user has a role assigned
+      console.log('🔍 About to query user_roles table...')
+      console.log('🔍 Email to query:', email)
+      
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
         .eq('email', email)
         .single()
 
-      console.log('Role data:', roleData)
+      console.log('📊 Query returned!')
+      console.log('📊 Role data:', roleData)
+      console.log('📊 Role error:', roleError)
+
+      if (roleError) {
+        console.error('❌ Role query error:', roleError)
+        await supabase.auth.signOut()
+        throw new Error(`Database error: ${roleError.message}. Please contact administrator.`)
+      }
 
       if (!roleData) {
+        console.warn('⚠️ No role data found for user')
         await supabase.auth.signOut()
         throw new Error('Your account is not activated yet. Please contact the administrator.')
       }
 
       if (!roleData.is_active) {
+        console.warn('⚠️ User account is inactive')
         await supabase.auth.signOut()
         throw new Error('Your account has been deactivated. Please contact the administrator.')
       }
 
       console.log('✅ Role check passed, redirecting based on role...')
+      console.log('👤 User role:', roleData.role)
 
-      // ✅ FIX: Single short delay to let session settle, then redirect immediately
+      // Small delay before redirect
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // ✅ Redirect based on role
       if (roleData.role === 'admin') {
-        console.log('Admin detected, redirecting to dashboard')
+        console.log('🔑 Admin detected, redirecting to dashboard')
         router.push('/dashboard')
       } else {
         // Non-admin: redirect to first allowed page
         const firstPage = roleData.allowed_pages.find(
           (page: string) => page !== 'dashboard' && page !== '*'
         )
-        console.log('Non-admin detected, first page:', firstPage)
+        console.log('👤 Non-admin detected, first page:', firstPage)
 
         if (firstPage) {
           router.push(`/dashboard/${firstPage}`)
@@ -90,9 +115,9 @@ export default function LoginPage() {
         type: 'error',
         text: error.message || 'Authentication failed',
       })
-    } finally {
       setLoading(false)
     }
+    // ✅ Don't set loading=false on success - let redirect happen
   }
 
   return (
@@ -173,6 +198,7 @@ export default function LoginPage() {
     </div>
   )
 }
+
 
 
 
