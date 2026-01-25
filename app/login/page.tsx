@@ -19,7 +19,7 @@ export default function LoginPage() {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
       }
     }
 
@@ -33,40 +33,22 @@ export default function LoginPage() {
     setMessage({ type: '', text: '' })
 
     try {
-      console.log('🔐 Starting login for:', email)
-      
       // LOGIN
-      const { error, data } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) {
-        console.error('❌ Auth failed:', error)
-        throw error
-      }
+      if (error) throw error
 
       console.log('✅ Auth successful, checking role...', email)
-      console.log('📦 Session data:', data.session?.user?.id)
-
-      // ✅ Wait for session to fully establish
-      console.log('⏳ Waiting 500ms for session...')
-      await new Promise(resolve => setTimeout(resolve, 500))
-      console.log('✅ Wait complete')
 
       // Check if user has a role assigned
-      console.log('🔍 About to query user_roles table...')
-      console.log('🔍 Email to query:', email)
-      
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
         .eq('email', email)
         .single()
-
-      console.log('📊 Query returned!')
-      console.log('📊 Role data:', roleData)
-      console.log('📊 Role error:', roleError)
 
       if (roleError) {
         console.error('❌ Role query error:', roleError)
@@ -75,36 +57,29 @@ export default function LoginPage() {
       }
 
       if (!roleData) {
-        console.warn('⚠️ No role data found for user')
         await supabase.auth.signOut()
         throw new Error('Your account is not activated yet. Please contact the administrator.')
       }
 
       if (!roleData.is_active) {
-        console.warn('⚠️ User account is inactive')
         await supabase.auth.signOut()
         throw new Error('Your account has been deactivated. Please contact the administrator.')
       }
 
       console.log('✅ Role check passed, redirecting based on role...')
-      console.log('👤 User role:', roleData.role)
 
-      // Small delay before redirect
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      // ✅ Redirect based on role
+      // ✅ CRITICAL FIX: Force page reload to let browser set cookies properly
       if (roleData.role === 'admin') {
         console.log('🔑 Admin detected, redirecting to dashboard')
-        router.push('/dashboard')
+        window.location.href = '/dashboard'
       } else {
         // Non-admin: redirect to first allowed page
         const firstPage = roleData.allowed_pages.find(
           (page: string) => page !== 'dashboard' && page !== '*'
         )
-        console.log('👤 Non-admin detected, first page:', firstPage)
 
         if (firstPage) {
-          router.push(`/dashboard/${firstPage}`)
+          window.location.href = `/dashboard/${firstPage}`
         } else {
           throw new Error('No pages assigned to your account. Contact administrator.')
         }
@@ -117,7 +92,6 @@ export default function LoginPage() {
       })
       setLoading(false)
     }
-    // ✅ Don't set loading=false on success - let redirect happen
   }
 
   return (
