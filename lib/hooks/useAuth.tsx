@@ -33,17 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const isInitializing = useRef(false);
   const loadedUserId = useRef<string | null>(null);
-  // ✅ FIX: Add debounce ref to prevent duplicate fetches
   const fetchInProgress = useRef(false);
 
-  // Fetch user role with debouncing to prevent race conditions
+  // Fetch user role
   const fetchUserRole = async (userId: string): Promise<boolean> => {
     if (loadedUserId.current === userId && userRole) {
       console.log("✅ Role already loaded, skipping fetch");
       return true;
     }
 
-    // ✅ FIX: Prevent concurrent fetches
     if (fetchInProgress.current) {
       console.log("⏭️ Role fetch already in progress, skipping");
       return false;
@@ -53,14 +51,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchInProgress.current = true;
       console.log("🔍 Fetching role for user:", userId);
       
-      const { data, error } = await supabase
+      // ✅ FIX: Add error handling and timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Role fetch timeout')), 5000)
+      );
+      
+      const fetchPromise = supabase
         .from("user_roles")
         .select("*")
         .eq("user_id", userId)
         .single();
 
+      const { data, error } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any;
+
       if (error) {
-        console.error("❌ Role fetch error:", error.message, error.details);
+        console.error("❌ Role fetch error:", error.message, error);
         return false;
       }
 
@@ -77,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("❌ Role fetch exception:", err.message || err);
       return false;
     } finally {
-      // ✅ FIX: Release lock after fetch completes
       fetchInProgress.current = false;
     }
   };
@@ -97,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log("🔐 Initializing auth...");
         
-        // ✅ FIX: Refresh session to ensure it's valid
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -116,7 +122,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("✅ Session found:", session.user.email);
           setUser(session.user);
 
-          // ✅ FIX: Only fetch role if not already in progress
           if (!fetchInProgress.current) {
             const roleLoaded = await fetchUserRole(session.user.id);
             if (!roleLoaded) {
@@ -160,7 +165,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (event === "SIGNED_IN" && session?.user) {
         setUser(session.user);
-        // ✅ FIX: Only fetch role if user changed AND not already fetching
         if (loadedUserId.current !== session.user.id && !fetchInProgress.current) {
           setLoading(true);
           await fetchUserRole(session.user.id);
@@ -185,9 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setUserRole(null);
       loadedUserId.current = null;
-      // ✅ FIX: Reset fetch lock on logout
       fetchInProgress.current = false;
-      router.push("/login");
+      window.location.href = "/login";
     } catch (error: any) {
       console.error("Logout error:", error.message || error);
     }
@@ -231,6 +234,7 @@ export function useAuth() {
   }
   return context;
 }
+
 
 
 
