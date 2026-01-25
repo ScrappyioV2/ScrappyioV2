@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadedUserId = useRef<string | null>(null);
   const fetchInProgress = useRef(false);
 
-  // Fetch user role
+  // ✅ FIX: Load role from localStorage first, then database as fallback
   const fetchUserRole = async (userId: string): Promise<boolean> => {
     if (loadedUserId.current === userId && userRole) {
       console.log("✅ Role already loaded, skipping fetch");
@@ -49,37 +49,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       fetchInProgress.current = true;
-      console.log("🔍 Fetching role for user:", userId);
       
-      // ✅ FIX: Increased timeout to 10 seconds
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Role fetch timeout')), 10000)
-      );
+      // ✅ STEP 1: Try localStorage first (instant)
+      if (typeof window !== 'undefined') {
+        const cachedRole = localStorage.getItem('scrappy_user_role');
+        if (cachedRole) {
+          const roleData = JSON.parse(cachedRole);
+          if (roleData.user_id === userId) {
+            console.log("✅ Role loaded from cache:", roleData.role);
+            setUserRole(roleData as UserRole);
+            loadedUserId.current = userId;
+            return true;
+          }
+        }
+      }
+
+      // ✅ STEP 2: Fallback to database (slow)
+      console.log("🔍 Fetching role from database for user:", userId);
       
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from("user_roles")
         .select("*")
         .eq("user_id", userId)
         .single();
 
-      const { data, error } = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]) as any;
-
       if (error) {
-        console.error("❌ Role fetch error:", error.message, error);
+        console.error("❌ Role fetch error:", error.message);
         return false;
       }
 
       if (data) {
-        console.log("✅ Auth Role Loaded:", data.role);
+        console.log("✅ Role loaded from database:", data.role);
         setUserRole(data as UserRole);
         loadedUserId.current = userId;
+        
+        // Cache for future use
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('scrappy_user_role', JSON.stringify(data));
+        }
+        
         return true;
       }
 
-      console.warn("⚠️ No role data found for user");
+      console.warn("⚠️ No role data found");
       return false;
     } catch (err: any) {
       console.error("❌ Role fetch exception:", err.message || err);
@@ -123,10 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.user);
 
           if (!fetchInProgress.current) {
-            const roleLoaded = await fetchUserRole(session.user.id);
-            if (!roleLoaded) {
-              console.warn("⚠️ Failed to load user role");
-            }
+            await fetchUserRole(session.user.id);
           }
         } else {
           console.log("ℹ️ No active session");
@@ -160,6 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setUserRole(null);
         loadedUserId.current = null;
+        // Clear cached role
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('scrappy_user_role');
+        }
         return;
       }
 
@@ -190,6 +203,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserRole(null);
       loadedUserId.current = null;
       fetchInProgress.current = false;
+      
+      // Clear cached role
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('scrappy_user_role');
+      }
+      
       window.location.href = "/login";
     } catch (error: any) {
       console.error("Logout error:", error.message || error);
@@ -234,6 +253,7 @@ export function useAuth() {
   }
   return context;
 }
+
 
 
 

@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState({ type: '', text: '' })
   const router = useRouter()
 
-  // Check if user is already logged in
   useEffect(() => {
     if (!supabase) return
 
@@ -33,7 +32,6 @@ export default function LoginPage() {
     setMessage({ type: '', text: '' })
 
     try {
-      // LOGIN
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -66,14 +64,18 @@ export default function LoginPage() {
         throw new Error('Your account has been deactivated. Please contact the administrator.')
       }
 
-      console.log('✅ Role check passed, redirecting based on role...')
+      console.log('✅ Role check passed')
 
-      // ✅ CRITICAL FIX: Force page reload to let browser set cookies properly
+      // ✅ CRITICAL FIX: Store role in localStorage for immediate access
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('scrappy_user_role', JSON.stringify(roleData))
+      }
+
+      // Redirect based on role
       if (roleData.role === 'admin') {
         console.log('🔑 Admin detected, redirecting to dashboard')
         window.location.href = '/dashboard'
       } else {
-        // Non-admin: redirect to first allowed page
         const firstPage = roleData.allowed_pages.find(
           (page: string) => page !== 'dashboard' && page !== '*'
         )
@@ -172,6 +174,7 @@ export default function LoginPage() {
     </div>
   )
 }
+
 
 
 
