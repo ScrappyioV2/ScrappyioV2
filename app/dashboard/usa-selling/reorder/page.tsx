@@ -36,14 +36,49 @@ type Seller = {
   name: string
   table_suffix: string
   tag: string
+  emoji: string
+  activeColor: string
+  activeShadow: string
 }
 
-// Configured Sellers
+// Configured Sellers with Colors & Emojis
 const SELLERS: Seller[] = [
-  { id: 4, name: 'Velvet Vista', table_suffix: 'seller_4', tag: 'VV' },
-  { id: 1, name: 'Golden Aura', table_suffix: 'seller_1', tag: 'GA' },
-  { id: 2, name: 'Rudra Retail', table_suffix: 'seller_2', tag: 'RR' },
-  { id: 3, name: 'UBeauty', table_suffix: 'seller_3', tag: 'UB' },
+  { 
+    id: 4, 
+    name: 'Velvet Vista', 
+    table_suffix: 'seller_4', 
+    tag: 'VV', 
+    emoji: '💜', 
+    activeColor: 'bg-violet-600', 
+    activeShadow: 'shadow-violet-500/40' 
+  },
+  { 
+    id: 1, 
+    name: 'Golden Aura', 
+    table_suffix: 'seller_1', 
+    tag: 'GA', 
+    emoji: '✨', 
+    activeColor: 'bg-amber-500', 
+    activeShadow: 'shadow-amber-500/40' 
+  },
+  { 
+    id: 2, 
+    name: 'Rudra Retail', 
+    table_suffix: 'seller_2', 
+    tag: 'RR', 
+    emoji: '🔴', 
+    activeColor: 'bg-red-600', 
+    activeShadow: 'shadow-red-500/40' 
+  },
+  { 
+    id: 3, 
+    name: 'UBeauty', 
+    table_suffix: 'seller_3', 
+    tag: 'UB', 
+    emoji: '💄', 
+    activeColor: 'bg-pink-500', 
+    activeShadow: 'shadow-pink-500/40' 
+  },
 ]
 
 export default function ReorderPage() {
@@ -63,7 +98,7 @@ export default function ReorderPage() {
       const { data, error } = await supabase
         .from(`usa_reorder_${activeSeller.table_suffix}`)
         .select('*')
-        .order('status', { ascending: false }) // 'Reorder' first, then 'Safe'
+        .order('status', { ascending: false })
         .order('product_name', { ascending: true })
 
       if (error) throw error
@@ -81,12 +116,10 @@ export default function ReorderPage() {
   }, [activeSeller])
 
   // --- 2. Sync Listed Products ---
-  // Fetches only "Listed" items from Listing & Error and adds them here
   const handleSyncListings = async () => {
     try {
       setProcessing(true)
 
-      // A. Get "Listed" items from Listing Module (DONE items only)
       const listingTable = `usa_listing_error_${activeSeller.table_suffix}_done`
       const { data: listedItems, error: listError } = await supabase
         .from(listingTable)
@@ -98,7 +131,6 @@ export default function ReorderPage() {
         return
       }
 
-      // B. Get existing Reorder items to avoid duplicates
       const reorderTable = `usa_reorder_${activeSeller.table_suffix}`
       const { data: existingItems } = await supabase
         .from(reorderTable)
@@ -106,7 +138,6 @@ export default function ReorderPage() {
 
       const existingAsins = new Set(existingItems?.map(p => p.asin))
 
-      // C. Filter new items
       const newItems = listedItems
         .filter(p => !existingAsins.has(p.asin))
         .map(p => ({
@@ -138,7 +169,7 @@ export default function ReorderPage() {
     }
   }
 
-  // --- 3. Upload Inventory (Current Qty) ---
+  // --- 3. Upload Inventory ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -152,7 +183,6 @@ export default function ReorderPage() {
           const rows = results.data as any[]
           const updates: Record<string, number> = {}
 
-          // Smart Header Matching
           rows.forEach(row => {
             const asinKey = Object.keys(row).find(k => k.toLowerCase().includes('asin'))
             const qtyKey = Object.keys(row).find(k =>
@@ -166,7 +196,6 @@ export default function ReorderPage() {
             }
           })
 
-          // Update DB
           const promises = products
             .filter(p => updates[p.asin] !== undefined)
             .map(p =>
@@ -178,7 +207,7 @@ export default function ReorderPage() {
 
           await Promise.all(promises)
           alert('Inventory updated successfully! Recalculating...')
-          await handleRecalculate() // Auto-calculate logic after upload
+          await handleRecalculate()
 
         } catch (err) {
           console.error(err)
@@ -191,14 +220,13 @@ export default function ReorderPage() {
     })
   }
 
-  // --- 4. EXCEL LOGIC CALCULATION ---
+  // --- 4. Recalculate Logic ---
   const handleRecalculate = async () => {
     try {
       setProcessing(true)
 
-      // A. Fetch Tracking Data (Sum incoming qty per ASIN)
       const { data: trackingData, error: trackError } = await supabase
-        .from('usa_traking') // Note: using your spelling 'traking'
+        .from('usa_traking')
         .select('asin, buying_quantity')
 
       if (trackError) throw trackError
@@ -210,35 +238,30 @@ export default function ReorderPage() {
         incomingMap[t.asin] += qty
       })
 
-      // B. Fetch Latest Reorder Data
       const { data: currentReorderData } = await supabase
         .from(`usa_reorder_${activeSeller.table_suffix}`)
         .select('*')
 
       if (!currentReorderData) return
 
-      // C. APPLY LOGIC
       const updates = currentReorderData.map(p => {
         const target = p.admin_target_qty || 0
         const current = p.current_qty || 0
         const incoming = incomingMap[p.asin] || 0
 
-        // Step 1: Calculate Deficit
         const deficit = target - current
         let finalReorder = 0
         let status: 'Safe' | 'Covered' | 'Reorder' = 'Safe'
 
         if (deficit > 0) {
-          // Step 2: Subtract Incoming (Excel Logic)
           finalReorder = Math.max(0, deficit - incoming)
-
           if (finalReorder > 0) {
-            status = 'Reorder' // Needs to be ordered
+            status = 'Reorder'
           } else {
-            status = 'Covered' // Deficit exists but covered by tracking
+            status = 'Covered'
           }
         } else {
-          status = 'Safe' // Stock is healthy
+          status = 'Safe'
         }
 
         return {
@@ -249,7 +272,6 @@ export default function ReorderPage() {
         }
       })
 
-      // D. Save to DB
       const updatePromises = updates.map(u =>
         supabase
           .from(`usa_reorder_${activeSeller.table_suffix}`)
@@ -262,8 +284,7 @@ export default function ReorderPage() {
       )
 
       await Promise.all(updatePromises)
-
-      fetchReorderData() // Refresh UI
+      fetchReorderData()
 
     } catch (err: any) {
       alert('Calculation failed: ' + err.message)
@@ -272,25 +293,20 @@ export default function ReorderPage() {
     }
   }
 
-  // --- 5. Edit Target Qty ---
-  // --- 5. Edit Target Qty (With Auto-Calculation) ---
+  // --- 5. Update Target Qty ---
   const updateTargetQty = async (id: string, newTarget: number) => {
-    // 1. Find the product
     const product = products.find(p => p.id === id)
     if (!product) return
 
-    // 2. Perform the Calculation Logic Locally
     const current = product.current_qty
-    const incoming = product.tracking_qty // Already fetched
+    const incoming = product.tracking_qty
 
     const deficit = newTarget - current
     let finalReorder = 0
     let status: 'Safe' | 'Covered' | 'Reorder' = 'Safe'
 
     if (deficit > 0) {
-      // Excel Logic: Deficit - Incoming
       finalReorder = Math.max(0, deficit - incoming)
-
       if (finalReorder > 0) {
         status = 'Reorder'
       } else {
@@ -300,7 +316,6 @@ export default function ReorderPage() {
       status = 'Safe'
     }
 
-    // 3. Optimistic UI Update (Instant Feedback)
     setProducts(prev => prev.map(p => p.id === id ? {
       ...p,
       admin_target_qty: newTarget,
@@ -308,7 +323,6 @@ export default function ReorderPage() {
       status: status
     } : p))
 
-    // 4. Save Everything to DB
     await supabase
       .from(`usa_reorder_${activeSeller.table_suffix}`)
       .update({
@@ -340,7 +354,6 @@ export default function ReorderPage() {
     XLSX.writeFile(workbook, `Reorder_${activeSeller.name}_${new Date().toISOString().split('T')[0]}.xlsx`)
   }
 
-  // Filter View
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.asin.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -352,187 +365,222 @@ export default function ReorderPage() {
   })
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-950 text-slate-200">
 
-      {/* HEADER & CONTROLS */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex-none">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+      {/* HEADER SECTION */}
+      <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Replenishment Manager</h1>
-            <p className="text-slate-500 text-sm">Calculate reorder quantities based on sales velocity and inventory</p>
+            <h1 className="text-3xl font-bold text-white">Replenishment Manager</h1>
+            <p className="text-slate-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
           </div>
-          <div className="flex bg-slate-100 p-1 rounded-lg">
+
+          {/* COLORFUL SELLER TABS */}
+          <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shadow-xl">
             {SELLERS.map(s => (
               <button
                 key={s.id}
                 onClick={() => setActiveSeller(s)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeSeller.id === s.id
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                className={`relative px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${activeSeller.id === s.id
+                    ? `${s.activeColor} text-white ${s.activeShadow} shadow-lg scale-105 z-10`
+                    : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
                   }`}
               >
+                <span className="text-base">{s.emoji}</span>
                 {s.name}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex gap-4 border-b border-slate-200">
-            <button
-              onClick={() => setActiveTab('main')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'main' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              Main Workspace
-            </button>
-            <button
-              onClick={() => setActiveTab('final')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'final' ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              Final Reorder ({products.filter(p => p.status === 'Reorder').length})
-            </button>
-          </div>
+        {/* Workspace Tabs */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('main')}
+            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'main'
+              ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+              }`}
+          >
+            Main Workspace ({products.length})
+          </button>
 
-          <div className="flex items-center gap-2">
-            {activeTab === 'main' && (
-              <>
-                <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-3 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-xs font-medium transition-colors">
-                  <RefreshCw className={`w-3.5 h-3.5 ${processing ? 'animate-spin' : ''}`} />
-                  Sync Listed ASINs
-                </button>
-
-                <div className="relative">
-                  <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={processing}
-                    className="flex items-center gap-2 px-3 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-xs font-medium transition-colors"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    Upload Inventory
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleRecalculate}
-                  disabled={processing}
-                  className="flex items-center gap-2 px-3 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 text-xs font-medium shadow-sm transition-colors"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  Run Calculation
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 text-xs font-medium transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveTab('final')}
+            className={`px-6 py-3 font-semibold text-sm rounded-xl flex items-center gap-2 transition-all duration-300 ${activeTab === 'final'
+              ? 'bg-slate-800 text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+              }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Final Reorder ({products.filter(p => p.status === 'Reorder').length})
+          </button>
         </div>
       </div>
 
-      {/* TABLE CONTENT */}
-      <div className="flex-1 overflow-hidden p-6">
-        <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          {/* Search Bar */}
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by ASIN or Name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-              />
-            </div>
-          </div>
+      {/* CONTROLS (Search & Buttons) */}
+      <div className="flex gap-3 items-center mb-6 px-6 pt-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search by ASIN or Name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
+          />
+        </div>
 
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 sticky top-0 z-10 text-xs font-bold text-slate-500 uppercase tracking-wider">
+        {activeTab === 'main' && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleSyncListings}
+              disabled={processing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${processing ? 'animate-spin' : ''}`} />
+              Sync Listed
+            </button>
+
+            <div className="relative">
+              <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={processing}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Inventory
+              </button>
+            </div>
+
+            <button
+              onClick={handleRecalculate}
+              disabled={processing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shadow-lg text-sm font-medium transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              Run Calculation
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 shadow-lg text-sm font-medium transition-colors ml-auto"
+        >
+          <Download className="w-4 h-4" />
+          Export
+        </button>
+      </div>
+
+      {/* TABLE CONTENT */}
+      <div className="flex-1 overflow-hidden px-6 pb-6">
+        <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full divide-y divide-slate-800">
+              <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
                 <tr>
-                  <th className="px-6 py-4 border-b border-slate-200">ASIN</th>
-                  <th className="px-6 py-4 border-b border-slate-200 w-1/4">Product Details</th>
-                  <th className="px-6 py-4 border-b border-slate-200 text-center bg-indigo-50/50 text-indigo-700">Target Qty</th>
-                  <th className="px-6 py-4 border-b border-slate-200 text-center bg-orange-50/50 text-orange-700">Current Qty</th>
-                  <th className="px-6 py-4 border-b border-slate-200 text-center text-slate-600">Deficit</th>
-                  <th className="px-6 py-4 border-b border-slate-200 text-center bg-blue-50/50 text-blue-700">Tracking</th>
-                  <th className="px-6 py-4 border-b border-slate-200 text-center bg-rose-50/50 text-rose-700">Final Order</th>
-                  <th className="px-6 py-4 border-b border-slate-200 text-center">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 w-1/4">Product Name</th>
+                  {/* ✅ NEW DEDICATED COLUMN FOR LINK */}
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Link</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-indigo-400 uppercase bg-indigo-900/20 border-r border-slate-800">Target Qty</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-900/20 border-r border-slate-800">Current Qty</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Deficit</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-slate-800">Tracking</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-900/20 border-r border-slate-800">Final Order</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-800/50">
                 {loading ? (
-                  <tr><td colSpan={8} className="p-12 text-center text-slate-400 flex flex-col items-center gap-2"><Loader2 className="animate-spin w-8 h-8 text-indigo-500" />Loading data...</td></tr>
+                  <tr>
+                    <td colSpan={9} className="p-12 text-center text-slate-500 flex flex-col items-center gap-2">
+                      <Loader2 className="animate-spin w-8 h-8 text-indigo-500" />
+                      Loading data...
+                    </td>
+                  </tr>
                 ) : filteredProducts.length === 0 ? (
-                  <tr><td colSpan={8} className="p-12 text-center text-slate-400">No products match your criteria.</td></tr>
+                  <tr>
+                    <td colSpan={9} className="p-12 text-center text-slate-500">
+                      No products match your criteria.
+                    </td>
+                  </tr>
                 ) : (
                   filteredProducts.map(product => {
                     const deficit = product.admin_target_qty - product.current_qty
                     return (
-                      <tr key={product.id} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="px-6 py-4 text-sm font-mono text-slate-600 font-medium">{product.asin}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm text-slate-900 font-medium truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
-                            {product.seller_link && (
-                              <a href={product.seller_link} target="_blank" className="text-xs text-blue-500 hover:underline inline-flex items-center gap-1">
-                                View Listing <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
+                      <tr key={product.id} className="hover:bg-slate-800/40 transition-colors group">
+                        <td className="px-6 py-4 text-sm font-mono text-slate-300 font-medium border-r border-slate-800/50">
+                          {product.asin}
+                        </td>
+                        <td className="px-6 py-4 border-r border-slate-800/50">
+                          <span className="text-sm text-slate-200 font-medium block truncate max-w-xs" title={product.product_name || ''}>
+                            {product.product_name || '-'}
+                          </span>
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-indigo-50/20">
+                        {/* ✅ DEDICATED LINK CELL */}
+                        <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                          {product.seller_link ? (
+                            <a
+                              href={product.seller_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="text-slate-600 text-xs">-</span>
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4 text-center bg-indigo-900/10 border-r border-slate-800/50">
                           <input
                             type="number"
                             value={product.admin_target_qty}
                             onChange={(e) => updateTargetQty(product.id, parseInt(e.target.value) || 0)}
-                            className="w-24 text-center py-1 px-2 border border-indigo-200 rounded-md text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
+                            className="w-24 text-center py-1.5 px-2 bg-slate-800 border border-indigo-500/30 rounded-md text-sm text-white font-medium focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow"
                           />
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-orange-50/20 text-orange-700 font-medium text-sm">
+                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-slate-800/50">
                           {product.current_qty}
                         </td>
 
-                        <td className={`px-6 py-4 text-center font-bold text-sm ${deficit > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-slate-800/50 ${deficit > 0 ? 'text-rose-400' : 'text-slate-500'}`}>
                           {deficit}
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-blue-50/20 text-blue-700 font-medium text-sm">
+                        <td className="px-6 py-4 text-center bg-blue-900/10 text-blue-300 font-medium text-sm border-r border-slate-800/50">
                           {product.tracking_qty}
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-rose-50/20">
+                        <td className="px-6 py-4 text-center bg-rose-900/10 border-r border-slate-800/50">
                           {product.final_reorder_qty > 0 ? (
-                            <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-100 text-rose-700 shadow-sm">
+                            <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/20 text-rose-300 shadow-sm border border-rose-500/20">
                               {product.final_reorder_qty}
                             </span>
                           ) : (
-                            <span className="text-slate-300">-</span>
+                            <span className="text-slate-600">-</span>
                           )}
                         </td>
 
                         <td className="px-6 py-4 text-center">
                           {product.status === 'Reorder' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
                               <AlertTriangle className="w-3.5 h-3.5" /> Reorder
                             </span>
                           )}
                           {product.status === 'Covered' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
                               <Package className="w-3.5 h-3.5" /> Covered
                             </span>
                           )}
                           {product.status === 'Safe' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Safe
                             </span>
                           )}
@@ -545,11 +593,14 @@ export default function ReorderPage() {
             </table>
           </div>
 
-          <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-between items-center text-xs text-slate-500 font-medium">
-            <span>Showing {filteredProducts.length} items</span>
+          {/* Footer Stats */}
+          <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3 flex justify-between items-center">
+            <div className="text-sm text-slate-400">
+              Showing {filteredProducts.length} items
+            </div>
             {activeTab === 'final' && (
-              <div className="text-sm text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                Total Units to Order: <span className="font-bold text-rose-600 ml-1">{filteredProducts.reduce((sum, p) => sum + p.final_reorder_qty, 0)}</span>
+              <div className="text-sm text-slate-300 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 shadow-sm">
+                Total Units to Order: <span className="font-bold text-rose-400 ml-1">{filteredProducts.reduce((sum, p) => sum + p.final_reorder_qty, 0)}</span>
               </div>
             )}
           </div>
