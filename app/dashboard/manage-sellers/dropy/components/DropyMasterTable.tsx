@@ -13,6 +13,8 @@ interface MasterData {
   id: string;
   asin: string;
   display_number: number;
+  // ✅ UPDATE 1: Add Tag
+  country_tag: string;
   amz_link: string;
   product_name: string;
   brand: string;
@@ -43,20 +45,23 @@ interface DropyMasterTableProps {
   onSelectedIdsChange: (ids: Set<string>) => void;
 }
 
+// ✅ UPDATE 2: Add country_tag to column list at correct position
 const ALL_COLUMNS = [
-  's_no', 'asin', 'amz_link', 'product_name', 'brand', 'price',
+  's_no', 'country_tag', 'asin', 'amz_link', 'product_name', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'dimensions', 'weight',
 ];
 
 const NUMERIC_COLUMNS = ['price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'weight'];
 
+// ✅ UPDATE 3: Label
 const COLUMN_LABELS: Record<string, string> = {
-  s_no: 'S.No', asin: 'ASIN', 'amz_link': 'Link', product_name: 'Product Name',
+  s_no: 'S.No', country_tag: 'Tag', asin: 'ASIN', 'amz_link': 'Link', product_name: 'Product Name',
   brand: 'Brand', price: 'Price', monthly_unit: 'Monthly Units', monthly_sales: 'Monthly Sales',
   bsr: 'BSR', seller: 'Sellers', category: 'Category', dimensions: 'Dimensions', weight: 'Weight',
 };
 
-const SORTABLE_COLUMNS = ['s_no', 'asin', 'product_name', 'brand', 'price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'weight'];
+// ✅ UPDATE 4: Sortable
+const SORTABLE_COLUMNS = ['s_no', 'country_tag', 'asin', 'product_name', 'brand', 'price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'weight'];
 
 export default function DropyMasterTable({
   searchTerm, hiddenColumns, columnWidths, onColumnWidthChange, filters, onFiltersChange,
@@ -395,7 +400,7 @@ export default function DropyMasterTable({
     if (sortConfig.key !== sortKey) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
     return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-400" /> : <ArrowDown className="w-3 h-3 text-indigo-400" />;
   };
-  
+
   return (
     <div>
       {/* Loading Modal for Select All */}
@@ -560,6 +565,27 @@ export default function DropyMasterTable({
                         <div className="truncate" title={String(row[column as keyof MasterData] || '')}>
                           {column === 's_no' ? (
                             <span className="font-mono text-slate-500">{row.display_number}</span>
+                          ) : column === 'country_tag' ? (
+                            <div className="flex gap-1 flex-wrap">
+                              {/* ✅ SPLIT TAGS AND RENDER EACH BADGE */}
+                              {(row.country_tag || 'USA').split(',').map((tagPart, idx) => {
+                                const cleanTag = tagPart.trim().toUpperCase();
+
+                                if (cleanTag === 'IN' || cleanTag === 'INDIA') {
+                                  return (
+                                    <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                                      IN
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                      USA
+                                    </span>
+                                  );
+                                }
+                              })}
+                            </div>
                           ) : column === 'asin' ? (
                             <span className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono text-[10px] select-all">
                               {row.asin}
@@ -597,5 +623,3 @@ export default function DropyMasterTable({
     </div>
   );
 }
-
-

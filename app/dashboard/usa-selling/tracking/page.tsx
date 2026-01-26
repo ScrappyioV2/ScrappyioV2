@@ -10,6 +10,7 @@ import RollbackModal from './components/RollbackModal'
 type PassFileProduct = {
     id: string
     asin: string
+    journey_id?: string | null // ✅ ADDED: Journey ID for cycle tracking
     product_name: string | null
     brand: string | null
     seller_tag: string | null
@@ -132,7 +133,7 @@ export default function TrackingPage() {
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
                     .from('usa_traking')
-                    .select()
+                    .select('*') // Select ALL columns including delivery_date and journey_id
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
 
@@ -147,24 +148,47 @@ export default function TrackingPage() {
                 }
             }
 
+            // Enrich data with Validation Info
             const enrichedData = await Promise.all(
                 allData.map(async (product) => {
-                    const { data: validationData } = await supabase
+                    // ✅ FIXED: Query by BOTH ASIN and Journey ID to get the correct cycle's tags
+                    let query = supabase
                         .from('usa_validation_main_file')
                         .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                        .eq('asin', product.asin)
-                        .maybeSingle()
+                        .eq('asin', product.asin);
+                    
+                    if (product.journey_id) {
+                        query = query.eq('current_journey_id', product.journey_id);
+                    }
+
+                    // We use maybeSingle() but prioritize journey_id match if available
+                    // If no journey_id match found (legacy data), it might fall back or return null
+                    const { data: validationData } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+                    // Fallback: If strict journey_id match failed, try just ASIN (latest)
+                    // This supports old items without journey_id
+                    let finalValidationData = validationData;
+                    if (!finalValidationData && !product.journey_id) {
+                         const { data: fallbackData } = await supabase
+                            .from('usa_validation_main_file')
+                            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                            .eq('asin', product.asin)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+                         finalValidationData = fallbackData;
+                    }
 
                     return {
                         ...product,
                         productname: (product as any).product_name ?? null,
                         originindia: (product as any).origin_india ?? false,
                         originchina: (product as any).origin_china ?? false,
-                        validation_funnel: validationData?.funnel ?? null,
-                        validation_seller_tag: validationData?.seller_tag ?? null,
-                        product_weight: validationData?.product_weight ?? null,
-                        usd_price: validationData?.usd_price ?? null,
-                        inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                        validation_funnel: finalValidationData?.funnel ?? null,
+                        validation_seller_tag: finalValidationData?.seller_tag ?? null,
+                        product_weight: finalValidationData?.product_weight ?? null,
+                        usd_price: finalValidationData?.usd_price ?? null,
+                        inr_purchase_from_validation: finalValidationData?.inr_purchase ?? null,
                     }
                 })
             )
@@ -195,8 +219,7 @@ export default function TrackingPage() {
             const { count: checkCount, error: checkError } = await supabase
                 .from('usa_checking')
                 .select('*', { count: 'exact', head: true });
-            console.log('🔍 Checking Count Result:', { checkCount, checkError });
-
+            
             if (checkError) {
                 console.error('Error fetching checking count:', checkError);
             } else {
@@ -234,18 +257,29 @@ export default function TrackingPage() {
                 }
             }
 
-            const allAsins = allData.map((p: any) => p.asin)
+            // ✅ OPTIMIZED FETCH: Get all potential validation data
+            const allAsins = allData.map((p: any) => p.asin);
             const { data: validationDataArray } = await supabase
                 .from('usa_validation_main_file')
-                .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                .in('asin', allAsins)
+                .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                .in('asin', allAsins);
 
-            const validationMap = new Map(
-                (validationDataArray || []).map((v: any) => [v.asin, v])
-            )
+            // ✅ SMART MAP: Create a composite key (ASIN + JourneyID) to ensure unique cycle data
+            const validationMap = new Map();
+            const fallbackMap = new Map(); // Fallback for legacy items without journey_id
+
+            (validationDataArray || []).forEach((v: any) => {
+                // Precise match key
+                if (v.current_journey_id) {
+                    validationMap.set(`${v.asin}_${v.current_journey_id}`, v);
+                }
+                // Fallback (latest wins if sorted by DB, or just arbitrary. Better than nothing)
+                fallbackMap.set(v.asin, v);
+            });
 
             const enrichedData = allData.map((product: any) => {
-                const validationData = validationMap.get(product.asin)
+                // Try precise match first, then fallback
+                const validationData = validationMap.get(`${product.asin}_${product.journey_id}`) || fallbackMap.get(product.asin);
 
                 return {
                     ...product,
@@ -269,7 +303,7 @@ export default function TrackingPage() {
 
     useEffect(() => {
         fetchProducts()
-        fetchCounts()  // ✅ ADD THIS LINE
+        fetchCounts()
 
         const channel = supabase
             .channel('tracking-changes')
@@ -277,10 +311,10 @@ export default function TrackingPage() {
                 refreshProductsSilently()
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_tracking_company_invoice' }, () => {
-                fetchCounts()  // ✅ Refresh counts when invoice changes
+                fetchCounts()
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_checking' }, () => {
-                fetchCounts()  // ✅ Refresh counts when checking changes
+                fetchCounts()
             })
             .subscribe()
 

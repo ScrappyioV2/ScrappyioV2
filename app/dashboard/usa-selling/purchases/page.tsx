@@ -51,6 +51,11 @@ type PassFileProduct = {
   profit?: number | null
   origin?: string | null
   admin_target_quantity?: number | null
+  journey_id?: string | null
+  journey_number?: number | null
+  total_cost?: number | null
+  total_revenue?: number | null
+  inr_purchase_from_validation?: number | null
 }
 
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
@@ -142,6 +147,8 @@ export default function PurchasesPage() {
           product_weight: validationData?.product_weight ?? null,
           usd_price: validationData?.usd_price ?? null,
           inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+          total_cost: validationData?.total_cost ?? null,        // <--- Added
+          total_revenue: validationData?.total_revenue ?? null,
 
           // Ensure these are passed for other calculations
           profit: validationData?.profit ?? null,
@@ -193,6 +200,9 @@ export default function PurchasesPage() {
           product_weight: validationData?.product_weight ?? null,
           usd_price: validationData?.usd_price ?? null,
           inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+          profit: validationData?.profit ?? null,
+          total_cost: validationData?.total_cost ?? null,        // <--- Added
+          total_revenue: validationData?.total_revenue ?? null,
         }
       })
 
@@ -470,54 +480,88 @@ export default function PurchasesPage() {
       return;
     }
 
-    const { error: insertError } = await supabase
-      .from('usa_traking')   // ✅ TRACKING TABLE
-      .insert({
-        asin: product.asin,
-        product_link: product.product_link,
-        product_name: product.product_name,
-        target_price: product.target_price,
-        target_quantity: product.target_quantity,
-        buying_price: product.buying_price,
-        buying_quantity: product.buying_quantity,
-        seller_link: product.seller_link,
-        seller_phone: product.seller_phone,
-        payment_method: product.payment_method,
-        tracking_details: product.tracking_details,
-        delivery_date: product.delivery_date,
-        origin_india: product.origin_india,
-        origin_china: product.origin_china,
-        brand: product.brand,
-        seller_tag: product.seller_tag,
-        funnel: product.funnel,
-        inr_purchase_link: product.inr_purchase_link,
-        profit: product.profit,
-        product_weight: product.product_weight,
-        usd_price: product.usd_price,
-        inr_purchase: product.inr_purchase,
-        admin_target_price: product.admin_target_price,
-        admin_target_quantity: product.admin_target_quantity,
-        target_price_validation: product.target_price_validation,
-        target_price_link_validation: product.target_price_link_validation,
-        origin: product.origin,
-        funnel_quantity: product.funnel_quantity,
-        funnel_seller: product.funnel_seller
-      });
+    try {
+      // 🛑 STEP 1: FETCH FRESH DATA (Fixes Stale Delivery Date)
+      const { data: freshProduct, error: fetchError } = await supabase
+        .from('usa_purchases')
+        .select('*')
+        .eq('id', product.id)
+        .single();
 
-    if (insertError) {
-      alert(insertError.message);
-      return;
+      if (fetchError || !freshProduct) {
+        throw new Error("Could not fetch latest data. Please refresh and try again.");
+      }
+
+      // ✅ STEP 2: INSERT (Mix of Fresh & Prop Data)
+      const { error: insertError } = await supabase
+        .from('usa_traking')   // ✅ TRACKING TABLE
+        .insert({
+          asin: freshProduct.asin,
+
+          // 🔗 Cycle Links (Prefer fresh)
+          journey_id: freshProduct.journey_id ?? product.journey_id,
+          journey_number: freshProduct.journey_number || product.journey_number || 1,
+
+          // 📝 Editable Fields (MUST use freshProduct)
+          delivery_date: freshProduct.delivery_date,
+          tracking_details: freshProduct.tracking_details,
+          buying_price: freshProduct.buying_price,
+          buying_quantity: freshProduct.buying_quantity,
+          seller_link: freshProduct.seller_link,
+          seller_phone: freshProduct.seller_phone,
+          payment_method: freshProduct.payment_method,
+
+          // 📦 Core Info (Use freshProduct)
+          product_link: freshProduct.product_link,
+          product_name: freshProduct.product_name,
+          target_price: freshProduct.target_price,
+          target_quantity: freshProduct.target_quantity,
+          origin_india: freshProduct.origin_india,
+          origin_china: freshProduct.origin_china,
+          admin_target_price: freshProduct.admin_target_price,
+          inr_purchase_link: freshProduct.inr_purchase_link,
+          origin: freshProduct.origin || product.origin,
+
+          // 📊 Validation Fields (Use Prop Data - these come from validation file)
+          brand: product.brand,
+          seller_tag: product.seller_tag || product.validation_seller_tag,
+          funnel: product.funnel || product.validation_funnel,
+          profit: product.profit,
+          product_weight: product.product_weight,
+          usd_price: product.usd_price,
+          inr_purchase: product.inr_purchase_from_validation || product.inr_purchase,
+          admin_target_quantity: product.admin_target_quantity,
+          target_price_validation: product.target_price_validation,
+          target_price_link_validation: product.target_price_link_validation,
+          funnel_quantity: product.funnel_quantity,
+          funnel_seller: product.funnel_seller,
+
+          // 💰 Financials (Use Prop Data - sourced from validation file)
+          total_cost: product.total_cost,
+          total_revenue: product.total_revenue,
+
+          // 🏁 Status
+          admin_status: 'confirmed',
+          status: 'tracking'
+        });
+
+      if (insertError) throw insertError;
+
+      // ✅ STEP 3: DELETE
+      const { error: deleteError } = await supabase
+        .from('usa_purchases')
+        .delete()
+        .eq('id', product.id);
+
+      if (deleteError) throw deleteError;
+
+      await refreshProductsSilently();
+
+    } catch (error: any) {
+      console.error('Move error:', error);
+      alert('Failed to move: ' + error.message);
     }
-
-    // ✅ DELETE FROM PURCHASES
-    await supabase
-      .from('usa_purchases')
-      .delete()
-      .eq('id', product.id);
-
-    await refreshProductsSilently();
   };
-
 
   // Handle column resize
   const handleMouseDown = (column: string, e: React.MouseEvent) => {

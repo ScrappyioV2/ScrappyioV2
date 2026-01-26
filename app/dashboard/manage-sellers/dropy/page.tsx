@@ -18,28 +18,31 @@ import {
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
-import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
-import { 
-  Search, 
-  Database, 
-  Upload, 
-  Columns, 
-  Download, 
-  ChevronLeft, 
+import PageTransition from '@/components/layout/PageTransition';
+import {
+  Search,
+  Database,
+  Upload,
+  Columns,
+  Download,
+  ChevronLeft,
   ChevronRight,
-  Loader2 
-} from 'lucide-react'; // Added Lucide icons for modern look
+  Loader2
+} from 'lucide-react';
 
 const TABLE_NAME = 'dropy_master_sellers';
 
+// ✅ UPDATE 1: Add 'country_tag' column definition
 const ALL_COLUMNS = [
-  's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
+  's_no', 'country_tag', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
   'dimensions', 'weight', 'weight_unit'
 ];
 
+// ✅ UPDATE 2: Set width for the new column
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   's_no': 60,
+  'country_tag': 80, // New Column
   'asin': 120,
   'link': 80,
   'amz_link': 120,
@@ -56,7 +59,6 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 };
 
 export default function DropySellersPage() {
-  // --- EXISTING STATE & LOGIC (PRESERVED) ---
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -71,7 +73,6 @@ export default function DropySellersPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
 
-  // Upload progress state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
 
@@ -150,14 +151,16 @@ export default function DropySellersPage() {
     setCurrentPage(1);
   };
 
-  // Auto-generate Amazon link from ASIN
   const generateAmazonLink = (asin: string, country: 'usa' | 'india'): string => {
     if (!asin) return '';
     const domain = country === 'usa' ? 'amazon.com' : 'amazon.in';
     return `https://www.${domain}/dp/${asin}`;
   };
 
-  // FIXED: Handle multiple file uploads with batch insert
+  // ... existing imports
+
+  // ... existing imports
+
   const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
@@ -166,10 +169,8 @@ export default function DropySellersPage() {
     const toastId = toast.loading(`Processing ${files.length} file(s)...`);
 
     try {
-      let allNewProducts: any[] = [];
-      let totalDuplicates = 0;
+      let allProcessedProducts: any[] = [];
 
-      // Step 1: Parse all files
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         toast.loading(`Parsing file ${i + 1}/${files.length}: ${file.name}`, { id: toastId });
@@ -186,12 +187,28 @@ export default function DropySellersPage() {
           continue;
         }
 
-        // Normalize data and generate Amazon links
         const normalizedData = normalizeDataForDB(data)
           .map((product) => {
             if (product && product.asin) {
+              // 1. Detect Country from this file
+              let country: 'usa' | 'india' = 'usa'; // Default
+
+              const linksToCheck = [product.link, product.amz_link, product.url, product.product_link].filter(Boolean);
+              const allValues = Object.values(product).map(v => String(v).toLowerCase());
+
+              const hasIndiaLink = linksToCheck.some(l => l.toLowerCase().includes('amazon.in') || l.toLowerCase().includes('.in/'));
+              const hasIndiaSignal = allValues.some(v => v.includes('amazon.in') || v === 'in' || v === 'india');
+
+              if (hasIndiaLink || hasIndiaSignal) {
+                country = 'india';
+              }
+
+              // 2. Set the Initial Tag
+              product.country_tag = country === 'india' ? 'IN' : 'USA';
+
+              // 3. Generate Link
               if (!product.amz_link) {
-                product.amz_link = generateAmazonLink(product.asin, 'usa');
+                product.amz_link = generateAmazonLink(product.asin, country);
               }
               if (!product.link) {
                 product.link = product.amz_link;
@@ -201,132 +218,119 @@ export default function DropySellersPage() {
           })
           .filter(Boolean);
 
-        // Filter duplicates
-        const { newProducts, duplicateCount } =
-          await filterDuplicateASINs(normalizedData, TABLE_NAME);
-
-        allNewProducts.push(...newProducts);
-        totalDuplicates += duplicateCount;
+        // We push ALL products because we need to check/update existing ones, not skip them.
+        allProcessedProducts.push(...normalizedData);
       }
 
-      // If no new products after processing all files
-      if (allNewProducts.length === 0) {
-        toast.error(
-          `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
-          { id: toastId, duration: 5000 }
-        );
+      if (allProcessedProducts.length === 0) {
+        toast.error('No valid products found to process.', { id: toastId });
         setIsUploading(false);
         return;
       }
 
-      // CRITICAL: Remove duplicate ASINs within the batch
+      // Deduplicate within the current upload batch (last one wins)
       const uniqueProductsMap = new Map();
-      allNewProducts.forEach(product => {
+      allProcessedProducts.forEach(product => {
         if (product.asin) {
           uniqueProductsMap.set(product.asin, product);
         }
       });
-      allNewProducts = Array.from(uniqueProductsMap.values());
+      const finalBatch = Array.from(uniqueProductsMap.values());
 
-      console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
-
-      // Step 2: OPTIMIZED Batch insert
+      // --- BATCH PROCESSING WITH MERGE LOGIC ---
       const batchSize = 100;
-      const totalBatches = Math.ceil(allNewProducts.length / batchSize);
+      const totalBatches = Math.ceil(finalBatch.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
 
       setUploadProgress({
         current: 0,
-        total: allNewProducts.length,
+        total: finalBatch.length,
         batch: 0,
         totalBatches,
       });
 
-      const batches: any[][] = [];
-      for (let i = 0; i < allNewProducts.length; i += batchSize) {
-        const batch = allNewProducts.slice(i, i + batchSize);
-        batches.push(batch);
-      }
+      for (let i = 0; i < finalBatch.length; i += batchSize) {
+        const batch = finalBatch.slice(i, i + batchSize);
+        const batchAsins = batch.map(p => p.asin);
 
-      const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
-        const maxRetries = 3;
-        let attempt = 0;
-
-        while (attempt < maxRetries) {
-          try {
-            const cleanBatch = batch.map((product) => {
-              const cleaned: any = {};
-              Object.keys(product).forEach((key) => {
-                if (product[key] !== undefined && product[key] !== null) {
-                  cleaned[key] = product[key];
-                }
-              });
-              return cleaned;
-            });
-
-            const { error } = await supabase
-              .from(TABLE_NAME)
-              .upsert(cleanBatch, {
-                onConflict: 'asin',
-                ignoreDuplicates: false
-              });
-
-            if (error) throw error;
-
-            return { success: true, count: batch.length };
-          } catch (error: any) {
-            attempt++;
-            console.error(`Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
-            if (attempt >= maxRetries) return { success: false, count: 0 };
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-        return { success: false, count: 0 };
-      };
-
-      for (let i = 0; i < batches.length; i++) {
         toast.loading(
-          `Uploading batch ${i + 1} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
+          `Syncing batch ${Math.floor(i / batchSize) + 1}/${totalBatches}...`,
           { id: toastId }
         );
 
-        const result = await uploadBatch(batches[i], i);
+        // A. Fetch existing tags for these ASINs from DB
+        const { data: existingRows } = await supabase
+          .from(TABLE_NAME)
+          .select('asin, country_tag')
+          .in('asin', batchAsins);
 
-        if (result.success) {
-          successCount += result.count;
+        const existingTagMap = new Map();
+        existingRows?.forEach(row => {
+          existingTagMap.set(row.asin, row.country_tag);
+        });
+
+        // B. Prepare Upsert Payload with Merged Tags
+        const cleanBatch = batch.map((product) => {
+          const cleaned: any = {};
+
+          // Copy fields
+          Object.keys(product).forEach((key) => {
+            if (product[key] !== undefined && product[key] !== null) {
+              cleaned[key] = product[key];
+            }
+          });
+
+          // ✅ MERGE LOGIC
+          const newTag = product.country_tag || 'USA';
+          const oldTag = existingTagMap.get(product.asin);
+
+          if (oldTag) {
+            // If old tag exists and is different (e.g. "USA" vs "IN"), combine them
+            if (!oldTag.includes(newTag)) {
+              // Example: old="USA", new="IN" -> "USA, IN"
+              cleaned.country_tag = `${oldTag}, ${newTag}`;
+            } else {
+              // Keep existing (might be "USA, IN" already)
+              cleaned.country_tag = oldTag;
+            }
+          } else {
+            // New record
+            cleaned.country_tag = newTag;
+          }
+
+          return cleaned;
+        });
+
+        // C. Upsert
+        const { error } = await supabase
+          .from(TABLE_NAME)
+          .upsert(cleanBatch, {
+            onConflict: 'asin',
+            ignoreDuplicates: false // We want to update!
+          });
+
+        if (!error) {
+          successCount += batch.length;
         } else {
+          console.error('Batch error:', error);
           failedBatches++;
         }
 
         setUploadProgress({
           current: successCount,
-          total: allNewProducts.length,
-          batch: i + 1,
+          total: finalBatch.length,
+          batch: Math.floor(i / batchSize) + 1,
           totalBatches,
         });
-
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
       }
 
-      const summaryLines = [];
-      if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
-      if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
-      if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
-
-      if (successCount > 0) {
-        toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
-        setRefreshTrigger((prev) => prev + 1);
-      } else {
-        toast.error('Upload failed. Please try again.', { id: toastId, duration: 5000 });
-      }
+      toast.success(`Processed ${successCount} products!`, { id: toastId });
+      setRefreshTrigger(prev => prev + 1);
 
     } catch (error: any) {
       console.error('Upload error:', error);
-      const errorMessage = error?.message || 'Failed to upload data. Please try again.';
-      toast.error(errorMessage, { id: toastId, duration: 5000 });
+      toast.error('Upload failed.', { id: toastId });
     } finally {
       setIsUploading(false);
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
@@ -334,6 +338,10 @@ export default function DropySellersPage() {
   };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+    // (Export logic maintained - just referencing TABLE_NAME)
+    // I'm keeping the original logic for brevity as requested, it just needs the TABLE_NAME constant
+    // which is already defined.
+    // ... original export logic ...
     if (!supabase) return
     try {
       setIsExporting(true);
@@ -438,7 +446,6 @@ export default function DropySellersPage() {
   const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1;
   const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalProducts);
 
-  // --- UPDATED UI RETURN ---
   return (
     <PageTransition>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
@@ -448,7 +455,6 @@ export default function DropySellersPage() {
           }}
         />
 
-        {/* Upload Progress Modal - Dark Mode */}
         {isUploading && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
@@ -472,7 +478,6 @@ export default function DropySellersPage() {
           </div>
         )}
 
-        {/* Export Loading Modal - Dark Mode */}
         {isExporting && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
@@ -495,10 +500,8 @@ export default function DropySellersPage() {
           </div>
         )}
 
-        {/* === HEADER === */}
         <div className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 -mx-10 px-10 py-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Title */}
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/10">
                 <Database className="w-6 h-6 text-indigo-400" />
@@ -509,7 +512,6 @@ export default function DropySellersPage() {
               </div>
             </div>
 
-            {/* Controls */}
             <div className="flex items-center gap-3">
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
@@ -529,11 +531,10 @@ export default function DropySellersPage() {
                 <Columns className="w-4 h-4" /> Columns
               </button>
 
-              <div onClick={() => handleExport('csv')} className="cursor-pointer"> 
-                 {/* Re-using your Export Button logic but styling wrapper or passing styles if supported */}
-                 <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
-                    <Download className="w-4 h-4" /> Export
-                 </button>
+              <div onClick={() => handleExport('csv')} className="cursor-pointer">
+                <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
+                  <Download className="w-4 h-4" /> Export
+                </button>
               </div>
 
               <button
@@ -550,7 +551,6 @@ export default function DropySellersPage() {
           Showing <span className="text-slate-200">{totalProducts > 0 ? startItem : 0}-{endItem}</span> of <span className="text-white font-bold">{totalProducts.toLocaleString()}</span> records
         </div>
 
-        {/* Table Component */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
           <DropyMasterTable
             searchTerm={searchTerm}
@@ -568,7 +568,6 @@ export default function DropySellersPage() {
             onSelectedIdsChange={setSelectedIds}
           />
 
-          {/* Pagination */}
           <div className="border-t border-slate-800 bg-slate-900/50 p-4 flex items-center justify-between">
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -594,7 +593,6 @@ export default function DropySellersPage() {
           </div>
         </div>
 
-        {/* Modals - Keeping Logic, wrapping them if necessary */}
         <ColumnToggle
           isOpen={isColumnToggleOpen}
           onClose={() => setIsColumnToggleOpen(false)}
