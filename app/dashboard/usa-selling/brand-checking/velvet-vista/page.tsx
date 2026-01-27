@@ -66,6 +66,9 @@ export default function VelvetVistaPage() {
     reason: true,
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  // Move To dropdown state (for Reject tab)
+  const [isMoveToDropdownOpen, setIsMoveToDropdownOpen] = useState(false);
+
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -183,9 +186,16 @@ export default function VelvetVistaPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
+  // ✅ NEW - Load movement history on initial page load
+  useEffect(() => {
+    fetchLastMovementHistory();
+  }, []); // Empty dependency - runs once on mount
+
+
   // Fetch products
   useEffect(() => {
     fetchProducts(false);
+    fetchLastMovementHistory();
   }, [activeTab, currentPage, debouncedSearch]);
 
   const fetchProducts = async (isSilent = false) => {
@@ -198,11 +208,22 @@ export default function VelvetVistaPage() {
       let query = supabase.from(tableName).select('*', { count: 'exact' });
 
       if (debouncedSearch.trim()) {
-        const searchTerm = sanitizeSearchTerm(debouncedSearch);
-        query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
-        );
-      }
+  // ✅ Limit search to 100 characters to prevent 400 errors
+  const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
+  
+  // Show warning if search was truncated
+  if (debouncedSearch.length > 100) {
+    setToast({
+      message: 'Search query too long - truncated to 100 characters',
+      type: 'warning',
+    });
+  }
+  
+  query = query.or(
+    `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
+  );
+}
+
 
       const { data, error, count } = await query
         .range(start, end)
@@ -233,6 +254,57 @@ export default function VelvetVistaPage() {
       if (!isSilent) setLoading(false);
     }
   };
+
+
+  // ✅ NEW FUNCTION - Fetch last movement from database
+  const fetchLastMovementHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('usa_seller_4_velvet_vista_movement_history')
+        .select('*')
+        .eq('from_table', `usa_seller_${SELLER_ID}_${activeTab}`)
+        .order('moved_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching movement history:', error);
+        return;
+      }
+
+      if (data) {
+        // Populate movementHistory state with the last movement
+        const product: ProductRow = {
+          id: '', // Not needed for rollback
+          asin: data.asin,
+          product_name: data.product_name,
+          brand: data.brand,
+          funnel: data.funnel,
+          monthly_unit: data.monthly_unit,
+          product_link: data.product_link,
+          amz_link: data.amz_link,
+        };
+
+        setMovementHistory((prev) => ({
+          ...prev,
+          [`usa_seller_${SELLER_ID}_${activeTab}`]: {
+            product,
+            fromTable: data.from_table,
+            toTable: data.to_table,
+          },
+        }));
+      } else {
+        // No history found - clear undo for this tab
+        setMovementHistory((prev) => ({
+          ...prev,
+          [`usa_seller_${SELLER_ID}_${activeTab}`]: null,
+        }));
+      }
+    } catch (error) {
+      console.error('Exception fetching movement history:', error);
+    }
+  };
+
 
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
@@ -349,46 +421,195 @@ export default function VelvetVistaPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-    const lastMovement = movementHistory[currentTable];
+  const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
+  const lastMovement = movementHistory[currentTable];
 
-    if (!lastMovement) {
-      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
+  if (!lastMovement) {
+    setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const { product, fromTable, toTable } = lastMovement;
+
+    // ✅ NEW: Check if product already exists in destination table
+    const { data: existingProduct, error: checkError } = await supabase
+      .from(fromTable)
+      .select('asin')
+      .eq('asin', product.asin)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existingProduct) {
+      // Product already exists - clear history and show message
+      setToast({
+        message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
+        type: 'warning',
+      });
+      
+      // Clear movement history since it's no longer valid
+      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      
+      // Delete the invalid history entry from database
+      await supabase
+        .from(`usa_seller_${SELLER_ID}_velvet_vista_movement_history`) // Change table name per seller
+        .delete()
+        .eq('asin', product.asin)
+        .eq('from_table', fromTable)
+        .eq('to_table', toTable)
+        .order('moved_at', { ascending: false })
+        .limit(1);
+      
+      setLoading(false);
+      return;
+    }
+
+    // Product doesn't exist - proceed with rollback
+    const { error: insertError } = await supabase.from(fromTable).insert({
+      asin: product.asin,
+      product_name: product.product_name,
+      brand: product.brand,
+      funnel: product.funnel,
+      monthly_unit: product.monthly_unit,
+      product_link: product.product_link,
+      amz_link: product.amz_link,
+    });
+
+    if (insertError) throw insertError;
+
+    const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+    if (deleteError) throw deleteError;
+
+    await supabase
+      .from(`usa_seller_${SELLER_ID}_velvet_vista_movement_history`) // Change table name per seller
+      .delete()
+      .eq('asin', product.asin)
+      .eq('from_table', fromTable)
+      .eq('to_table', toTable)
+      .order('moved_at', { ascending: false })
+      .limit(1);
+
+    setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+    setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+    fetchProducts(true);
+  } catch (error: any) {
+    console.error('Error rolling back:', error);
+    setToast({ 
+      message: error?.message || 'Rollback failed', 
+      type: 'error' 
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  // ✅ NEW FUNCTION: Move products from Reject to other tabs
+  const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
+    if (selectedIds.size === 0) {
+      setToast({ message: 'Please select products to move', type: 'warning' });
       return;
     }
 
     setLoading(true);
     try {
-      const { product, fromTable, toTable } = lastMovement;
-      const { error: insertError } = await supabase.from(fromTable).insert({
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.product_link,
-        amz_link: product.amz_link,
-      });
+      const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+      const targetTable = `usa_seller_${SELLER_ID}_${targetTab}`;
+      const rejectTable = `usa_seller_${SELLER_ID}_reject`;
 
-      if (insertError) throw insertError;
+      let movedCount = 0;
+      let skippedCount = 0;
+      const skippedAsins: string[] = [];
 
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-      if (deleteError) throw deleteError;
+      for (const product of selectedProducts) {
+        // Check if ASIN already exists in target table
+        const { data: existing, error: checkError } = await supabase
+          .from(targetTable)
+          .select('asin')
+          .eq('asin', product.asin)
+          .maybeSingle();
 
-      await supabase.from('usa_seller_4_velvet_vista_movement_history')
-        .delete().eq('asin', product.asin).eq('from_table', fromTable).eq('to_table', toTable)
-        .order('moved_at', { ascending: false }).limit(1);
+        if (checkError) {
+          console.error('Error checking existing product:', checkError);
+          continue;
+        }
 
-      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-      fetchProducts(true);
-    } catch (error) {
-      console.error('Error rolling back:', error);
-      setToast({ message: 'Rollback failed', type: 'error' });
+        if (existing) {
+          // Skip if already exists
+          skippedCount++;
+          skippedAsins.push(product.asin);
+          continue;
+        }
+
+        // Prepare data (remove reject-specific fields)
+        const { id, reason, working, ...productData } = product;
+
+        // Insert into target table
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(productData);
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          continue;
+        }
+
+        // Delete from reject table
+        const { error: deleteError } = await supabase
+          .from(rejectTable)
+          .delete()
+          .eq('asin', product.asin);
+
+        if (deleteError) {
+          console.error('Delete error:', deleteError);
+          continue;
+        }
+
+        movedCount++;
+      }
+
+      // Show result
+      // Show result
+      if (movedCount > 0) {
+        setToast({
+          message: `Successfully moved ${movedCount} product(s) to ${targetTab.replace('_', ' ')}`,
+          type: 'success',
+        });
+      }
+
+      if (skippedCount > 0) {
+        setToast({
+          message: `Skipped ${skippedCount} product(s) - already exists in target table. ASINs: ${skippedAsins.slice(0, 3).join(', ')}${skippedAsins.length > 3 ? '...' : ''}`,
+          type: 'warning',
+        });
+      }
+
+      // ✅ NEW: Clear movement history for target table since products moved back
+      // This prevents undo conflicts when products return to their original table
+      const targetTableKey = `usa_seller_${SELLER_ID}_${targetTab}`;
+      if (movementHistory[targetTableKey]) {
+        setMovementHistory((prev) => ({
+          ...prev,
+          [targetTableKey]: null,
+        }));
+      }
+
+      // Clear selection and refresh
+      setSelectedIds(new Set());
+      setIsMoveToDropdownOpen(false);
+      await fetchProducts(true);
+
+
+    } catch (error: any) {
+      console.error('Move from reject error:', error);
+      setToast({ message: `Error: ${error.message}`, type: 'error' });
     } finally {
       setLoading(false);
     }
   };
+
 
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
@@ -514,233 +735,294 @@ export default function VelvetVistaPage() {
   return (
     <PageTransition>
       {/* Ensure requiredPage matches your Sidebar/DB key exactly */}
-        <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
 
-          {/* HEADER */}
-          <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
-            <div className="max-w-[1920px] mx-auto">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                      <LayoutList className="w-6 h-6 text-indigo-400" />
-                    </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white">Velvet Vista Listing</h1>
+        {/* HEADER */}
+        <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
+          <div className="max-w-[1920px] mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                    <LayoutList className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <p className="text-slate-400 pl-[3.25rem] text-sm">
-                    Review and process listing errors and approvals
-                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight text-white">Velvet Vista Listing</h1>
                 </div>
+                <p className="text-slate-400 pl-[3.25rem] text-sm">
+                  Review and process listing errors and approvals
+                </p>
+              </div>
 
-                <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-                  <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
-                  <span className="w-px h-3 bg-slate-700 mx-2" />
-                  <span>SELECTED: <span className="text-indigo-400 font-bold">{selectedIds.size}</span></span>
+              <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
+                <span className="w-px h-3 bg-slate-700 mx-2" />
+                <span>SELECTED: <span className="text-indigo-400 font-bold">{selectedIds.size}</span></span>
+              </div>
+            </div>
+
+            {/* TABS */}
+            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit">
+              {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
+              {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
+              {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
+              {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
+              {tabStyles('reject', 'text-slate-400', 'Reject')}
+            </div>
+
+            {/* CONTROLS */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800 mb-2">
+              <div className="flex gap-3 w-full md:w-auto">
+                <div className="relative">
+                  <button
+                    onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+                    className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 text-sm font-medium transition-colors"
+                  >
+                    <Columns className="w-4 h-4" /> Columns
+                  </button>
+                  {isColumnDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
+                      <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                        {Object.keys(visibleColumns).map((col) => (
+                          <label key={col} className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns[col as keyof typeof visibleColumns]}
+                              onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
+                              className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                            />
+                            <span className="text-sm text-slate-300 capitalize">{col.replace('_', ' ')}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* TABS */}
-              <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit">
-                {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
-                {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
-                {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
-                {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
-                {tabStyles('reject', 'text-slate-400', 'Reject')}
-              </div>
+              <div className="flex gap-3 items-center w-full md:w-auto">
+                <div className="relative w-full md:w-72 group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                  <input
+  type="text"
+  placeholder="Search by ASIN, Name, Brand..."
+  value={searchQuery}
+  onChange={(e) => {                              // ← CHANGED THIS
+    const value = e.target.value;                 // ← Get the typed text
+    if (value.length > 100) {                     // ← Check if too long
+      setToast({                                  // ← Show warning toast
+        message: 'Search query too long. Please use shorter keywords.',
+        type: 'warning',
+      });
+      return;                                     // ← Stop here, don't update search
+    }
+    setSearchQuery(value);                        // ← Update search if OK
+  }}
+  className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+/>
 
-              {/* CONTROLS */}
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800 mb-2">
-                <div className="flex gap-3 w-full md:w-auto">
+                </div>
+
+                {/* ✅ NEW: Move To Button (only on Reject tab) */}
+                {activeTab === 'reject' && (
                   <div className="relative">
                     <button
-                      onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                      className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 text-sm font-medium transition-colors"
+                      onClick={() => setIsMoveToDropdownOpen(!isMoveToDropdownOpen)}
+                      disabled={selectedIds.size === 0}
+                      className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${selectedIds.size > 0
+                          ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        }`}
                     >
-                      <Columns className="w-4 h-4" /> Columns
+                      <ArrowUpDown className="w-4 h-4" /> Move To
                     </button>
-                    {isColumnDropdownOpen && (
+
+                    {/* Dropdown Menu */}
+                    {isMoveToDropdownOpen && (
                       <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
-                        <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
-                          {Object.keys(visibleColumns).map((col) => (
-                            <label key={col} className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={visibleColumns[col as keyof typeof visibleColumns]}
-                                onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
-                                className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
-                              />
-                              <span className="text-sm text-slate-300 capitalize">{col.replace('_', ' ')}</span>
-                            </label>
-                          ))}
+                        <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
+                        <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
+                          <button
+                            onClick={() => handleMoveFromReject('high_demand')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                            High Demand
+                          </button>
+                          <button
+                            onClick={() => handleMoveFromReject('low_demand')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                            Low Demand
+                          </button>
+                          <button
+                            onClick={() => handleMoveFromReject('dropshipping')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-amber-500/10 hover:text-amber-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                            Dropshipping
+                          </button>
+                          <button
+                            onClick={() => handleMoveFromReject('not_approved')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                            Not Approved
+                          </button>
                         </div>
                       </>
                     )}
                   </div>
-                </div>
+                )}
 
-                <div className="flex gap-3 items-center w-full md:w-auto">
-                  <div className="relative w-full md:w-72 group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                    <input
-                      type="text"
-                      placeholder="Search by ASIN, Name, Brand..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 text-sm placeholder:text-slate-600 transition-all"
-                    />
-                  </div>
-                  <button
-                    onClick={handleRollBack}
-                    disabled={!hasRollback}
-                    className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                      }`}
-                  >
-                    <RotateCcw className="w-4 h-4" /> Undo
-                  </button>
-                </div>
+                <button
+                  onClick={handleRollBack}
+                  disabled={!hasRollback}
+                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    }`}
+                >
+                  <RotateCcw className="w-4 h-4" /> Undo
+                </button>
               </div>
+
             </div>
           </div>
+        </div>
 
-          {/* TABLE */}
-          <div className="max-w-[1920px] mx-auto px-6 pb-6">
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl shadow-black/20">
-              {loading ? (
-                <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
-                  <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-                  <span className="text-sm font-medium tracking-wide animate-pulse">LOADING DATA...</span>
-                </div>
-              ) : products.length === 0 ? (
-                <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
-                  <Filter className="w-12 h-12 text-slate-700" />
-                  <p className="text-lg font-medium text-slate-400">No items found in {activeTab.replace('_', ' ')}</p>
-                  <p className="text-sm text-slate-500">Try adjusting your search or filters</p>
-                </div>
-              ) : (
-                <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                  <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
-                    <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
-                      <tr>
-                        <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
+        {/* TABLE */}
+        <div className="max-w-[1920px] mx-auto px-6 pb-6">
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl shadow-black/20">
+            {loading ? (
+              <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
+                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                <span className="text-sm font-medium tracking-wide animate-pulse">LOADING DATA...</span>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
+                <Filter className="w-12 h-12 text-slate-700" />
+                <p className="text-lg font-medium text-slate-400">No items found in {activeTab.replace('_', ' ')}</p>
+                <p className="text-sm text-slate-500">Try adjusting your search or filters</p>
+              </div>
+            ) : (
+              <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
+                  <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
+                    <tr>
+                      <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === products.length && products.length > 0}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
+                        />
+                      </th>
+                      {columnOrder.map((col) => {
+                        const columnNames: Record<string, string> = {
+                          asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
+                          monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason',
+                        };
+                        if (col === 'reason' && activeTab !== 'reject') return null;
+
+                        return renderColumnHeader(col, columnNames[col]);
+                      })}
+                      {activeTab !== 'reject' && (
+                        <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '220px' }}>Actions</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {products.map((product, index) => (
+                      <tr key={product.id} className={`group hover:bg-slate-800/40 transition-colors ${selectedIds.has(product.id) ? 'bg-indigo-900/10' : ''}`}>
+                        <td className="p-3 text-center bg-slate-950/50 sticky left-0 z-10 border-r border-slate-800 group-hover:bg-slate-900 transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
-                            checked={selectedIds.size === products.length && products.length > 0}
-                            onChange={(e) => handleSelectAll(e.target.checked)}
-                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
+                            checked={selectedIds.has(product.id)}
+                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 w-4 h-4 cursor-pointer"
                           />
-                        </th>
+                        </td>
                         {columnOrder.map((col) => {
-                          const columnNames: Record<string, string> = {
-                            asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                            monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason',
-                          };
-
-                          if (col === 'funnel' && activeTab === 'reject') return null;
-                          if ((col === 'product_link' || col === 'amz_link') && activeTab === 'reject') return null;
                           if (col === 'reason' && activeTab !== 'reject') return null;
+                          if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
 
-                          return renderColumnHeader(col, columnNames[col]);
+                          return (
+                            <td key={col}
+                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                              style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
+                              title={String(product[col as keyof ProductRow] || '-')}
+                            >
+                              {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
+                                col === 'product_link' || col === 'amz_link' ? (
+                                  product[col as keyof ProductRow] ? (
+                                    <a href={String(product[col as keyof ProductRow])} target="_blank" rel="noopener noreferrer"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
+                                    >
+                                      View Link
+                                    </a>
+                                  ) : <span className="text-slate-600">-</span>
+                                ) : col === 'reason' ? (
+                                  <span className="text-rose-400">{product.reason || 'No reason'}</span>
+                                ) : col === 'product_name' ? (
+                                  <span className="text-slate-200 font-medium">{product.product_name}</span>
+                                ) : (
+                                  <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
+                                )}
+                            </td>
+                          );
                         })}
                         {activeTab !== 'reject' && (
-                          <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '220px' }}>Actions</th>
+                          <td className="p-4 text-center">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => moveProduct(product, 'approved')}
+                                disabled={processingId === product.id}
+                                className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                              >
+                                {processingId === product.id ? '...' : 'Approve'}
+                              </button>
+                              {activeTab !== 'not_approved' && (
+                                <button
+                                  onClick={() => moveProduct(product, 'not_approved')}
+                                  disabled={processingId === product.id}
+                                  className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                >
+                                  Not Appr.
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setRejectModal({ isOpen: true, product })}
+                                disabled={processingId === product.id}
+                                className="px-3 py-1.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-700 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
                         )}
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {products.map((product, index) => (
-                        <tr key={product.id} className={`group hover:bg-slate-800/40 transition-colors ${selectedIds.has(product.id) ? 'bg-indigo-900/10' : ''}`}>
-                          <td className="p-3 text-center bg-slate-950/50 sticky left-0 z-10 border-r border-slate-800 group-hover:bg-slate-900 transition-colors" style={{ width: '60px' }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(product.id)}
-                              onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                              className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 w-4 h-4 cursor-pointer"
-                            />
-                          </td>
-                          {columnOrder.map((col) => {
-                            if (col === 'funnel' && activeTab === 'reject') return null;
-                            if ((col === 'product_link' || col === 'amz_link') && activeTab === 'reject') return null;
-                            if (col === 'reason' && activeTab !== 'reject') return null;
-                            if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
-
-                            return (
-                              <td key={col}
-                                className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
-                                style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
-                                title={String(product[col as keyof ProductRow] || '-')}
-                              >
-                                {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
-                                  col === 'product_link' || col === 'amz_link' ? (
-                                    product[col as keyof ProductRow] ? (
-                                      <a href={String(product[col as keyof ProductRow])} target="_blank" rel="noopener noreferrer"
-                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
-                                      >
-                                        View Link
-                                      </a>
-                                    ) : <span className="text-slate-600">-</span>
-                                  ) : col === 'reason' ? (
-                                    <span className="text-rose-400">{product.reason || 'No reason'}</span>
-                                  ) : col === 'product_name' ? (
-                                    <span className="text-slate-200 font-medium">{product.product_name}</span>
-                                  ) : (
-                                    <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
-                                  )}
-                              </td>
-                            );
-                          })}
-                          {activeTab !== 'reject' && (
-                            <td className="p-4 text-center">
-                              <div className="flex justify-center gap-2">
-                                <button
-                                  onClick={() => moveProduct(product, 'approved')}
-                                  disabled={processingId === product.id}
-                                  className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
-                                >
-                                  {processingId === product.id ? '...' : 'Approve'}
-                                </button>
-                                {activeTab !== 'not_approved' && (
-                                  <button
-                                    onClick={() => moveProduct(product, 'not_approved')}
-                                    disabled={processingId === product.id}
-                                    className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
-                                  >
-                                    Not Appr.
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => setRejectModal({ isOpen: true, product })}
-                                  disabled={processingId === product.id}
-                                  className="px-3 py-1.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-700 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            {!loading && products.length > 0 && <PaginationControls />}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-
-          <RejectModal
-            isOpen={rejectModal.isOpen}
-            productName={rejectModal.product?.product_name || 'Unknown Product'}
-            onClose={() => setRejectModal({ isOpen: false, product: null })}
-            onConfirm={handleRejectConfirm}
-          />
-
-          {toast && (
-            <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-          )}
+          {!loading && products.length > 0 && <PaginationControls />}
         </div>
+
+        <RejectModal
+          isOpen={rejectModal.isOpen}
+          productName={rejectModal.product?.product_name || 'Unknown Product'}
+          onClose={() => setRejectModal({ isOpen: false, product: null })}
+          onConfirm={handleRejectConfirm}
+        />
+
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        )}
+      </div>
     </PageTransition>
   );
 }

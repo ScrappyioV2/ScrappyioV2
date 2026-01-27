@@ -67,6 +67,9 @@ export default function RudraRetailPage() {
     reason: true,
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  // Move To dropdown state (for Reject tab)
+  const [isMoveToDropdownOpen, setIsMoveToDropdownOpen] = useState(false);
+
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -184,9 +187,16 @@ export default function RudraRetailPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
+  // ✅ NEW - Load movement history on initial page load
+  useEffect(() => {
+    fetchLastMovementHistory();
+  }, []); // Empty dependency - runs once on mount
+
+
   // Fetch products
   useEffect(() => {
     fetchProducts(false);
+    fetchLastMovementHistory();
   }, [activeTab, currentPage, debouncedSearch]);
 
   const fetchProducts = async (isSilent = false) => {
@@ -199,11 +209,22 @@ export default function RudraRetailPage() {
       let query = supabase.from(tableName).select('*', { count: 'exact' });
 
       if (debouncedSearch.trim()) {
-        const searchTerm = sanitizeSearchTerm(debouncedSearch);
-        query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
-        );
-      }
+  // ✅ Limit search to 100 characters to prevent 400 errors
+  const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
+  
+  // Show warning if search was truncated
+  if (debouncedSearch.length > 100) {
+    setToast({
+      message: 'Search query too long - truncated to 100 characters',
+      type: 'warning',
+    });
+  }
+  
+  query = query.or(
+    `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
+  );
+}
+
 
       const { data, error, count } = await query
         .range(start, end)
@@ -234,6 +255,58 @@ export default function RudraRetailPage() {
       if (!isSilent) setLoading(false);
     }
   };
+
+  // ✅ NEW FUNCTION - Fetch last movement from database
+  const fetchLastMovementHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('usa_seller_2_rudra_retail_movement_history')
+        .select('*')
+        .eq('from_table', `usa_seller_${SELLER_ID}_${activeTab}`)
+        .order('moved_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching movement history:', error);
+        return;
+      }
+
+      if (data) {
+        // Populate movementHistory state with the last movement
+        const product: ProductRow = {
+          id: '', // Not needed for rollback
+          asin: data.asin,
+          product_name: data.product_name,
+          brand: data.brand,
+          funnel: data.funnel,
+          monthly_unit: data.monthly_unit,
+          product_link: data.product_link,
+          amz_link: data.amz_link,
+        };
+
+        setMovementHistory((prev) => ({
+          ...prev,
+          [`usa_seller_${SELLER_ID}_${activeTab}`]: {
+            product,
+            fromTable: data.from_table,
+            toTable: data.to_table,
+          },
+        }));
+      } else {
+        // No history found - clear undo for this tab
+        setMovementHistory((prev) => ({
+          ...prev,
+          [`usa_seller_${SELLER_ID}_${activeTab}`]: null,
+        }));
+      }
+    } catch (error) {
+      console.error('Exception fetching movement history:', error);
+    }
+  };
+
+
+
 
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
@@ -350,46 +423,196 @@ export default function RudraRetailPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-    const lastMovement = movementHistory[currentTable];
+  const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
+  const lastMovement = movementHistory[currentTable];
 
-    if (!lastMovement) {
-      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
+  if (!lastMovement) {
+    setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const { product, fromTable, toTable } = lastMovement;
+
+    // ✅ NEW: Check if product already exists in destination table
+    const { data: existingProduct, error: checkError } = await supabase
+      .from(fromTable)
+      .select('asin')
+      .eq('asin', product.asin)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existingProduct) {
+      // Product already exists - clear history and show message
+      setToast({
+        message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
+        type: 'warning',
+      });
+      
+      // Clear movement history since it's no longer valid
+      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      
+      // Delete the invalid history entry from database
+      await supabase
+        .from(`usa_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
+        .delete()
+        .eq('asin', product.asin)
+        .eq('from_table', fromTable)
+        .eq('to_table', toTable)
+        .order('moved_at', { ascending: false })
+        .limit(1);
+      
+      setLoading(false);
+      return;
+    }
+
+    // Product doesn't exist - proceed with rollback
+    const { error: insertError } = await supabase.from(fromTable).insert({
+      asin: product.asin,
+      product_name: product.product_name,
+      brand: product.brand,
+      funnel: product.funnel,
+      monthly_unit: product.monthly_unit,
+      product_link: product.product_link,
+      amz_link: product.amz_link,
+    });
+
+    if (insertError) throw insertError;
+
+    const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+    if (deleteError) throw deleteError;
+
+    await supabase
+      .from(`usa_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
+      .delete()
+      .eq('asin', product.asin)
+      .eq('from_table', fromTable)
+      .eq('to_table', toTable)
+      .order('moved_at', { ascending: false })
+      .limit(1);
+
+    setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+    setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+    fetchProducts(true);
+  } catch (error: any) {
+    console.error('Error rolling back:', error);
+    setToast({ 
+      message: error?.message || 'Rollback failed', 
+      type: 'error' 
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  // ✅ NEW FUNCTION: Move products from Reject to other tabs
+  const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
+    if (selectedIds.size === 0) {
+      setToast({ message: 'Please select products to move', type: 'warning' });
       return;
     }
 
     setLoading(true);
     try {
-      const { product, fromTable, toTable } = lastMovement;
-      const { error: insertError } = await supabase.from(fromTable).insert({
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.product_link,
-        amz_link: product.amz_link,
-      });
+      const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+      const targetTable = `usa_seller_${SELLER_ID}_${targetTab}`;
+      const rejectTable = `usa_seller_${SELLER_ID}_reject`;
 
-      if (insertError) throw insertError;
+      let movedCount = 0;
+      let skippedCount = 0;
+      const skippedAsins: string[] = [];
 
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-      if (deleteError) throw deleteError;
+      for (const product of selectedProducts) {
+        // Check if ASIN already exists in target table
+        const { data: existing, error: checkError } = await supabase
+          .from(targetTable)
+          .select('asin')
+          .eq('asin', product.asin)
+          .maybeSingle();
 
-      await supabase.from('usa_seller_2_rudra_retail_movement_history')
-        .delete().eq('asin', product.asin).eq('from_table', fromTable).eq('to_table', toTable)
-        .order('moved_at', { ascending: false }).limit(1);
+        if (checkError) {
+          console.error('Error checking existing product:', checkError);
+          continue;
+        }
 
-      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-      fetchProducts(true);
-    } catch (error) {
-      console.error('Error rolling back:', error);
-      setToast({ message: 'Rollback failed', type: 'error' });
+        if (existing) {
+          // Skip if already exists
+          skippedCount++;
+          skippedAsins.push(product.asin);
+          continue;
+        }
+
+        // Prepare data (remove reject-specific fields)
+        const { id, reason, working, ...productData } = product;
+
+        // Insert into target table
+        const { error: insertError } = await supabase
+          .from(targetTable)
+          .insert(productData);
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          continue;
+        }
+
+        // Delete from reject table
+        const { error: deleteError } = await supabase
+          .from(rejectTable)
+          .delete()
+          .eq('asin', product.asin);
+
+        if (deleteError) {
+          console.error('Delete error:', deleteError);
+          continue;
+        }
+
+        movedCount++;
+      }
+
+      // Show result
+      // Show result
+if (movedCount > 0) {
+  setToast({
+    message: `Successfully moved ${movedCount} product(s) to ${targetTab.replace('_', ' ')}`,
+    type: 'success',
+  });
+}
+
+if (skippedCount > 0) {
+  setToast({
+    message: `Skipped ${skippedCount} product(s) - already exists in target table. ASINs: ${skippedAsins.slice(0, 3).join(', ')}${skippedAsins.length > 3 ? '...' : ''}`,
+    type: 'warning',
+  });
+}
+
+// ✅ NEW: Clear movement history for target table since products moved back
+// This prevents undo conflicts when products return to their original table
+const targetTableKey = `usa_seller_${SELLER_ID}_${targetTab}`;
+if (movementHistory[targetTableKey]) {
+  setMovementHistory((prev) => ({
+    ...prev,
+    [targetTableKey]: null,
+  }));
+}
+
+// Clear selection and refresh
+setSelectedIds(new Set());
+setIsMoveToDropdownOpen(false);
+await fetchProducts(true);
+
+
+    } catch (error: any) {
+      console.error('Move from reject error:', error);
+      setToast({ message: `Error: ${error.message}`, type: 'error' });
     } finally {
       setLoading(false);
     }
   };
+
 
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
@@ -584,13 +807,78 @@ export default function RudraRetailPage() {
                 <div className="relative w-full md:w-72 group">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
-                    type="text"
-                    placeholder="Search by ASIN, Name, Brand..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 text-sm placeholder:text-slate-600 transition-all"
-                  />
+  type="text"
+  placeholder="Search by ASIN, Name, Brand..."
+  value={searchQuery}
+  onChange={(e) => {                              // ← CHANGED THIS
+    const value = e.target.value;                 // ← Get the typed text
+    if (value.length > 100) {                     // ← Check if too long
+      setToast({                                  // ← Show warning toast
+        message: 'Search query too long. Please use shorter keywords.',
+        type: 'warning',
+      });
+      return;                                     // ← Stop here, don't update search
+    }
+    setSearchQuery(value);                        // ← Update search if OK
+  }}
+  className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+/>
+
                 </div>
+
+                {/* ✅ NEW: Move To Button (only on Reject tab) */}
+                {activeTab === 'reject' && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMoveToDropdownOpen(!isMoveToDropdownOpen)}
+                      disabled={selectedIds.size === 0}
+                      className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${selectedIds.size > 0
+                          ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        }`}
+                    >
+                      <ArrowUpDown className="w-4 h-4" /> Move To
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isMoveToDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
+                        <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
+                          <button
+                            onClick={() => handleMoveFromReject('high_demand')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                            High Demand
+                          </button>
+                          <button
+                            onClick={() => handleMoveFromReject('low_demand')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                            Low Demand
+                          </button>
+                          <button
+                            onClick={() => handleMoveFromReject('dropshipping')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-amber-500/10 hover:text-amber-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                            Dropshipping
+                          </button>
+                          <button
+                            onClick={() => handleMoveFromReject('not_approved')}
+                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                            Not Approved
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={handleRollBack}
                   disabled={!hasRollback}
@@ -602,6 +890,7 @@ export default function RudraRetailPage() {
                   <RotateCcw className="w-4 h-4" /> Undo
                 </button>
               </div>
+
             </div>
           </div>
         </div>
@@ -638,9 +927,6 @@ export default function RudraRetailPage() {
                           asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
                           monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason',
                         };
-
-                        if (col === 'funnel' && activeTab === 'reject') return null;
-                        if ((col === 'product_link' || col === 'amz_link') && activeTab === 'reject') return null;
                         if (col === 'reason' && activeTab !== 'reject') return null;
 
                         return renderColumnHeader(col, columnNames[col]);
@@ -662,8 +948,6 @@ export default function RudraRetailPage() {
                           />
                         </td>
                         {columnOrder.map((col) => {
-                          if (col === 'funnel' && activeTab === 'reject') return null;
-                          if ((col === 'product_link' || col === 'amz_link') && activeTab === 'reject') return null;
                           if (col === 'reason' && activeTab !== 'reject') return null;
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
 

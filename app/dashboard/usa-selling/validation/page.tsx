@@ -31,6 +31,23 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     profit: 100,
 };
 
+// Controls how columns consume available width (layout-only)
+const COLUMN_FLEX: Record<string, boolean> = {
+    asin: false,
+    product_name: true,        // 👈 main flex column
+    brand: false,
+    seller_tag: false,
+    funnel: false,
+    no_of_seller: false,
+    usa_link: false,
+    product_weight: false,
+    usd_price: false,
+    inr_purchase: false,
+    inr_purchase_link: true,   // 👈 flex but truncated
+    judgement: false,
+};
+
+
 const formatUSD = (value: number | null) =>
     value !== null ? `$${value.toFixed(2)}` : ''
 
@@ -167,28 +184,37 @@ const ResizableTH = ({
     columnKey: string
     align?: 'left' | 'center'
     onResizeStart: (key: string, startX: number) => void
-}) => (
-    <th
-        style={{ width }}
-        className={`relative px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 ${align === 'center' ? 'text-center' : 'text-left'
-            } select-none`}
-    >
-        {label}
-        <span
-            onMouseDown={(e) => onResizeStart(columnKey, e.clientX)}
-            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-        />
-    </th>
-);
+}) => {
+    const isFlex = COLUMN_FLEX[columnKey];
+
+    return (
+        <th
+            style={{
+                minWidth: width,
+                width: isFlex ? 'auto' : width,
+            }}
+            className={`relative px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 ${align === 'center' ? 'text-center' : 'text-left'
+                } select-none`}
+        >
+            <div className={isFlex ? 'truncate' : ''}>{label}</div>
+
+            <span
+                onMouseDown={(e) => onResizeStart(columnKey, e.clientX)}
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+            />
+        </th>
+    );
+};
+
 
 
 export default function ValidationPage() {
     const { user, loading: authLoading } = useAuth();
-    const [editingValue, setEditingValue] = useState<{
-        id: string
-        field: string
-        value: string
-    } | null>(null)
+    // const [editingValue, setEditingValue] = useState<{
+    //     id: string
+    //     field: string
+    //     value: string
+    // } | null>(null)
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
     const [products, setProducts] = useState<ValidationProduct[]>([])
     const [filteredProducts, setFilteredProducts] = useState<ValidationProduct[]>([])
@@ -199,6 +225,7 @@ export default function ValidationPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
+    const localEditCountRef = useRef(0);
 
     const fileInputRef = useRef<HTMLInputElement>(null)
     const usaPriceCSVInputRef = useRef<HTMLInputElement>(null)
@@ -266,27 +293,16 @@ export default function ValidationPage() {
     const refreshProductsSilently = async () => {
         try {
             // Note: No setLoading(true) here!
-            const { data: validationData, error: validationError } = await supabase
-                .from('usa_validation_main_file')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const validationData = await fetchAllRows<ValidationProduct>(
+                'usa_validation_main_with_sellers',
+                '*',
+                { column: 'created_at', ascending: false }
+            );
 
-            if (validationError) throw validationError;
 
-            const asins = validationData.map(p => p.asin).filter(Boolean);
-            const { data: masterData } = await supabase
-                .from('usa_master_sellers')
-                .select('asin, seller')
-                .in('asin', asins);
+            setProducts(dedupeById(validationData));
 
-            const sellerMap = new Map(masterData?.map(item => [item.asin, item.seller]) || []);
 
-            const mergedData = validationData.map(product => ({
-                ...product,
-                no_of_seller: sellerMap.get(product.asin) || product.no_of_seller || 1
-            }));
-
-            setProducts(mergedData);
         } catch (err) {
             console.error('Silent refresh error:', err);
         }
@@ -303,8 +319,9 @@ export default function ValidationPage() {
         const channel = supabase
             .channel('validation-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_main_file' }, () => {
-                fetchStats();
-                refreshProductsSilently(); // ✅ NEW: Updates without spinner
+                if (localEditCountRef.current > 0) return;
+                refreshProductsSilently();
+                fetchStats(); // ✅ NEW: Updates without spinner
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_pass_file' }, () => fetchStats())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_fail_file' }, () => fetchStats())
@@ -398,14 +415,11 @@ export default function ValidationPage() {
     const fetchStats = async () => {
         try {
             // Get all products from main file
-            const { data: mainData, error } = await supabase
-                .from('usa_validation_main_file')
-                .select('judgement')
+            const mainData = await fetchAllRows<{ judgement: string | null }>(
+                'usa_validation_main_file',
+                'judgement'
+            );
 
-            if (error) {
-                console.error('Stats fetch error:', error)
-                return
-            }
 
             const products = mainData || []
 
@@ -425,50 +439,91 @@ export default function ValidationPage() {
         }
     }
 
+    const fetchAllRows = async <T,>(
+        table: string,
+        select: string = '*',
+        order?: { column: string; ascending?: boolean }
+    ): Promise<T[]> => {
+        const PAGE_SIZE = 1000;
+        let from = 0;
+        let allRows: T[] = [];
+
+        while (true) {
+            let query = supabase
+                .from(table)
+                .select(select)
+                .range(from, from + PAGE_SIZE - 1);
+
+            if (order) {
+                query = query.order(order.column, {
+                    ascending: order.ascending ?? false,
+                });
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+
+            // ✅ TypeScript-safe narrowing
+            allRows = allRows.concat(data as T[]);
+
+            if (data.length < PAGE_SIZE) break;
+            from += PAGE_SIZE;
+        }
+
+        return allRows;
+    };
+
+
+    // const fetchSellersByAsins = async (asins: string[]) => {
+    //   const CHUNK_SIZE = 400; // safe for Supabase URL limits
+    //   const sellerMap = new Map<string, number>();
+
+    //   for (let i = 0; i < asins.length; i += CHUNK_SIZE) {
+    //     const chunk = asins.slice(i, i + CHUNK_SIZE);
+
+    //     const { data, error } = await supabase
+    //       .from('usa_master_sellers')
+    //       .select('asin, seller')
+    //       .in('asin', chunk);
+
+    //     if (error) throw error;
+
+    //     data?.forEach(item => {
+    //       sellerMap.set(item.asin, item.seller);
+    //     });
+    //   }
+
+    //   return sellerMap;
+    // };
+
+
+
+    const dedupeById = <T extends { id: string }>(rows: T[]): T[] => {
+        const map = new Map<string, T>();
+        for (const row of rows) {
+            map.set(row.id, row); // latest wins
+        }
+        return Array.from(map.values());
+    };
+
 
     const fetchProducts = async () => {
         setLoading(true);
         try {
             // Step 1: Fetch all validation products
-            const { data: validationData, error: validationError } = await supabase
-                .from('usa_validation_main_file')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (validationError) {
-                console.error('Error fetching products:', validationError);
-                setProducts([]);
-                setLoading(false);
-                return;
-            }
+            const validationData = await fetchAllRows<ValidationProduct>(
+                'usa_validation_main_with_sellers',
+                '*',
+                { column: 'created_at', ascending: false }
+            );
 
             // Step 2: Get all unique ASINs
             const asins = validationData.map(p => p.asin).filter(Boolean);
 
-            // Step 3: Fetch seller counts from master table
-            const { data: masterData, error: masterError } = await supabase
-                .from('usa_master_sellers')
-                .select('asin, seller')
-                .in('asin', asins);
+            setProducts(dedupeById(validationData));
 
-            if (masterError) {
-                console.error('Error fetching master data:', masterError);
-                // Continue with validation data only
-                setProducts(validationData);
-                setLoading(false);
-                return;
-            }
-
-            // Step 4: Create lookup map for O(1) access
-            const sellerMap = new Map(masterData.map(item => [item.asin, item.seller]));
-
-            // Step 5: Merge data
-            const mergedData = validationData.map(product => ({
-                ...product,
-                no_of_seller: sellerMap.get(product.asin) || product.no_of_seller || 1
-            }));
-
-            setProducts(mergedData);
         } catch (err) {
             console.error('Fetch error:', err);
             setProducts([]);
@@ -498,10 +553,12 @@ export default function ValidationPage() {
     };
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
+        localEditCountRef.current += 1;; // ✅ START local edit lock
+
         try {
             const tableName = 'usa_validation_main_file';
 
-            // Update the field first
+            // Update DB
             const { error } = await supabase
                 .from(tableName)
                 .update({ [field]: value })
@@ -512,27 +569,36 @@ export default function ValidationPage() {
                 return;
             }
 
-            // Build latest product snapshot
+            // Get current product snapshot
             const existingProduct = products.find((p) => p.id === id);
+
             if (existingProduct && activeTab === 'main_file') {
                 const latestProduct: ValidationProduct = {
                     ...existingProduct,
-                    [field]: value, // Include the just-updated field
+                    [field]: value,
                 };
 
-                // ✅ Always run calculation (it will handle judgement logic internally)
+                // ✅ Run calculation ONLY once per edit
                 await autoCalculateAndUpdate(id, latestProduct);
             }
 
-            // ✅ Update local state immediately
-            setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+            // Update UI immediately
+            setProducts((prev) =>
+                prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+            );
+            setFilteredProducts((prev) =>
+                prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+            );
 
-            // ✅ NO TOAST for regular fields - autoCalculateAndUpdate handles it
         } catch (err) {
             console.error('Update error:', err);
             setToast({ message: 'Update failed', type: 'error' });
+        } finally {
+            // ✅ RELEASE lock after short delay
+            localEditCountRef.current -= 1;
         }
     };
+
 
 
     // 2. UPDATE the autoCalculateAndUpdate function around line 180
@@ -1504,7 +1570,7 @@ export default function ValidationPage() {
                         ) : (
                             <>
                                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                                    <table className="w-full table-fixed">
+                                    <table className="w-full table-fixed max-w-full">
                                         <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
                                             <tr>
                                                 {/* ✅ Fixed width for checkbox to prevent overlap */}
@@ -1558,7 +1624,7 @@ export default function ValidationPage() {
                                                     {visibleColumns.product_name && (
                                                         <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
                                                             {/* ✅ Truncate long names */}
-                                                            <div className="truncate text-slate-300 text-xs" title={product.product_name || ''}>
+                                                            <div className="truncate max-w-full text-slate-300 text-xs" title={product.product_name || ''}>
                                                                 {product.product_name || '-'}
                                                             </div>
                                                         </td>
@@ -1599,49 +1665,57 @@ export default function ValidationPage() {
                                                             {activeTab === 'main_file' ? (
                                                                 <input
                                                                     type="number"
-                                                                    value={product.product_weight ?? ''}
-                                                                    onChange={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
+                                                                    key={product.id}
+                                                                    defaultValue={product.product_weight ?? ''}
+                                                                    onBlur={(e) =>
+                                                                        handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)
+                                                                    }
                                                                     className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                 />
-                                                            ) : (product.product_weight ?? '-')}
+                                                            ) : (
+                                                                product.product_weight ?? '-'
+                                                            )}
+
                                                         </td>
                                                     )}
 
                                                     {visibleColumns.usd_price && (
                                                         <td className="p-3 text-slate-300">
                                                             {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editingValue?.id === product.id && editingValue.field === 'usd_price' ? editingValue.value : formatUSD(product.usd_price)}
-                                                                    onFocus={() => setEditingValue({ id: product.id, field: 'usd_price', value: product.usd_price?.toString() || '' })}
-                                                                    onChange={(e) => setEditingValue({ id: product.id, field: 'usd_price', value: e.target.value })}
-                                                                    onBlur={() => {
-                                                                        const parsed = parseCurrency(editingValue?.value || '')
-                                                                        handleCellEdit(product.id, 'usd_price', parsed)
-                                                                        setEditingValue(null)
-                                                                    }}
-                                                                    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                />
-                                                            ) : formatUSD(product.usd_price)}
+  <input
+    type="text"
+    key={product.id}
+    defaultValue={product.usd_price ?? ''}
+    onBlur={(e) => {
+      const parsed = parseCurrency(e.target.value);
+      handleCellEdit(product.id, 'usd_price', parsed);
+    }}
+    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+  />
+) : (
+  formatUSD(product.usd_price)
+)}
+
                                                         </td>
                                                     )}
 
                                                     {visibleColumns.inr_purchase && (
                                                         <td className="p-3 text-slate-300">
                                                             {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editingValue?.id === product.id && editingValue.field === 'inr_purchase' ? editingValue.value : formatINR(product.inr_purchase)}
-                                                                    onFocus={() => setEditingValue({ id: product.id, field: 'inr_purchase', value: product.inr_purchase?.toString() || '' })}
-                                                                    onChange={(e) => setEditingValue({ id: product.id, field: 'inr_purchase', value: e.target.value })}
-                                                                    onBlur={() => {
-                                                                        const parsed = parseCurrency(editingValue?.value || '')
-                                                                        handleCellEdit(product.id, 'inr_purchase', parsed)
-                                                                        setEditingValue(null)
-                                                                    }}
-                                                                    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                />
-                                                            ) : formatINR(product.inr_purchase)}
+  <input
+    type="text"
+    key={product.id}
+    defaultValue={product.inr_purchase ?? ''}
+    onBlur={(e) => {
+      const parsed = parseCurrency(e.target.value);
+      handleCellEdit(product.id, 'inr_purchase', parsed);
+    }}
+    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+  />
+) : (
+  formatINR(product.inr_purchase)
+)}
+
                                                         </td>
                                                     )}
 
@@ -1652,7 +1726,7 @@ export default function ValidationPage() {
                                                                 value={product.inr_purchase_link || ''}
                                                                 onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
                                                                 placeholder="Enter supplier link..."
-                                                                className="w-full min-w-[200px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full max-w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
                                                             />
                                                         </td>
                                                     )}
