@@ -37,6 +37,8 @@ type AdminProduct = {
   inr_purchase: number | null
   inr_purchase_link: string | null
   admin_target_price: number | null;
+  journey_id?: string | null;
+  journey_number?: number | null;
 };
 
 type TabType = 'overview' | 'india' | 'china' | 'pending' | 'confirm' | 'reject';
@@ -76,24 +78,41 @@ export default function AdminValidationPage() {
     toStatus: string | null;
   } | undefined>>({});
 
-  // Fetch products from usa_admin_validation table
+  // 🆕 NEW: Toggle to show all journey cycles or just latest
+  const [showAllJourneys, setShowAllJourneys] = useState(false);
+
   // Fetch products from usa_admin_validation table
   const fetchProducts = async (showLoader: boolean = false) => {
     try {
-      if (showLoader) setLoading(true)
+      if (showLoader) setLoading(true);
 
-      // 1️⃣ Fetch base data from usa_admin_validation
+      // 1. Fetch base data from usaadminvalidation
       const { data: adminData, error: adminError } = await supabase
         .from('usa_admin_validation')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (adminError) throw adminError
-
+      if (adminError) throw adminError;
       if (!adminData || adminData.length === 0) {
-        setProducts([])
-        setLoading(false)
-        return
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
+      // 🆕 FILTER: Group by ASIN and keep only latest journey (unless showAll is enabled)
+      let processedData = adminData;
+      if (!showAllJourneys) {
+        const latestByAsin = new Map();
+        adminData.forEach(product => {
+          const existing = latestByAsin.get(product.asin);
+          const currentJourney = product.journey_number || 1;
+          const existingJourney = existing?.journey_number || 1;
+
+          if (!existing || currentJourney > existingJourney) {
+            latestByAsin.set(product.asin, product);
+          }
+        });
+        processedData = Array.from(latestByAsin.values());
       }
 
       // 2️⃣ Get all ASINs
@@ -101,54 +120,122 @@ export default function AdminValidationPage() {
 
       // 3️⃣ Batch fetch from BOTH tables
       const [purchaseResult, validationResult] = await Promise.all([
-        // ✅ UPDATED: Added target_price and target_quantity to the select list
         supabase.from('usa_purchases')
-          .select('asin, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, target_quantity')
+          .select('asin, journey_id, journey_number, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, target_quantity, product_weight, usd_price, inr_purchase, funnel, seller_tag')
           .in('asin', asins),
 
         supabase.from('usa_validation_main_file')
-          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase')
           .in('asin', asins)
-      ])
+      ]);
+
 
       // 4️⃣ Create lookup maps
-      const purchaseMap = new Map(purchaseResult.data?.map(p => [p.asin, p]) ?? [])
-      const validationMap = new Map(validationResult.data?.map(v => [v.asin, v]) ?? [])
+      const purchaseMap = new Map();
+      const purchaseFallbackMap = new Map(); // Fallback for legacy data without journey_id
 
-      // 5️⃣ Enrich data
-      const enrichedData: AdminProduct[] = adminData.map((product) => {
-        const purchase = purchaseMap.get(product.asin)
-        const validation = validationMap.get(product.asin)
+      purchaseResult.data?.forEach(p => {
+        if (p.journey_id) {
+          purchaseMap.set(`${p.asin}|${p.journey_id}`, p);
+        }
+        // Keep latest as fallback
+        if (!purchaseFallbackMap.has(p.asin)) {
+          purchaseFallbackMap.set(p.asin, p);
+        }
+      });
+
+      const validationMap = new Map();
+      const validationFallbackMap = new Map();
+
+      validationResult.data?.forEach(v => {
+        if (v.current_journey_id) {
+          validationMap.set(`${v.asin}|${v.current_journey_id}`, v);
+        }
+        if (!validationFallbackMap.has(v.asin)) {
+          validationFallbackMap.set(v.asin, v);
+        }
+      });
+
+      // 5. Enrich data
+      const enrichedData: AdminProduct[] = processedData.map(product => {
+        // 🆕 Use composite key for precise matching
+        const compositeKey = product.journey_id
+          ? `${product.asin}|${product.journey_id}`
+          : null;
+
+        const purchase = compositeKey
+          ? (purchaseMap.get(compositeKey) || purchaseFallbackMap.get(product.asin))
+          : purchaseFallbackMap.get(product.asin);
+
+        const validation = compositeKey
+          ? (validationMap.get(compositeKey) || validationFallbackMap.get(product.asin))
+          : validationFallbackMap.get(product.asin);
+
+        // ✅ For CONFIRMED products, use their own data (don't override)
+        const isConfirmed = product.admin_status === 'confirmed';
 
         return {
           id: product.id,
           asin: product.asin,
+          journey_id: product.journey_id || null,
+          journey_number: product.journey_number || 1,
+
+          // ✅ FIXED: Use snake_case to match interface
           product_name: product.product_name,
           product_link: product.product_link,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
 
-          // ✅ FIX: Fallback to Purchase table data if Admin table data is missing
-          target_price: product.target_price ?? purchase?.target_price ?? null,
-          target_quantity: product.target_quantity ?? purchase?.target_quantity ?? null,
+          // Pricing fields - respect confirmed status
+          target_price: isConfirmed
+            ? product.target_price
+            : (product.target_price ?? purchase?.target_price ?? null),
+
+          target_quantity: isConfirmed
+            ? product.target_quantity
+            : (product.target_quantity ?? purchase?.target_quantity ?? null),
 
           admin_target_price: product.admin_target_price,
 
-          // ✅ FROM PURCHASE TEAM
-          buying_price: purchase?.buying_price ?? product.buying_price ?? null,
-          buying_quantity: purchase?.buying_quantity ?? product.buying_quantity ?? null,
-          seller_link: purchase?.seller_link ?? product.seller_link ?? null,
-          seller_phone: purchase?.seller_phone ?? product.seller_phone ?? null,
-          payment_method: purchase?.payment_method ?? product.payment_method ?? null,
+          // FROM PURCHASE TEAM
+          buying_price: isConfirmed
+            ? product.buying_price
+            : (purchase?.buying_price ?? product.buying_price ?? null),
 
-          // ✅ FROM VALIDATION TEAM
-          funnel: validation?.funnel ?? product.funnel ?? null,
-          seller_tag: validation?.seller_tag ?? product.seller_tag ?? null,
-          product_weight: validation?.product_weight ?? product.product_weight ?? null,
-          usd_price: validation?.usd_price ?? product.usd_price ?? null,
-          inr_purchase: validation?.inr_purchase ?? product.inr_purchase ?? null,
+          buying_quantity: isConfirmed
+            ? product.buying_quantity
+            : (purchase?.buying_quantity ?? product.buying_quantity ?? null),
 
-          // ✅ FROM ADMIN VALIDATION TABLE
+          seller_link: isConfirmed
+            ? product.seller_link
+            : (purchase?.seller_link ?? product.seller_link ?? null),
+
+          seller_phone: isConfirmed
+            ? product.seller_phone
+            : (purchase?.seller_phone ?? product.seller_phone ?? null),
+
+          payment_method: isConfirmed
+            ? product.payment_method
+            : (purchase?.payment_method ?? product.payment_method ?? null),
+
+          // IDENTITY FIELDS - Always prioritize freshest
+          funnel: purchase?.funnel ?? validation?.funnel ?? product.funnel ?? null,
+          seller_tag: purchase?.seller_tag ?? validation?.sellertag ?? product.seller_tag ?? null,
+
+          // PRICING FIELDS
+          product_weight: isConfirmed
+            ? product.product_weight
+            : (purchase?.product_weight ?? validation?.productweight ?? product.product_weight ?? null),
+
+          usd_price: isConfirmed
+            ? product.usd_price
+            : (purchase?.usd_price ?? validation?.usdprice ?? product.usd_price ?? null),
+
+          inr_purchase: isConfirmed
+            ? product.inr_purchase
+            : (purchase?.inr_purchase ?? validation?.inrpurchase ?? product.inr_purchase ?? null),
+
+          // FROM ADMIN VALIDATION TABLE
           status: product.status,
           admin_status: product.admin_status,
           admin_notes: product.admin_notes,
@@ -157,8 +244,8 @@ export default function AdminValidationPage() {
           total_cost: product.total_cost,
           total_revenue: product.total_revenue,
           inr_purchase_link: product.inr_purchase_link,
-        }
-      })
+        };
+      });
 
       setProducts(enrichedData)
     } catch (error: any) {
@@ -186,7 +273,7 @@ export default function AdminValidationPage() {
     return () => {
       channel.unsubscribe();
     };
-  }, []);
+  }, [showAllJourneys]);
 
   // ✅ ADD: Ctrl+Z keyboard shortcut for Roll Back
   useEffect(() => {
@@ -226,7 +313,8 @@ export default function AdminValidationPage() {
         inr_purchase_link: 180,
         seller_link: 100,
         seller_phone: 120,
-        payment_method: 120
+        payment_method: 120,
+        journey_number: 80,
       };
     }
     return {
@@ -551,7 +639,7 @@ export default function AdminValidationPage() {
         'admintargetprice': 'admin_target_price',
         'usdprice': 'usd_price',
         'inrpurchase': 'inr_purchase',
-        'createdat': 'created_at',
+        'created_at': 'created_at',
       }
 
       // Use mapped field name, or original if not in mapping
@@ -964,6 +1052,21 @@ export default function AdminValidationPage() {
               Roll Back
             </button>
 
+            {/* 🆕 NEW: Toggle Button for All Journeys */}
+            <button
+              onClick={() => setShowAllJourneys(!showAllJourneys)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
+                ? 'bg-indigo-600 text-white hover:bg-indigo-500 border-indigo-500/50 shadow-indigo-900/20'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+                }`}
+              title={`Currently showing: ${showAllJourneys ? 'All journey cycles' : 'Latest journey only'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              {showAllJourneys ? 'Show Latest Only' : 'Show All Journeys'}
+            </button>
+
             {/* Configure Constants Button */}
             <button
               onClick={() => setIsConstantsModalOpen(true)}
@@ -978,9 +1081,15 @@ export default function AdminValidationPage() {
           </div>
         </div>
 
-        <div className="text-xs text-indigo-400 mb-2 px-1 font-medium flex items-center gap-1">
-          <span className="bg-indigo-500/10 p-1 rounded">💡</span>
-          Tip: Double-click any column header to auto-fit its width
+        <div className="text-xs text-indigo-400 mb-2 px-1 font-medium flex items-center gap-2">
+          <span className="bg-indigo-500/10 px-2 py-1 rounded">💡</span>
+          <span>
+            {showAllJourneys
+              ? 'Showing ALL journey cycles. Toggle to see latest only.'
+              : 'Showing LATEST journey per ASIN. Toggle to see all cycles.'}
+          </span>
+          <span className="bg-indigo-500/10 px-2 py-1 rounded ml-2">📊</span>
+          <span>Double-click any column header to auto-fit its width</span>
         </div>
 
         {/* Table - SCROLLABLE ONLY */}
@@ -1016,6 +1125,21 @@ export default function AdminValidationPage() {
                         }}
                       />
                     </div>
+                  </th>
+
+                  {/* 🆕 2. Journey # Column */}
+                  <th
+                    onDoubleClick={() => handleColumnDoubleClick('journey_number')}
+                    className="px-4 py-3 text-xs font-bold text-amber-400 uppercase tracking-wider hover:bg-slate-800 relative bg-amber-900/10 border-r border-slate-800 select-none"
+                    style={{ width: columnWidths.journey_number, minWidth: 70 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>Journey #</span>
+                    </div>
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                      onMouseDown={(e) => handleResizeStart(e, 'journey_number')}
+                    />
                   </th>
 
                   {/* 2. Product Name */}
@@ -1309,6 +1433,13 @@ export default function AdminValidationPage() {
 
                       {/* 1. ASIN */}
                       <td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">{product.asin}</td>
+
+                      {/* 🆕 2. Journey # */}
+                      <td className="px-4 py-3 text-center bg-amber-900/10">
+                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          #{product.journey_number || 1}
+                        </span>
+                      </td>
 
                       {/* 2. Product Name */}
                       <td

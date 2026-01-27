@@ -159,49 +159,83 @@ export default function ReorderPage() {
     }
   }
 
-  // --- 3. Upload Inventory ---
+  // --- 3. Upload Inventory (Optimized for your CSV) ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     setProcessing(true)
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      // 1. Clean headers (removes hidden BOM characters and spaces)
+      transformHeader: (header) => header.replace(/[\ufeff]/g, '').trim(),
       complete: async (results) => {
         try {
           const rows = results.data as any[]
           const updates: Record<string, number> = {}
+          let matchCount = 0
 
-          rows.forEach(row => {
-            const asinKey = Object.keys(row).find(k => k.toLowerCase().includes('asin'))
-            const qtyKey = Object.keys(row).find(k =>
-              k.toLowerCase().includes('fulfillable') || k.toLowerCase().includes('quantity')
+          rows.forEach((row) => {
+            const keys = Object.keys(row)
+
+            // 2. Specific matching for your file headers
+            const asinKey = keys.find(k => k.toLowerCase() === 'asin')
+            const qtyKey = keys.find(k =>
+              k.toLowerCase() === 'afn-fulfillable-quantity' ||
+              k.toLowerCase().includes('quantity') ||
+              k.toLowerCase().includes('fulfillable')
             )
 
             if (asinKey && qtyKey) {
-              const asin = row[asinKey]?.trim()
-              const qty = parseInt(row[qtyKey] || '0')
-              if (asin) updates[asin] = qty
+              const rawAsin = row[asinKey]
+              const rawQty = row[qtyKey]
+
+              if (rawAsin) {
+                // Normalize: Uppercase and Trim (e.g. "b09..." -> "B09...")
+                const asin = String(rawAsin).trim().toUpperCase()
+                // Parse Quantity: "10" -> 10
+                const qty = parseInt(String(rawQty).replace(/[^0-9]/g, '') || '0')
+                updates[asin] = qty
+              }
             }
           })
 
+          // 3. Find matches in your current workspace
           const promises = products
-            .filter(p => updates[p.asin] !== undefined)
-            .map(p =>
-              supabase
+            .filter(p => {
+              const pAsin = p.asin.trim().toUpperCase()
+              return updates[pAsin] !== undefined
+            })
+            .map(p => {
+              matchCount++
+              const pAsin = p.asin.trim().toUpperCase()
+              return supabase
                 .from(`usa_reorder_${activeSeller.table_suffix}`)
-                .update({ current_qty: updates[p.asin] })
-                .eq('asin', p.asin)
-            )
+                .update({ current_qty: updates[pAsin] })
+                .eq('id', p.id)
+            })
 
+          if (matchCount === 0) {
+            alert(`No matches found! \n\nWe checked ${rows.length} CSV rows against your listed products, but none matched.\n\nExample CSV ASIN: ${rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+            setProcessing(false)
+            return
+          }
+
+          // 4. Execute Updates
           await Promise.all(promises)
-          alert('Inventory updated successfully! Recalculating...')
-          await handleRecalculate()
+          await fetchReorderData() // Refresh UI immediately
 
-        } catch (err) {
+          // 5. Offer Recalculation
+          const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
+          if (autoRecalc) {
+            await handleRecalculate()
+          }
+
+        } catch (err: any) {
           console.error(err)
-          alert('Error processing file')
+          alert('Error processing file: ' + err.message)
         } finally {
           setProcessing(false)
           if (fileInputRef.current) fileInputRef.current.value = ''
@@ -354,28 +388,42 @@ export default function ReorderPage() {
     try {
       setProcessing(true)
 
-      // 🔍 STEP 1: Fetch "Master Data" from the Validation Table itself
-      // We look for the MOST RECENT entry of this ASIN to copy its identity data.
-      // This is safer than the purchases table.
+      // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
+      const { data: historyData, error: historyError } = await supabase
+        .from('usa_asin_history')
+        .select('journey_number')
+        .eq('asin', product.asin)
+        .order('journey_number', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (historyError && historyError.code !== 'PGRST116') {
+        throw historyError
+      }
+
+      // Calculate ACTUAL next journey number
+      const currentMaxJourney = historyData?.journey_number || 1
+      const nextJourneyNum = currentMaxJourney + 1
+
+      console.log(`📊 ASIN ${product.asin}: Current max journey = ${currentMaxJourney}, Next = ${nextJourneyNum}`)
+
+      // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
       const { data: masterData, error: fetchError } = await supabase
         .from('usa_validation_main_file')
         .select('brand, seller_tag, funnel, origin, product_name, usa_link')
         .eq('asin', product.asin)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (fetchError && fetchError.code !== 'PGRST116') {
-        // PGRST116 is "no rows found", which is fine, we just use defaults.
-        // Real errors should be thrown.
         throw fetchError
       }
 
-      // 1. Generate NEW Journey ID (Start Cycle 2, 3, etc.)
+      // 3. Generate NEW Journey ID
       const newJourneyId = crypto.randomUUID()
-      const nextJourneyNum = (product.journey_number || 1) + 1
 
-      // 2. Insert into Validation Main File with RESTORED DATA
+      // 4. Insert into Validation Main File with RESTORED DATA
       const { error: insertError } = await supabase
         .from('usa_validation_main_file')
         .insert({
@@ -385,7 +433,7 @@ export default function ReorderPage() {
           product_name: masterData?.product_name || product.product_name,
 
           current_journey_id: newJourneyId, // ✅ New ID
-          journey_number: nextJourneyNum,
+          journey_number: nextJourneyNum,   // ✅ FIXED: Uses actual max + 1
           status: 'pending',
 
           // ♻️ RESTORED FIELDS (The "Bag" Contents)
@@ -403,7 +451,7 @@ export default function ReorderPage() {
 
       if (insertError) throw insertError
 
-      // 3. 🗑️ REMOVE from Reorder Page (It has moved on)
+      // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
       const { error: deleteError } = await supabase
         .from(`usa_reorder_${activeSeller.table_suffix}`)
         .delete()
@@ -411,9 +459,9 @@ export default function ReorderPage() {
 
       if (deleteError) throw deleteError
 
-      // 4. Update UI instantly
+      // 6. Update UI instantly
       setProducts(prev => prev.filter(p => p.id !== product.id))
-      alert(`ASIN ${product.asin} sent to Validation! (Cycle ${nextJourneyNum})`)
+      alert(`✅ ASIN ${product.asin} sent to Validation! (Journey #${nextJourneyNum})`)
 
     } catch (err: any) {
       console.error(err)
@@ -535,6 +583,7 @@ export default function ReorderPage() {
                   <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-900/20 border-r border-slate-800">Current</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Deficit</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-slate-800">Tracking</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Status</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-900/20 border-r border-slate-800">Final Order</th>
                   {activeTab === 'final' && <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Action</th>}
                 </tr>
@@ -577,6 +626,16 @@ export default function ReorderPage() {
                         <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-slate-800/50">{product.current_qty}</td>
                         <td className={`px-6 py-4 text-center font-bold text-sm border-r border-slate-800/50 ${deficit > 0 ? 'text-rose-400' : 'text-slate-500'}`}>{deficit}</td>
                         <td className="px-6 py-4 text-center bg-blue-900/10 text-blue-300 font-medium text-sm border-r border-slate-800/50">{product.tracking_qty}</td>
+                        <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${product.status === 'Reorder'
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            : product.status === 'Covered'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            }`}>
+                            {product.status || 'Safe'}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 text-center bg-rose-900/10 border-r border-slate-800/50">
                           {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-slate-600">-</span>}
                         </td>
@@ -690,7 +749,6 @@ export default function ReorderPage() {
           </>
         )}
       </AnimatePresence>
-
     </div>
   )
 }

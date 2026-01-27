@@ -998,6 +998,7 @@ export default function ValidationPage() {
                     product_weight: product.product_weight,
                     usd_price: product.usd_price,
                     inr_purchase: product.inr_purchase,
+                    profit: product.profit ?? null,
 
                     // 🔗 LINKING THE CYCLE
                     journey_id: journeyId,

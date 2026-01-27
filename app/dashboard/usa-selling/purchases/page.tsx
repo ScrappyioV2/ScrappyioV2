@@ -71,6 +71,7 @@ export default function PurchasesPage() {
     fromStatus: string | null
     toStatus: string
   } | null>>({})
+  const [showAllJourneys, setShowAllJourneys] = useState(false);
 
   // Column visibility state - ALL columns visible by default
   const [visibleColumns, setVisibleColumns] = useState({
@@ -155,7 +156,23 @@ export default function PurchasesPage() {
         }
       })
 
-      setProducts(enrichedData)
+      // 🆕 FILTER: Show only latest journey per ASIN (unless toggle is ON)
+      let processedData = enrichedData;
+      if (!showAllJourneys) {
+        const latestByAsin = new Map();
+        enrichedData.forEach((product: any) => {
+          const existing = latestByAsin.get(product.asin);
+          const currentJourney = product.journey_number || 1;
+          const existingJourney = existing?.journey_number || 1;
+
+          if (!existing || currentJourney > existingJourney) {
+            latestByAsin.set(product.asin, product);
+          }
+        });
+        processedData = Array.from(latestByAsin.values());
+      }
+
+      setProducts(processedData);
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
@@ -206,7 +223,23 @@ export default function PurchasesPage() {
         }
       })
 
-      setProducts(enrichedData)
+      // 🆕 FILTER: Show only latest journey per ASIN (unless toggle is ON)
+      let processedData = enrichedData;
+      if (!showAllJourneys) {
+        const latestByAsin = new Map();
+        enrichedData.forEach((product: any) => {
+          const existing = latestByAsin.get(product.asin);
+          const currentJourney = product.journey_number || 1;
+          const existingJourney = existing?.journey_number || 1;
+
+          if (!existing || currentJourney > existingJourney) {
+            latestByAsin.set(product.asin, product);
+          }
+        });
+        processedData = Array.from(latestByAsin.values());
+      }
+
+      setProducts(processedData);
     } catch (error) {
       console.error('Error refreshing products:', error)
     }
@@ -239,7 +272,7 @@ export default function PurchasesPage() {
     return () => {
       channel.unsubscribe()
     }
-  }, [])
+  }, [showAllJourneys]);
 
   // Column widths state for resizable columns
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
@@ -280,12 +313,31 @@ export default function PurchasesPage() {
         },
       }))
 
-      // Fetch profit from validation
-      const { data: validationData } = await supabase
-        .from('usa_validation_main_file')
-        .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')
-        .eq('asin', product.asin)
-        .maybeSingle()
+      // 🆕 Fetch profit matching BOTH asin AND journey_id
+      let validationData = null;
+
+      if (product.journey_id) {
+        // Try to match by journey_id first (most accurate)
+        const { data } = await supabase
+          .from('usa_validation_main_file')
+          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')
+          .eq('asin', product.asin)
+          .eq('current_journey_id', product.journey_id)
+          .maybeSingle();
+        validationData = data;
+      }
+
+      // Fallback: If no journey match, get latest by asin
+      if (!validationData) {
+        const { data } = await supabase
+          .from('usa_validation_main_file')
+          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')
+          .eq('asin', product.asin)
+          .order('journey_number', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        validationData = data;
+      }
 
       // Build origin text based on checkboxes for trigger
       const originParts = []
@@ -801,6 +853,21 @@ export default function PurchasesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
             Roll Back
+          </button>
+
+          {/* 🆕 Journey Toggle Button */}
+          <button
+            onClick={() => setShowAllJourneys(!showAllJourneys)}
+            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
+              ? 'bg-indigo-600 text-white hover:bg-indigo-500 border-indigo-500/50 shadow-indigo-900/20'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+              }`}
+            title={`Currently showing ${showAllJourneys ? 'ALL journey cycles' : 'latest journey only'}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            {showAllJourneys ? 'Show Latest Only' : 'Show All Journeys'}
           </button>
 
           <div className="relative">
