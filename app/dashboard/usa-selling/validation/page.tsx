@@ -130,7 +130,7 @@ const renderSellerTags = (sellerTag: string | null) => {
                     <span
                         key={cleanTag}
                         className={`
-              w-9 h-9
+              w-6 h-6
               flex items-center justify-center
               rounded-full
               font-bold text-sm

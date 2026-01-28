@@ -35,6 +35,7 @@ type ReorderProduct = {
   updated_at: string
   journey_id?: string // ✅ The Bag Link
   journey_number?: number
+  is_in_final_reorder?: boolean
 }
 
 type HistorySnapshot = {
@@ -136,7 +137,8 @@ export default function ReorderPage() {
           current_qty: 0,
           status: 'Safe',
           journey_id: p.journey_id, // ✅ Pass the Bag
-          journey_number: p.journey_number
+          journey_number: p.journey_number,
+          is_in_final_reorder: false
         }))
 
       if (newItems.length > 0) {
@@ -160,89 +162,246 @@ export default function ReorderPage() {
   }
 
   // --- 3. Upload Inventory (Optimized for your CSV) ---
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0]
+  //   if (!file) return
 
-    setProcessing(true)
+  //   setProcessing(true)
 
+  //   Papa.parse(file, {
+  //     header: true,
+  //     skipEmptyLines: true,
+  //     // 1. Clean headers (removes hidden BOM characters and spaces)
+  //     transformHeader: (header) => header.replace(/[\ufeff]/g, '').trim(),
+  //     complete: async (results) => {
+  //       try {
+  //         const rows = results.data as any[]
+  //         const updates: Record<string, number> = {}
+  //         let matchCount = 0
+
+  //         rows.forEach((row) => {
+  //           const keys = Object.keys(row)
+
+  //           // 2. Specific matching for your file headers
+  //           const asinKey = keys.find(k => k.toLowerCase() === 'asin')
+  //           const qtyKey = keys.find(k =>
+  //             k.toLowerCase() === 'afn-fulfillable-quantity' ||
+  //             k.toLowerCase().includes('quantity') ||
+  //             k.toLowerCase().includes('fulfillable')
+  //           )
+
+  //           if (asinKey && qtyKey) {
+  //             const rawAsin = row[asinKey]
+  //             const rawQty = row[qtyKey]
+
+  //             if (rawAsin) {
+  //               // Normalize: Uppercase and Trim (e.g. "b09..." -> "B09...")
+  //               const asin = String(rawAsin).trim().toUpperCase()
+  //               // Parse Quantity: "10" -> 10
+  //               const qty = parseInt(String(rawQty).replace(/[^0-9]/g, '') || '0')
+  //               updates[asin] = qty
+  //             }
+  //           }
+  //         })
+
+  //         // 3. Find matches in your current workspace
+  //         const promises = products
+  //           .filter(p => {
+  //             const pAsin = p.asin.trim().toUpperCase()
+  //             return updates[pAsin] !== undefined
+  //           })
+  //           .map(p => {
+  //             matchCount++
+  //             const pAsin = p.asin.trim().toUpperCase()
+  //             return supabase
+  //               .from(`usa_reorder_${activeSeller.table_suffix}`)
+  //               .update({ current_qty: updates[pAsin] })
+  //               .eq('id', p.id)
+  //           })
+
+  //         if (matchCount === 0) {
+  //           alert(`No matches found! \n\nWe checked ${rows.length} CSV rows against your listed products, but none matched.\n\nExample CSV ASIN: ${rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+  //           setProcessing(false)
+  //           return
+  //         }
+
+  //         // 4. Execute Updates
+  //         await Promise.all(promises)
+  //         await fetchReorderData() // Refresh UI immediately
+
+  //         // 5. Offer Recalculation
+  //         const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
+  //         if (autoRecalc) {
+  //           await handleRecalculate()
+  //         }
+
+  //       } catch (err: any) {
+  //         console.error(err)
+  //         alert('Error processing file: ' + err.message)
+  //       } finally {
+  //         setProcessing(false)
+  //         if (fileInputRef.current) fileInputRef.current.value = ''
+  //       }
+  //     }
+  //   })
+  // }
+
+  // --- 3. Upload Inventory (Enhanced: CSV + Excel Support) ---
+const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  setProcessing(true)
+
+  // ✅ NEW: Detect file type
+  const fileExtension = file.name.split('.').pop()?.toLowerCase()
+
+  if (fileExtension === 'csv') {
+    // 📄 Handle CSV File (Original Logic)
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      // 1. Clean headers (removes hidden BOM characters and spaces)
       transformHeader: (header) => header.replace(/[\ufeff]/g, '').trim(),
       complete: async (results) => {
-        try {
-          const rows = results.data as any[]
-          const updates: Record<string, number> = {}
-          let matchCount = 0
+        await processInventoryData(results.data as any[])
+      },
+      error: (error) => {
+        console.error('CSV Parse Error:', error)
+        alert('Failed to parse CSV file: ' + error.message)
+        setProcessing(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
+    })
+  } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+    // 📊 Handle Excel File (NEW)
+    const reader = new FileReader()
 
-          rows.forEach((row) => {
-            const keys = Object.keys(row)
+    reader.onload = async (evt) => {
+      try {
+        const data = evt.target?.result
+        const workbook = XLSX.read(data, { type: 'binary' })
 
-            // 2. Specific matching for your file headers
-            const asinKey = keys.find(k => k.toLowerCase() === 'asin')
-            const qtyKey = keys.find(k =>
-              k.toLowerCase() === 'afn-fulfillable-quantity' ||
-              k.toLowerCase().includes('quantity') ||
-              k.toLowerCase().includes('fulfillable')
-            )
+        // ✅ Read ALL sheets and merge data
+        let allRows: any[] = []
 
-            if (asinKey && qtyKey) {
-              const rawAsin = row[asinKey]
-              const rawQty = row[qtyKey]
+        workbook.SheetNames.forEach((sheetName) => {
+          const worksheet = workbook.Sheets[sheetName]
+          const sheetData = XLSX.utils.sheet_to_json(worksheet, { raw: false })
+          allRows = allRows.concat(sheetData)
+        })
 
-              if (rawAsin) {
-                // Normalize: Uppercase and Trim (e.g. "b09..." -> "B09...")
-                const asin = String(rawAsin).trim().toUpperCase()
-                // Parse Quantity: "10" -> 10
-                const qty = parseInt(String(rawQty).replace(/[^0-9]/g, '') || '0')
-                updates[asin] = qty
-              }
-            }
-          })
+        console.log(`📊 Excel: Found ${workbook.SheetNames.length} sheet(s), Total rows: ${allRows.length}`)
 
-          // 3. Find matches in your current workspace
-          const promises = products
-            .filter(p => {
-              const pAsin = p.asin.trim().toUpperCase()
-              return updates[pAsin] !== undefined
-            })
-            .map(p => {
-              matchCount++
-              const pAsin = p.asin.trim().toUpperCase()
-              return supabase
-                .from(`usa_reorder_${activeSeller.table_suffix}`)
-                .update({ current_qty: updates[pAsin] })
-                .eq('id', p.id)
-            })
+        await processInventoryData(allRows)
 
-          if (matchCount === 0) {
-            alert(`No matches found! \n\nWe checked ${rows.length} CSV rows against your listed products, but none matched.\n\nExample CSV ASIN: ${rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
-            setProcessing(false)
-            return
-          }
+      } catch (error: any) {
+        console.error('Excel Parse Error:', error)
+        alert('Failed to parse Excel file: ' + error.message)
+        setProcessing(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
+    }
 
-          // 4. Execute Updates
-          await Promise.all(promises)
-          await fetchReorderData() // Refresh UI immediately
+    reader.onerror = (error) => {
+      console.error('File Read Error:', error)
+      alert('Failed to read file')
+      setProcessing(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
 
-          // 5. Offer Recalculation
-          const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
-          if (autoRecalc) {
-            await handleRecalculate()
-          }
+    reader.readAsBinaryString(file)
 
-        } catch (err: any) {
-          console.error(err)
-          alert('Error processing file: ' + err.message)
-        } finally {
-          setProcessing(false)
-          if (fileInputRef.current) fileInputRef.current.value = ''
+  } else {
+    alert('Unsupported file format. Please upload CSV, XLSX, or XLS files.')
+    setProcessing(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+}
+
+// ✅ NEW: Unified Data Processing Function (Works for Both CSV & Excel)
+const processInventoryData = async (rows: any[]) => {
+  try {
+    const updates: Record<string, number> = {}
+    let matchCount = 0
+
+    rows.forEach((row) => {
+      const keys = Object.keys(row)
+
+      // ✅ ENHANCED: Flexible ASIN matching (case-insensitive)
+      const asinKey = keys.find(k => {
+        const lower = k.toLowerCase().trim()
+        return lower === 'asin'
+      })
+
+      // ✅ ENHANCED: Flexible Quantity matching (multiple variations)
+      const qtyKey = keys.find(k => {
+        const lower = k.toLowerCase().trim()
+        return (
+          lower === 'afn-fulfillable-quantity' ||
+          lower === 'afn-fulfillable-quentity' ||
+          lower === 'quantity' ||
+          lower === 'quentity' ||
+          lower === 'qty' ||
+          lower === 'fulfillable' ||
+          lower.includes('quantity') ||
+          lower.includes('fulfillable')
+        )
+      })
+
+      if (asinKey && qtyKey) {
+        const rawAsin = row[asinKey]
+        const rawQty = row[qtyKey]
+
+        if (rawAsin) {
+          // Normalize: Uppercase and Trim
+          const asin = String(rawAsin).trim().toUpperCase()
+          // Parse Quantity
+          const qty = parseInt(String(rawQty).replace(/[^0-9]/g, '') || '0')
+          updates[asin] = qty
         }
       }
     })
+
+    // Find matches in current workspace
+    const promises = products
+      .filter(p => {
+        const pAsin = p.asin.trim().toUpperCase()
+        return updates[pAsin] !== undefined
+      })
+      .map(p => {
+        matchCount++
+        const pAsin = p.asin.trim().toUpperCase()
+        return supabase
+          .from(`usa_reorder_${activeSeller.table_suffix}`)
+          .update({ current_qty: updates[pAsin] })
+          .eq('id', p.id)
+      })
+
+    if (matchCount === 0) {
+      alert(`No matches found! \n\nWe checked ${rows.length} rows against your listed products, but none matched.\n\nExample File ASIN: ${rows[0]?.ASIN || rows[0]?.asin || rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+      setProcessing(false)
+      return
+    }
+
+    // Execute Updates
+    await Promise.all(promises)
+    await fetchReorderData() // Refresh UI immediately
+
+    // Offer Recalculation
+    const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
+    if (autoRecalc) {
+      await handleRecalculate()
+    }
+
+  } catch (err: any) {
+    console.error(err)
+    alert('Error processing file: ' + err.message)
+  } finally {
+    setProcessing(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
+}
+
 
   // --- 4. Recalculate Logic ---
   const handleRecalculate = async () => {
@@ -276,23 +435,28 @@ export default function ReorderPage() {
         const deficit = target - current
         let finalReorder = 0
         let status: 'Safe' | 'Covered' | 'Reorder' = 'Safe'
+        let isInFinalReorder = false
 
         if (deficit > 0) {
           finalReorder = Math.max(0, deficit - incoming)
           if (finalReorder > 0) {
             status = 'Reorder'
+            isInFinalReorder = true
           } else {
             status = 'Covered'
+            isInFinalReorder = false
           }
         } else {
           status = 'Safe'
+          isInFinalReorder = false
         }
 
         return {
           id: p.id,
           tracking_qty: incoming,
           final_reorder_qty: finalReorder,
-          status: status
+          status: status,
+          is_in_final_reorder: isInFinalReorder
         }
       })
 
@@ -302,7 +466,8 @@ export default function ReorderPage() {
           .update({
             tracking_qty: u.tracking_qty,
             final_reorder_qty: u.final_reorder_qty,
-            status: u.status
+            status: u.status,
+            is_in_final_reorder: u.is_in_final_reorder
           })
           .eq('id', u.id)
       )
@@ -328,23 +493,28 @@ export default function ReorderPage() {
     const deficit = newTarget - current
     let finalReorder = 0
     let status: 'Safe' | 'Covered' | 'Reorder' = 'Safe'
+    let isInFinalReorder = false
 
     if (deficit > 0) {
       finalReorder = Math.max(0, deficit - incoming)
       if (finalReorder > 0) {
         status = 'Reorder'
+        isInFinalReorder = true
       } else {
         status = 'Covered'
+        isInFinalReorder = false
       }
     } else {
       status = 'Safe'
+      isInFinalReorder = false
     }
 
     setProducts(prev => prev.map(p => p.id === id ? {
       ...p,
       admin_target_qty: newTarget,
       final_reorder_qty: finalReorder,
-      status: status
+      status: status,
+      is_in_final_reorder: isInFinalReorder 
     } : p))
 
     await supabase
@@ -352,7 +522,8 @@ export default function ReorderPage() {
       .update({
         admin_target_qty: newTarget,
         final_reorder_qty: finalReorder,
-        status: status
+        status: status,
+        is_in_final_reorder: isInFinalReorder
       })
       .eq('id', id)
   }
@@ -476,10 +647,13 @@ export default function ReorderPage() {
       p.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
 
     if (activeTab === 'final') {
-      return matchesSearch && p.status === 'Reorder'
-    }
-    return matchesSearch
-  })
+    // ✅ Final Reorder Tab: Show only Reorder status products
+    return matchesSearch && p.status === 'Reorder'
+  } else {
+    // ✅ Main Workspace: Show only products NOT in final reorder
+    return matchesSearch && (p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined)
+  }
+})
 
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200 relative overflow-hidden">
@@ -519,7 +693,7 @@ export default function ReorderPage() {
               : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
               }`}
           >
-            Main Workspace ({products.length})
+            Main Workspace ({products.filter(p => p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined).length})
           </button>
 
           <button
@@ -530,7 +704,7 @@ export default function ReorderPage() {
               }`}
           >
             <AlertTriangle className="w-4 h-4" />
-            Final Reorder ({products.filter(p => p.status === 'Reorder').length})
+            Final Reorder ({products.filter(p => p.status === 'Reorder' && p.is_in_final_reorder === true).length})
           </button>
         </div>
       </div>
@@ -555,7 +729,7 @@ export default function ReorderPage() {
               Sync Listed
             </button>
             <div className="relative">
-              <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+              <input type="file" accept=".csv,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
               <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors">
                 <Upload className="w-4 h-4" />
                 Upload Inventory

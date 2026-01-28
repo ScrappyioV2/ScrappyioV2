@@ -503,7 +503,7 @@ export default function CompanyInvoiceTable() {
                               <div className="flex items-center gap-3">
                                 <button
                                   onClick={() => handleActionChange(group.invoice_number, 'pass')}
-                                  className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'pass' ? 'opacity-100' : 'opacity-30'
+                                  className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'pass' ? 'opacity-100' : 'opacity-100'
                                     }`}
                                   title="Pass"
                                 >
@@ -511,7 +511,7 @@ export default function CompanyInvoiceTable() {
                                 </button>
                                 <button
                                   onClick={() => handleActionChange(group.invoice_number, 'fail')}
-                                  className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'fail' ? 'opacity-100' : 'opacity-30'
+                                  className={`text-2xl cursor-pointer transition-transform hover:scale-125 ${group.action_status === 'fail' ? 'opacity-100' : 'opacity-100'
                                     }`}
                                   title="Fail"
                                 >
