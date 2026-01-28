@@ -2,6 +2,8 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect } from 'react';
+import { History, X, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type PassFileProduct = {
   id: string
@@ -58,6 +60,19 @@ type PassFileProduct = {
   inr_purchase_from_validation?: number | null
 }
 
+// ADD THIS TYPE
+type HistorySnapshot = {
+  id: string
+  stage: string
+  createdat: string
+  snapshotdata: any
+  journeynumber: number
+  profit?: number
+  totalcost?: number
+  status?: string
+}
+
+
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
@@ -72,6 +87,12 @@ export default function PurchasesPage() {
     toStatus: string
   } | null>>({})
   const [showAllJourneys, setShowAllJourneys] = useState(false);
+
+  // History Sidebar State
+const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
+const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
+const [historyLoading, setHistoryLoading] = useState(false)
+
 
   // Column visibility state - ALL columns visible by default
   const [visibleColumns, setVisibleColumns] = useState({
@@ -278,6 +299,7 @@ export default function PurchasesPage() {
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
     checkbox: 50,
     asin: 120,
+    history: 180,  
     productlink: 80,
     productname: 120,
     targetprice: 100,
@@ -415,6 +437,29 @@ export default function PurchasesPage() {
       alert(`Error: ${error.message}`)
     }
   }
+
+  // Fetch History for Sidebar
+const fetchHistory = async (asin: string) => {
+  setSelectedHistoryAsin(asin)
+  setHistoryLoading(true)
+  try {
+    const { data, error } = await supabase
+      .from('usa_asin_history')
+      .select('*')
+      .eq('asin', asin)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    
+    if (error) throw error
+    setHistoryData(data || [])
+  } catch (err) {
+    console.error(err)
+    alert('Failed to load history')
+  } finally {
+    setHistoryLoading(false)
+  }
+}
+
 
 
   // Handle Price Wait
@@ -968,6 +1013,19 @@ export default function PurchasesPage() {
                   </th>
                 )}
 
+                {/* ✅ HISTORY COLUMN */}
+<th 
+  className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" 
+  style={{ width: `${columnWidths.history}px` }}
+>
+  HISTORY
+  <div 
+    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" 
+    onMouseDown={(e) => handleMouseDown('history', e)}
+  />
+</th>
+
+
                 {visibleColumns.productlink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productlink}px` }}>PRODUCT LINK<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productlink', e)} /></th>}
                 {visibleColumns.productname && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productname}px` }}>PRODUCT NAME<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productname', e)} /></th>}
 
@@ -1004,175 +1062,190 @@ export default function PurchasesPage() {
             </thead>
 
             <tbody className="divide-y divide-slate-800">
-              {filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-16 text-center text-slate-500">
-                    <div className="flex flex-col items-center">
-                      <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                      <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace('_', ' ')}</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((product) => {
-                  return (
-                    <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 group">
+  {filteredProducts.length === 0 ? (
+    <tr>
+      <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-16 text-center text-slate-500">
+        <div className="flex flex-col items-center">
+          <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+          <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace('_', ' ')}</span>
+        </div>
+      </td>
+    </tr>
+  ) : (
+    filteredProducts.map((product) => {
+      return (
+        <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 group">
 
-                      {/* Checkbox */}
-                      {visibleColumns.checkbox && (
-                        <td className="px-4 py-2 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
-                          <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer" />
-                        </td>
-                      )}
+          {/* ✅ Checkbox */}
+          {visibleColumns.checkbox && (
+            <td className="px-4 py-2 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
+              <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer" />
+            </td>
+          )}
 
-                      {/* ASIN */}
-                      {visibleColumns.asin && <td className="px-3 py-2 font-mono text-sm text-slate-300 overflow-hidden" style={{ width: `${columnWidths.asin}px` }}><div className="truncate">{product.asin}</div></td>}
+          {/* ✅ ASIN COLUMN - Only ASIN text */}
+          {visibleColumns.asin && (
+            <td className="px-3 py-2 font-mono text-sm text-slate-300" style={{ width: `${columnWidths.asin}px` }}>
+              <div className="truncate">{product.asin}</div>
+            </td>
+          )}
 
-                      {/* Product Link */}
-                      {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
-                        {(product.usa_link || product.product_link) ? (
-                          <a href={(product.usa_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
+          {/* ✅ HISTORY COLUMN - Only Clock Icon (Working) */}
+          <td className="px-3 py-2 text-center" style={{ width: `${columnWidths.history}px` }}>
+            <button
+              onClick={() => fetchHistory(product.asin)}
+              className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+              title="View Journey History"
+            >
+              <History className="w-4 h-4" />
+            </button>
+          </td>
 
-                      {/* Product Name */}
-                      {visibleColumns.productname && <td className="px-3 py-2 text-sm text-slate-200 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
+          {/* Product Link */}
+          {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
+            {(product.usa_link || product.product_link) ? (
+              <a href={(product.usa_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>}
 
-                      {/* Target Price */}
-                      {visibleColumns.targetprice && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
-                        {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_price ?? product.usd_price ?? '-'}</div>
-                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-                      </td>}
+          {/* Product Name */}
+          {visibleColumns.productname && <td className="px-3 py-2 text-sm text-slate-200 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
 
-                      {/* Target Qty */}
-                      {visibleColumns.targetquantity && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
-                        {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_quantity ?? 1}</div>
-                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-                      </td>}
+          {/* Target Price */}
+          {visibleColumns.targetprice && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
+            {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
+              <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_price ?? product.usd_price ?? '-'}</div>
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>}
 
-                      {/* Admin Target Price */}
-                      {visibleColumns.admintargetprice && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
-                        {activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-purple-300">₹{product.admin_target_price ?? '-'}</div>
-                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-                      </td>}
+          {/* Target Qty */}
+          {visibleColumns.targetquantity && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
+            {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
+              <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_quantity ?? 1}</div>
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>}
 
-                      {/* Funnel Qty */}
-                      {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
-                        {product.validation_funnel ? (
-                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                              product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                'bg-slate-700 text-slate-300'
-                            }`}>{product.validation_funnel}</span>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
+          {/* Admin Target Price */}
+          {visibleColumns.admintargetprice && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
+            {activeTab === 'order_confirmed' ? (
+              <div className="px-2 py-1 text-sm font-medium text-purple-300">₹{product.admin_target_price ?? '-'}</div>
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>}
 
-                      {/* Seller Tag */}
-                      {visibleColumns.funnelseller && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
-                        {product.validation_seller_tag ? (
-                          <div className="flex flex-wrap gap-1">
-                            {product.validation_seller_tag.split(',').map(tag => {
-                              const cleanTag = tag.trim();
-                              let badgeColor = 'bg-slate-700 text-white';
-                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
-                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
-                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                              return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>{cleanTag}</span>
-                            })}
-                          </div>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
+          {/* Funnel Qty */}
+          {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
+            {product.validation_funnel ? (
+              <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                  product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    'bg-slate-700 text-slate-300'
+                }`}>{product.validation_funnel}</span>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>}
 
-                      {/* INR Link */}
-                      {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
-                        {product.inr_purchase_link ? (
-                          <a href={product.inr_purchase_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
+          {/* Seller Tag */}
+          {visibleColumns.funnelseller && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
+            {product.validation_seller_tag ? (
+              <div className="flex flex-wrap gap-1">
+                {product.validation_seller_tag.split(',').map(tag => {
+                  const cleanTag = tag.trim();
+                  let badgeColor = 'bg-slate-700 text-white';
+                  if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
+                  else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
+                  else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                  return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>{cleanTag}</span>
+                })}
+              </div>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>}
 
-                      {/* Origin */}
-                      {visibleColumns.origin && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
-                        <div className="flex gap-1">
-                          {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
-                          {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
-                          {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
-                        </div>
-                      </td>}
+          {/* INR Link */}
+          {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+            {product.inr_purchase_link ? (
+              <a href={product.inr_purchase_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>}
 
-                      {/* Buying Price - Input */}
-                      {visibleColumns.buyingprice && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
-                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Price" />
-                      </td>}
+          {/* Origin */}
+          {visibleColumns.origin && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
+            <div className="flex gap-1">
+              {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
+              {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
+              {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
+            </div>
+          </td>}
 
-                      {/* Buying Qty - Input */}
-                      {visibleColumns.buyingquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
-                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Qty" />
-                      </td>}
+          {/* Buying Price - Input */}
+          {visibleColumns.buyingprice && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
+            <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Price" />
+          </td>}
 
-                      {/* Seller Link - Input */}
-                      {visibleColumns.sellerlink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
-                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Link" />
-                      </td>}
+          {/* Buying Qty - Input */}
+          {visibleColumns.buyingquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
+            <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Qty" />
+          </td>}
 
-                      {/* Seller Phone - Input */}
-                      {visibleColumns.sellerphno && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
-                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Phone" />
-                      </td>}
+          {/* Seller Link - Input */}
+          {visibleColumns.sellerlink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
+            <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Link" />
+          </td>}
 
-                      {/* Payment Method - Input */}
-                      {visibleColumns.paymentmethod && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
-                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Method" />
-                      </td>}
+          {/* Seller Phone - Input */}
+          {visibleColumns.sellerphno && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
+            <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Phone" />
+          </td>}
 
-                      {/* Tracking Details - Input */}
-                      {visibleColumns.trackingdetails && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
-                        {activeTab === 'order_confirmed' ? (
-                          <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
-                        ) : (
-                          <span className="text-xs text-slate-500 italic">After confirmation</span>
-                        )}
-                      </td>}
+          {/* Payment Method - Input */}
+          {visibleColumns.paymentmethod && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
+            <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Method" />
+          </td>}
 
-                      {/* Delivery Date - Input */}
-                      {visibleColumns.deliverydate && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
-                        {activeTab === 'order_confirmed' ? (
-                          <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                        ) : (
-                          <span className="text-xs text-slate-500 italic">After confirmation</span>
-                        )}
-                      </td>}
+          {/* Tracking Details - Input */}
+          {visibleColumns.trackingdetails && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
+            {activeTab === 'order_confirmed' ? (
+              <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
+            ) : (
+              <span className="text-xs text-slate-500 italic">After confirmation</span>
+            )}
+          </td>}
 
-                      {/* Move To Actions */}
-                      {visibleColumns.moveto && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
-                        <div className="flex gap-1 justify-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (activeTab === 'order_confirmed') {
-                                handleMoveToTracking(product);   // ✅ NEW
-                              } else {
-                                handleSendToAdmin(product);      // ✅ OLD AS-IS
-                              }
-                            }}
-                            className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
-                            title="Done"
-                          >
-                            D
-                          </button>
-                          <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
-                          <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
-                        </div>
-                      </td>}
-                    </tr>
-                  );
-                })
+          {/* Delivery Date - Input */}
+          {visibleColumns.deliverydate && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
+            {activeTab === 'order_confirmed' ? (
+              <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+            ) : (
+              <span className="text-xs text-slate-500 italic">After confirmation</span>
+            )}
+          </td>}
 
-              )}
-            </tbody>
+          {/* Move To Actions */}
+          {visibleColumns.moveto && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
+            <div className="flex gap-1 justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'order_confirmed') {
+                    handleMoveToTracking(product);
+                  } else {
+                    handleSendToAdmin(product);
+                  }
+                }}
+                className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
+                title="Done"
+              >
+                D
+              </button>
+              <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
+              <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
+            </div>
+          </td>}
+        </tr>
+      );
+    })
+  )}
+</tbody>
+
           </table>
         </div>
         {/* Footer Stats */}
@@ -1183,6 +1256,121 @@ export default function PurchasesPage() {
           </div>
         </div>
       </div>
+      {/* ✅ HISTORY SIDEBAR SLIDE-OVER */}
+      <AnimatePresence>
+        {selectedHistoryAsin && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedHistoryAsin(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+            />
+
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Journey History</h2>
+                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedHistoryAsin(null)}
+                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Timeline */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                {historyLoading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="animate-spin w-8 h-8 text-indigo-500" />
+                  </div>
+                ) : historyData.length === 0 ? (
+                  <div className="text-center text-slate-500 py-10">
+                    <svg className="w-12 h-12 mx-auto mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm">No history found for this item.</p>
+                  </div>
+                ) : (
+                  historyData.map((snapshot, idx) => (
+                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6">
+                      {/* Timeline Dot */}
+                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+
+                      {/* Card */}
+                      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                        {/* Journey Info */}
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                            Journey #{snapshot.journeynumber}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(snapshot.createdat).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        {/* Stage Name */}
+                        <h3 className="text-sm font-semibold text-white mb-3 capitalize">
+                          {snapshot.stage.replace(/_/g, ' → ')}
+                        </h3>
+
+                        {/* Snapshot Details */}
+                        <div className="space-y-1.5 text-xs">
+                          {snapshot.profit !== null && snapshot.profit !== undefined && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">Profit:</span>
+                              <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+                                ₹{snapshot.profit.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          {snapshot.totalcost && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">Total Cost:</span>
+                              <span className="text-slate-200">₹{snapshot.totalcost.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {snapshot.snapshotdata?.productweight && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">Weight:</span>
+                              <span className="text-slate-200">{snapshot.snapshotdata.productweight}g</span>
+                            </div>
+                          )}
+                          {snapshot.snapshotdata?.usdprice && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">USD Price:</span>
+                              <span className="text-slate-200">${snapshot.snapshotdata.usdprice}</span>
+                            </div>
+                          )}
+                          {snapshot.snapshotdata?.inrpurchase && (
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-slate-400">INR Purchase:</span>
+                              <span className="text-slate-200">₹{snapshot.snapshotdata.inrpurchase}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

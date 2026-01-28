@@ -8,7 +8,9 @@ import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
-import { Loader2 } from 'lucide-react';
+import { Loader2, History, X, } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
 
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -46,6 +48,20 @@ const COLUMN_FLEX: Record<string, boolean> = {
     inr_purchase_link: true,   // 👈 flex but truncated
     judgement: false,
 };
+
+
+// ✅ ADD THIS TYPE for History
+type HistorySnapshot = {
+    id: string;
+    stage: string;
+    created_at: string;
+    snapshot_data: any;
+    journey_number: number;
+    profit?: number;
+    total_cost?: number;
+    status?: string;
+};
+
 
 
 const formatUSD = (value: number | null) =>
@@ -229,6 +245,12 @@ export default function ValidationPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null)
     const usaPriceCSVInputRef = useRef<HTMLInputElement>(null)
+
+    // ✅ History Sidebar State
+    const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null);
+    const [historyData, setHistoryData] = useState<HistorySnapshot[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+
 
 
     // Constants Modal
@@ -475,29 +497,28 @@ export default function ValidationPage() {
         return allRows;
     };
 
+    // ✅ Fetch History (The Sidebar Logic)
+    const fetchHistory = async (asin: string) => {
+        setSelectedHistoryAsin(asin);
+        setHistoryLoading(true);
+        try {
+            // Fetch last 5 history entries
+            const { data, error } = await supabase
+                .from('usa_asin_history')
+                .select('*')
+                .eq('asin', asin)
+                .order('created_at', { ascending: false })
+                .limit(5);
 
-    // const fetchSellersByAsins = async (asins: string[]) => {
-    //   const CHUNK_SIZE = 400; // safe for Supabase URL limits
-    //   const sellerMap = new Map<string, number>();
-
-    //   for (let i = 0; i < asins.length; i += CHUNK_SIZE) {
-    //     const chunk = asins.slice(i, i + CHUNK_SIZE);
-
-    //     const { data, error } = await supabase
-    //       .from('usa_master_sellers')
-    //       .select('asin, seller')
-    //       .in('asin', chunk);
-
-    //     if (error) throw error;
-
-    //     data?.forEach(item => {
-    //       sellerMap.set(item.asin, item.seller);
-    //     });
-    //   }
-
-    //   return sellerMap;
-    // };
-
+            if (error) throw error;
+            setHistoryData(data || []);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to load history');
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
 
 
     const dedupeById = <T extends { id: string }>(rows: T[]): T[] => {
@@ -1586,6 +1607,13 @@ export default function ValidationPage() {
 
                                                 {/* ✅ Resizable Columns */}
                                                 {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
+                                                {/* ✅ HISTORY COLUMN */}
+                                                <th
+                                                    className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 border-r border-slate-800"
+                                                    style={{ width: '200px', minWidth: '200px' }}
+                                                >
+                                                    HISTORY
+                                                </th>
                                                 {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
                                                 {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
                                                 {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
@@ -1619,9 +1647,24 @@ export default function ValidationPage() {
                                                         />
                                                     </td>
 
+                                                    {/* Column 1: ASIN only (no icon) */}
                                                     {visibleColumns.asin && (
-                                                        <td className="p-3 font-mono text-sm text-slate-300">{product.asin}</td>
+                                                        <td className="p-3 font-mono text-sm text-slate-300">
+                                                            {product.asin}
+                                                        </td>
                                                     )}
+
+                                                    {/* Column 2: History icon only (no ASIN) */}
+                                                    <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                                                        <button
+                                                            onClick={() => fetchHistory(product.asin)}
+                                                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                                                            title="View Journey History"
+                                                        >
+                                                            <History className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+
                                                     {visibleColumns.product_name && (
                                                         <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
                                                             {/* ✅ Truncate long names */}
@@ -1683,19 +1726,19 @@ export default function ValidationPage() {
                                                     {visibleColumns.usd_price && (
                                                         <td className="p-3 text-slate-300">
                                                             {activeTab === 'main_file' ? (
-  <input
-    type="text"
-    key={product.id}
-    defaultValue={product.usd_price ?? ''}
-    onBlur={(e) => {
-      const parsed = parseCurrency(e.target.value);
-      handleCellEdit(product.id, 'usd_price', parsed);
-    }}
-    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-  />
-) : (
-  formatUSD(product.usd_price)
-)}
+                                                                <input
+                                                                    type="text"
+                                                                    key={product.id}
+                                                                    defaultValue={product.usd_price ?? ''}
+                                                                    onBlur={(e) => {
+                                                                        const parsed = parseCurrency(e.target.value);
+                                                                        handleCellEdit(product.id, 'usd_price', parsed);
+                                                                    }}
+                                                                    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                />
+                                                            ) : (
+                                                                formatUSD(product.usd_price)
+                                                            )}
 
                                                         </td>
                                                     )}
@@ -1703,19 +1746,19 @@ export default function ValidationPage() {
                                                     {visibleColumns.inr_purchase && (
                                                         <td className="p-3 text-slate-300">
                                                             {activeTab === 'main_file' ? (
-  <input
-    type="text"
-    key={product.id}
-    defaultValue={product.inr_purchase ?? ''}
-    onBlur={(e) => {
-      const parsed = parseCurrency(e.target.value);
-      handleCellEdit(product.id, 'inr_purchase', parsed);
-    }}
-    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-  />
-) : (
-  formatINR(product.inr_purchase)
-)}
+                                                                <input
+                                                                    type="text"
+                                                                    key={product.id}
+                                                                    defaultValue={product.inr_purchase ?? ''}
+                                                                    onBlur={(e) => {
+                                                                        const parsed = parseCurrency(e.target.value);
+                                                                        handleCellEdit(product.id, 'inr_purchase', parsed);
+                                                                    }}
+                                                                    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                />
+                                                            ) : (
+                                                                formatINR(product.inr_purchase)
+                                                            )}
 
                                                         </td>
                                                     )}
@@ -1899,6 +1942,120 @@ export default function ValidationPage() {
                     />
                 )}
             </div>
+
+            {/* ✅ HISTORY SIDEBAR (SLIDE-OVER) */}
+            <AnimatePresence>
+                {selectedHistoryAsin && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setSelectedHistoryAsin(null)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+                        />
+
+                        {/* Sidebar */}
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-8">
+                                <div>
+                                    <h2 className="text-xl font-bold text-white">Journey History</h2>
+                                    <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedHistoryAsin(null)}
+                                    className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Timeline */}
+                            <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                                {historyLoading ? (
+                                    <div className="flex justify-center py-10">
+                                        <Loader2 className="animate-spin w-8 h-8 text-indigo-500" />
+                                    </div>
+                                ) : historyData.length === 0 ? (
+                                    <div className="text-center text-slate-500 py-10">
+                                        No history found for this item.
+                                    </div>
+                                ) : (
+                                    historyData.map((snapshot, idx) => (
+                                        <div
+                                            key={snapshot.id}
+                                            className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6"
+                                        >
+                                            {/* Timeline Dot */}
+                                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+
+                                            {/* Card */}
+                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                                                {/* Journey Info */}
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                                        Journey #{snapshot.journey_number}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500">
+                                                        {new Date(snapshot.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+
+                                                {/* Stage Name */}
+                                                <h3 className="text-sm font-semibold text-white mb-2 capitalize">
+                                                    {snapshot.stage.replace(/_/g, ' ')}
+                                                </h3>
+
+                                                {/* Snapshot Details */}
+                                                <div className="space-y-1 text-xs text-slate-300">
+                                                    {snapshot.profit && (
+                                                        <div className="flex justify-between">
+                                                            <span>Profit:</span>
+                                                            <span className={snapshot.profit > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                                                                ₹{snapshot.profit}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {snapshot.snapshot_data?.product_weight && (
+                                                        <div className="flex justify-between">
+                                                            <span>Weight:</span>
+                                                            <span>{snapshot.snapshot_data.product_weight}g</span>
+                                                        </div>
+                                                    )}
+
+                                                    {snapshot.snapshot_data?.usd_price && (
+                                                        <div className="flex justify-between">
+                                                            <span>USD Price:</span>
+                                                            <span>${snapshot.snapshot_data.usd_price}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {snapshot.total_cost && (
+                                                        <div className="flex justify-between">
+                                                            <span>Total Cost:</span>
+                                                            <span>₹{snapshot.total_cost}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
         </PageTransition>
     )
 }

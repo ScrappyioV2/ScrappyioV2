@@ -8,6 +8,9 @@ import {
   getDefaultConstants,
   type CalculationConstants
 } from '@/lib/blackboxCalculations';
+import { History, X, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+
 
 type AdminProduct = {
   id: string;
@@ -41,6 +44,19 @@ type AdminProduct = {
   journey_number?: number | null;
 };
 
+// ADD THIS TYPE
+type HistorySnapshot = {
+  id: string
+  stage: string
+  createdat: string
+  snapshotdata: any
+  journeynumber: number
+  profit?: number
+  totalcost?: number
+  status?: string
+}
+
+
 type TabType = 'overview' | 'india' | 'china' | 'pending' | 'confirm' | 'reject';
 
 // ✅ Seller Mapping Helper
@@ -64,6 +80,13 @@ export default function AdminValidationPage() {
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
   const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
+
+  // History Sidebar State
+const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
+const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
+const [historyLoading, setHistoryLoading] = useState(false)
+
+
   const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false);
   const [isSavingConstants, setIsSavingConstants] = useState(false);
   const [calculatingIds, setCalculatingIds] = useState<Set<string>>(new Set());
@@ -319,6 +342,7 @@ export default function AdminValidationPage() {
     }
     return {
       asin: 120,
+      history: 180,
       product_name: 200,
       product_link: 100,
       target_price: 100,
@@ -360,6 +384,30 @@ export default function AdminValidationPage() {
       console.error('Error fetching admin constants:', err);
     }
   };
+
+
+  // Fetch History for Sidebar
+const fetchHistory = async (asin: string) => {
+  setSelectedHistoryAsin(asin)
+  setHistoryLoading(true)
+  try {
+    const { data, error } = await supabase
+      .from('usa_asin_history')
+      .select('*')
+      .eq('asin', asin)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    
+    if (error) throw error
+    setHistoryData(data || [])
+  } catch (err) {
+    console.error(err)
+    alert('Failed to load history')
+  } finally {
+    setHistoryLoading(false)
+  }
+}
+
 
   const saveAdminConstants = async () => {
     setIsSavingConstants(true);
@@ -1127,6 +1175,26 @@ export default function AdminValidationPage() {
                     </div>
                   </th>
 
+                  {/* ✅ HISTORY COLUMN */}
+<th 
+  onDoubleClick={() => handleColumnDoubleClick('history')}
+  className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
+  style={{ width: columnWidths.history, minWidth: 80 }}
+>
+  <div className="flex items-center justify-between">
+    <span>HISTORY</span>
+  </div>
+  <div 
+    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" 
+    onMouseDown={(e) => handleResizeStart(e, 'history')}
+    style={{
+      backgroundColor: resizingColumn === 'history' ? '#6366f1' : 'transparent',
+      width: resizingColumn === 'history' ? '2px' : '4px',
+    }}
+  />
+</th>
+
+
                   {/* 🆕 2. Journey # Column */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('journey_number')}
@@ -1432,7 +1500,21 @@ export default function AdminValidationPage() {
                       </td>
 
                       {/* 1. ASIN */}
-                      <td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">{product.asin}</td>
+                    {/* ✅ 1. ASIN COLUMN - Only ASIN */}
+<td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">
+  {product.asin}
+</td>
+
+{/* ✅ 2. HISTORY COLUMN - Only Clock Icon */}
+<td className="px-4 py-3 text-center">
+  <button
+    onClick={() => fetchHistory(product.asin)}
+    className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+    title="View Journey History"
+  >
+    <History className="w-4 h-4" />
+  </button>
+</td>
 
                       {/* 🆕 2. Journey # */}
                       <td className="px-4 py-3 text-center bg-amber-900/10">
@@ -2082,6 +2164,122 @@ export default function AdminValidationPage() {
           onClose={() => setToast(null)}
         />
       )}
+
+
+      <AnimatePresence>
+        {selectedHistoryAsin && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedHistoryAsin(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+            />
+
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Journey History</h2>
+                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedHistoryAsin(null)}
+                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Timeline */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                {historyLoading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="animate-spin w-8 h-8 text-indigo-500" />
+                  </div>
+                ) : historyData.length === 0 ? (
+                  <div className="text-center text-slate-500 py-10">
+                    <svg className="w-12 h-12 mx-auto mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm">No history found for this item.</p>
+                  </div>
+                ) : (
+                  historyData.map((snapshot, idx) => (
+                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6">
+                      {/* Timeline Dot */}
+                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+
+                      {/* Card */}
+                      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                        {/* Journey Info */}
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                            Journey #{snapshot.journeynumber}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(snapshot.createdat).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        {/* Stage Name */}
+                        <h3 className="text-sm font-semibold text-white mb-3 capitalize">
+                          {snapshot.stage.replace(/_/g, ' → ')}
+                        </h3>
+
+                        {/* Snapshot Details */}
+                        <div className="space-y-1.5 text-xs">
+                          {snapshot.profit !== null && snapshot.profit !== undefined && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">Profit:</span>
+                              <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+                                ₹{snapshot.profit.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          {snapshot.totalcost && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">Total Cost:</span>
+                              <span className="text-slate-200">₹{snapshot.totalcost.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {snapshot.snapshotdata?.productweight && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">Weight:</span>
+                              <span className="text-slate-200">{snapshot.snapshotdata.productweight}g</span>
+                            </div>
+                          )}
+                          {snapshot.snapshotdata?.usdprice && (
+                            <div className="flex justify-between items-center py-1 border-b border-slate-700/50">
+                              <span className="text-slate-400">USD Price:</span>
+                              <span className="text-slate-200">${snapshot.snapshotdata.usdprice}</span>
+                            </div>
+                          )}
+                          {snapshot.snapshotdata?.inrpurchase && (
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-slate-400">INR Purchase:</span>
+                              <span className="text-slate-200">₹{snapshot.snapshotdata.inrpurchase}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
