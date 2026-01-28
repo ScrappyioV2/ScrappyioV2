@@ -84,6 +84,8 @@ export default function TrackingPage() {
             seller_tag: p.seller_tag || p.validation_seller_tag,
             inr_purchase_link: (p as any).inr_purchase_link,
             origin: p.origin,
+            origin_india: p.origin_india,  // ✅ ADD THIS LINE
+            origin_china: p.origin_china,  
             product_weight: p.product_weight || 0,
             buying_price: p.buying_price,
             buying_quantity: p.buying_quantity,
@@ -93,6 +95,8 @@ export default function TrackingPage() {
             tracking_details: p.tracking_details,
             delivery_date: p.delivery_date,
             brand: p.brand,
+            funnel_quantity: p.funnel_quantity || 1,  // ✅ ADDED
+            funnel_seller: p.funnel_seller || null,
         }));
 
     console.log('✅ Selected items for invoice:', selectedItems);
@@ -150,48 +154,60 @@ export default function TrackingPage() {
 
             // Enrich data with Validation Info
             const enrichedData = await Promise.all(
-                allData.map(async (product) => {
-                    // ✅ FIXED: Query by BOTH ASIN and Journey ID to get the correct cycle's tags
-                    let query = supabase
-                        .from('usa_validation_main_file')
-                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                        .eq('asin', product.asin);
-                    
-                    if (product.journey_id) {
-                        query = query.eq('current_journey_id', product.journey_id);
-                    }
+  allData.map(async (product) => {
 
-                    // We use maybeSingle() but prioritize journey_id match if available
-                    // If no journey_id match found (legacy data), it might fall back or return null
-                    const { data: validationData } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
+    let query = supabase
+      .from('usa_validation_main_file')
+      .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+      .eq('asin', product.asin);
 
-                    // Fallback: If strict journey_id match failed, try just ASIN (latest)
-                    // This supports old items without journey_id
-                    let finalValidationData = validationData;
-                    if (!finalValidationData && !product.journey_id) {
-                         const { data: fallbackData } = await supabase
-                            .from('usa_validation_main_file')
-                            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                            .eq('asin', product.asin)
-                            .order('created_at', { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
-                         finalValidationData = fallbackData;
-                    }
+    if (product.journey_id) {
+      query = query.eq('current_journey_id', product.journey_id);
+    }
 
-                    return {
-                        ...product,
-                        productname: (product as any).product_name ?? null,
-                        originindia: (product as any).origin_india ?? false,
-                        originchina: (product as any).origin_china ?? false,
-                        validation_funnel: finalValidationData?.funnel ?? null,
-                        validation_seller_tag: finalValidationData?.seller_tag ?? null,
-                        product_weight: finalValidationData?.product_weight ?? null,
-                        usd_price: finalValidationData?.usd_price ?? null,
-                        inr_purchase_from_validation: finalValidationData?.inr_purchase ?? null,
-                    }
-                })
-            )
+    const { data: validationData } = await query
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let finalValidationData = validationData;
+
+    if (!finalValidationData && !product.journey_id) {
+      const { data: fallbackData } = await supabase
+        .from('usa_validation_main_file')
+        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+        .eq('asin', product.asin)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      finalValidationData = fallbackData;
+    }
+
+    return {
+      ...product,
+      productname: product.product_name ?? null,
+
+      // ✅ FIXED ORIGIN (NO LOGIC CHANGE)
+
+
+       origin_india:
+    ((product.origin || '').toLowerCase().includes('india')) ||
+    product.origin_india === true,
+
+  origin_china:
+    ((product.origin || '').toLowerCase().includes('china')) ||
+    product.origin_china === true,
+
+      validation_funnel: finalValidationData?.funnel ?? null,
+      validation_seller_tag: finalValidationData?.seller_tag ?? null,
+      product_weight: finalValidationData?.product_weight ?? null,
+      usd_price: finalValidationData?.usd_price ?? null,
+      inr_purchase_from_validation: finalValidationData?.inr_purchase ?? null,
+    };
+  })
+);
+
 
             setProducts(enrichedData)
         } catch (error) {
@@ -277,22 +293,33 @@ export default function TrackingPage() {
                 fallbackMap.set(v.asin, v);
             });
 
-            const enrichedData = allData.map((product: any) => {
-                // Try precise match first, then fallback
-                const validationData = validationMap.get(`${product.asin}_${product.journey_id}`) || fallbackMap.get(product.asin);
+           const enrichedData = allData.map((product: any) => {
+  const validationData =
+    validationMap.get(`${product.asin}_${product.journey_id}`) ||
+    fallbackMap.get(product.asin);
 
-                return {
-                    ...product,
-                    product_name: product.product_name ?? null,
-                    origin_india: product.origin_india ?? false,
-                    origin_china: product.origin_china ?? false,
-                    validation_funnel: validationData?.funnel ?? null,
-                    validation_seller_tag: validationData?.seller_tag ?? null,
-                    product_weight: validationData?.product_weight ?? null,
-                    usd_price: validationData?.usd_price ?? null,
-                    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
-                }
-            })
+  // ✅ ONLY THIS LINE ADDED
+
+  return {
+    ...product,
+    product_name: product.product_name ?? null,
+
+    origin_india:
+    ((product.origin || '').toLowerCase().includes('india')) ||
+    product.origin_india === true,
+
+  origin_china:
+    ((product.origin || '').toLowerCase().includes('china')) ||
+    product.origin_china === true,
+
+    validation_funnel: validationData?.funnel ?? null,
+    validation_seller_tag: validationData?.seller_tag ?? null,
+    product_weight: validationData?.product_weight ?? null,
+    usd_price: validationData?.usd_price ?? null,
+    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+  };
+});
+
 
             setProducts(enrichedData)
         } catch (error) {
@@ -967,24 +994,45 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.origin && (
-                                                            <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.origin}px` }}>
-                                                                <div className="flex flex-wrap gap-2 justify-center">
-                                                                    {product.origin_india && (
-                                                                        <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold">
-                                                                            India
-                                                                        </span>
-                                                                    )}
-                                                                    {product.origin_china && (
-                                                                        <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold">
-                                                                            China
-                                                                        </span>
-                                                                    )}
-                                                                    {!product.origin_india && !product.origin_china && (
-                                                                        <span className="text-xs text-slate-600 italic">-</span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        )}
+  <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: columnWidths.origin + 'px' }}>
+    <div className="flex flex-col gap-1 items-center">
+      {/* First priority: Show origin text field */}
+      {product.origin && !['both', 'india, china'].includes(product.origin.toLowerCase()) ? (
+        <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
+          product.origin.toLowerCase() === 'india' 
+            ? 'bg-orange-500 text-white' 
+            : product.origin.toLowerCase() === 'china'
+            ? 'bg-red-500 text-white'
+            : 'bg-slate-700 text-white'
+        }`}>
+          {product.origin}
+        </span>
+      ) : (
+        <>
+          {/* Show India if true */}
+          {product.origin_india && (
+            <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold whitespace-nowrap">
+              India
+            </span>
+          )}
+          
+          {/* Show China if true */}
+          {product.origin_china && (
+            <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold whitespace-nowrap">
+              China
+            </span>
+          )}
+          
+          {/* Show "-" only if BOTH are false */}
+          {!product.origin_india && !product.origin_china && (
+            <span className="text-xs text-slate-600 italic">-</span>
+          )}
+        </>
+      )}
+    </div>
+  </td>
+)}
+
                                                         {visibleColumns.buyingprice && (
                                                             <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.buyingprice}px` }}>
                                                                 {product.buying_price ?? '-'}

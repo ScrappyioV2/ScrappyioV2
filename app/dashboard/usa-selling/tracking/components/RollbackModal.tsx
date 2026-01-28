@@ -200,10 +200,10 @@ export default function RollbackModal({
                         delivery_date: item.delivery_date,
                         product_weight: item.product_weight,
 
-                        // Origin fields - Calculate boolean flags from text field
-                        origin: item.origin || 'India',  // ✅ Default to India if null
-                        origin_india: (item.origin?.toLowerCase() === 'india') || (!item.origin),  // ✅ True if India or null
-                        origin_china: item.origin?.toLowerCase() === 'china',  // ✅ True only if China
+                        // ✅ Origin fields - FIXED (supports India, China, or both)
+                        origin: item.origin || 'India',
+    origin_india: item.origin_india ?? false,  // ✅ CHANGED - Direct from DB
+    origin_china: item.origin_china ?? false,
 
                         // Funnel fields
                         funnel: item.funnel,

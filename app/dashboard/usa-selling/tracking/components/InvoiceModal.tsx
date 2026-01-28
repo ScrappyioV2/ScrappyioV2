@@ -15,6 +15,8 @@ type InvoiceItem = {
   seller_tag?: string | null;  // ✅ ADDED
   inr_purchase_link?: string | null;  // ✅ ADDED
   origin?: string | null;
+  origin_india?: boolean | null;
+  origin_china?: boolean | null;
   buying_price: number | null;
   buying_quantity: number | null;
   seller_link?: string | null;  // ✅ ADDED
@@ -22,6 +24,9 @@ type InvoiceItem = {
   tracking_details: string | null;
   delivery_date: string | null;
   product_weight?: number | null;
+  seller_phone?: string | null;      // ✅ ADDED
+  funnel_quantity?: number | null;   // ✅ ADDED
+  funnel_seller?: string | null;     
 };
 
 interface InvoiceModalProps {
@@ -91,14 +96,19 @@ export default function InvoiceModal({
         seller_tag: item.seller_tag || '',  // ✅ ADDED
         inr_purchase_link: item.inr_purchase_link || '',  // ✅ ADDED
         origin: item.origin || '',  // ✅ ADDED
+        origin_india: item.origin_india ?? false,
+        origin_china: item.origin_china ?? false,
         weight: item.product_weight || 0,
         qty: item.buying_quantity || 0,
         price: item.buying_price || 0,
         amount: (item.buying_quantity || 0) * (item.buying_price || 0),
-        seller_link: item.seller_link || '',  // ✅ ADDED
+        seller_link: item.seller_link || '',
+        seller_phone: item.seller_phone || '',  // ✅ ADDED
         payment_method: item.payment_method || '',  // ✅ ADDED
         tracking_details: item.tracking_details || '',
         delivery_date: item.delivery_date || '',
+        funnel_quantity: item.funnel_quantity || 0,  // ✅ ADD THIS LINE
+        funnel_seller: item.funnel_seller || '', 
       };
     });
 
@@ -169,100 +179,139 @@ export default function InvoiceModal({
 
   // Handle Save Button
   const handleSave = async () => {
-    if (!uploadedFile) {
-      alert('Please upload an invoice first!');
-      return;
-    }
+  if (!uploadedFile) {
+    alert('Please upload an invoice first!');
+    return;
+  }
 
-    try {
-      // 1. Save to MASTER table (usa_company_invoice)
-      const { error: masterError } = await supabase
-        .from('usa_company_invoice')
-        .upsert(
-          {
-            invoice_number: invoiceNo,
-            invoice_date: invoiceDate,
-            uploaded_invoice_url: uploadedFile.url,
-            uploaded_invoice_name: uploadedFile.name,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'invoice_number' }
-        );
+  try {
+    // 1. Save to MASTER table (usa_company_invoice)
+    const { error: masterError } = await supabase
+      .from('usa_company_invoice')
+      .upsert(
+        {
+          invoice_number: invoiceNo,
+          invoice_date: invoiceDate,
+          uploaded_invoice_url: uploadedFile.url,
+          uploaded_invoice_name: uploadedFile.name,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'invoice_number' }
+      );
 
-      if (masterError) throw masterError;
+    if (masterError) throw masterError;
 
-      const payload = editableItems.map((item) => ({
-  invoice_number: invoiceNo,
-  invoice_date: invoiceDate,
-  asin: item.asin,
-  product_link: item.product_link || null,  // ✅ ADDED
-  product_name: item.product_name,
-  target_price: item.target_price || null,  // ✅ ADDED
-  target_quantity: item.target_quantity || null,  // ✅ ADDED
-  admin_target_price: item.admin_target_price || null,  // ✅ ADDED
-  funnel: item.funnel || null,  // ✅ ADDED
-  seller_tag: item.seller_tag || null,  // ✅ ADDED
-  inr_purchase_link: item.inr_purchase_link || null,  // ✅ ADDED
-  origin: item.origin || null,  // ✅ ADDED
-  product_weight: item.weight,
-  buying_quantity: item.qty,
-  buying_price: item.price,
-  amount: item.amount,
-  seller_link: item.seller_link || null,  // ✅ ADDED
-  payment_method: item.payment_method || null,  // ✅ ADDED
-  tracking_details: item.tracking_details,
-  delivery_date: item.delivery_date || null,
-  gst_number: gstNumber,
-  cgst: cgst,
-  sgst: sgst,
-  tax_amount: tax,
-  total_amount: grandTotal,
-  authorized_signature: authorizedSignature,
-  seller_company: sellerCompany,
-  uploaded_invoice_url: uploadedFile.url,
-  uploaded_invoice_name: uploadedFile.name,
-}));
+    const payload = editableItems.map((item) => {
+  // 🔥 BUILD ORIGIN STRING SAFELY
+  const originValue =
+    item.origin?.trim()
+      ? item.origin
+      : [
+          item.origin_india ? 'India' : null,
+          item.origin_china ? 'China' : null,
+        ].filter(Boolean).join(', ') || null;
 
+  return {
+    invoice_number: invoiceNo,  
+    invoice_date: invoiceDate,
+    asin: item.asin,
+    product_link: item.product_link || null,
+    product_name: item.product_name,
+    target_price: item.target_price ?? null,
+    target_quantity: item.target_quantity ?? null,
+    admin_target_price: item.admin_target_price ?? null,
+    funnel: item.funnel || null,
+    seller_tag: item.seller_tag || null,
+    inr_purchase_link: item.inr_purchase_link || null,
 
-      // 3. Insert into detail table
-      const { error: insertError } = await supabase
-        .from('usa_tracking_company_invoice')
-        .insert(payload);
+    // ✅ ONLY THIS GOES TO DB
+    origin: originValue,
+    origin_india: item.origin_india ?? false,  // ✅ ADDED
+    origin_china: item.origin_china ?? false,
 
-      if (insertError) throw insertError;
+    product_weight: item.weight ?? null,
+    buying_quantity: item.qty ?? 0,
+    buying_price: item.price ?? 0,
+    amount: item.amount ?? 0,
 
-      // 4. Delete ASINs from usa_traking (Main File)
-      const asinsToDelete = editableItems.map(item => item.asin);
-      const { error: deleteError } = await supabase
-        .from('usa_traking')
-        .delete()
-        .in('asin', asinsToDelete);
+    seller_link: item.seller_link || null,
+    seller_phone: item.seller_phone || null,
+    payment_method: item.payment_method || null,
+    tracking_details: item.tracking_details || null,
+    delivery_date: item.delivery_date || null,
+    funnel_quantity: item.funnel_quantity ?? null,
+    funnel_seller: item.funnel_seller || null,
 
-      if (deleteError) {
-        console.error('Delete error:', deleteError);
-        // Don't throw - invoice is already saved, just log the error
-      }
+    // ✅ FIX NUMERIC BUG
+    cgst: typeof cgst === 'number' ? cgst : 0,
+    sgst: typeof sgst === 'number' ? sgst : 0,
+    tax_amount: Number(tax) || 0,
+    total_amount: Number(grandTotal) || 0,
 
-      setToast({
-        message: 'Invoice saved successfully!',
-        type: 'success'
-      });
-
-      // Close modal and refresh after short delay
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 1500);
-
-    } catch (error: any) {
-      console.error('Save Error:', error);
-      setToast({
-        message: 'Save failed: ' + error.message,
-        type: 'error'
-      });
-    }
-
+    authorized_signature: authorizedSignature || null,
+    seller_company: sellerCompany,
+    uploaded_invoice_url: uploadedFile.url,
+    uploaded_invoice_name: uploadedFile.name,
   };
+});
+
+
+    // ✅ DEBUG LOGS - ADD THESE
+    console.log('🚀 Invoice Number:', invoiceNo);
+    console.log('🚀 Invoice Date:', invoiceDate);
+    console.log('🚀 Total items:', payload.length);
+    console.log('🚀 First item:', payload[0]);
+    console.log('🚀 Full payload:', JSON.stringify(payload, null, 2));
+
+    // 3. Insert into detail table
+    const { data: insertData, error: insertError } = await supabase
+      .from('usa_tracking_company_invoice')
+      .insert(payload);
+
+    // ✅ DEBUG ERROR - ADD THESE
+    if (insertError) {
+      console.error('❌ INSERT ERROR:', insertError);
+      console.error('❌ ERROR CODE:', insertError.code);
+      console.error('❌ ERROR MESSAGE:', insertError.message);
+      console.error('❌ ERROR DETAILS:', insertError.details);
+      console.error('❌ ERROR HINT:', insertError.hint);
+      throw insertError;
+    }
+
+    console.log('✅ Insert successful:', insertData);
+
+    // 4. Delete ASINs from usa_traking (Main File)
+    const asinsToDelete = editableItems.map(item => item.asin);
+    const { error: deleteError } = await supabase
+      .from('usa_traking')
+      .delete()
+      .in('asin', asinsToDelete);
+
+    if (deleteError) {
+      console.error('Delete error:', deleteError);
+      // Don't throw - invoice is already saved, just log the error
+    }
+
+    setToast({
+      message: 'Invoice saved successfully!',
+      type: 'success'
+    });
+
+    // Close modal and refresh after short delay
+    setTimeout(() => {
+      onSuccess();
+      onClose();
+    }, 1500);
+
+  } catch (error: any) {
+    console.error('❌ CATCH ERROR:', error);
+    setToast({
+      message: 'Save failed: ' + error.message,
+      type: 'error'
+    });
+  }
+};
+
 
   if (!open) return null;
 
