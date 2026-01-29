@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -12,9 +12,23 @@ import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
+// ✅ ADD THIS DEBOUNCE UTILITY
+const debounce = <T extends (...args: any[]) => any>(
+    func: T,
+    delay: number
+): ((...args: Parameters<T>) => void) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func(...args), delay);
+    };
+};
+
+
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-    asin: 120,           // Reduced
+    asin: 120,
+    history: 120,           // Reduced
     product_name: 220,   // Reduced from 320
     brand: 110,
     seller_tag: 100,
@@ -32,11 +46,10 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     total_revenue: 100,
     profit: 100,
 };
-
 // Controls how columns consume available width (layout-only)
 const COLUMN_FLEX: Record<string, boolean> = {
     asin: false,
-    product_name: true,        // 👈 main flex column
+    product_name: false,        // 👈 main flex column
     brand: false,
     seller_tag: false,
     funnel: false,
@@ -45,11 +58,9 @@ const COLUMN_FLEX: Record<string, boolean> = {
     product_weight: false,
     usd_price: false,
     inr_purchase: false,
-    inr_purchase_link: true,   // 👈 flex but truncated
+    inr_purchase_link: false,   // 👈 flex but truncated
     judgement: false,
 };
-
-
 // ✅ ADD THIS TYPE for History
 type HistorySnapshot = {
     id: string;
@@ -129,10 +140,10 @@ type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending'
 
 
 const SELLER_STYLES: Record<string, string> = {
-    GR: 'bg-yellow-400 text-black',   // Bright Yellow
-    RR: 'bg-gray-400 text-black',     // Grey
-    UB: 'bg-pink-500 text-white',     // Pink
-    VV: 'bg-purple-600 text-white',   // Purple
+    GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',
+    RR: 'bg-gradient-to-br from-gray-400 to-gray-600 text-white shadow-lg border border-gray-500/30',
+    UB: 'bg-gradient-to-br from-pink-500 to-pink-700 text-white shadow-lg border border-pink-600/30',
+    VV: 'bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-lg border border-purple-700/30',   // Purple
 };
 
 const renderSellerTags = (sellerTag: string | null) => {
@@ -143,16 +154,7 @@ const renderSellerTags = (sellerTag: string | null) => {
             {sellerTag.split(',').map((tag) => {
                 const cleanTag = tag.trim();
                 return (
-                    <span
-                        key={cleanTag}
-                        className={`
-              w-6 h-6
-              flex items-center justify-center
-              rounded-full
-              font-bold text-sm
-              ${SELLER_STYLES[cleanTag] ?? 'bg-slate-700 text-white'}
-            `}
-                    >
+                    <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-sm ${SELLER_STYLES[cleanTag] ?? 'bg-slate-700 text-white'}`}>
                         {cleanTag}
                     </span>
                 );
@@ -162,9 +164,9 @@ const renderSellerTags = (sellerTag: string | null) => {
 };
 
 const FUNNEL_STYLES: Record<string, string> = {
-    HD: 'bg-green-500 text-white',      // High Demand
-    LD: 'bg-blue-500 text-white',       // Low Demand
-    DP: 'bg-yellow-400 text-black',     // Dropshipping
+    HD: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
+    LD: 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg border border-blue-600/30',
+    DP: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'     // Dropshipping
 };
 
 
@@ -174,15 +176,7 @@ const renderFunnelBadge = (funnel: string | null) => {
     const tag = funnel.trim();
 
     return (
-        <span
-            className={`
-        w-9 h-9
-        inline-flex items-center justify-center
-        rounded-full
-        font-bold text-sm
-        ${FUNNEL_STYLES[tag] ?? 'bg-gray-400 text-white'}
-      `}
-        >
+        <span className={`w-7 h-7 inline-flex items-center justify-center rounded-lg font-bold text-sm ${FUNNEL_STYLES[tag] ?? 'bg-gray-400 text-white'}`}>
             {tag}
         </span>
     );
@@ -233,7 +227,7 @@ export default function ValidationPage() {
     // } | null>(null)
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
     const [products, setProducts] = useState<ValidationProduct[]>([])
-    const [filteredProducts, setFilteredProducts] = useState<ValidationProduct[]>([])
+    // const [filteredProducts, setFilteredProducts] = useState<ValidationProduct[]>([])
     const [loading, setLoading] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
@@ -242,6 +236,30 @@ export default function ValidationPage() {
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
     const localEditCountRef = useRef(0);
+    const [isTabSwitching, setIsTabSwitching] = useState(false);
+    // ✅ Store page number for each tab separately
+const [tabPages, setTabPages] = useState<Record<FileTab, number>>({
+    main_file: 1,
+    pass_file: 1,
+    fail_file: 1,
+    pending: 1,
+});
+const [rowsPerPage] = useState(100);
+
+// ✅ Get current page for active tab
+const currentPage = tabPages[activeTab];
+
+
+// ✅ Helper to update page for current tab
+const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
+    setTabPages((prev) => ({
+        ...prev,
+        [activeTab]: typeof pageOrUpdater === 'function' 
+            ? pageOrUpdater(prev[activeTab]) 
+            : pageOrUpdater,
+    }));
+};
+
 
     const fileInputRef = useRef<HTMLInputElement>(null)
     const usaPriceCSVInputRef = useRef<HTMLInputElement>(null)
@@ -284,13 +302,18 @@ export default function ValidationPage() {
 
         try {
             const saved = localStorage.getItem('usa_validation_column_widths');
-            return saved ? JSON.parse(saved) : DEFAULT_COLUMN_WIDTHS;
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // ✅ FIX: Merge with defaults to ensure all keys exist
+                return { ...DEFAULT_COLUMN_WIDTHS, ...parsed };
+            }
+            return DEFAULT_COLUMN_WIDTHS;
         } catch {
             return DEFAULT_COLUMN_WIDTHS;
         }
     });
     const startResize = (key: string, startX: number) => {
-        const startWidth = columnWidths[key];
+        const startWidth = columnWidths[key] || DEFAULT_COLUMN_WIDTHS[key] || 120;
 
         const onMouseMove = (e: MouseEvent) => {
             const newWidth = Math.max(80, startWidth + (e.clientX - startX));
@@ -329,6 +352,13 @@ export default function ValidationPage() {
             console.error('Silent refresh error:', err);
         }
     };
+    // ✅ ADD THIS DEBOUNCED VERSION
+    const debouncedRefresh = useRef(
+        debounce(async () => {
+            await refreshProductsSilently();
+            await fetchStats();
+        }, 1500) // 1.5 second delay
+    ).current;
 
     useEffect(() => {
         if (authLoading) return;
@@ -340,11 +370,11 @@ export default function ValidationPage() {
         // Realtime Subscription
         const channel = supabase
             .channel('validation-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_main_file' }, () => {
-                if (localEditCountRef.current > 0) return;
-                refreshProductsSilently();
-                fetchStats(); // ✅ NEW: Updates without spinner
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'usavalidationmainfile' }, () => {
+                if (localEditCountRef.current > 0) return; // ✅ CHANGED: Skip if local edit in progress
+                debouncedRefresh(); // ✅ CHANGED: Use debounced version
             })
+
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_pass_file' }, () => fetchStats())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_validation_fail_file' }, () => fetchStats())
             .subscribe();
@@ -364,16 +394,17 @@ export default function ValidationPage() {
         };
     }, [authLoading]); // ✅ FIXED: Removed 'activeTab' dependency
 
-    useEffect(() => {
-        applyFilters();
-    }, [products, filters, searchQuery, activeTab]); // Added searchQuery and activeTab
-
     // Clear search and filters when switching tabs
     useEffect(() => {
+        setIsTabSwitching(true);
         setSearchQuery('');
         setFilters({ seller_tag: '', brand: '', funnel: '' });
         setSelectedIds(new Set());
+        // setCurrentPage(1);
+        setTimeout(() => setIsTabSwitching(false), 100);
     }, [activeTab]);
+
+
 
 
     const fetchConstants = async () => {
@@ -398,41 +429,37 @@ export default function ValidationPage() {
         }
     }
 
-    const applyFilters = () => {
-        // START with tab-filtered products
-        let filtered = getTabProducts();
+    //     const applyFilters = () => {
+    //     // START with tab-filtered products
+    //     let filtered = getTabProducts();
 
-        // Apply search query (searches across ASIN, Product Name, Brand)
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(p =>
-                p.asin?.toLowerCase().includes(query) ||
-                p.product_name?.toLowerCase().includes(query) ||
-                p.brand?.toLowerCase().includes(query)
-            );
-        }
+    //     // Apply search query (searches across ASIN, Product Name, Brand)
+    //     if (searchQuery.trim()) {
+    //         const query = searchQuery.toLowerCase();
+    //         filtered = filtered.filter(p =>
+    //             p.asin?.toLowerCase().includes(query) ||
+    //             p.product_name?.toLowerCase().includes(query) ||
+    //             p.brand?.toLowerCase().includes(query)
+    //         );
+    //     }
 
-        // Apply filter dropdowns
-        if (filters.seller_tag) {
-            filtered = filtered.filter(p =>
-                p.seller_tag?.toLowerCase().includes(filters.seller_tag.toLowerCase())
-            );
-        }
+    //     // ✅ OPTIMIZED: Combine all filter checks in single pass
+    //     if (filters.seller_tag || filters.brand || filters.funnel) {
+    //         filtered = filtered.filter(p => {
+    //             const sellerMatch = !filters.seller_tag || 
+    //                 p.seller_tag?.toLowerCase().includes(filters.seller_tag.toLowerCase());
+    //             const brandMatch = !filters.brand || 
+    //                 p.brand?.toLowerCase().includes(filters.brand.toLowerCase());
+    //             const funnelMatch = !filters.funnel || 
+    //                 p.funnel?.toLowerCase().includes(filters.funnel.toLowerCase());
 
-        if (filters.brand) {
-            filtered = filtered.filter(p =>
-                p.brand?.toLowerCase().includes(filters.brand.toLowerCase())
-            );
-        }
+    //             return sellerMatch && brandMatch && funnelMatch;
+    //         });
+    //     }
 
-        if (filters.funnel) {
-            filtered = filtered.filter(p =>
-                p.funnel?.toLowerCase().includes(filters.funnel.toLowerCase())
-            );
-        }
+    //     setFilteredProducts(filtered);
+    // };
 
-        setFilteredProducts(filtered);
-    };
 
     const fetchStats = async () => {
         try {
@@ -553,25 +580,45 @@ export default function ValidationPage() {
         }
     };
 
+    // ✅ Cache filtered products per tab
+    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({
+        main_file: [],
+        pass_file: [],
+        fail_file: [],
+        pending: []
+    });
+
+
     // Get products for current tab (before search/filters)
-    const getTabProducts = () => {
-        let tabProducts = [...products];
+    // const getTabProducts = () => {
+    //     let tabProducts = [...products];
 
-        // Filter based on active tab
-        if (activeTab === 'pass_file') {
-            // ✅ FIX: Hide items already sent to purchases
-            tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
-        } else if (activeTab === 'fail_file') {
-            tabProducts = tabProducts.filter((p) => p.judgement === 'FAIL');
-        } else if (activeTab === 'pending') {
-            tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
-        } else if (activeTab === 'main_file') {
-            // Main File now shows only PENDING items (same as Pending tab)
-            tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
-        }
+    //     // Filter based on active tab
+    //     if (activeTab === 'pass_file') {
+    //         // ✅ FIX: Hide items already sent to purchases
+    //         tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
+    //     } else if (activeTab === 'fail_file') {
+    //         tabProducts = tabProducts.filter((p) => p.judgement === 'FAIL');
+    //     } else if (activeTab === 'pending') {
+    //         tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
+    //     } else if (activeTab === 'main_file') {
+    //         // Main File now shows only PENDING items (same as Pending tab)
+    //         tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
+    //     }
+    //     tabProductsCache.current[activeTab] = tabProducts;
+    //     return tabProducts;
+    // };
+    // ✅ Add this useEffect to clear cache when products change
+    useEffect(() => {
+        // Clear cache when products array updates
+        tabProductsCache.current = {
+            main_file: [],
+            pass_file: [],
+            fail_file: [],
+            pending: []
+        };
+    }, [products]);
 
-        return tabProducts;
-    };
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
         localEditCountRef.current += 1;; // ✅ START local edit lock
@@ -604,21 +651,71 @@ export default function ValidationPage() {
             }
 
             // Update UI immediately
+            // Update UI immediately
             setProducts((prev) =>
                 prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
             );
-            setFilteredProducts((prev) =>
-                prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-            );
+
 
         } catch (err) {
             console.error('Update error:', err);
             setToast({ message: 'Update failed', type: 'error' });
+            await new Promise(resolve => setTimeout(resolve, 100));
         } finally {
             // ✅ RELEASE lock after short delay
             localEditCountRef.current -= 1;
         }
     };
+
+    // ✅ STEP 1: Filter products
+    const allFilteredProducts = useMemo(() => {
+        let result = products;
+
+        if (activeTab === 'pass_file') {
+            result = products.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
+        } else if (activeTab === 'fail_file') {
+            result = products.filter((p) => p.judgement === 'FAIL');
+        } else if (activeTab === 'pending' || activeTab === 'main_file') {
+            result = products.filter((p) => !p.judgement || p.judgement === 'PENDING');
+        }
+
+        // Search query
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(
+                (p) =>
+                    p.asin?.toLowerCase().includes(query) ||
+                    p.product_name?.toLowerCase().includes(query) ||
+                    p.brand?.toLowerCase().includes(query)
+            );
+        }
+
+        // Filters
+        if (filters.seller_tag || filters.brand || filters.funnel) {
+            result = result.filter((p) => {
+                const sellerMatch = !filters.seller_tag ||
+                    p.seller_tag?.toLowerCase().includes(filters.seller_tag.toLowerCase());
+                const brandMatch = !filters.brand ||
+                    p.brand?.toLowerCase().includes(filters.brand.toLowerCase());
+                const funnelMatch = !filters.funnel ||
+                    p.funnel?.toLowerCase().includes(filters.funnel.toLowerCase());
+
+                return sellerMatch && brandMatch && funnelMatch;
+            });
+        }
+
+        return result;
+    }, [products, activeTab, searchQuery, filters]);
+
+    // ✅ STEP 2: Paginate (only show 100 rows)
+    const filteredProducts = useMemo(() => {
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        return allFilteredProducts.slice(startIndex, endIndex);
+    }, [allFilteredProducts, currentPage, rowsPerPage]);
+
+    // ✅ STEP 3: Calculate total pages
+    const totalPages = Math.ceil(allFilteredProducts.length / rowsPerPage);
 
 
 
@@ -1109,7 +1206,7 @@ export default function ValidationPage() {
 
             // Immediate UI update
             setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
             setToast({
@@ -1160,7 +1257,7 @@ export default function ValidationPage() {
 
             // Immediate UI update
             setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
             setToast({
@@ -1211,7 +1308,7 @@ export default function ValidationPage() {
 
             // Immediate UI update
             setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
             setToast({
@@ -1592,8 +1689,21 @@ export default function ValidationPage() {
                         ) : (
                             <>
                                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                                    {/* ✅ ADD THIS LOADING OVERLAY */}
+                                    {isTabSwitching && (
+                                        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50">
+                                            <div className="flex items-center gap-3 bg-slate-800 px-6 py-4 rounded-xl shadow-2xl border border-slate-700">
+                                                <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                                                <span className="text-slate-200 font-semibold">
+                                                    Loading {activeTab.replace('_', ' ')}...
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <table className="w-full table-fixed max-w-full">
                                         <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
+
                                             <tr>
                                                 {/* ✅ Fixed width for checkbox to prevent overlap */}
                                                 <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
@@ -1608,12 +1718,13 @@ export default function ValidationPage() {
                                                 {/* ✅ Resizable Columns */}
                                                 {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
                                                 {/* ✅ HISTORY COLUMN */}
-                                                <th
-                                                    className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 border-r border-slate-800"
-                                                    style={{ width: '200px', minWidth: '200px' }}
-                                                >
-                                                    HISTORY
-                                                </th>
+                                                {/* HISTORY COLUMN */}
+                                                <ResizableTH
+                                                    width={columnWidths.history}
+                                                    columnKey="history"
+                                                    label="HISTORY"
+                                                    onResizeStart={startResize}
+                                                />
                                                 {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
                                                 {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
                                                 {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
@@ -1680,14 +1791,22 @@ export default function ValidationPage() {
                                                     {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
 
                                                     {visibleColumns.usa_link && (
-                                                        <td className="p-3">
+                                                        <td className="p-3 overflow-hidden text-center">
                                                             {product.usa_link ? (
-                                                                <a href={product.usa_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline">
+                                                                <a
+                                                                    href={product.usa_link}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline text-sm truncate block"
+                                                                >
                                                                     View
                                                                 </a>
-                                                            ) : '-'}
+                                                            ) : (
+                                                                <span className="text-slate-600 text-xs">-</span>
+                                                            )}
                                                         </td>
                                                     )}
+
 
                                                     {activeTab === 'pass_file' && (
                                                         <td className="p-3">
@@ -1764,13 +1883,13 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                        <td className="px-4 py-3 text-sm">
+                                                        <td className="px-4 py-3 text-sm overflow-hidden">
                                                             <input
                                                                 type="url"
                                                                 value={product.inr_purchase_link || ''}
                                                                 onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
                                                                 placeholder="Enter supplier link..."
-                                                                className="w-full max-w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate"
                                                             />
                                                         </td>
                                                     )}
@@ -1839,7 +1958,58 @@ export default function ValidationPage() {
                                     </table>
                                 </div>
 
-                                {/* Footer Stats - Fixed at bottom of table */}
+                                {allFilteredProducts.length > rowsPerPage && (
+                                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900">
+                                        <div className="text-sm text-slate-400">
+                                            Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{allFilteredProducts.length}</span> products
+                                            {selectedIds.size > 0 && (
+                                                <span className="ml-4">
+                                                    (<span className="font-bold text-indigo-400">{selectedIds.size}</span> selected)
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setCurrentPage(1)}
+                                                disabled={currentPage === 1}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                            >
+                                                First
+                                            </button>
+                                            
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                disabled={currentPage === 1}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                            >
+                                                Previous
+                                            </button>
+
+                                            <span className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold">
+                                                Page {currentPage} of {totalPages}
+                                            </span>
+
+                                            <button
+                                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                disabled={currentPage === totalPages}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                            >
+                                                Next
+                                            </button>
+
+                                            <button
+                                                onClick={() => setCurrentPage(totalPages)}
+                                                disabled={currentPage === totalPages}
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                            >
+                                                Last
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Footer Stats - Fixed at bottom of table
                                 <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
                                     <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
                                         <span className="font-medium">
@@ -1851,7 +2021,7 @@ export default function ValidationPage() {
                                             </span>
                                         )}
                                     </div>
-                                </div>
+                                </div> */}
                             </>
                         )}
                     </div>
@@ -2055,7 +2225,6 @@ export default function ValidationPage() {
                     </>
                 )}
             </AnimatePresence>
-
         </PageTransition>
     )
 }
