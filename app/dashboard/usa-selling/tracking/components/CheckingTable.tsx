@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { getTrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -57,7 +58,15 @@ const DEFAULT_COLUMN_WIDTHS = {
   action: 120,
 };
 
-export default function CheckingTable() {
+interface CheckingTableProps {
+  sellerId: number;
+  onCountsChange?: () => void | Promise<void>;
+}
+
+export default function CheckingTable({
+  sellerId,
+  onCountsChange
+}: CheckingTableProps) {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<{
@@ -67,6 +76,8 @@ export default function CheckingTable() {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  // 🔴 ADD THIS NEW STATE
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
   const [visibleColumns, setVisibleColumns] = useState({  // ✅ ADDED
     expand: true,
@@ -79,6 +90,7 @@ export default function CheckingTable() {
     price: true,
     amount: true,
     tax_amount: true,
+    total_amount: true,
     tracking: true,
     delivery_date: true,
     company: true,
@@ -120,8 +132,9 @@ export default function CheckingTable() {
       let hasMore = true;
 
       while (hasMore) {
+        const tableName = getTrackingTableName('CHECKING', sellerId); // usa_checking_seller_X
         const { data, error } = await supabase
-          .from('usa_checking')
+          .from(tableName)
           .select('*')
           .order('moved_at', { ascending: false })
           .range(from, from + batchSize - 1);
@@ -190,29 +203,137 @@ export default function CheckingTable() {
     });
   };
 
-  // Handle checkbox change
+  // Handle checkbox change - Move ENTIRE INVOICE to BOTH Shipment AND Vyapar
+  // Handle checkbox change - Mark individual item as RECEIVED
   const handleCheckboxChange = async (itemId: string, checked: boolean) => {
     try {
+      console.log(`${checked ? '✅' : '❌'} Marking item as ${checked ? 'received' : 'not received'}:`, itemId);
+
       // Update database
+      const tableName = getTrackingTableName('CHECKING', sellerId);
       const { error } = await supabase
-        .from('usa_checking')
+        .from(tableName)
         .update({ product_received: checked })
         .eq('id', itemId);
 
       if (error) throw error;
 
-      // Update local state - Create NEW array to force React re-render
-      setItems((prevItems) => {
-        const newItems = prevItems.map((item) =>
+      // Update local state
+      setItems((prevItems) =>
+        prevItems.map((item) =>
           item.id === itemId ? { ...item, product_received: checked } : item
-        );
-        console.log(`✅ Checkbox ${checked ? 'checked' : 'unchecked'} for item ${itemId}`);
-        console.log('🔄 Updated item:', newItems.find(i => i.id === itemId));
-        return [...newItems]; // Force new array reference
-      });
+        )
+      );
+
+      console.log('✅ Product received status updated');
     } catch (error: any) {
-      console.error('Error updating checkbox:', error);
-      alert('Failed to update checkbox: ' + error.message);
+      console.error('❌ Error updating received status:', error);
+      alert(`Failed to update: ${error.message}`);
+    }
+  };
+
+  // Move ONLY received items to Shipment + Vyapar
+  // Move items to Shipment & Vyapar
+  const handleMoveToShipment = async (itemIds: string[]) => {
+    try {
+      console.log('Moving items to Shipment & Vyapar:', itemIds)
+
+      // 1. Get items to move from CHECKING table (removed product_received filter)
+      const checkingTableName = getTrackingTableName('CHECKING', sellerId)
+      const { data: itemsToMove, error: fetchError } = await supabase
+        .from(checkingTableName)
+        .select('*')
+        .in('id', itemIds)
+
+      if (fetchError) throw fetchError
+
+      if (!itemsToMove || itemsToMove.length === 0) {
+        alert('No items found to move.')
+        return
+      }
+
+      console.log(`📦 Found ${itemsToMove.length} received items to move`);
+
+      // 2. Prepare data (remove id, created_at, product_received)
+      const preparedData = itemsToMove.map((item) => {
+        const { id, created_at, product_received, ...rest } = item;
+        return {
+          ...rest,
+          moved_at: new Date().toISOString(),
+        };
+      });
+
+      // 3. Prepare Shipment data
+      const shipmentData = preparedData.map(item => ({
+        ...item,
+        status: 'shipped',
+      }));
+
+      // 4. Prepare Vyapar data
+      const vyaparData = preparedData.map(item => ({
+        ...item,
+        status: 'vyapar_logged',
+      }));
+
+      // 5. Insert into SHIPMENT table
+      const shipmentTableName = getTrackingTableName('SHIPMENT', sellerId);
+      console.log('📥 Inserting into Shipment:', shipmentTableName);
+
+      const { error: shipmentInsertError } = await supabase
+        .from(shipmentTableName)
+        .insert(shipmentData);
+
+      if (shipmentInsertError) {
+        console.error('❌ Shipment insert error:', shipmentInsertError);
+        throw shipmentInsertError;
+      }
+
+      console.log('✅ Shipment insert successful');
+
+      // 6. Insert into VYAPAR table
+      const vyaparTableName = getTrackingTableName('VYAPAR', sellerId);
+      console.log('📥 Inserting into Vyapar:', vyaparTableName);
+
+      const { error: vyaparInsertError } = await supabase
+        .from(vyaparTableName)
+        .insert(vyaparData);
+
+      if (vyaparInsertError) {
+        console.error('❌ Vyapar insert error:', vyaparInsertError);
+        throw vyaparInsertError;
+      }
+
+      console.log('✅ Vyapar insert successful');
+
+      // 7. Delete from CHECKING table
+      console.log('🗑️ Deleting from:', checkingTableName);
+
+      const { error: deleteError } = await supabase
+        .from(checkingTableName)
+        .delete()
+        .in('id', itemIds);
+
+      if (deleteError) {
+        console.error('❌ Delete error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('✅ Delete successful');
+
+      // 8. Update local state - remove moved items
+      setItems((prevItems) =>
+        prevItems.filter((item) => !itemIds.includes(item.id))
+      );
+
+      // 9. Trigger parent count refresh
+      if (onCountsChange) {
+        onCountsChange();
+      }
+
+      alert(`✅ ${itemsToMove.length} item(s) moved to Shipment + Vyapar!`);
+    } catch (error: any) {
+      console.error('❌ Error moving items:', error);
+      alert(`Failed to move items: ${error.message}`);
     }
   };
 
@@ -253,8 +374,9 @@ export default function CheckingTable() {
       }
 
       // Update database
+      const tableName = getTrackingTableName('CHECKING', sellerId);
       const { error } = await supabase
-        .from('usa_checking')
+        .from(tableName)
         .update(updateData)
         .eq('id', itemId);
 
@@ -269,6 +391,112 @@ export default function CheckingTable() {
     }
   };
 
+  // 🔴 ADD THESE THREE NEW FUNCTIONS
+
+  // Handle select all checkbox
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allItemIds = new Set<string>();
+      items.forEach(item => allItemIds.add(item.id));
+      setSelectedItemIds(allItemIds);
+    } else {
+      setSelectedItemIds(new Set());
+    }
+  };
+
+  // Handle individual row selection
+  const handleRowSelect = (itemId: string, checked: boolean) => {
+    setSelectedItemIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(itemId);
+      } else {
+        newSet.delete(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle bulk move all selected items
+  const handleBulkMoveToShipment = async () => {
+    if (selectedItemIds.size === 0) {
+      alert('No items selected');
+      return;
+    }
+
+    const confirmed = confirm(`Move ${selectedItemIds.size} item(s) to Shipment & Vyapar?`);
+    if (!confirmed) return;
+
+    try {
+      console.log('🚀 Bulk moving items:', Array.from(selectedItemIds));
+
+      // 1. Get items from CHECKING table
+      const checkingTableName = getTrackingTableName('CHECKING', sellerId);
+      const { data: itemsToMove, error: fetchError } = await supabase
+        .from(checkingTableName)
+        .select('*')
+        .in('id', Array.from(selectedItemIds));
+
+      if (fetchError) throw fetchError;
+      if (!itemsToMove || itemsToMove.length === 0) {
+        alert('No items found to move.');
+        return;
+      }
+
+      console.log(`📦 Found ${itemsToMove.length} items to move`);
+
+      // 2. Prepare data
+      const preparedData = itemsToMove.map((item: any) => {
+        const { id, created_at, product_received, ...rest } = item;
+        return {
+          ...rest,
+          moved_at: new Date().toISOString(),
+        };
+      });
+
+      // 3. Insert into SHIPMENT
+      const shipmentTableName = getTrackingTableName('SHIPMENT', sellerId);
+      const shipmentData = preparedData.map(item => ({ ...item, status: 'shipped' }));
+      const { error: shipmentInsertError } = await supabase
+        .from(shipmentTableName)
+        .insert(shipmentData);
+
+      if (shipmentInsertError) throw shipmentInsertError;
+      console.log('✅ Shipment insert successful');
+
+      // 4. Insert into VYAPAR
+      const vyaparTableName = getTrackingTableName('VYAPAR', sellerId);
+      const vyaparData = preparedData.map(item => ({ ...item, status: 'vyapar_logged' }));
+      const { error: vyaparInsertError } = await supabase
+        .from(vyaparTableName)
+        .insert(vyaparData);
+
+      if (vyaparInsertError) throw vyaparInsertError;
+      console.log('✅ Vyapar insert successful');
+
+      // 5. Delete from CHECKING
+      const { error: deleteError } = await supabase
+        .from(checkingTableName)
+        .delete()
+        .in('id', Array.from(selectedItemIds));
+
+      if (deleteError) throw deleteError;
+      console.log('✅ Delete successful');
+
+      // 6. Update UI
+      setItems(prevItems => prevItems.filter(item => !selectedItemIds.has(item.id)));
+      setSelectedItemIds(new Set());
+
+      if (onCountsChange) {
+        onCountsChange();
+      }
+
+      alert(`✅ ${itemsToMove.length} item(s) moved to Shipment & Vyapar!`);
+    } catch (error: any) {
+      console.error('❌ Error moving items:', error);
+      alert('Failed to move items: ' + error.message);
+    }
+  };
 
   // ✅ NEW: Truncate text helper function
   const truncateText = (text: string, maxLength: number): string => {
@@ -686,6 +914,23 @@ export default function CheckingTable() {
                     </th>
                   )}
 
+                  {/* Total Amount */}
+                  {visibleColumns.total_amount && (
+                    <th
+                      className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-slate-800 select-none"
+                      onMouseDown={(e) => handleResizeStart('tax_amount', e)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #6366f1';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderRight = '2px solid #475569';
+                      }}
+                    >
+                      Total Amount
+                    </th>
+                  )}
+
+
                   {/* Tracking Details */}
                   {visibleColumns.tracking && (
                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tracking }}>
@@ -786,7 +1031,7 @@ export default function CheckingTable() {
                     </th>
                   )}
 
-                  {/* Action */}
+                  {/* 🔴 KEEP THIS SIMPLE - NO BULK BUTTON IN HEADER */}
                   {visibleColumns.action && (
                     <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400" style={{ width: columnWidths.action }}>
                       Action
@@ -926,6 +1171,12 @@ export default function CheckingTable() {
                               {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
                             </td>
                           )}
+                          {visibleColumns.total_amount && (
+                            <td className="px-4 py-3 text-sm font-bold text-green-400 bg-green-900/10 border-r border-slate-800/50">
+                              ₹ {(group.total_amount + group.total_tax).toFixed(2)}
+                            </td>
+                          )}
+
                           {visibleColumns.tracking && (
                             <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tracking }}>
                               {!hasMultipleItems ? (
@@ -984,22 +1235,60 @@ export default function CheckingTable() {
                             </td>
                           )}
 
-                          {/* Action Column - Checkbox OR "Done" */}
+                          {/* Action Column - Selection Checkbox */}
+                          {/* 🔴 SHOW BULK BUTTON IN MAIN INVOICE ROW */}
+                          {/* 🔴 DUAL ACTION: Checkbox + Individual Send + Bulk Button */}
                           {visibleColumns.action && (
                             <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
                               {!hasMultipleItems ? (
-                                group.items[0].product_received ? (
-                                  <span className="text-green-400 font-semibold">Done</span>
-                                ) : (
+                                <div className="flex items-center justify-center gap-2">
+                                  {/* 🔥 FIXED LOGIC */}
+                                  {selectedItemIds.size === 0 ? (
+                                    // ✅ NO SELECTION - Show individual "Send" button
+                                    <button
+                                      onClick={() => handleMoveToShipment([group.items[0].id])}
+                                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                      title="Send this item to Shipment & Vyapar"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                      </svg>
+                                      Send
+                                    </button>
+                                  ) : selectedItemIds.size === 1 && selectedItemIds.has(group.items[0].id) ? (
+                                    // ✅ SINGLE ITEM SELECTED - Show "Done" button
+                                    <button
+                                      onClick={() => handleMoveToShipment([group.items[0].id])}
+                                      className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                      title="Move this item to Shipment & Vyapar"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                      Done
+                                    </button>
+                                  ) : selectedItemIds.size > 1 && selectedItemIds.has(group.items[0].id) && Array.from(selectedItemIds)[0] === group.items[0].id ? (
+                                    // ✅ MULTIPLE ITEMS SELECTED - Show "Bulk Send" button on first selected row
+                                    <button
+                                      onClick={handleBulkMoveToShipment}
+                                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg whitespace-nowrap flex items-center gap-1"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      </svg>
+                                      Bulk Send ({selectedItemIds.size})
+                                    </button>
+                                  ) : null}
+
+                                  {/* ✅ Checkbox for Selection (Always visible) */}
                                   <input
                                     type="checkbox"
-                                    checked={group.items[0].product_received || false}
-                                    onChange={(e) =>
-                                      handleCheckboxChange(group.items[0].id, e.target.checked)
-                                    }
-                                    className="w-5 h-5 cursor-pointer accent-green-600"
+                                    checked={selectedItemIds.has(group.items[0].id)}
+                                    onChange={(e) => handleRowSelect(group.items[0].id, e.target.checked)}
+                                    className="w-5 h-5 cursor-pointer accent-indigo-600 rounded"
+                                    title="Select for bulk action"
                                   />
-                                )
+                                </div>
                               ) : (
                                 <span className="text-slate-600">-</span>
                               )}
@@ -1103,27 +1392,58 @@ export default function CheckingTable() {
                                         </span>
                                       </div>
 
-                                      {/* Action - Checkbox OR Done */}
-                                      <div className="flex items-center min-w-[100px] justify-end">
-                                        {item.product_received ? (
-                                          <span className="flex items-center gap-1.5 bg-green-600/20 text-green-400 px-3 py-1 rounded-md font-semibold text-xs border border-green-600/30">
-                                            <span>✓</span> Done
+                                      {/* Action - Checkbox → Done → Move to Shipment */}
+                                      {/* 🔴 DUAL ACTION: Individual Send + Checkbox */}
+                                      {/* Action - Show Done/Bulk Send based on selection */}
+                                      <div className="flex items-center gap-2 min-w-[140px] justify-end">
+                                        {/* 🔥 FIXED LOGIC - Same as main row */}
+                                        {selectedItemIds.size === 0 ? (
+                                          // ✅ NO SELECTION - Show "Send" button
+                                          <button
+                                            onClick={() => handleMoveToShipment([item.id])}
+                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                          >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                            </svg>
+                                            Send
+                                          </button>
+                                        ) : selectedItemIds.size === 1 && selectedItemIds.has(item.id) ? (
+                                          // ✅ SINGLE ITEM SELECTED - Show "Done" button
+                                          <button
+                                            onClick={() => handleMoveToShipment([item.id])}
+                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
+                                          >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Done
+                                          </button>
+                                        ) : selectedItemIds.size > 1 && selectedItemIds.has(item.id) && Array.from(selectedItemIds)[0] === item.id ? (
+                                          // ✅ MULTIPLE ITEMS SELECTED - Show "Bulk Send" on first selected item
+                                          <button
+                                            onClick={handleBulkMoveToShipment}
+                                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg whitespace-nowrap flex items-center gap-1"
+                                          >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            Bulk Send ({selectedItemIds.size})
+                                          </button>
+                                        ) : null}
+
+                                        {/* ✅ Checkbox - Always visible */}
+                                        <label className="flex items-center gap-1 cursor-pointer group">
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedItemIds.has(item.id)}
+                                            onChange={(e) => handleRowSelect(item.id, e.target.checked)}
+                                            className="w-4 h-4 cursor-pointer accent-indigo-600 rounded"
+                                          />
+                                          <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
+                                            Select
                                           </span>
-                                        ) : (
-                                          <label className="flex items-center gap-2 cursor-pointer group">
-                                            <input
-                                              type="checkbox"
-                                              checked={item.product_received || false}
-                                              onChange={(e) =>
-                                                handleCheckboxChange(item.id, e.target.checked)
-                                              }
-                                              className="w-4 h-4 cursor-pointer accent-green-600"
-                                            />
-                                            <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
-                                              Received
-                                            </span>
-                                          </label>
-                                        )}
+                                        </label>
                                       </div>
                                     </div>
                                   </div>

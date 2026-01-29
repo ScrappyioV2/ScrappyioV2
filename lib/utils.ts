@@ -47,3 +47,53 @@ export const determineCategory = (monthlyUnit: number | null): {
 export const getTableName = (sellerId: number, category: string): string => {
   return `usa_seller_${sellerId}_${category.replace('-', '_')}`;
 };
+
+// ============================================
+// SELLER & TRACKING CONFIGURATION
+// ============================================
+
+export const SELLER_TAG_MAPPING = {
+  'GR': 1, // Golden Aura
+  'RR': 2, // Rudra Retail
+  'UB': 3, // UBeauty
+  'VV': 4  // Velvet Vista
+} as const;
+
+export type SellerTag = keyof typeof SELLER_TAG_MAPPING;
+
+export const TRACKING_STAGES = {
+  MAIN: 'main_file',      // The original usa_tracking_seller_X tables
+  INVOICE: 'usa_invoice',
+  CHECKING: 'usa_checking',
+  SHIPMENT: 'usa_shipment',
+  RESTOCK: 'usa_restock',
+  VYAPAR: 'usa_vyapar'    // Admin only
+} as const;
+
+export type TrackingStage = keyof typeof TRACKING_STAGES;
+
+/**
+ * Helper to get the table name for a specific tracking stage and seller
+ * Example: getTrackingTableName('INVOICE', 1) -> 'usa_invoice_seller_1'
+ */
+export const getTrackingTableName = (stage: TrackingStage, sellerId: number): string => {
+  const prefix = TRACKING_STAGES[stage];
+
+  // Handle the discrepancy where "MAIN" tables are named 'usa_tracking_seller_X'
+  // but the new tables are named 'usa_invoice_seller_X'
+  if (stage === 'MAIN') {
+    return `usa_tracking_seller_${sellerId}`;
+  }
+
+  return `${prefix}_seller_${sellerId}`;
+};
+
+/**
+ * Helper to resolve seller ID from a tag string
+ * Example: resolveSellerId('GR') -> 1
+ */
+export const resolveSellerId = (tag: string): number | null => {
+  // Normalize input (uppercase and trim)
+  const cleanTag = tag?.toUpperCase().trim() as SellerTag;
+  return SELLER_TAG_MAPPING[cleanTag] || null;
+};

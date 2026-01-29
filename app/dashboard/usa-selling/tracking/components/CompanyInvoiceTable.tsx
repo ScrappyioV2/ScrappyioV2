@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { getTrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -42,7 +43,15 @@ type GroupedInvoice = {
   action_status: string | null;
 };
 
-export default function CompanyInvoiceTable() {
+interface CompanyInvoiceTableProps {
+  sellerId: number;
+  onCountsChange?: () => void | Promise<void>;
+}
+
+export default function CompanyInvoiceTable({
+  sellerId,
+  onCountsChange
+}: CompanyInvoiceTableProps) {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,6 +70,7 @@ export default function CompanyInvoiceTable() {
     gst_number: true,
     amount: true,
     tax_amount: true,
+    total_amount: true,
     tracking_details: true,
     delivery_date: true,
     company: true,
@@ -84,8 +94,9 @@ export default function CompanyInvoiceTable() {
       let hasMore = true;
 
       while (hasMore) {
+        const tableName = getTrackingTableName('INVOICE', sellerId); // usa_invoice_seller_X
         const { data, error } = await supabase
-          .from('usa_tracking_company_invoice')
+          .from(tableName)
           .select('*')
           .order('created_at', { ascending: false })
           .range(from, from + batchSize - 1);
@@ -153,81 +164,143 @@ export default function CompanyInvoiceTable() {
   };
 
   // Handle action checkbox
-  const handleActionChange = async (
-    invoiceNumber: string,
-    action: 'pass' | 'fail'
-  ) => {
-    // ❌ Fail button - Do nothing for now
+  const handleActionChange = async (invoiceNumber: string, action: 'pass' | 'fail') => {
+    // Fail button - Do nothing for now
     if (action === 'fail') {
       alert('Fail action is not implemented yet.');
       return;
     }
 
-    // ✅ Pass button - Move to checking table
+    // Pass button - Move to checking table
     if (action === 'pass') {
       try {
-        // 1. Get all items with this invoice_number
-        const itemsToMove = items.filter(
-          (item) => item.invoice_number === invoiceNumber
-        );
+        console.log('🔄 Moving invoice to checking:', invoiceNumber);
 
-        if (itemsToMove.length === 0) {
+        // 1. Get all items with this invoice_number from INVOICE table
+        const invoiceTableName = getTrackingTableName('INVOICE', sellerId);
+        console.log('📋 Fetching from:', invoiceTableName);
+
+        const { data: itemsToMove, error: fetchError } = await supabase
+          .from(invoiceTableName) // ✅ usa_invoice_seller_X
+          .select('*')
+          .eq('invoice_number', invoiceNumber);
+
+        if (fetchError) throw fetchError;
+
+        if (!itemsToMove || itemsToMove.length === 0) {
           alert('No items found for this invoice.');
           return;
         }
 
-        // 2. Prepare data for usa_checking table (only columns that exist)
-        const dataToInsert = itemsToMove.map((item) => {
-          return {
-            // Remove id to generate new ones
-            invoice_number: item.invoice_number,
-            asin: item.asin,
-            product_name: item.product_name,
-            product_weight: item.product_weight,
-            invoice_date: item.invoice_date,
-            gst_number: item.gst_number,
-            buying_price: item.buying_price,
-            buying_quantity: item.buying_quantity,
-            amount: item.amount,
-            cgst: item.cgst,
-            sgst: item.sgst,
-            tax_amount: item.tax_amount,
-            total_amount: item.total_amount,
-            tracking_details: item.tracking_details,
-            delivery_date: item.delivery_date,
-            seller_company: item.seller_company,
-            authorized_signature: item.authorized_signature,
-            uploaded_invoice_url: item.uploaded_invoice_url,
-            uploaded_invoice_name: item.uploaded_invoice_name,
-            action_status: 'pass',
-            moved_at: new Date().toISOString(),
-          };
-        });
+        console.log(`📦 Found ${itemsToMove.length} items to move`);
 
-        // 3. Insert into usa_checking table
+        // 2. Prepare data for checking table (remove id to generate new ones)
+        const dataToInsert = itemsToMove.map((item) => ({
+          // Invoice info
+          invoice_number: item.invoice_number,
+          invoice_date: item.invoice_date,
+          gst_number: item.gst_number || null,
+
+          // Product info
+          asin: item.asin,
+          product_name: item.product_name,
+          product_link: item.product_link || null,
+          brand: item.brand || null,
+          product_weight: item.product_weight || null,
+
+          // Pricing
+          target_price: item.target_price || null,
+          target_quantity: item.target_quantity || null,
+          admin_target_price: item.admin_target_price || null,
+          buying_price: item.buying_price || null,
+          buying_quantity: item.buying_quantity || null,
+          amount: item.amount || null,
+
+          // Tax info
+          cgst: item.cgst || null,
+          sgst: item.sgst || null,
+          tax_amount: item.tax_amount || null,
+          total_amount: item.total_amount || null,
+
+          // Seller info
+          seller_tag: item.seller_tag || null,
+          seller_company: item.seller_company || null,
+          seller_link: item.seller_link || null,
+          seller_phone: item.seller_phone || null,
+          authorized_signature: item.authorized_signature || null,
+
+          // Logistics
+          tracking_details: item.tracking_details || null,
+          delivery_date: item.delivery_date || null,
+          payment_method: item.payment_method || null,
+
+          // Origin
+          origin: item.origin || null,
+          origin_india: item.origin_india ?? false,
+          origin_china: item.origin_china ?? false,
+
+          // Funnel
+          funnel: item.funnel || null,
+          funnel_quantity: item.funnel_quantity || null,
+          funnel_seller: item.funnel_seller || null,
+
+          // Purchase link
+          inr_purchase_link: item.inr_purchase_link || null,
+
+          // Invoice uploads
+          uploaded_invoice_url: item.uploaded_invoice_url || null,
+          uploaded_invoice_name: item.uploaded_invoice_name || null,
+
+          // Journey tracking
+          journey_id: item.journey_id || null,
+          journey_number: item.journey_number || null,
+
+          // Status
+          action_status: 'pass',
+          status: 'checking',
+          moved_at: new Date().toISOString(),
+        }));
+
+        // 3. Insert into CHECKING table
+        const checkingTableName = getTrackingTableName('CHECKING', sellerId);
+        console.log('📥 Inserting into:', checkingTableName);
+
         const { error: insertError } = await supabase
-          .from('usa_checking')
+          .from(checkingTableName) // ✅ usa_checking_seller_X
           .insert(dataToInsert);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('❌ Insert error:', insertError);
+          throw insertError;
+        }
 
-        // 4. Delete from usa_tracking_company_invoice
+        console.log('✅ Insert successful');
+
+        // 4. Delete from INVOICE table (seller-specific)
+        console.log('🗑️ Deleting from:', invoiceTableName);
+
         const { error: deleteError } = await supabase
-          .from('usa_tracking_company_invoice')
+          .from(invoiceTableName) // ✅ FIXED: usa_invoice_seller_X (not usa_tracking_company_invoice!)
           .delete()
           .eq('invoice_number', invoiceNumber);
 
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.error('❌ Delete error:', deleteError);
+          throw deleteError;
+        }
+
+        console.log('✅ Delete successful');
 
         // 5. Refresh the table
         await fetchInvoiceData();
+        if (onCountsChange) {
+          onCountsChange();
+        }
 
-        alert(
-          `✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`
-        );
+        alert(`✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`);
       } catch (error: any) {
-        console.error('Error moving invoice to checking:', error);
-        alert('Failed to move invoice: ' + error.message);
+        console.error('❌ Error moving invoice to checking:', error);
+        alert(`Failed to move invoice: ${error.message}`);
       }
     }
   };
@@ -364,6 +437,12 @@ export default function CompanyInvoiceTable() {
                   {visibleColumns.tax_amount && (
                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tax Amount</th>
                   )}
+                  {visibleColumns.total_amount && (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-slate-800">
+                      Total Amount
+                    </th>
+                  )}
+
                   {visibleColumns.tracking_details && (
                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking Details</th>
                   )}
@@ -441,6 +520,12 @@ export default function CompanyInvoiceTable() {
                               {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
                             </td>
                           )}
+                          {visibleColumns.total_amount && (
+                            <td className="px-4 py-3 text-sm font-bold text-green-400 bg-green-900/10 border-r border-slate-800/50">
+                              ₹ {(group.total_amount + group.total_tax).toFixed(2)}
+                            </td>
+                          )}
+
                           {visibleColumns.tracking_details && (
                             <td className="px-4 py-3 text-slate-300">
                               {!hasMultipleItems ? (

@@ -89,9 +89,9 @@ export default function PurchasesPage() {
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
   // History Sidebar State
-const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
-const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
-const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
+  const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
 
   // Column visibility state - ALL columns visible by default
@@ -299,7 +299,7 @@ const [historyLoading, setHistoryLoading] = useState(false)
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
     checkbox: 50,
     asin: 120,
-    history: 180,  
+    history: 180,
     productlink: 80,
     productname: 120,
     targetprice: 100,
@@ -439,26 +439,26 @@ const [historyLoading, setHistoryLoading] = useState(false)
   }
 
   // Fetch History for Sidebar
-const fetchHistory = async (asin: string) => {
-  setSelectedHistoryAsin(asin)
-  setHistoryLoading(true)
-  try {
-    const { data, error } = await supabase
-      .from('usa_asin_history')
-      .select('*')
-      .eq('asin', asin)
-      .order('created_at', { ascending: false })
-      .limit(5)
-    
-    if (error) throw error
-    setHistoryData(data || [])
-  } catch (err) {
-    console.error(err)
-    alert('Failed to load history')
-  } finally {
-    setHistoryLoading(false)
+  const fetchHistory = async (asin: string) => {
+    setSelectedHistoryAsin(asin)
+    setHistoryLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('usa_asin_history')
+        .select('*')
+        .eq('asin', asin)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (error) throw error
+      setHistoryData(data || [])
+    } catch (err) {
+      console.error(err)
+      alert('Failed to load history')
+    } finally {
+      setHistoryLoading(false)
+    }
   }
-}
 
 
 
@@ -572,93 +572,181 @@ const fetchHistory = async (asin: string) => {
     // ✅ NO finally block - no setLoading(false)
   }
   const handleMoveToTracking = async (product: PassFileProduct) => {
-    if (!product.admin_confirmed) {
-      alert('Only Order Confirmed items can be moved');
-      return;
+  if (!product.admin_confirmed) {
+    alert('Only Order Confirmed items can be moved');
+    return;
+  }
+
+  try {
+    console.log('🚀 Moving to tracking:', product.asin);
+
+    // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
+    const { data: freshProduct, error: fetchError } = await supabase
+      .from('usa_purchases')
+      .select('*')
+      .eq('id', product.id)
+      .single();
+
+    if (fetchError || !freshProduct) {
+      throw new Error('Could not fetch latest data. Please refresh and try again.');
     }
 
-    try {
-      // 🛑 STEP 1: FETCH FRESH DATA (Fixes Stale Delivery Date)
-      const { data: freshProduct, error: fetchError } = await supabase
-        .from('usa_purchases')
-        .select('*')
-        .eq('id', product.id)
-        .single();
+    console.log('📦 Fresh data fetched:', {
+      asin: freshProduct.asin,
+      buying_price: freshProduct.buying_price,
+      buying_quantity: freshProduct.buying_quantity,
+      seller_link: freshProduct.seller_link,
+    });
 
-      if (fetchError || !freshProduct) {
-        throw new Error("Could not fetch latest data. Please refresh and try again.");
-      }
+    // STEP 2: Extract ALL unique seller tags
+    let sellerTags: string[] = [];
+    const rawSellerTag = freshProduct.seller_tag || product.seller_tag || product.validation_seller_tag;
+    
+    if (rawSellerTag) {
+      // Split by comma and clean
+      sellerTags = rawSellerTag
+        .split(',')
+        .map((tag: string) => tag.trim().toUpperCase())
+        .filter((tag: string) => tag.length > 0);
+      
+      // Remove duplicates
+      sellerTags = [...new Set(sellerTags)];
+    }
 
-      // ✅ STEP 2: INSERT (Mix of Fresh & Prop Data)
-      const { error: insertError } = await supabase
-        .from('usa_traking')   // ✅ TRACKING TABLE
+    // Fallback to GR if no tags
+    if (sellerTags.length === 0) {
+      sellerTags = ['GR'];
+    }
+
+    console.log('🏷️ Seller tags to process:', sellerTags);
+
+    // Map seller tag to seller ID
+    const sellerTagMapping: Record<string, number> = {
+      'GR': 1,  // Golden Aura
+      'RR': 2,  // Rudra Retail
+      'UB': 3,  // UBeauty
+      'VV': 4,  // Velvet Vista
+    };
+
+    // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
+    const insertPromises = sellerTags.map(async (tag) => {
+      const sellerId = sellerTagMapping[tag] || 1;
+      const trackingTableName = `usa_tracking_seller_${sellerId}`;
+
+      console.log(`📊 Inserting into: ${trackingTableName} (Seller: ${tag})`);
+
+      // ✅ ALL column names match usa_purchases schema exactly (snake_case)
+      return supabase
+        .from(trackingTableName)
         .insert({
-          asin: freshProduct.asin,
-
-          // 🔗 Cycle Links (Prefer fresh)
-          journey_id: freshProduct.journey_id ?? product.journey_id,
-          journey_number: freshProduct.journey_number || product.journey_number || 1,
-
-          // 📝 Editable Fields (MUST use freshProduct)
-          delivery_date: freshProduct.delivery_date,
-          tracking_details: freshProduct.tracking_details,
-          buying_price: freshProduct.buying_price,
-          buying_quantity: freshProduct.buying_quantity,
-          seller_link: freshProduct.seller_link,
-          seller_phone: freshProduct.seller_phone,
-          payment_method: freshProduct.payment_method,
-
-          // 📦 Core Info (Use freshProduct)
-          product_link: freshProduct.product_link,
-          product_name: freshProduct.product_name,
-          target_price: freshProduct.target_price,
-          target_quantity: freshProduct.target_quantity,
-          origin_india: freshProduct.origin_india,
-          origin_china: freshProduct.origin_china,
-          admin_target_price: freshProduct.admin_target_price,
-          inr_purchase_link: freshProduct.inr_purchase_link,
-          origin: freshProduct.origin || product.origin,
-
-          // 📊 Validation Fields (Use Prop Data - these come from validation file)
-          brand: product.brand,
-          seller_tag: product.seller_tag || product.validation_seller_tag,
-          funnel: product.funnel || product.validation_funnel,
-          profit: product.profit,
-          product_weight: product.product_weight,
-          usd_price: product.usd_price,
-          inr_purchase: product.inr_purchase_from_validation || product.inr_purchase,
-          admin_target_quantity: product.admin_target_quantity,
-          target_price_validation: product.target_price_validation,
-          target_price_link_validation: product.target_price_link_validation,
-          funnel_quantity: product.funnel_quantity,
-          funnel_seller: product.funnel_seller,
-
-          // 💰 Financials (Use Prop Data - sourced from validation file)
-          total_cost: product.total_cost,
-          total_revenue: product.total_revenue,
-
-          // 🏁 Status
+          // ========================================
+          // 1. CORE IDENTITY (from usa_purchases)
+          // ========================================
+          asin: freshProduct.asin,                              // ✅ text
+          journey_id: freshProduct.journey_id,                  // ✅ uuid
+          journey_number: freshProduct.journey_number ?? 1,     // ✅ integer
+          
+          // ========================================
+          // 2. PRODUCT INFORMATION (from usa_purchases)
+          // ========================================
+          product_link: freshProduct.product_link,              // ✅ text
+          product_name: freshProduct.product_name,              // ✅ text
+          brand: freshProduct.brand,                            // ✅ text
+          
+          // ========================================
+          // 3. PRICING FIELDS (from usa_purchases)
+          // ========================================
+          target_price: freshProduct.target_price,              // ✅ numeric
+          target_quantity: freshProduct.target_quantity ?? 1,   // ✅ numeric
+          admin_target_price: freshProduct.admin_target_price,  // ✅ numeric
+          admin_target_quantity: freshProduct.admin_target_quantity, // ✅ integer
+          target_price_validation: freshProduct.target_price_validation,    // ✅ numeric
+          target_price_link_validation: freshProduct.target_price_link_validation, // ✅ text
+          
+          // ========================================
+          // 4. FUNNEL & SELLER (from usa_purchases)
+          // ========================================
+          funnel: freshProduct.funnel,                          // ✅ text
+          seller_tag: tag,                                      // ✅ text (specific tag for this insert)
+          funnel_quantity: freshProduct.funnel_quantity ?? 1,   // ✅ integer
+          funnel_seller: freshProduct.funnel_seller,            // ✅ text
+          
+          // ========================================
+          // 5. PURCHASE LINKS (from usa_purchases)
+          // ========================================
+          inr_purchase_link: freshProduct.inr_purchase_link,    // ✅ text - FIXED!
+          
+          // ========================================
+          // 6. ORIGIN (from usa_purchases)
+          // ========================================
+          origin: freshProduct.origin,                          // ✅ text
+          origin_india: freshProduct.origin_india ?? false,     // ✅ boolean - FIXED!
+          origin_china: freshProduct.origin_china ?? false,     // ✅ boolean - FIXED!
+          
+          // ========================================
+          // 7. BUYING DETAILS (from usa_purchases) - USER EDITABLE
+          // ========================================
+          buying_price: freshProduct.buying_price,              // ✅ numeric - FIXED!
+          buying_quantity: freshProduct.buying_quantity,        // ✅ numeric - FIXED!
+          seller_link: freshProduct.seller_link,                // ✅ text - FIXED!
+          seller_phone: freshProduct.seller_phone,              // ✅ text - FIXED!
+          payment_method: freshProduct.payment_method,          // ✅ text - FIXED!
+          
+          // ========================================
+          // 8. TRACKING & DELIVERY (from usa_purchases) - USER EDITABLE
+          // ========================================
+          tracking_details: freshProduct.tracking_details,      // ✅ text - FIXED!
+          delivery_date: freshProduct.delivery_date,            // ✅ date - FIXED!
+          
+          // ========================================
+          // 9. FINANCIAL DATA (from usa_purchases)
+          // ========================================
+          profit: freshProduct.profit,                          // ✅ numeric
+          product_weight: freshProduct.product_weight,          // ✅ numeric
+          usd_price: freshProduct.usd_price,                    // ✅ numeric
+          inr_purchase: freshProduct.inr_purchase,              // ✅ numeric
+          
+          // ========================================
+          // 10. STATUS FIELDS
+          // ========================================
           admin_status: 'confirmed',
-          status: 'tracking'
+          status: 'tracking',
+          moved_at: new Date().toISOString(),
         });
+    });
 
-      if (insertError) throw insertError;
+    // Wait for all insertions to complete
+    const results = await Promise.all(insertPromises);
 
-      // ✅ STEP 3: DELETE
-      const { error: deleteError } = await supabase
-        .from('usa_purchases')
-        .delete()
-        .eq('id', product.id);
-
-      if (deleteError) throw deleteError;
-
-      await refreshProductsSilently();
-
-    } catch (error: any) {
-      console.error('Move error:', error);
-      alert('Failed to move: ' + error.message);
+    // Check for errors
+    const errors = results.filter(result => result.error);
+    if (errors.length > 0) {
+      console.error('❌ Insert errors:', errors);
+      throw new Error(`Failed to insert into ${errors.length} table(s)`);
     }
-  };
+
+    console.log(`✅ Successfully inserted into ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
+
+    // STEP 4: DELETE from purchases (only after ALL inserts succeed)
+    const { error: deleteError } = await supabase
+      .from('usa_purchases')
+      .delete()
+      .eq('id', product.id);
+
+    if (deleteError) {
+      console.error('❌ Delete error:', deleteError);
+      throw deleteError;
+    }
+
+    console.log('✅ Delete successful');
+
+    alert(`✅ Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
+    await refreshProductsSilently();
+  } catch (error: any) {
+    console.error('❌ Move error:', error);
+    alert('Failed to move: ' + error.message);
+  }
+};
 
   // Handle column resize
   const handleMouseDown = (column: string, e: React.MouseEvent) => {
@@ -1014,16 +1102,16 @@ const fetchHistory = async (asin: string) => {
                 )}
 
                 {/* ✅ HISTORY COLUMN */}
-<th 
-  className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" 
-  style={{ width: `${columnWidths.history}px` }}
->
-  HISTORY
-  <div 
-    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" 
-    onMouseDown={(e) => handleMouseDown('history', e)}
-  />
-</th>
+                <th
+                  className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950"
+                  style={{ width: `${columnWidths.history}px` }}
+                >
+                  HISTORY
+                  <div
+                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                    onMouseDown={(e) => handleMouseDown('history', e)}
+                  />
+                </th>
 
 
                 {visibleColumns.productlink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productlink}px` }}>PRODUCT LINK<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productlink', e)} /></th>}
@@ -1062,189 +1150,189 @@ const fetchHistory = async (asin: string) => {
             </thead>
 
             <tbody className="divide-y divide-slate-800">
-  {filteredProducts.length === 0 ? (
-    <tr>
-      <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-16 text-center text-slate-500">
-        <div className="flex flex-col items-center">
-          <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-          <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace('_', ' ')}</span>
-        </div>
-      </td>
-    </tr>
-  ) : (
-    filteredProducts.map((product) => {
-      return (
-        <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 group">
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-16 text-center text-slate-500">
+                    <div className="flex flex-col items-center">
+                      <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                      <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace('_', ' ')}</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((product) => {
+                  return (
+                    <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 group">
 
-          {/* ✅ Checkbox */}
-          {visibleColumns.checkbox && (
-            <td className="px-4 py-2 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
-              <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer" />
-            </td>
-          )}
+                      {/* ✅ Checkbox */}
+                      {visibleColumns.checkbox && (
+                        <td className="px-4 py-2 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
+                          <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer" />
+                        </td>
+                      )}
 
-          {/* ✅ ASIN COLUMN - Only ASIN text */}
-          {visibleColumns.asin && (
-            <td className="px-3 py-2 font-mono text-sm text-slate-300" style={{ width: `${columnWidths.asin}px` }}>
-              <div className="truncate">{product.asin}</div>
-            </td>
-          )}
+                      {/* ✅ ASIN COLUMN - Only ASIN text */}
+                      {visibleColumns.asin && (
+                        <td className="px-3 py-2 font-mono text-sm text-slate-300" style={{ width: `${columnWidths.asin}px` }}>
+                          <div className="truncate">{product.asin}</div>
+                        </td>
+                      )}
 
-          {/* ✅ HISTORY COLUMN - Only Clock Icon (Working) */}
-          <td className="px-3 py-2 text-center" style={{ width: `${columnWidths.history}px` }}>
-            <button
-              onClick={() => fetchHistory(product.asin)}
-              className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
-              title="View Journey History"
-            >
-              <History className="w-4 h-4" />
-            </button>
-          </td>
+                      {/* ✅ HISTORY COLUMN - Only Clock Icon (Working) */}
+                      <td className="px-3 py-2 text-center" style={{ width: `${columnWidths.history}px` }}>
+                        <button
+                          onClick={() => fetchHistory(product.asin)}
+                          className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                          title="View Journey History"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
+                      </td>
 
-          {/* Product Link */}
-          {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
-            {(product.usa_link || product.product_link) ? (
-              <a href={(product.usa_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
-            ) : <span className="text-xs text-slate-600">-</span>}
-          </td>}
+                      {/* Product Link */}
+                      {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
+                        {(product.usa_link || product.product_link) ? (
+                          <a href={(product.usa_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
+                        ) : <span className="text-xs text-slate-600">-</span>}
+                      </td>}
 
-          {/* Product Name */}
-          {visibleColumns.productname && <td className="px-3 py-2 text-sm text-slate-200 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
+                      {/* Product Name */}
+                      {visibleColumns.productname && <td className="px-3 py-2 text-sm text-slate-200 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
 
-          {/* Target Price */}
-          {visibleColumns.targetprice && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
-            {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-              <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_price ?? product.usd_price ?? '-'}</div>
-            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-          </td>}
+                      {/* Target Price */}
+                      {visibleColumns.targetprice && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
+                        {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
+                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_price ?? product.usd_price ?? '-'}</div>
+                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+                      </td>}
 
-          {/* Target Qty */}
-          {visibleColumns.targetquantity && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
-            {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-              <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_quantity ?? 1}</div>
-            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-          </td>}
+                      {/* Target Qty */}
+                      {visibleColumns.targetquantity && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
+                        {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
+                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_quantity ?? 1}</div>
+                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+                      </td>}
 
-          {/* Admin Target Price */}
-          {visibleColumns.admintargetprice && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
-            {activeTab === 'order_confirmed' ? (
-              <div className="px-2 py-1 text-sm font-medium text-purple-300">₹{product.admin_target_price ?? '-'}</div>
-            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-          </td>}
+                      {/* Admin Target Price */}
+                      {visibleColumns.admintargetprice && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                        {activeTab === 'order_confirmed' ? (
+                          <div className="px-2 py-1 text-sm font-medium text-purple-300">₹{product.admin_target_price ?? '-'}</div>
+                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+                      </td>}
 
-          {/* Funnel Qty */}
-          {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
-            {product.validation_funnel ? (
-              <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                  product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    'bg-slate-700 text-slate-300'
-                }`}>{product.validation_funnel}</span>
-            ) : <span className="text-xs text-slate-600">-</span>}
-          </td>}
+                      {/* Funnel Qty */}
+                      {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                        {product.validation_funnel ? (
+                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                            product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                              product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                'bg-slate-700 text-slate-300'
+                            }`}>{product.validation_funnel}</span>
+                        ) : <span className="text-xs text-slate-600">-</span>}
+                      </td>}
 
-          {/* Seller Tag */}
-          {visibleColumns.funnelseller && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
-            {product.validation_seller_tag ? (
-              <div className="flex flex-wrap gap-1">
-                {product.validation_seller_tag.split(',').map(tag => {
-                  const cleanTag = tag.trim();
-                  let badgeColor = 'bg-slate-700 text-white';
-                  if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
-                  else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
-                  else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                  return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>{cleanTag}</span>
-                })}
-              </div>
-            ) : <span className="text-xs text-slate-600">-</span>}
-          </td>}
+                      {/* Seller Tag */}
+                      {visibleColumns.funnelseller && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
+                        {product.validation_seller_tag ? (
+                          <div className="flex flex-wrap gap-1">
+                            {product.validation_seller_tag.split(',').map(tag => {
+                              const cleanTag = tag.trim();
+                              let badgeColor = 'bg-slate-700 text-white';
+                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
+                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
+                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                              return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>{cleanTag}</span>
+                            })}
+                          </div>
+                        ) : <span className="text-xs text-slate-600">-</span>}
+                      </td>}
 
-          {/* INR Link */}
-          {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
-            {product.inr_purchase_link ? (
-              <a href={product.inr_purchase_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
-            ) : <span className="text-xs text-slate-600">-</span>}
-          </td>}
+                      {/* INR Link */}
+                      {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                        {product.inr_purchase_link ? (
+                          <a href={product.inr_purchase_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
+                        ) : <span className="text-xs text-slate-600">-</span>}
+                      </td>}
 
-          {/* Origin */}
-          {visibleColumns.origin && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
-            <div className="flex gap-1">
-              {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
-              {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
-              {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
-            </div>
-          </td>}
+                      {/* Origin */}
+                      {visibleColumns.origin && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
+                        <div className="flex gap-1">
+                          {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
+                          {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
+                          {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
+                        </div>
+                      </td>}
 
-          {/* Buying Price - Input */}
-          {visibleColumns.buyingprice && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
-            <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Price" />
-          </td>}
+                      {/* Buying Price - Input */}
+                      {visibleColumns.buyingprice && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
+                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Price" />
+                      </td>}
 
-          {/* Buying Qty - Input */}
-          {visibleColumns.buyingquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
-            <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Qty" />
-          </td>}
+                      {/* Buying Qty - Input */}
+                      {visibleColumns.buyingquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
+                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Qty" />
+                      </td>}
 
-          {/* Seller Link - Input */}
-          {visibleColumns.sellerlink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
-            <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Link" />
-          </td>}
+                      {/* Seller Link - Input */}
+                      {visibleColumns.sellerlink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
+                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Link" />
+                      </td>}
 
-          {/* Seller Phone - Input */}
-          {visibleColumns.sellerphno && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
-            <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Phone" />
-          </td>}
+                      {/* Seller Phone - Input */}
+                      {visibleColumns.sellerphno && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
+                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Phone" />
+                      </td>}
 
-          {/* Payment Method - Input */}
-          {visibleColumns.paymentmethod && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
-            <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Method" />
-          </td>}
+                      {/* Payment Method - Input */}
+                      {visibleColumns.paymentmethod && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
+                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Method" />
+                      </td>}
 
-          {/* Tracking Details - Input */}
-          {visibleColumns.trackingdetails && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
-            {activeTab === 'order_confirmed' ? (
-              <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
-            ) : (
-              <span className="text-xs text-slate-500 italic">After confirmation</span>
-            )}
-          </td>}
+                      {/* Tracking Details - Input */}
+                      {visibleColumns.trackingdetails && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
+                        {activeTab === 'order_confirmed' ? (
+                          <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
+                        ) : (
+                          <span className="text-xs text-slate-500 italic">After confirmation</span>
+                        )}
+                      </td>}
 
-          {/* Delivery Date - Input */}
-          {visibleColumns.deliverydate && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
-            {activeTab === 'order_confirmed' ? (
-              <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-            ) : (
-              <span className="text-xs text-slate-500 italic">After confirmation</span>
-            )}
-          </td>}
+                      {/* Delivery Date - Input */}
+                      {visibleColumns.deliverydate && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
+                        {activeTab === 'order_confirmed' ? (
+                          <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                        ) : (
+                          <span className="text-xs text-slate-500 italic">After confirmation</span>
+                        )}
+                      </td>}
 
-          {/* Move To Actions */}
-          {visibleColumns.moveto && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
-            <div className="flex gap-1 justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeTab === 'order_confirmed') {
-                    handleMoveToTracking(product);
-                  } else {
-                    handleSendToAdmin(product);
-                  }
-                }}
-                className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
-                title="Done"
-              >
-                D
-              </button>
-              <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
-              <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
-            </div>
-          </td>}
-        </tr>
-      );
-    })
-  )}
-</tbody>
+                      {/* Move To Actions */}
+                      {visibleColumns.moveto && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (activeTab === 'order_confirmed') {
+                                handleMoveToTracking(product);
+                              } else {
+                                handleSendToAdmin(product);
+                              }
+                            }}
+                            className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
+                            title="Done"
+                          >
+                            D
+                          </button>
+                          <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
+                          <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
+                        </div>
+                      </td>}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
 
           </table>
         </div>

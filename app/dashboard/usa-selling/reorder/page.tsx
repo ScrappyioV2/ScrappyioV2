@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
+import { getTrackingTableName } from '@/lib/utils'
 import * as XLSX from 'xlsx'
 import {
   Loader2,
@@ -247,186 +248,350 @@ export default function ReorderPage() {
   // }
 
   // --- 3. Upload Inventory (Enhanced: CSV + Excel Support) ---
-const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0]
-  if (!file) return
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-  setProcessing(true)
+    setProcessing(true)
 
-  // ✅ NEW: Detect file type
-  const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    // ✅ NEW: Detect file type
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
 
-  if (fileExtension === 'csv') {
-    // 📄 Handle CSV File (Original Logic)
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.replace(/[\ufeff]/g, '').trim(),
-      complete: async (results) => {
-        await processInventoryData(results.data as any[])
-      },
-      error: (error) => {
-        console.error('CSV Parse Error:', error)
-        alert('Failed to parse CSV file: ' + error.message)
+    if (fileExtension === 'csv') {
+      // 📄 Handle CSV File (Original Logic)
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.replace(/[\ufeff]/g, '').trim(),
+        complete: async (results) => {
+          await processInventoryData(results.data as any[])
+        },
+        error: (error) => {
+          console.error('CSV Parse Error:', error)
+          alert('Failed to parse CSV file: ' + error.message)
+          setProcessing(false)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+      })
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      // 📊 Handle Excel File (NEW)
+      const reader = new FileReader()
+
+      reader.onload = async (evt) => {
+        try {
+          const data = evt.target?.result
+          const workbook = XLSX.read(data, { type: 'binary' })
+
+          // ✅ Read ALL sheets and merge data
+          let allRows: any[] = []
+
+          workbook.SheetNames.forEach((sheetName) => {
+            const worksheet = workbook.Sheets[sheetName]
+            const sheetData = XLSX.utils.sheet_to_json(worksheet, { raw: false })
+            allRows = allRows.concat(sheetData)
+          })
+
+          console.log(`📊 Excel: Found ${workbook.SheetNames.length} sheet(s), Total rows: ${allRows.length}`)
+
+          await processInventoryData(allRows)
+
+        } catch (error: any) {
+          console.error('Excel Parse Error:', error)
+          alert('Failed to parse Excel file: ' + error.message)
+          setProcessing(false)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+      }
+
+      reader.onerror = (error) => {
+        console.error('File Read Error:', error)
+        alert('Failed to read file')
         setProcessing(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
-    })
-  } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-    // 📊 Handle Excel File (NEW)
-    const reader = new FileReader()
 
-    reader.onload = async (evt) => {
-      try {
-        const data = evt.target?.result
-        const workbook = XLSX.read(data, { type: 'binary' })
+      reader.readAsBinaryString(file)
 
-        // ✅ Read ALL sheets and merge data
-        let allRows: any[] = []
-
-        workbook.SheetNames.forEach((sheetName) => {
-          const worksheet = workbook.Sheets[sheetName]
-          const sheetData = XLSX.utils.sheet_to_json(worksheet, { raw: false })
-          allRows = allRows.concat(sheetData)
-        })
-
-        console.log(`📊 Excel: Found ${workbook.SheetNames.length} sheet(s), Total rows: ${allRows.length}`)
-
-        await processInventoryData(allRows)
-
-      } catch (error: any) {
-        console.error('Excel Parse Error:', error)
-        alert('Failed to parse Excel file: ' + error.message)
-        setProcessing(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
-      }
-    }
-
-    reader.onerror = (error) => {
-      console.error('File Read Error:', error)
-      alert('Failed to read file')
+    } else {
+      alert('Unsupported file format. Please upload CSV, XLSX, or XLS files.')
       setProcessing(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-
-    reader.readAsBinaryString(file)
-
-  } else {
-    alert('Unsupported file format. Please upload CSV, XLSX, or XLS files.')
-    setProcessing(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
-}
 
-// ✅ NEW: Unified Data Processing Function (Works for Both CSV & Excel)
-const processInventoryData = async (rows: any[]) => {
-  try {
-    const updates: Record<string, number> = {}
-    let matchCount = 0
+  // ✅ NEW: Unified Data Processing Function (Works for Both CSV & Excel)
+  const processInventoryData = async (rows: any[]) => {
+    try {
+      const updates: Record<string, number> = {}
+      let matchCount = 0
 
-    rows.forEach((row) => {
-      const keys = Object.keys(row)
+      rows.forEach((row) => {
+        const keys = Object.keys(row)
 
-      // ✅ ENHANCED: Flexible ASIN matching (case-insensitive)
-      const asinKey = keys.find(k => {
-        const lower = k.toLowerCase().trim()
-        return lower === 'asin'
-      })
+        // ✅ ENHANCED: Flexible ASIN matching (case-insensitive)
+        const asinKey = keys.find(k => {
+          const lower = k.toLowerCase().trim()
+          return lower === 'asin'
+        })
 
-      // ✅ ENHANCED: Flexible Quantity matching (multiple variations)
-      const qtyKey = keys.find(k => {
-        const lower = k.toLowerCase().trim()
-        return (
-          lower === 'afn-fulfillable-quantity' ||
-          lower === 'afn-fulfillable-quentity' ||
-          lower === 'quantity' ||
-          lower === 'quentity' ||
-          lower === 'qty' ||
-          lower === 'fulfillable' ||
-          lower.includes('quantity') ||
-          lower.includes('fulfillable')
-        )
-      })
+        // ✅ ENHANCED: Flexible Quantity matching (multiple variations)
+        const qtyKey = keys.find(k => {
+          const lower = k.toLowerCase().trim()
+          return (
+            lower === 'afn-fulfillable-quantity' ||
+            lower === 'afn-fulfillable-quentity' ||
+            lower === 'quantity' ||
+            lower === 'quentity' ||
+            lower === 'qty' ||
+            lower === 'fulfillable' ||
+            lower.includes('quantity') ||
+            lower.includes('fulfillable')
+          )
+        })
 
-      if (asinKey && qtyKey) {
-        const rawAsin = row[asinKey]
-        const rawQty = row[qtyKey]
+        if (asinKey && qtyKey) {
+          const rawAsin = row[asinKey]
+          const rawQty = row[qtyKey]
 
-        if (rawAsin) {
-          // Normalize: Uppercase and Trim
-          const asin = String(rawAsin).trim().toUpperCase()
-          // Parse Quantity
-          const qty = parseInt(String(rawQty).replace(/[^0-9]/g, '') || '0')
-          updates[asin] = qty
+          if (rawAsin) {
+            // Normalize: Uppercase and Trim
+            const asin = String(rawAsin).trim().toUpperCase()
+            // Parse Quantity
+            const qty = parseInt(String(rawQty).replace(/[^0-9]/g, '') || '0')
+            updates[asin] = qty
+          }
         }
+      })
+
+      // Find matches in current workspace
+      const promises = products
+        .filter(p => {
+          const pAsin = p.asin.trim().toUpperCase()
+          return updates[pAsin] !== undefined
+        })
+        .map(p => {
+          matchCount++
+          const pAsin = p.asin.trim().toUpperCase()
+          return supabase
+            .from(`usa_reorder_${activeSeller.table_suffix}`)
+            .update({ current_qty: updates[pAsin] })
+            .eq('id', p.id)
+        })
+
+      if (matchCount === 0) {
+        alert(`No matches found! \n\nWe checked ${rows.length} rows against your listed products, but none matched.\n\nExample File ASIN: ${rows[0]?.ASIN || rows[0]?.asin || rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+        setProcessing(false)
+        return
       }
-    })
 
-    // Find matches in current workspace
-    const promises = products
-      .filter(p => {
-        const pAsin = p.asin.trim().toUpperCase()
-        return updates[pAsin] !== undefined
-      })
-      .map(p => {
-        matchCount++
-        const pAsin = p.asin.trim().toUpperCase()
-        return supabase
-          .from(`usa_reorder_${activeSeller.table_suffix}`)
-          .update({ current_qty: updates[pAsin] })
-          .eq('id', p.id)
-      })
+      // Execute Updates
+      await Promise.all(promises)
+      await fetchReorderData() // Refresh UI immediately
 
-    if (matchCount === 0) {
-      alert(`No matches found! \n\nWe checked ${rows.length} rows against your listed products, but none matched.\n\nExample File ASIN: ${rows[0]?.ASIN || rows[0]?.asin || rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+      // Offer Recalculation
+      const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
+      if (autoRecalc) {
+        await handleRecalculate()
+      }
+
+    } catch (err: any) {
+      console.error(err)
+      alert('Error processing file: ' + err.message)
+    } finally {
       setProcessing(false)
-      return
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
-
-    // Execute Updates
-    await Promise.all(promises)
-    await fetchReorderData() // Refresh UI immediately
-
-    // Offer Recalculation
-    const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
-    if (autoRecalc) {
-      await handleRecalculate()
-    }
-
-  } catch (err: any) {
-    console.error(err)
-    alert('Error processing file: ' + err.message)
-  } finally {
-    setProcessing(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
-}
 
 
   // --- 4. Recalculate Logic ---
+  // const handleRecalculate = async () => {
+  //   try {
+  //     setProcessing(true)
+
+  //     const { data: trackingData, error: trackError } = await supabase
+  //       .from('usa_traking')
+  //       .select('asin, buying_quantity')
+
+  //     if (trackError) throw trackError
+
+  //     const incomingMap: Record<string, number> = {}
+  //     trackingData?.forEach(t => {
+  //       const qty = t.buying_quantity || 0
+  //       if (!incomingMap[t.asin]) incomingMap[t.asin] = 0
+  //       incomingMap[t.asin] += qty
+  //     })
+
+  //     const { data: currentReorderData } = await supabase
+  //       .from(`usa_reorder_${activeSeller.table_suffix}`)
+  //       .select('*')
+
+  //     if (!currentReorderData) return
+
+  //     const updates = currentReorderData.map(p => {
+  //       const target = p.admin_target_qty || 0
+  //       const current = p.current_qty || 0
+  //       const incoming = incomingMap[p.asin] || 0
+
+  //       const deficit = target - current
+  //       let finalReorder = 0
+  //       let status: 'Safe' | 'Covered' | 'Reorder' = 'Safe'
+  //       let isInFinalReorder = false
+
+  //       if (deficit > 0) {
+  //         finalReorder = Math.max(0, deficit - incoming)
+  //         if (finalReorder > 0) {
+  //           status = 'Reorder'
+  //           isInFinalReorder = true
+  //         } else {
+  //           status = 'Covered'
+  //           isInFinalReorder = false
+  //         }
+  //       } else {
+  //         status = 'Safe'
+  //         isInFinalReorder = false
+  //       }
+
+  //       return {
+  //         id: p.id,
+  //         tracking_qty: incoming,
+  //         final_reorder_qty: finalReorder,
+  //         status: status,
+  //         is_in_final_reorder: isInFinalReorder
+  //       }
+  //     })
+
+  //     const updatePromises = updates.map(u =>
+  //       supabase
+  //         .from(`usa_reorder_${activeSeller.table_suffix}`)
+  //         .update({
+  //           tracking_qty: u.tracking_qty,
+  //           final_reorder_qty: u.final_reorder_qty,
+  //           status: u.status,
+  //           is_in_final_reorder: u.is_in_final_reorder
+  //         })
+  //         .eq('id', u.id)
+  //     )
+
+  //     await Promise.all(updatePromises)
+  //     fetchReorderData()
+
+  //   } catch (err: any) {
+  //     alert('Calculation failed: ' + err.message)
+  //   } finally {
+  //     setProcessing(false)
+  //   }
+  // }
+  // --- 4. Recalculate Logic (✅ UPDATED: Checks ALL 5 Tracking Tables) ---
   const handleRecalculate = async () => {
     try {
       setProcessing(true)
 
-      const { data: trackingData, error: trackError } = await supabase
-        .from('usa_traking')
-        .select('asin, buying_quantity')
+      // ✅ NEW: Helper function to get tracking quantity across ALL tables
+      // ✅ NEW: Helper function to get tracking quantity across ALL tables
+      const getTrackingQuantityForAsin = async (asin: string, sellerTag: string): Promise<number> => {
+        // 🔴 NEW LOGIC: Check tables in reverse priority - count from HIGHEST stage only
 
-      if (trackError) throw trackError
+        const sellerIdMap: Record<string, number> = {
+          'GA': 1, 'GR': 1,
+          'RR': 2,
+          'UB': 3,
+          'VV': 4
+        }
 
-      const incomingMap: Record<string, number> = {}
-      trackingData?.forEach(t => {
-        const qty = t.buying_quantity || 0
-        if (!incomingMap[t.asin]) incomingMap[t.asin] = 0
-        incomingMap[t.asin] += qty
-      })
+        const sellerId = sellerIdMap[sellerTag] || activeSeller.id
 
+        // ✅ PRIORITY ORDER: Check from final stage backward
+        const tablesToCheck = [
+          { name: getTrackingTableName('VYAPAR', sellerId), priority: 5 },       // Highest priority
+          { name: getTrackingTableName('SHIPMENT', sellerId), priority: 4 },
+          { name: getTrackingTableName('CHECKING', sellerId), priority: 3 },
+          { name: getTrackingTableName('INVOICE', sellerId), priority: 2 },
+          { name: 'usa_traking', priority: 1 }                                   // Lowest priority
+        ]
+
+        console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
+
+        // ✅ Find the HIGHEST stage where this ASIN exists
+        let foundInTable = null
+        let totalQty = 0
+
+        for (const table of tablesToCheck) {
+          try {
+            const { data, error } = await supabase
+              .from(table.name)
+              .select('buying_quantity')
+              .eq('asin', asin)
+
+            if (error) {
+              console.warn(`⚠️ Error querying ${table.name}:`, error.message)
+              continue
+            }
+
+            if (data && data.length > 0) {
+              const tableQty = data.reduce((sum: number, row: any) => {
+                const qty = row.buying_quantity || 0
+                return sum + qty
+              }, 0)
+
+              if (tableQty > 0) {
+                // ✅ Found in this stage - use ONLY this quantity
+                totalQty = tableQty
+                foundInTable = table.name
+                console.log(`  ✅ Found in ${table.name}: ${tableQty} units (Priority ${table.priority})`)
+                break  // 🔴 STOP - Don't check lower stages
+              }
+            }
+          } catch (err) {
+            console.warn(`⚠️ Failed to query ${table.name}:`, err)
+          }
+        }
+
+        if (foundInTable) {
+          console.log(`📊 FINAL tracking for ${asin}: ${totalQty} units from ${foundInTable}\n`)
+        } else {
+          console.log(`📊 No tracking found for ${asin}\n`)
+        }
+
+        return totalQty
+      }
+
+      // Fetch current reorder data
       const { data: currentReorderData } = await supabase
         .from(`usa_reorder_${activeSeller.table_suffix}`)
         .select('*')
 
       if (!currentReorderData) return
 
+      // ✅ NEW: Build incoming map by checking ALL tracking tables
+      console.log('🚀 Starting tracking calculation for all products...\n')
+
+      const incomingMap: Record<string, number> = {}
+
+      // Get unique ASINs with their seller tags
+      const asinSellerMap = new Map<string, string>()
+
+      // First, we need to get seller_tag for each ASIN from the tracking main table
+      const { data: mainFileData } = await supabase
+        .from('usa_traking')
+        .select('asin, seller_tag')
+
+      mainFileData?.forEach(item => {
+        if (item.asin && item.seller_tag) {
+          asinSellerMap.set(item.asin, item.seller_tag)
+        }
+      })
+
+      // Calculate tracking quantity for each product
+      for (const product of currentReorderData) {
+        const sellerTag = asinSellerMap.get(product.asin) || activeSeller.tag
+        const qty = await getTrackingQuantityForAsin(product.asin, sellerTag)
+        incomingMap[product.asin] = qty
+      }
+
+      console.log('✅ Tracking calculation complete!\n')
+
+      // Calculate reorder quantities
       const updates = currentReorderData.map(p => {
         const target = p.admin_target_qty || 0
         const current = p.current_qty || 0
@@ -460,6 +625,7 @@ const processInventoryData = async (rows: any[]) => {
         }
       })
 
+      // Update database
       const updatePromises = updates.map(u =>
         supabase
           .from(`usa_reorder_${activeSeller.table_suffix}`)
@@ -475,13 +641,14 @@ const processInventoryData = async (rows: any[]) => {
       await Promise.all(updatePromises)
       fetchReorderData()
 
+      alert('✅ Calculation complete! Tracking data aggregated from all 5 tables.')
+
     } catch (err: any) {
       alert('Calculation failed: ' + err.message)
     } finally {
       setProcessing(false)
     }
   }
-
   // --- 5. Update Target Qty ---
   const updateTargetQty = async (id: string, newTarget: number) => {
     const product = products.find(p => p.id === id)
@@ -514,7 +681,7 @@ const processInventoryData = async (rows: any[]) => {
       admin_target_qty: newTarget,
       final_reorder_qty: finalReorder,
       status: status,
-      is_in_final_reorder: isInFinalReorder 
+      is_in_final_reorder: isInFinalReorder
     } : p))
 
     await supabase
@@ -647,13 +814,13 @@ const processInventoryData = async (rows: any[]) => {
       p.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
 
     if (activeTab === 'final') {
-    // ✅ Final Reorder Tab: Show only Reorder status products
-    return matchesSearch && p.status === 'Reorder'
-  } else {
-    // ✅ Main Workspace: Show only products NOT in final reorder
-    return matchesSearch && (p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined)
-  }
-})
+      // ✅ Final Reorder Tab: Show only Reorder status products
+      return matchesSearch && p.status === 'Reorder'
+    } else {
+      // ✅ Main Workspace: Show only products NOT in final reorder
+      return matchesSearch && (p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined)
+    }
+  })
 
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200 relative overflow-hidden">

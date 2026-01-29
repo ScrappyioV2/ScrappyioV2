@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { getTrackingTableName } from '@/lib/utils';
 import { X } from 'lucide-react';
 
 type InvoiceGroup = {
@@ -15,12 +16,14 @@ interface RollbackModalProps {
     open: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    sellerId: number;
 }
 
 export default function RollbackModal({
     open,
     onClose,
     onSuccess,
+    sellerId,
 }: RollbackModalProps) {
     const [invoices, setInvoices] = useState<InvoiceGroup[]>([]);
     const [loading, setLoading] = useState(true);
@@ -40,39 +43,33 @@ export default function RollbackModal({
         try {
             setLoading(true);
 
-            // Step 1: Get the most recent invoice from MASTER table (usa_company_invoice)
-            const { data: latestInvoice, error: latestError } = await supabase
-                .from('usa_company_invoice')  // ✅ CHANGED: Fetch from MASTER table
-                .select('invoice_number, invoice_date, created_at')
-                .order('created_at', { ascending: false })  // ✅ Sort by when it was moved
-                .limit(1)
-                .single();
+            // ✅ FIX #1: Use seller-specific invoice table
+            const invoiceTableName = getTrackingTableName('INVOICE', sellerId);
+            console.log('📋 Fetching from table:', invoiceTableName);
 
-            if (latestError) {
+            // Step 1: Get ALL invoice groups from seller's invoice table
+            const { data, error } = await supabase
+                .from(invoiceTableName) // ✅ FIXED: usa_invoice_seller_X
+                .select('invoice_number, invoice_date, amount, tax_amount')
+
+
+            if (error) {
                 // If no invoices found, just show empty
-                if (latestError.code === 'PGRST116') {
+                if (error.code === 'PGRST116') {
                     setInvoices([]);
                     setLoading(false);
                     return;
                 }
-                throw latestError;
+                throw error;
             }
 
-            if (!latestInvoice) {
+            if (!data || data.length === 0) {
                 setInvoices([]);
                 setLoading(false);
                 return;
             }
 
-            // Step 2: Get ALL rows for that invoice_number from DETAIL table
-            const { data, error } = await supabase
-                .from('usa_tracking_company_invoice')
-                .select('invoice_number, invoice_date, amount')
-                .eq('invoice_number', latestInvoice.invoice_number);
-
-            if (error) throw error;
-
-            // Group by invoice_number (should be only 1 group since we filtered by invoice_number)
+            // Group by invoice_number
             const grouped = data.reduce((acc: Record<string, InvoiceGroup>, item) => {
                 if (!acc[item.invoice_number]) {
                     acc[item.invoice_number] = {
@@ -80,13 +77,15 @@ export default function RollbackModal({
                         invoice_date: item.invoice_date,
                         asin_count: 0,
                         total_amount: 0,
-                    };
+                    }
                 }
-                acc[item.invoice_number].asin_count += 1;
-                acc[item.invoice_number].total_amount += item.amount || 0;
-                return acc;
-            }, {});
+                acc[item.invoice_number].asin_count += 1
+                acc[item.invoice_number].total_amount += (item.amount || 0) + (item.tax_amount || 0)
+                return acc
+            }, {})
 
+
+            console.log('📊 Found invoices:', Object.keys(grouped).length);
             setInvoices(Object.values(grouped));
         } catch (error) {
             console.error('Error fetching invoices:', error);
@@ -95,6 +94,7 @@ export default function RollbackModal({
             setLoading(false);
         }
     };
+
 
 
     // Handle select all
@@ -131,7 +131,7 @@ export default function RollbackModal({
             return;
         }
 
-        const confirmMsg = `Are you sure you want to rollback ${selectedInvoices.size} invoice(s)?\n\nThis will:\n- Restore ASINs back to Main File\n- Delete invoices from Company Invoice Details\n- Save rollback history`;
+        const confirmMsg = `Are you sure you want to rollback ${selectedInvoices.size} invoice(s)?\n\nThis will:\n- Restore ASINs back to Main File\n- Delete invoices from Company Invoice\n- Save rollback history`;
 
         if (!confirm(confirmMsg)) return;
 
@@ -139,9 +139,17 @@ export default function RollbackModal({
             setProcessing(true);
 
             for (const invoiceNumber of selectedInvoices) {
+                // ✅ FIX #2: Use seller-specific invoice table
+                const invoiceTableName = getTrackingTableName('INVOICE', sellerId);
+                const mainFileTableName = getTrackingTableName('MAIN', sellerId);
+
+                console.log(`🔄 Rolling back invoice ${invoiceNumber}`);
+                console.log(`📋 Invoice table: ${invoiceTableName}`);
+                console.log(`📁 Main file table: ${mainFileTableName}`);
+
                 // 1. Get all items for this invoice
                 const { data: invoiceItems, error: fetchError } = await supabase
-                    .from('usa_tracking_company_invoice')
+                    .from(invoiceTableName) // ✅ FIXED: usa_invoice_seller_X
                     .select('*')
                     .eq('invoice_number', invoiceNumber);
 
@@ -151,6 +159,8 @@ export default function RollbackModal({
                     console.warn(`No items found for invoice ${invoiceNumber}`);
                     continue;
                 }
+
+                console.log(`📦 Found ${invoiceItems.length} items to restore`);
 
                 // 2. Save to rollback history
                 const { error: historyError } = await supabase
@@ -163,78 +173,79 @@ export default function RollbackModal({
 
                 if (historyError) throw historyError;
 
-                // 3. Check which ASINs already exist in usa_traking (to skip duplicates)
-                const asins = invoiceItems.map(item => item.asin);
+                // 3. Check which ASINs already exist in Main File
+                const asins = invoiceItems.map((item) => item.asin);
+
                 const { data: existingAsins } = await supabase
-                    .from('usa_traking')
+                    .from(mainFileTableName) // ✅ FIXED: usa_tracking_seller_X
                     .select('asin')
                     .in('asin', asins);
 
-                const existingAsinSet = new Set(existingAsins?.map(item => item.asin) || []);
+                const existingAsinSet = new Set(existingAsins?.map((item) => item.asin));
 
                 // 4. Prepare data to restore (only non-existing ASINs)
                 const dataToRestore = invoiceItems
-                    .filter(item => !existingAsinSet.has(item.asin))
-                    .map(item => ({
+                    .filter((item) => !existingAsinSet.has(item.asin))
+                    .map((item) => ({
                         // Core fields
                         asin: item.asin,
                         product_link: item.product_link,
                         product_name: item.product_name,
                         brand: item.brand,
-
                         // Pricing fields
                         target_price: item.target_price,
                         target_quantity: item.target_quantity,
                         admin_target_price: item.admin_target_price,
                         buying_price: item.buying_price,
                         buying_quantity: item.buying_quantity,
-
                         // Seller fields
                         seller_link: item.seller_link,
                         seller_phone: item.seller_phone,
                         seller_tag: item.seller_tag,
-
                         // Logistics fields
                         payment_method: item.payment_method,
                         tracking_details: item.tracking_details,
                         delivery_date: item.delivery_date,
                         product_weight: item.product_weight,
-
-                        // ✅ Origin fields - FIXED (supports India, China, or both)
-                        origin: item.origin || 'India',
-    origin_india: item.origin_india ?? false,  // ✅ CHANGED - Direct from DB
-    origin_china: item.origin_china ?? false,
-
+                        // Origin fields
+                        origin: item.origin,
+                        origin_india: item.origin_india ?? false,
+                        origin_china: item.origin_china ?? false,
                         // Funnel fields
                         funnel: item.funnel,
                         funnel_quantity: item.funnel_quantity,
                         funnel_seller: item.funnel_seller,
-
                         // Purchase links
                         inr_purchase_link: item.inr_purchase_link,
                     }));
 
-                // 5. Insert back to usa_traking (if any non-duplicate ASINs)
+                // 5. Insert back to Main File (if any non-duplicate ASINs)
                 if (dataToRestore.length > 0) {
                     const { error: restoreError } = await supabase
-                        .from('usa_traking')
+                        .from(mainFileTableName) // ✅ FIXED: usa_tracking_seller_X
                         .insert(dataToRestore);
 
                     if (restoreError) {
-                        console.error('❌ Restore error:', restoreError);
+                        console.error('Restore error:', restoreError);
                         throw restoreError;
                     }
+
+                    console.log(`✅ Restored ${dataToRestore.length} ASINs`);
                 }
 
-                // 6. Delete from usa_tracking_company_invoice
+                if (existingAsinSet.size > 0) {
+                    console.log(`⚠️ Skipped ${existingAsinSet.size} duplicate ASINs`);
+                }
+
+                // 6. Delete from invoice table
                 const { error: deleteError } = await supabase
-                    .from('usa_tracking_company_invoice')
+                    .from(invoiceTableName) // ✅ FIXED: usa_invoice_seller_X
                     .delete()
                     .eq('invoice_number', invoiceNumber);
 
                 if (deleteError) throw deleteError;
 
-                // 7. Delete from usa_company_invoice (master)
+                // 7. Delete from master invoice table
                 const { error: deleteMasterError } = await supabase
                     .from('usa_company_invoice')
                     .delete()
@@ -242,13 +253,13 @@ export default function RollbackModal({
 
                 if (deleteMasterError) throw deleteMasterError;
 
-                console.log(`✅ Rolled back invoice ${invoiceNumber}: ${dataToRestore.length} ASINs restored, ${existingAsinSet.size} skipped (already exist)`);
+                console.log(`✅ Rolled back invoice ${invoiceNumber}`);
             }
 
             // Show success toast
             setToast({
                 message: `Successfully rolled back ${selectedInvoices.size} invoice(s)!`,
-                type: 'success'
+                type: 'success',
             });
 
             // Close modal and refresh after short delay
@@ -256,17 +267,17 @@ export default function RollbackModal({
                 onSuccess();
                 onClose();
             }, 1500);
-
         } catch (error: any) {
             console.error('Rollback error:', error);
             setToast({
-                message: 'Rollback failed: ' + error.message,
-                type: 'error'
+                message: `Rollback failed: ${error.message}`,
+                type: 'error',
             });
         } finally {
             setProcessing(false);
         }
     };
+
 
 
 
@@ -336,6 +347,7 @@ export default function RollbackModal({
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
                                         Total Amount
                                     </th>
+
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">

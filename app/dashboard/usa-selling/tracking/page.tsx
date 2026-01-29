@@ -1,11 +1,22 @@
 'use client';
 import PageGuard from '@/components/PageGuard'
 import { supabase } from '@/lib/supabaseClient';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // ✅ Added useMemo
 import InvoiceModal from './components/InvoiceModal'
 import CompanyInvoiceTable from './components/CompanyInvoiceTable'
 import CheckingTable from './components/CheckingTable';
 import RollbackModal from './components/RollbackModal'
+import { SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
+import ShipmentTable from './components/ShipmentTable';
+import RestockTable from './components/RestockTable';
+import VyaparTable from './components/VyaparTable';
+
+const SELLERS = [
+    { tag: 'GR', name: 'Golden Aura', id: 1, color: 'bg-yellow-500' },
+    { tag: 'RR', name: 'Rudra Retail', id: 2, color: 'bg-indigo-500' },
+    { tag: 'UB', name: 'UBeauty', id: 3, color: 'bg-pink-500' },
+    { tag: 'VV', name: 'Velvet Vista', id: 4, color: 'bg-emerald-500' }
+];
 
 type PassFileProduct = {
     id: string
@@ -58,14 +69,29 @@ type PassFileProduct = {
     admin_target_quantity?: number | null
 }
 
-type TabType = 'main_file' | 'company_invoice_details' | 'checking';
+// ✅ UPDATED TAB TYPES
+type TabType = 'main_file' | 'company_invoice_details' | 'checking' | 'shipment' | 'restock' | 'vyapar';
 
 export default function TrackingPage() {
+    // ✅ NEW: Active Seller State
+    const [activeSeller, setActiveSeller] = useState<string>('GR');
+
+    // ✅ NEW: Dynamic Seller ID Calculation
+    const currentSellerId = useMemo(() => {
+        return SELLER_TAG_MAPPING[activeSeller as SellerTag] || 1;
+    }, [activeSeller]);
+
     const [activeTab, setActiveTab] = useState<TabType>('main_file');
     const [products, setProducts] = useState<PassFileProduct[]>([]);
     const [loading, setLoading] = useState(true);
-    const [companyInvoiceCount, setCompanyInvoiceCount] = useState(0);
-    const [checkingCount, setCheckingCount] = useState(0);
+
+    // ✅ NEW: Consolidated Counts State
+    const [counts, setCounts] = useState({
+        invoice: 0,
+        checking: 0,
+        shipment: 0,
+        restock: 0
+    });
 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -74,6 +100,7 @@ export default function TrackingPage() {
     const selectedItems = products
         .filter((p) => selectedIds.has(p.id))
         .map((p) => ({
+            id: p.id,
             asin: p.asin,
             product_link: p.product_link,
             product_name: p.product_name,
@@ -85,7 +112,7 @@ export default function TrackingPage() {
             inr_purchase_link: (p as any).inr_purchase_link,
             origin: p.origin,
             origin_india: p.origin_india,  // ✅ ADD THIS LINE
-            origin_china: p.origin_china,  
+            origin_china: p.origin_china,
             product_weight: p.product_weight || 0,
             buying_price: p.buying_price,
             buying_quantity: p.buying_quantity,
@@ -126,9 +153,13 @@ export default function TrackingPage() {
 
     const fetchProducts = async () => {
         try {
-            setLoading(true)
+            setLoading(true);
 
-            // ✅ Recursive fetch to handle 1000+ rows
+            // ✅ FIX: Fetch from seller-specific Main File table
+            const mainFileTableName = `usa_tracking_seller_${currentSellerId}`;
+            console.log('📋 Fetching from table:', mainFileTableName);
+
+            // Recursive fetch to handle 1000+ rows
             let allData: any[] = [];
             let from = 0;
             const batchSize = 1000;
@@ -136,8 +167,8 @@ export default function TrackingPage() {
 
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
-                    .from('usa_traking')
-                    .select('*') // Select ALL columns including delivery_date and journey_id
+                    .from(mainFileTableName) // ✅ FIXED: usa_tracking_seller_X
+                    .select('*') // Select ALL columns
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
 
@@ -152,104 +183,101 @@ export default function TrackingPage() {
                 }
             }
 
-            // Enrich data with Validation Info
+            // Enrich data with Validation Info (keep existing logic)
             const enrichedData = await Promise.all(
-  allData.map(async (product) => {
+                allData.map(async (product) => {
+                    let query = supabase
+                        .from('usa_validation_main_file')
+                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                        .eq('asin', product.asin);
 
-    let query = supabase
-      .from('usa_validation_main_file')
-      .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-      .eq('asin', product.asin);
+                    if (product.journey_id) {
+                        query = query.eq('current_journey_id', product.journey_id);
+                    }
 
-    if (product.journey_id) {
-      query = query.eq('current_journey_id', product.journey_id);
-    }
+                    const { data: validationData } = await query
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
 
-    const { data: validationData } = await query
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+                    let finalValidationData = validationData;
 
-    let finalValidationData = validationData;
+                    // Fallback if no validation data found
+                    if (!finalValidationData && !product.journey_id) {
+                        const { data: fallbackData } = await supabase
+                            .from('usa_validation_main_file')
+                            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                            .eq('asin', product.asin)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
 
-    if (!finalValidationData && !product.journey_id) {
-      const { data: fallbackData } = await supabase
-        .from('usa_validation_main_file')
-        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-        .eq('asin', product.asin)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+                        finalValidationData = fallbackData;
+                    }
 
-      finalValidationData = fallbackData;
-    }
+                    return {
+                        ...product,
+                        product_name: product.product_name ?? null,
+                        // Origin handling
+                        origin_india: product.origin?.toLowerCase().includes('india') || product.origin_india === true,
+                        origin_china: product.origin?.toLowerCase().includes('china') || product.origin_china === true,
+                        // Validation data
+                        validation_funnel: finalValidationData?.funnel ?? null,
+                        validation_seller_tag: finalValidationData?.seller_tag ?? null,
+                        product_weight: finalValidationData?.product_weight ?? null,
+                        usd_price: finalValidationData?.usd_price ?? null,
+                        inr_purchase_from_validation: finalValidationData?.inr_purchase ?? null,
+                    };
+                })
+            );
 
-    return {
-      ...product,
-      productname: product.product_name ?? null,
-
-      // ✅ FIXED ORIGIN (NO LOGIC CHANGE)
-
-
-       origin_india:
-    ((product.origin || '').toLowerCase().includes('india')) ||
-    product.origin_india === true,
-
-  origin_china:
-    ((product.origin || '').toLowerCase().includes('china')) ||
-    product.origin_china === true,
-
-      validation_funnel: finalValidationData?.funnel ?? null,
-      validation_seller_tag: finalValidationData?.seller_tag ?? null,
-      product_weight: finalValidationData?.product_weight ?? null,
-      usd_price: finalValidationData?.usd_price ?? null,
-      inr_purchase_from_validation: finalValidationData?.inr_purchase ?? null,
-    };
-  })
-);
-
-
-            setProducts(enrichedData)
+            console.log(`✅ Loaded ${enrichedData.length} products from ${mainFileTableName}`);
+            setProducts(enrichedData);
         } catch (error) {
-            console.error('Error fetching products:', error)
+            console.error('Error fetching products:', error);
         } finally {
-            setLoading(false)
-        }
-    }
-
-
-    const fetchCounts = async () => {
-        try {
-            // Fetch Company Invoice Details count
-            const { count: invoiceCount, error: invoiceError } = await supabase
-                .from('usa_tracking_company_invoice')
-                .select('*', { count: 'exact', head: true });
-
-            if (invoiceError) {
-                console.error('Error fetching invoice count:', invoiceError);
-            } else {
-                setCompanyInvoiceCount(invoiceCount || 0);
-            }
-
-            // Fetch Checking count
-            const { count: checkCount, error: checkError } = await supabase
-                .from('usa_checking')
-                .select('*', { count: 'exact', head: true });
-            
-            if (checkError) {
-                console.error('Error fetching checking count:', checkError);
-            } else {
-                setCheckingCount(checkCount || 0);
-            }
-        } catch (error) {
-            console.error('Error fetching counts:', error);
+            setLoading(false);
         }
     };
 
+
+    const fetchSellerCounts = async () => {
+        const id = currentSellerId;
+        try {
+            console.log('🔢 Fetching counts for seller:', id);
+
+            // Parallel fetch for speed
+            const [invoiceRes, checkingRes, shipmentRes, restockRes] = await Promise.all([
+                supabase.from(`usa_invoice_seller_${id}`).select('*', { count: 'exact', head: true }),
+                supabase.from(`usa_checking_seller_${id}`).select('*', { count: 'exact', head: true }),
+                supabase.from(`usa_shipment_seller_${id}`).select('*', { count: 'exact', head: true }),
+                supabase.from(`usa_restock_seller_${id}`).select('*', { count: 'exact', head: true })
+            ]);
+
+            const newCounts = {
+                invoice: invoiceRes.count ?? 0,
+                checking: checkingRes.count ?? 0,
+                shipment: shipmentRes.count ?? 0,
+                restock: restockRes.count ?? 0
+            };
+
+            console.log('✅ Updated counts:', newCounts);
+            setCounts(newCounts);
+        } catch (error) {
+            console.error('❌ Error fetching seller counts:', error);
+        }
+    };
+
+    const handleCountsChange = () => {
+        void fetchSellerCounts();
+    };
 
     const refreshProductsSilently = async () => {
         try {
-            // ✅ Recursive fetch to handle 1000+ rows
+            // ✅ FIX: Fetch from seller-specific Main File table
+            const mainFileTableName = `usa_tracking_seller_${currentSellerId}`;
+
+            // Recursive fetch to handle 1000+ rows
             let allData: any[] = [];
             let from = 0;
             const batchSize = 1000;
@@ -257,7 +285,7 @@ export default function TrackingPage() {
 
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
-                    .from('usa_traking')
+                    .from(mainFileTableName) // ✅ FIXED: usa_tracking_seller_X
                     .select('*')
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -273,82 +301,82 @@ export default function TrackingPage() {
                 }
             }
 
-            // ✅ OPTIMIZED FETCH: Get all potential validation data
+            // Get all potential validation data
             const allAsins = allData.map((p: any) => p.asin);
+
             const { data: validationDataArray } = await supabase
                 .from('usa_validation_main_file')
                 .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase')
                 .in('asin', allAsins);
 
-            // ✅ SMART MAP: Create a composite key (ASIN + JourneyID) to ensure unique cycle data
+            // Create maps for quick lookup
             const validationMap = new Map();
-            const fallbackMap = new Map(); // Fallback for legacy items without journey_id
+            const fallbackMap = new Map();
 
-            (validationDataArray || []).forEach((v: any) => {
-                // Precise match key
+            validationDataArray?.forEach((v: any) => {
                 if (v.current_journey_id) {
-                    validationMap.set(`${v.asin}_${v.current_journey_id}`, v);
+                    validationMap.set(`${v.asin}${v.current_journey_id}`, v);
                 }
-                // Fallback (latest wins if sorted by DB, or just arbitrary. Better than nothing)
                 fallbackMap.set(v.asin, v);
             });
 
-           const enrichedData = allData.map((product: any) => {
-  const validationData =
-    validationMap.get(`${product.asin}_${product.journey_id}`) ||
-    fallbackMap.get(product.asin);
+            const enrichedData = allData.map((product: any) => {
+                const validationData =
+                    validationMap.get(`${product.asin}${product.journey_id}`) ||
+                    fallbackMap.get(product.asin);
 
-  // ✅ ONLY THIS LINE ADDED
+                return {
+                    ...product,
+                    product_name: product.product_name ?? null,
+                    origin_india: product.origin?.toLowerCase().includes('india') || product.origin_india === true,
+                    origin_china: product.origin?.toLowerCase().includes('china') || product.origin_china === true,
+                    validation_funnel: validationData?.funnel ?? null,
+                    validation_seller_tag: validationData?.seller_tag ?? null,
+                    product_weight: validationData?.product_weight ?? null,
+                    usd_price: validationData?.usd_price ?? null,
+                    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                };
+            });
 
-  return {
-    ...product,
-    product_name: product.product_name ?? null,
-
-    origin_india:
-    ((product.origin || '').toLowerCase().includes('india')) ||
-    product.origin_india === true,
-
-  origin_china:
-    ((product.origin || '').toLowerCase().includes('china')) ||
-    product.origin_china === true,
-
-    validation_funnel: validationData?.funnel ?? null,
-    validation_seller_tag: validationData?.seller_tag ?? null,
-    product_weight: validationData?.product_weight ?? null,
-    usd_price: validationData?.usd_price ?? null,
-    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
-  };
-});
-
-
-            setProducts(enrichedData)
+            setProducts(enrichedData);
         } catch (error) {
-            console.error('Error refreshing products:', error)
+            console.error('Error refreshing products:', error);
         }
-    }
+    };
 
 
     useEffect(() => {
-        fetchProducts()
-        fetchCounts()
+        fetchProducts();
+        fetchSellerCounts();
+
+        // ✅ FIX: Subscribe to seller-specific table
+        const mainFileTableName = `usa_tracking_seller_${currentSellerId}`;
+        const invoiceTableName = `usa_invoice_seller_${currentSellerId}`;
+        const checkingTableName = `usa_checking_seller_${currentSellerId}`;
 
         const channel = supabase
-            .channel('tracking-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_traking' }, () => {
-                refreshProductsSilently()
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_tracking_company_invoice' }, () => {
-                fetchCounts()
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'usa_checking' }, () => {
-                fetchCounts()
-            })
-            .subscribe()
+            .channel(`tracking-${currentSellerId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: mainFileTableName, // ✅ FIXED
+            }, refreshProductsSilently)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: invoiceTableName, // ✅ FIXED
+            }, fetchSellerCounts)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: checkingTableName, // ✅ FIXED
+            }, fetchSellerCounts)
+            .subscribe();
 
         return () => {
-            channel.unsubscribe()
-        }
-    }, [])
+            channel.unsubscribe();
+        };
+    }, [currentSellerId]); // Re-run when seller changes
 
 
     const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
@@ -410,6 +438,7 @@ export default function TrackingPage() {
     }, [resizing, columnWidths]);
 
     const filteredProducts = products.filter((p) => {
+        // 1. Search Filter
         const matchesSearch =
             !searchQuery ||
             p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -418,10 +447,14 @@ export default function TrackingPage() {
 
         if (!matchesSearch) return false
 
-        switch (activeTab) {
-            case 'main_file':
-                return !p.sent_to_admin && !p.move_to
-        }
+        // 2. ✅ SELLER FILTER: Must match Active Seller Tag
+        const tag = p.seller_tag || p.validation_seller_tag;
+        const matchesSeller = tag?.includes(activeSeller);
+
+        if (!matchesSeller) return false;
+
+        // 3. Status Filter
+        return !p.sent_to_admin && !p.move_to
     })
 
     const handleSelectAll = (checked: boolean) => {
@@ -517,38 +550,94 @@ export default function TrackingPage() {
                         <p className="text-slate-400 mt-1">Order Confirmed → Tracking → Invoice</p>
                     </div>
 
-                    {/* Tabs - FIXED */}
-                    <div className="flex gap-2 mb-4">
+                    {/* ✅ NEW: SELLER TABS */}
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                        {SELLERS.map((seller) => (
+                            <button
+                                key={seller.tag}
+                                onClick={() => setActiveSeller(seller.tag)}
+                                className={`
+                                    relative px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2
+                                    ${activeSeller === seller.tag
+                                        ? `${seller.color} text-white shadow-lg scale-105`
+                                        : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'}
+                                `}
+                            >
+                                {seller.name}
+                                {activeSeller === seller.tag && (
+                                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* ✅ UPDATED: STAGE TABS */}
+                    <div className="flex gap-2 mb-4 overflow-x-auto">
+                        {/* Main File Tab */}
                         <button
                             onClick={() => setActiveTab('main_file')}
-                            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'main_file'
-                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'main_file'
+                                ? 'bg-slate-800 text-white border-b-2 border-indigo-500'
+                                : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
-                            Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})
+                            Main File ({filteredProducts.length})
                         </button>
 
+                        {/* Invoice Tab */}
                         <button
                             onClick={() => setActiveTab('company_invoice_details')}
-                            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'company_invoice_details'
-                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'company_invoice_details'
+                                ? 'bg-slate-800 text-white border-b-2 border-indigo-500'
+                                : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
-                            Company Invoice Details ({companyInvoiceCount})
+                            Company Invoice ({counts.invoice})
                         </button>
 
+                        {/* Checking Tab */}
                         <button
                             onClick={() => setActiveTab('checking')}
-                            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'checking'
-                                ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'checking'
+                                ? 'bg-slate-800 text-white border-b-2 border-indigo-500'
+                                : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
-                            Checking ({checkingCount})
+                            Checking ({counts.checking})
                         </button>
 
+                        {/* Shipment Tab (New) */}
+                        <button
+                            onClick={() => setActiveTab('shipment')}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'shipment'
+                                ? 'bg-slate-800 text-white border-b-2 border-indigo-500'
+                                : 'text-slate-500 hover:text-slate-300'
+                                }`}
+                        >
+                            Shipment ({counts.shipment})
+                        </button>
+
+                        {/* Restock Tab (New) */}
+                        <button
+                            onClick={() => setActiveTab('restock')}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === 'restock'
+                                ? 'bg-slate-800 text-white border-b-2 border-indigo-500'
+                                : 'text-slate-500 hover:text-slate-300'
+                                }`}
+                        >
+                            Restock ({counts.restock})
+                        </button>
+
+                        {/* Vyapar Tab (New - Admin) */}
+                        <button
+                            onClick={() => setActiveTab('vyapar')}
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap border border-slate-800/50 ${activeTab === 'vyapar'
+                                ? 'bg-red-900/20 text-red-400 border-red-900/50'
+                                : 'text-slate-600 hover:text-slate-400'
+                                }`}
+                        >
+                            Vyapar 🔒
+                        </button>
                     </div>
                 </div>
 
@@ -994,44 +1083,43 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.origin && (
-  <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: columnWidths.origin + 'px' }}>
-    <div className="flex flex-col gap-1 items-center">
-      {/* First priority: Show origin text field */}
-      {product.origin && !['both', 'india, china'].includes(product.origin.toLowerCase()) ? (
-        <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-          product.origin.toLowerCase() === 'india' 
-            ? 'bg-orange-500 text-white' 
-            : product.origin.toLowerCase() === 'china'
-            ? 'bg-red-500 text-white'
-            : 'bg-slate-700 text-white'
-        }`}>
-          {product.origin}
-        </span>
-      ) : (
-        <>
-          {/* Show India if true */}
-          {product.origin_india && (
-            <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold whitespace-nowrap">
-              India
-            </span>
-          )}
-          
-          {/* Show China if true */}
-          {product.origin_china && (
-            <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold whitespace-nowrap">
-              China
-            </span>
-          )}
-          
-          {/* Show "-" only if BOTH are false */}
-          {!product.origin_india && !product.origin_china && (
-            <span className="text-xs text-slate-600 italic">-</span>
-          )}
-        </>
-      )}
-    </div>
-  </td>
-)}
+                                                            <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: columnWidths.origin + 'px' }}>
+                                                                <div className="flex flex-col gap-1 items-center">
+                                                                    {/* First priority: Show origin text field */}
+                                                                    {product.origin && !['both', 'india, china'].includes(product.origin.toLowerCase()) ? (
+                                                                        <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${product.origin.toLowerCase() === 'india'
+                                                                            ? 'bg-orange-500 text-white'
+                                                                            : product.origin.toLowerCase() === 'china'
+                                                                                ? 'bg-red-500 text-white'
+                                                                                : 'bg-slate-700 text-white'
+                                                                            }`}>
+                                                                            {product.origin}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <>
+                                                                            {/* Show India if true */}
+                                                                            {product.origin_india && (
+                                                                                <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold whitespace-nowrap">
+                                                                                    India
+                                                                                </span>
+                                                                            )}
+
+                                                                            {/* Show China if true */}
+                                                                            {product.origin_china && (
+                                                                                <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold whitespace-nowrap">
+                                                                                    China
+                                                                                </span>
+                                                                            )}
+
+                                                                            {/* Show "-" only if BOTH are false */}
+                                                                            {!product.origin_india && !product.origin_china && (
+                                                                                <span className="text-xs text-slate-600 italic">-</span>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
 
                                                         {visibleColumns.buyingprice && (
                                                             <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50" style={{ width: `${columnWidths.buyingprice}px` }}>
@@ -1092,14 +1180,40 @@ export default function TrackingPage() {
                             )}
                         </div>
 
+                        {/* ✅ PASS SELLER ID TO TABLES */}
                         {activeTab === 'company_invoice_details' && (
                             <div className="p-4 bg-slate-900 min-h-full">
-                                <CompanyInvoiceTable />
+                                <CompanyInvoiceTable
+                                    sellerId={currentSellerId}
+                                    onCountsChange={fetchSellerCounts}  // ✅ ADD THIS
+                                />
                             </div>
                         )}
                         {activeTab === 'checking' && (
                             <div className="p-4 bg-slate-900 min-h-full">
-                                <CheckingTable />
+                                <CheckingTable sellerId={currentSellerId}
+                                    onCountsChange={handleCountsChange} />
+                            </div>
+                        )}
+
+                        {/* ✅ NEW COMPONENTS */}
+                        {activeTab === 'shipment' && (
+                            <div className="p-4 bg-slate-900 min-h-full">
+                                <ShipmentTable sellerId={currentSellerId}
+                                    onCountsChange={handleCountsChange} />
+                            </div>
+                        )}
+
+                        {activeTab === 'restock' && (
+                            <div className="p-4 bg-slate-900 min-h-full">
+                                <RestockTable sellerId={currentSellerId} />
+                            </div>
+                        )}
+
+                        {activeTab === 'vyapar' && (
+                            <div className="p-4 bg-slate-900 min-h-full">
+                                <VyaparTable sellerId={currentSellerId}
+                                    onCountsChange={handleCountsChange} />
                             </div>
                         )}
 
@@ -1120,14 +1234,17 @@ export default function TrackingPage() {
                 open={invoiceOpen}
                 onClose={() => setInvoiceOpen(false)}
                 items={selectedItems}
+                sellerId={currentSellerId} // ✅ Pass Seller ID
                 onSuccess={() => {
                     fetchProducts();
+                    fetchSellerCounts(); // Refresh counts too
                     setSelectedIds(new Set());
                 }}
             />
             <RollbackModal
                 open={rollbackOpen}
                 onClose={() => setRollbackOpen(false)}
+                sellerId={currentSellerId}
                 onSuccess={() => {
                     fetchProducts();
                     setRollbackOpen(false);
