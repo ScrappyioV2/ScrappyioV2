@@ -503,7 +503,7 @@ export default function ReorderPage() {
 
         // ✅ PRIORITY ORDER: Check from final stage backward
         const tablesToCheck = [
-          { name: getTrackingTableName('VYAPAR', sellerId), priority: 5 },       // Highest priority
+          // { name: getTrackingTableName('VYAPAR', sellerId), priority: 5 },       // Highest priority
           { name: getTrackingTableName('SHIPMENT', sellerId), priority: 4 },
           { name: getTrackingTableName('CHECKING', sellerId), priority: 3 },
           { name: getTrackingTableName('INVOICE', sellerId), priority: 2 },

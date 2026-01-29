@@ -19,6 +19,10 @@ type VyaparItem = {
     tracking_details: string;
     delivery_date: string;
     moved_at: string;
+    seller_company: string | null  // ✅ ADD THIS
+    uploaded_invoice_url: string | null  // ✅ ADD THIS
+    uploaded_invoice_name: string | null  // ✅ ADD THIS
+    action_status: string | null
 };
 
 interface VyaparTableProps {
@@ -34,6 +38,8 @@ export default function VyaparTable({
     const [items, setItems] = useState<VyaparItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
+
 
     const fetchVyaparData = async () => {
         try {
@@ -55,6 +61,31 @@ export default function VyaparTable({
             setLoading(false);
         }
     };
+
+    const handleStatusChange = async (itemId: string, newStatus: string) => {
+        try {
+            // Update database
+            const tableName = getTrackingTableName('VYAPAR', sellerId)
+            const { error } = await supabase
+                .from(tableName)
+                .update({ action_status: newStatus })
+                .eq('id', itemId)
+
+            if (error) throw error
+
+            // Update local state
+            setItems(prevItems =>
+                prevItems.map(item =>
+                    item.id === itemId ? { ...item, action_status: newStatus } : item
+                )
+            )
+
+            console.log(`Status updated to ${newStatus} for item ${itemId}`)
+        } catch (error: any) {
+            console.error('Error updating status:', error)
+            alert(`Failed to update status: ${error.message}`)
+        }
+    }
 
     useEffect(() => {
         fetchVyaparData();
@@ -91,9 +122,11 @@ export default function VyaparTable({
             {/* Table */}
             <div className="flex-1 overflow-hidden">
                 <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
+
+                    {/* Scrollable Table */}
                     <div className="flex-1 overflow-y-auto">
                         <table className="w-full">
-                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0">
+                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice No</th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice Date</th>
@@ -107,41 +140,128 @@ export default function VyaparTable({
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Total</th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking</th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Company</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Upload</th>
+                                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400">Action</th>
                                 </tr>
                             </thead>
+
                             <tbody className="divide-y divide-slate-800">
                                 {filteredItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={12} className="text-center py-8 text-slate-500">
+                                        <td colSpan={15} className="text-center py-8 text-slate-500">
                                             {searchQuery ? 'No items found' : 'No Vyapar records yet'}
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredItems.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                                        <tr
+                                            key={item.id}
+                                            className={`transition-colors ${item.action_status === 'done'
+                                                    ? 'bg-green-900/30 hover:bg-green-900/40'
+                                                    : 'hover:bg-slate-800/40'
+                                                }`}
+                                        >
+                                            {/* 1. Invoice No */}
                                             <td className="px-4 py-3 text-slate-200 font-semibold">{item.invoice_number}</td>
+
+                                            {/* 2. Invoice Date */}
                                             <td className="px-4 py-3 text-slate-300">
                                                 {item.invoice_date ? new Date(item.invoice_date).toLocaleDateString() : '-'}
                                             </td>
+
+                                            {/* 3. GST Number */}
                                             <td className="px-4 py-3 text-slate-300">{item.gst_number || '-'}</td>
+
+                                            {/* 4. ASIN */}
                                             <td className="px-4 py-3 font-mono text-indigo-400">{item.asin}</td>
+
+                                            {/* 5. Product */}
                                             <td className="px-4 py-3 text-slate-300">{item.product_name || '-'}</td>
+
+                                            {/* 6. Qty */}
                                             <td className="px-4 py-3 text-slate-300">{item.buying_quantity || '-'}</td>
+
+                                            {/* 7. Price */}
                                             <td className="px-4 py-3 text-slate-300">₹{item.buying_price || 0}</td>
+
+                                            {/* 8. Amount */}
                                             <td className="px-4 py-3 text-green-400 font-semibold">
                                                 ₹{item.amount?.toFixed(2) || '0.00'}
                                             </td>
+
+                                            {/* 9. Tax */}
                                             <td className="px-4 py-3 text-slate-300">
                                                 ₹{item.tax_amount?.toFixed(2) || '0.00'}
                                             </td>
+
+                                            {/* 10. Total */}
                                             <td className="px-4 py-3 text-yellow-400 font-bold">
                                                 ₹{item.total_amount?.toFixed(2) || '0.00'}
                                             </td>
+
+                                            {/* 11. Tracking */}
                                             <td className="px-4 py-3 text-slate-300 truncate max-w-[150px]">
                                                 {item.tracking_details || '-'}
                                             </td>
+
+                                            {/* 12. Delivery */}
                                             <td className="px-4 py-3 text-slate-300">
                                                 {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
+                                            </td>
+
+                                            {/* 13. Company - MOVED HERE AT THE END */}
+                                            <td className="px-4 py-3">
+                                                {item.seller_company ? (
+                                                    <button
+                                                        onClick={() => setSelectedCompany(item.seller_company!)}
+                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                                    >
+                                                        View
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-slate-600">-</span>
+                                                )}
+                                            </td>
+
+                                            {/* 14. Upload - MOVED HERE AT THE END */}
+                                            <td className="px-4 py-3">
+                                                {item.uploaded_invoice_url ? (
+                                                    <a
+                                                        href={item.uploaded_invoice_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors inline-block"
+                                                    >
+                                                        View
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-slate-600">-</span>
+                                                )}
+                                            </td>
+
+                                            {/* 15. Action - AT THE VERY END */}
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {item.action_status === 'done' ? (
+                                                        <button
+                                                            onClick={() => handleStatusChange(item.id, 'pending')}
+                                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                            Done
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleStatusChange(item.id, 'done')}
+                                                            className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                                        >
+                                                            Pending
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -150,14 +270,36 @@ export default function VyaparTable({
                         </table>
                     </div>
 
-                    {/* Footer */}
+                    {/* Footer - FIXED at bottom */}
                     <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
                         <div className="text-sm text-slate-400">
                             Showing {filteredItems.length} of {items.length} Vyapar records
                         </div>
                     </div>
+
                 </div>
             </div>
+
+            {/* Company Modal */}
+            {selectedCompany && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
+                            <button
+                                onClick={() => setSelectedCompany(null)}
+                                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            {selectedCompany}
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
-    );
+    )
 }
