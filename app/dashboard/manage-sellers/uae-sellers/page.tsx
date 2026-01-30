@@ -33,7 +33,7 @@ import {
 const TABLE_NAME = 'uae_master_sellers';
 
 const ALL_COLUMNS = [
-  's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
+  's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark','brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
   'dimensions', 'weight', 'weight_unit'
 ];
@@ -44,6 +44,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   'link': 80,
   'amz_link': 120,
   'product_name': 300,
+  'remark': 120,
   'brand': 120,
   'price': 100,
   'monthly_unit': 120,
@@ -188,6 +189,7 @@ export default function UaeSellersPage() {
         }
 
         // Normalize data and generate Amazon links
+                // Normalize data and generate Amazon links
         const normalizedData = normalizeDataForDB(data)
           .map((product) => {
             if (product && product.asin) {
@@ -198,10 +200,27 @@ export default function UaeSellersPage() {
               if (!product.link) {
                 product.link = product.amz_link;
               }
+              
+              // ✅ HANDLE REMARK COLUMN - Case-insensitive mapping
+              if (!product.remark) {
+                product.remark = product.REMARK || 
+                                 product.Remark || 
+                                 product.remarks || 
+                                 product.REMARKS || 
+                                 product.Remarks || 
+                                 null;
+              }
+              // ✅ DEBUG: Log when remark is found
+              if (product.remark) {
+                console.log('✅ Remark found for ASIN:', product.asin, '→', product.remark.substring(0, 50));
+              }
             }
             return product;
           })
           .filter(Boolean);
+          // ✅ DEBUG: Summary of remarks
+        const remarksCount = normalizedData.filter(p => p.remark).length;
+        console.log(`📝 Total products with remarks: ${remarksCount}/${normalizedData.length}`);
 
         // Filter duplicates
         const { newProducts, duplicateCount } =
@@ -424,6 +443,23 @@ export default function UaeSellersPage() {
           hasMore = false;
         }
       }
+      // ✅ FORMAT DATA FOR EXPORT - Include Remark column
+      const formattedData = allData.map((item, index) => ({
+        'S.No': index + 1,
+        'ASIN': item.asin || '',
+        'Link': item.amz_link || '',
+        'Product Name': item.product_name || '',
+        'Remark': item.remark || '',
+        'Brand': item.brand || '',
+        'Price': item.price || '',
+        'Monthly Units': item.monthly_unit || '',
+        'Monthly Sales': item.monthly_sales || '',
+        'BSR': item.bsr || '',
+        'Sellers': item.seller || '',
+        'Category': item.category || '',
+        'Dimensions': item.dimensions || '',
+        'Weight': item.weight ? `${item.weight} ${item.weight_unit || 'kg'}` : '',
+      }));
 
       exportData(allData, TABLE_NAME, format);
       alert(`Successfully exported ${allData.length} products!`);

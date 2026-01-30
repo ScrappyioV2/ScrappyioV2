@@ -31,6 +31,7 @@ interface ProductRow {
   amz_link: string | null;
   working?: boolean;
   reason?: string | null;
+  remark?: string | null;
 }
 
 type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
@@ -44,7 +45,8 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   monthly_unit: 120,
   product_link: 100,
   amz_link: 100,
-  reason: 250
+  reason: 250,
+  remark: 200,
 };
 
 export default function RudraRetailPage() {
@@ -65,6 +67,7 @@ export default function RudraRetailPage() {
     product_link: true,
     amz_link: true,
     reason: true,
+    remark: true,
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
   // Move To dropdown state (for Reject tab)
@@ -125,7 +128,7 @@ export default function RudraRetailPage() {
     isOpen: false,
     product: null,
   });
-
+  const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
   const SELLER_ID = 2;
 
   const SELLER_CODE_MAP: Record<number, string> = {
@@ -209,21 +212,21 @@ export default function RudraRetailPage() {
       let query = supabase.from(tableName).select('*', { count: 'exact' });
 
       if (debouncedSearch.trim()) {
-  // ✅ Limit search to 100 characters to prevent 400 errors
-  const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
-  
-  // Show warning if search was truncated
-  if (debouncedSearch.length > 100) {
-    setToast({
-      message: 'Search query too long - truncated to 100 characters',
-      type: 'warning',
-    });
-  }
-  
-  query = query.or(
-    `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
-  );
-}
+        // ✅ Limit search to 100 characters to prevent 400 errors
+        const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
+
+        // Show warning if search was truncated
+        if (debouncedSearch.length > 100) {
+          setToast({
+            message: 'Search query too long - truncated to 100 characters',
+            type: 'warning',
+          });
+        }
+
+        query = query.or(
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
+        );
+      }
 
 
       const { data, error, count } = await query
@@ -283,6 +286,7 @@ export default function RudraRetailPage() {
           monthly_unit: data.monthly_unit,
           product_link: data.product_link,
           amz_link: data.amz_link,
+          remark: data.remark,
         };
 
         setMovementHistory((prev) => ({
@@ -320,6 +324,7 @@ export default function RudraRetailPage() {
           monthly_unit: product.monthly_unit,
           product_link: product.product_link,
           amz_link: product.amz_link,
+          remark: product.remark,
           from_table: fromTable,
           to_table: toTable,
         });
@@ -371,6 +376,7 @@ export default function RudraRetailPage() {
             amz_link: product.amz_link,
             product_weight: null,
             judgement: null,
+            remark: product.remark,
           });
         } else {
           const existingTags = existingRow.seller_tag?.split(',') ?? [];
@@ -423,38 +429,68 @@ export default function RudraRetailPage() {
   };
 
   const handleRollBack = async () => {
-  const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
-  const lastMovement = movementHistory[currentTable];
+    const currentTable = `usa_seller_${SELLER_ID}_${activeTab}`;
+    const lastMovement = movementHistory[currentTable];
 
-  if (!lastMovement) {
-    setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
-    return;
-  }
+    if (!lastMovement) {
+      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
+      return;
+    }
 
-  setLoading(true);
-  try {
-    const { product, fromTable, toTable } = lastMovement;
+    setLoading(true);
+    try {
+      const { product, fromTable, toTable } = lastMovement;
 
-    // ✅ NEW: Check if product already exists in destination table
-    const { data: existingProduct, error: checkError } = await supabase
-      .from(fromTable)
-      .select('asin')
-      .eq('asin', product.asin)
-      .maybeSingle();
+      // ✅ NEW: Check if product already exists in destination table
+      const { data: existingProduct, error: checkError } = await supabase
+        .from(fromTable)
+        .select('asin')
+        .eq('asin', product.asin)
+        .maybeSingle();
 
-    if (checkError) throw checkError;
+      if (checkError) throw checkError;
 
-    if (existingProduct) {
-      // Product already exists - clear history and show message
-      setToast({
-        message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
-        type: 'warning',
+      if (existingProduct) {
+        // Product already exists - clear history and show message
+        setToast({
+          message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
+          type: 'warning',
+        });
+
+        // Clear movement history since it's no longer valid
+        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+
+        // Delete the invalid history entry from database
+        await supabase
+          .from(`usa_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
+          .delete()
+          .eq('asin', product.asin)
+          .eq('from_table', fromTable)
+          .eq('to_table', toTable)
+          .order('moved_at', { ascending: false })
+          .limit(1);
+
+        setLoading(false);
+        return;
+      }
+
+      // Product doesn't exist - proceed with rollback
+      const { error: insertError } = await supabase.from(fromTable).insert({
+        asin: product.asin,
+        product_name: product.product_name,
+        brand: product.brand,
+        funnel: product.funnel,
+        monthly_unit: product.monthly_unit,
+        product_link: product.product_link,
+        amz_link: product.amz_link,
+        remark: product.remark,
       });
-      
-      // Clear movement history since it's no longer valid
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-      
-      // Delete the invalid history entry from database
+
+      if (insertError) throw insertError;
+
+      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+      if (deleteError) throw deleteError;
+
       await supabase
         .from(`usa_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
         .delete()
@@ -463,49 +499,20 @@ export default function RudraRetailPage() {
         .eq('to_table', toTable)
         .order('moved_at', { ascending: false })
         .limit(1);
-      
+
+      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      fetchProducts(true);
+    } catch (error: any) {
+      console.error('Error rolling back:', error);
+      setToast({
+        message: error?.message || 'Rollback failed',
+        type: 'error'
+      });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Product doesn't exist - proceed with rollback
-    const { error: insertError } = await supabase.from(fromTable).insert({
-      asin: product.asin,
-      product_name: product.product_name,
-      brand: product.brand,
-      funnel: product.funnel,
-      monthly_unit: product.monthly_unit,
-      product_link: product.product_link,
-      amz_link: product.amz_link,
-    });
-
-    if (insertError) throw insertError;
-
-    const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-    if (deleteError) throw deleteError;
-
-    await supabase
-      .from(`usa_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
-      .delete()
-      .eq('asin', product.asin)
-      .eq('from_table', fromTable)
-      .eq('to_table', toTable)
-      .order('moved_at', { ascending: false })
-      .limit(1);
-
-    setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
-    setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-    fetchProducts(true);
-  } catch (error: any) {
-    console.error('Error rolling back:', error);
-    setToast({ 
-      message: error?.message || 'Rollback failed', 
-      type: 'error' 
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
@@ -575,34 +582,34 @@ export default function RudraRetailPage() {
 
       // Show result
       // Show result
-if (movedCount > 0) {
-  setToast({
-    message: `Successfully moved ${movedCount} product(s) to ${targetTab.replace('_', ' ')}`,
-    type: 'success',
-  });
-}
+      if (movedCount > 0) {
+        setToast({
+          message: `Successfully moved ${movedCount} product(s) to ${targetTab.replace('_', ' ')}`,
+          type: 'success',
+        });
+      }
 
-if (skippedCount > 0) {
-  setToast({
-    message: `Skipped ${skippedCount} product(s) - already exists in target table. ASINs: ${skippedAsins.slice(0, 3).join(', ')}${skippedAsins.length > 3 ? '...' : ''}`,
-    type: 'warning',
-  });
-}
+      if (skippedCount > 0) {
+        setToast({
+          message: `Skipped ${skippedCount} product(s) - already exists in target table. ASINs: ${skippedAsins.slice(0, 3).join(', ')}${skippedAsins.length > 3 ? '...' : ''}`,
+          type: 'warning',
+        });
+      }
 
-// ✅ NEW: Clear movement history for target table since products moved back
-// This prevents undo conflicts when products return to their original table
-const targetTableKey = `usa_seller_${SELLER_ID}_${targetTab}`;
-if (movementHistory[targetTableKey]) {
-  setMovementHistory((prev) => ({
-    ...prev,
-    [targetTableKey]: null,
-  }));
-}
+      // ✅ NEW: Clear movement history for target table since products moved back
+      // This prevents undo conflicts when products return to their original table
+      const targetTableKey = `usa_seller_${SELLER_ID}_${targetTab}`;
+      if (movementHistory[targetTableKey]) {
+        setMovementHistory((prev) => ({
+          ...prev,
+          [targetTableKey]: null,
+        }));
+      }
 
-// Clear selection and refresh
-setSelectedIds(new Set());
-setIsMoveToDropdownOpen(false);
-await fetchProducts(true);
+      // Clear selection and refresh
+      setSelectedIds(new Set());
+      setIsMoveToDropdownOpen(false);
+      await fetchProducts(true);
 
 
     } catch (error: any) {
@@ -807,22 +814,22 @@ await fetchProducts(true);
                 <div className="relative w-full md:w-72 group">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
-  type="text"
-  placeholder="Search by ASIN, Name, Brand..."
-  value={searchQuery}
-  onChange={(e) => {                              // ← CHANGED THIS
-    const value = e.target.value;                 // ← Get the typed text
-    if (value.length > 100) {                     // ← Check if too long
-      setToast({                                  // ← Show warning toast
-        message: 'Search query too long. Please use shorter keywords.',
-        type: 'warning',
-      });
-      return;                                     // ← Stop here, don't update search
-    }
-    setSearchQuery(value);                        // ← Update search if OK
-  }}
-  className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
-/>
+                    type="text"
+                    placeholder="Search by ASIN, Name, Brand..."
+                    value={searchQuery}
+                    onChange={(e) => {                              // ← CHANGED THIS
+                      const value = e.target.value;                 // ← Get the typed text
+                      if (value.length > 100) {                     // ← Check if too long
+                        setToast({                                  // ← Show warning toast
+                          message: 'Search query too long. Please use shorter keywords.',
+                          type: 'warning',
+                        });
+                        return;                                     // ← Stop here, don't update search
+                      }
+                      setSearchQuery(value);                        // ← Update search if OK
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+                  />
 
                 </div>
 
@@ -833,8 +840,8 @@ await fetchProducts(true);
                       onClick={() => setIsMoveToDropdownOpen(!isMoveToDropdownOpen)}
                       disabled={selectedIds.size === 0}
                       className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${selectedIds.size > 0
-                          ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
-                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                         }`}
                     >
                       <ArrowUpDown className="w-4 h-4" /> Move To
@@ -925,7 +932,7 @@ await fetchProducts(true);
                       {columnOrder.map((col) => {
                         const columnNames: Record<string, string> = {
                           asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                          monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason',
+                          monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
                         };
                         if (col === 'reason' && activeTab !== 'reject') return null;
 
@@ -958,7 +965,18 @@ await fetchProducts(true);
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
                               {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
-                                col === 'product_link' || col === 'amz_link' ? (
+                                col === 'remark' ? (
+                                  product.remark ? (
+                                    <button
+                                      onClick={() => setSelectedRemark(product.remark || '')}
+                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                      View
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-600">-</span>
+                                  )
+                                ) : col === 'product_link' || col === 'amz_link' ? (
                                   product[col as keyof ProductRow] ? (
                                     <a href={String(product[col as keyof ProductRow])} target="_blank" rel="noopener noreferrer"
                                       className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
@@ -1025,6 +1043,25 @@ await fetchProducts(true);
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
+        {/* ✅ ADD REMARK MODAL */}
+      {selectedRemark && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Remark Details</h3>
+              <button
+                onClick={() => setSelectedRemark(null)}
+                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+              >
+                ×
+              </button>
+            </div>
+            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+              {selectedRemark}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </PageTransition>
   );

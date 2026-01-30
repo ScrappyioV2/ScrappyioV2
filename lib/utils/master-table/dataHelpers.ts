@@ -9,6 +9,7 @@ const DB_COLUMNS = new Set([
   'link',
   'amz_link',
   'product_name',
+  'remark',
   'brand',
   'price',
   'monthly_unit',

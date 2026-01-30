@@ -15,6 +15,7 @@ interface MasterData {
   display_number: number;
   amz_link: string;
   product_name: string;
+  remark: string | null;
   brand: string;
   price: number;
   monthly_unit: number;
@@ -44,14 +45,14 @@ interface UsaMasterTableProps {
 }
 
 const ALL_COLUMNS = [
-  's_no', 'asin', 'amz_link', 'product_name', 'brand', 'price',
+  's_no', 'asin', 'amz_link', 'product_name','remark', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'dimensions', 'weight',
 ];
 
 const NUMERIC_COLUMNS = ['price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'weight'];
 
 const COLUMN_LABELS: Record<string, string> = {
-  s_no: 'S.No', asin: 'ASIN', 'amz_link': 'Link', product_name: 'Product Name',
+  s_no: 'S.No', asin: 'ASIN', 'amz_link': 'Link', product_name: 'Product Name',remark: 'Remark',
   brand: 'Brand', price: 'Price', monthly_unit: 'Monthly Units', monthly_sales: 'Monthly Sales',
   bsr: 'BSR', seller: 'Sellers', category: 'Category', dimensions: 'Dimensions', weight: 'Weight',
 };
@@ -79,6 +80,9 @@ export default function UsaMasterTable({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
+    // ✅ ADD THIS LINE - Remark Modal State
+  const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+
 
   const visibleColumns = ALL_COLUMNS.filter((col) => !hiddenColumns.includes(col));
   const isAllCurrentPageSelected = data.length > 0 && data.every((row) => selectedIds.has(row.id));
@@ -573,6 +577,17 @@ export default function UsaMasterTable({
                             >
                               View
                             </a>
+                            ) : column === 'remark' ? (
+                            row.remark ? (
+                              <button
+                                onClick={() => setSelectedRemark(row.remark)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                              >
+                                View
+                              </button>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )
                           ) : column === 'weight' ? (
                             `${row.weight} ${row.weight_unit}`
                           ) : column === 'price' ? (
@@ -594,6 +609,25 @@ export default function UsaMasterTable({
           </table>
         </div>
       </div>
+      {/* Remark Modal */}
+      {selectedRemark && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Remark Details</h3>
+              <button
+                onClick={() => setSelectedRemark(null)}
+                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+              >
+                ×
+              </button>
+            </div>
+            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+              {selectedRemark}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
