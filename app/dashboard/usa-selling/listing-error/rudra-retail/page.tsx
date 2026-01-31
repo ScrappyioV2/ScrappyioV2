@@ -39,6 +39,7 @@ interface ListingProduct {
   listing_notes?: string | null;
   error_reason?: string | null;
   source_admin_validation_id?: string;
+  remark: string | null;
 }
 
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
@@ -80,6 +81,7 @@ export default function RudraRetailListingPage() {
   }>({});
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
 
   // Reset page when tab changes
   useEffect(() => {
@@ -192,7 +194,8 @@ export default function RudraRetailListingPage() {
         selling_price: product.selling_price,
         seller_link: product.seller_link,
         from_table: fromTable,
-        to_table: toTable
+        to_table: toTable,
+        remark: product.remark ?? null,
       });
       setMovementHistory((prev) => ({
         ...prev,
@@ -214,6 +217,7 @@ export default function RudraRetailListingPage() {
         sku: product.sku,
         selling_price: product.selling_price,
         seller_link: product.seller_link,
+        remark: product.remark ?? null,
         ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
@@ -411,6 +415,7 @@ export default function RudraRetailListingPage() {
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">SKU</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">Price</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Source</th>
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Remark</th>
                       {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
                         <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Actions</th>
                       )}
@@ -446,6 +451,19 @@ export default function RudraRetailListingPage() {
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : <span className="text-slate-700">-</span>}
+                          </td>
+                          {/* ✅ ADD THIS NEW REMARK COLUMN */}
+                          <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
+                            {product.remark ? (
+                              <button
+                                onClick={() => setSelectedRemark(product.remark)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                              >
+                                View
+                              </button>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
                           </td>
 
                           {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
@@ -563,7 +581,48 @@ export default function RudraRetailListingPage() {
               </div>
             </div>
           )}
-
+          {/* ✅ REMARK MODAL - SIMPLE VERSION */}
+          <AnimatePresence>
+            {selectedRemark && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setSelectedRemark(null)}
+                  className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                />
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
+                  >
+                    <div className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700">
+                      <h2 className="text-xl font-bold text-white">Remark Details</h2>
+                      <button onClick={() => setSelectedRemark(null)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                        <X className="w-5 h-5 text-slate-400" />
+                      </button>
+                    </div>
+                    <div className="p-6 max-h-[70vh] overflow-y-auto">
+                      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                        <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{selectedRemark}</p>
+                      </div>
+                    </div>
+                    <div className="px-6 py-4 bg-slate-800 border-t border-slate-700 flex justify-end">
+                      <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
           {toast && (
             <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
           )}

@@ -58,6 +58,7 @@ type PassFileProduct = {
   total_cost?: number | null
   total_revenue?: number | null
   inr_purchase_from_validation?: number | null
+  remark: string | null;
 }
 
 // ADD THIS TYPE
@@ -92,6 +93,8 @@ export default function PurchasesPage() {
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
   const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  // Remark Modal State
+  const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
 
 
   // Column visibility state - ALL columns visible by default
@@ -115,6 +118,7 @@ export default function PurchasesPage() {
     deliverydate: true,
     moveto: true,
     admintargetprice: true,
+    remark: true,
   });
 
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
@@ -295,11 +299,24 @@ export default function PurchasesPage() {
     }
   }, [showAllJourneys]);
 
+  // ✅✅ ADD THIS NEW useEffect - ESC key for remark modal
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && selectedRemark) {
+      setSelectedRemark(null)
+    }
+  }
+
+  window.addEventListener('keydown', handleKeyDown)
+  return () => window.removeEventListener('keydown', handleKeyDown)
+}, [selectedRemark])
+
   // Column widths state for resizable columns
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
     checkbox: 50,
     asin: 120,
     history: 180,
+    remark: 150,
     productlink: 80,
     productname: 120,
     targetprice: 100,
@@ -342,7 +359,7 @@ export default function PurchasesPage() {
         // Try to match by journey_id first (most accurate)
         const { data } = await supabase
           .from('usa_validation_main_file')
-          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')
+          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price,remark')
           .eq('asin', product.asin)
           .eq('current_journey_id', product.journey_id)
           .maybeSingle();
@@ -353,7 +370,7 @@ export default function PurchasesPage() {
       if (!validationData) {
         const { data } = await supabase
           .from('usa_validation_main_file')
-          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price')
+          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price,remark')
           .eq('asin', product.asin)
           .order('journey_number', { ascending: false })
           .limit(1)
@@ -408,6 +425,7 @@ export default function PurchasesPage() {
           product_weight: validationData?.product_weight ?? null,
           usd_price: validationData?.usd_price ?? null,
           inr_purchase: validationData?.inr_purchase ?? null,
+          remark: validationData?.remark ?? null,
 
           // Admin fields
           admin_status: 'pending',
@@ -459,8 +477,6 @@ export default function PurchasesPage() {
       setHistoryLoading(false)
     }
   }
-
-
 
   // Handle Price Wait
   const handlePriceWait = async (product: PassFileProduct) => {
@@ -572,181 +588,182 @@ export default function PurchasesPage() {
     // ✅ NO finally block - no setLoading(false)
   }
   const handleMoveToTracking = async (product: PassFileProduct) => {
-  if (!product.admin_confirmed) {
-    alert('Only Order Confirmed items can be moved');
-    return;
-  }
-
-  try {
-    console.log('🚀 Moving to tracking:', product.asin);
-
-    // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
-    const { data: freshProduct, error: fetchError } = await supabase
-      .from('usa_purchases')
-      .select('*')
-      .eq('id', product.id)
-      .single();
-
-    if (fetchError || !freshProduct) {
-      throw new Error('Could not fetch latest data. Please refresh and try again.');
+    if (!product.admin_confirmed) {
+      alert('Only Order Confirmed items can be moved');
+      return;
     }
 
-    console.log('📦 Fresh data fetched:', {
-      asin: freshProduct.asin,
-      buying_price: freshProduct.buying_price,
-      buying_quantity: freshProduct.buying_quantity,
-      seller_link: freshProduct.seller_link,
-    });
+    try {
+      console.log('🚀 Moving to tracking:', product.asin);
 
-    // STEP 2: Extract ALL unique seller tags
-    let sellerTags: string[] = [];
-    const rawSellerTag = freshProduct.seller_tag || product.seller_tag || product.validation_seller_tag;
-    
-    if (rawSellerTag) {
-      // Split by comma and clean
-      sellerTags = rawSellerTag
-        .split(',')
-        .map((tag: string) => tag.trim().toUpperCase())
-        .filter((tag: string) => tag.length > 0);
-      
-      // Remove duplicates
-      sellerTags = [...new Set(sellerTags)];
+      // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
+      const { data: freshProduct, error: fetchError } = await supabase
+        .from('usa_purchases')
+        .select('*')
+        .eq('id', product.id)
+        .single();
+
+      if (fetchError || !freshProduct) {
+        throw new Error('Could not fetch latest data. Please refresh and try again.');
+      }
+
+      console.log('📦 Fresh data fetched:', {
+        asin: freshProduct.asin,
+        buying_price: freshProduct.buying_price,
+        buying_quantity: freshProduct.buying_quantity,
+        seller_link: freshProduct.seller_link,
+      });
+
+      // STEP 2: Extract ALL unique seller tags
+      let sellerTags: string[] = [];
+      const rawSellerTag = freshProduct.seller_tag || product.seller_tag || product.validation_seller_tag;
+
+      if (rawSellerTag) {
+        // Split by comma and clean
+        sellerTags = rawSellerTag
+          .split(',')
+          .map((tag: string) => tag.trim().toUpperCase())
+          .filter((tag: string) => tag.length > 0);
+
+        // Remove duplicates
+        sellerTags = [...new Set(sellerTags)];
+      }
+
+      // Fallback to GR if no tags
+      if (sellerTags.length === 0) {
+        sellerTags = ['GR'];
+      }
+
+      console.log('🏷️ Seller tags to process:', sellerTags);
+
+      // Map seller tag to seller ID
+      const sellerTagMapping: Record<string, number> = {
+        'GR': 1,  // Golden Aura
+        'RR': 2,  // Rudra Retail
+        'UB': 3,  // UBeauty
+        'VV': 4,  // Velvet Vista
+      };
+
+      // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
+      const insertPromises = sellerTags.map(async (tag) => {
+        const sellerId = sellerTagMapping[tag] || 1;
+        const trackingTableName = `usa_tracking_seller_${sellerId}`;
+
+        console.log(`📊 Inserting into: ${trackingTableName} (Seller: ${tag})`);
+
+        // ✅ ALL column names match usa_purchases schema exactly (snake_case)
+        return supabase
+          .from(trackingTableName)
+          .insert({
+            // ========================================
+            // 1. CORE IDENTITY (from usa_purchases)
+            // ========================================
+            asin: freshProduct.asin,                              // ✅ text
+            journey_id: freshProduct.journey_id,                  // ✅ uuid
+            journey_number: freshProduct.journey_number ?? 1,     // ✅ integer
+
+            // ========================================
+            // 2. PRODUCT INFORMATION (from usa_purchases)
+            // ========================================
+            product_link: freshProduct.product_link,              // ✅ text
+            product_name: freshProduct.product_name,              // ✅ text
+            brand: freshProduct.brand,                            // ✅ text
+
+            // ========================================
+            // 3. PRICING FIELDS (from usa_purchases)
+            // ========================================
+            target_price: freshProduct.target_price,              // ✅ numeric
+            target_quantity: freshProduct.target_quantity ?? 1,   // ✅ numeric
+            admin_target_price: freshProduct.admin_target_price,  // ✅ numeric
+            admin_target_quantity: freshProduct.admin_target_quantity, // ✅ integer
+            target_price_validation: freshProduct.target_price_validation,    // ✅ numeric
+            target_price_link_validation: freshProduct.target_price_link_validation, // ✅ text
+
+            // ========================================
+            // 4. FUNNEL & SELLER (from usa_purchases)
+            // ========================================
+            funnel: freshProduct.funnel,                          // ✅ text
+            seller_tag: tag,                                      // ✅ text (specific tag for this insert)
+            funnel_quantity: freshProduct.funnel_quantity ?? 1,   // ✅ integer
+            funnel_seller: freshProduct.funnel_seller,            // ✅ text
+
+            // ========================================
+            // 5. PURCHASE LINKS (from usa_purchases)
+            // ========================================
+            inr_purchase_link: freshProduct.inr_purchase_link,    // ✅ text - FIXED!
+
+            // ========================================
+            // 6. ORIGIN (from usa_purchases)
+            // ========================================
+            origin: freshProduct.origin,                          // ✅ text
+            origin_india: freshProduct.origin_india ?? false,     // ✅ boolean - FIXED!
+            origin_china: freshProduct.origin_china ?? false,     // ✅ boolean - FIXED!
+
+            // ========================================
+            // 7. BUYING DETAILS (from usa_purchases) - USER EDITABLE
+            // ========================================
+            buying_price: freshProduct.buying_price,              // ✅ numeric - FIXED!
+            buying_quantity: freshProduct.buying_quantity,        // ✅ numeric - FIXED!
+            seller_link: freshProduct.seller_link,                // ✅ text - FIXED!
+            seller_phone: freshProduct.seller_phone,              // ✅ text - FIXED!
+            payment_method: freshProduct.payment_method,          // ✅ text - FIXED!
+
+            // ========================================
+            // 8. TRACKING & DELIVERY (from usa_purchases) - USER EDITABLE
+            // ========================================
+            tracking_details: freshProduct.tracking_details,      // ✅ text - FIXED!
+            delivery_date: freshProduct.delivery_date,
+            remark: freshProduct.remark,            // ✅ date - FIXED!
+
+            // ========================================
+            // 9. FINANCIAL DATA (from usa_purchases)
+            // ========================================
+            profit: freshProduct.profit,                          // ✅ numeric
+            product_weight: freshProduct.product_weight,          // ✅ numeric
+            usd_price: freshProduct.usd_price,                    // ✅ numeric
+            inr_purchase: freshProduct.inr_purchase,              // ✅ numeric
+
+            // ========================================
+            // 10. STATUS FIELDS
+            // ========================================
+            admin_status: 'confirmed',
+            status: 'tracking',
+            moved_at: new Date().toISOString(),
+          });
+      });
+
+      // Wait for all insertions to complete
+      const results = await Promise.all(insertPromises);
+
+      // Check for errors
+      const errors = results.filter(result => result.error);
+      if (errors.length > 0) {
+        console.error('❌ Insert errors:', errors);
+        throw new Error(`Failed to insert into ${errors.length} table(s)`);
+      }
+
+      console.log(`✅ Successfully inserted into ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
+
+      // STEP 4: DELETE from purchases (only after ALL inserts succeed)
+      const { error: deleteError } = await supabase
+        .from('usa_purchases')
+        .delete()
+        .eq('id', product.id);
+
+      if (deleteError) {
+        console.error('❌ Delete error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('✅ Delete successful');
+
+      alert(`✅ Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
+      await refreshProductsSilently();
+    } catch (error: any) {
+      console.error('❌ Move error:', error);
+      alert('Failed to move: ' + error.message);
     }
-
-    // Fallback to GR if no tags
-    if (sellerTags.length === 0) {
-      sellerTags = ['GR'];
-    }
-
-    console.log('🏷️ Seller tags to process:', sellerTags);
-
-    // Map seller tag to seller ID
-    const sellerTagMapping: Record<string, number> = {
-      'GR': 1,  // Golden Aura
-      'RR': 2,  // Rudra Retail
-      'UB': 3,  // UBeauty
-      'VV': 4,  // Velvet Vista
-    };
-
-    // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
-    const insertPromises = sellerTags.map(async (tag) => {
-      const sellerId = sellerTagMapping[tag] || 1;
-      const trackingTableName = `usa_tracking_seller_${sellerId}`;
-
-      console.log(`📊 Inserting into: ${trackingTableName} (Seller: ${tag})`);
-
-      // ✅ ALL column names match usa_purchases schema exactly (snake_case)
-      return supabase
-        .from(trackingTableName)
-        .insert({
-          // ========================================
-          // 1. CORE IDENTITY (from usa_purchases)
-          // ========================================
-          asin: freshProduct.asin,                              // ✅ text
-          journey_id: freshProduct.journey_id,                  // ✅ uuid
-          journey_number: freshProduct.journey_number ?? 1,     // ✅ integer
-          
-          // ========================================
-          // 2. PRODUCT INFORMATION (from usa_purchases)
-          // ========================================
-          product_link: freshProduct.product_link,              // ✅ text
-          product_name: freshProduct.product_name,              // ✅ text
-          brand: freshProduct.brand,                            // ✅ text
-          
-          // ========================================
-          // 3. PRICING FIELDS (from usa_purchases)
-          // ========================================
-          target_price: freshProduct.target_price,              // ✅ numeric
-          target_quantity: freshProduct.target_quantity ?? 1,   // ✅ numeric
-          admin_target_price: freshProduct.admin_target_price,  // ✅ numeric
-          admin_target_quantity: freshProduct.admin_target_quantity, // ✅ integer
-          target_price_validation: freshProduct.target_price_validation,    // ✅ numeric
-          target_price_link_validation: freshProduct.target_price_link_validation, // ✅ text
-          
-          // ========================================
-          // 4. FUNNEL & SELLER (from usa_purchases)
-          // ========================================
-          funnel: freshProduct.funnel,                          // ✅ text
-          seller_tag: tag,                                      // ✅ text (specific tag for this insert)
-          funnel_quantity: freshProduct.funnel_quantity ?? 1,   // ✅ integer
-          funnel_seller: freshProduct.funnel_seller,            // ✅ text
-          
-          // ========================================
-          // 5. PURCHASE LINKS (from usa_purchases)
-          // ========================================
-          inr_purchase_link: freshProduct.inr_purchase_link,    // ✅ text - FIXED!
-          
-          // ========================================
-          // 6. ORIGIN (from usa_purchases)
-          // ========================================
-          origin: freshProduct.origin,                          // ✅ text
-          origin_india: freshProduct.origin_india ?? false,     // ✅ boolean - FIXED!
-          origin_china: freshProduct.origin_china ?? false,     // ✅ boolean - FIXED!
-          
-          // ========================================
-          // 7. BUYING DETAILS (from usa_purchases) - USER EDITABLE
-          // ========================================
-          buying_price: freshProduct.buying_price,              // ✅ numeric - FIXED!
-          buying_quantity: freshProduct.buying_quantity,        // ✅ numeric - FIXED!
-          seller_link: freshProduct.seller_link,                // ✅ text - FIXED!
-          seller_phone: freshProduct.seller_phone,              // ✅ text - FIXED!
-          payment_method: freshProduct.payment_method,          // ✅ text - FIXED!
-          
-          // ========================================
-          // 8. TRACKING & DELIVERY (from usa_purchases) - USER EDITABLE
-          // ========================================
-          tracking_details: freshProduct.tracking_details,      // ✅ text - FIXED!
-          delivery_date: freshProduct.delivery_date,            // ✅ date - FIXED!
-          
-          // ========================================
-          // 9. FINANCIAL DATA (from usa_purchases)
-          // ========================================
-          profit: freshProduct.profit,                          // ✅ numeric
-          product_weight: freshProduct.product_weight,          // ✅ numeric
-          usd_price: freshProduct.usd_price,                    // ✅ numeric
-          inr_purchase: freshProduct.inr_purchase,              // ✅ numeric
-          
-          // ========================================
-          // 10. STATUS FIELDS
-          // ========================================
-          admin_status: 'confirmed',
-          status: 'tracking',
-          moved_at: new Date().toISOString(),
-        });
-    });
-
-    // Wait for all insertions to complete
-    const results = await Promise.all(insertPromises);
-
-    // Check for errors
-    const errors = results.filter(result => result.error);
-    if (errors.length > 0) {
-      console.error('❌ Insert errors:', errors);
-      throw new Error(`Failed to insert into ${errors.length} table(s)`);
-    }
-
-    console.log(`✅ Successfully inserted into ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
-
-    // STEP 4: DELETE from purchases (only after ALL inserts succeed)
-    const { error: deleteError } = await supabase
-      .from('usa_purchases')
-      .delete()
-      .eq('id', product.id);
-
-    if (deleteError) {
-      console.error('❌ Delete error:', deleteError);
-      throw deleteError;
-    }
-
-    console.log('✅ Delete successful');
-
-    alert(`✅ Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
-    await refreshProductsSilently();
-  } catch (error: any) {
-    console.error('❌ Move error:', error);
-    alert('Failed to move: ' + error.message);
-  }
-};
+  };
 
   // Handle column resize
   const handleMouseDown = (column: string, e: React.MouseEvent) => {
@@ -1041,6 +1058,7 @@ export default function PurchasesPage() {
                         'trackingdetails': 'Tracking Details',
                         'deliverydate': 'Delivery Date',
                         'moveto': 'Move To',
+                        remark: 'Remark',
                       };
                       return (
                         <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded transition-colors">
@@ -1112,7 +1130,19 @@ export default function PurchasesPage() {
                     onMouseDown={(e) => handleMouseDown('history', e)}
                   />
                 </th>
-
+                {/* ✅✅ ADD THIS NEW REMARK COLUMN HEADER RIGHT AFTER HISTORY */}
+                {visibleColumns.remark && (
+                  <th
+                    className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950"
+                    style={{ width: `${columnWidths.remark}px` }}
+                  >
+                    REMARK
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                      onMouseDown={(e) => handleMouseDown('remark', e)}
+                    />
+                  </th>
+                )}
 
                 {visibleColumns.productlink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productlink}px` }}>PRODUCT LINK<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productlink', e)} /></th>}
                 {visibleColumns.productname && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productname}px` }}>PRODUCT NAME<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productname', e)} /></th>}
@@ -1188,6 +1218,21 @@ export default function PurchasesPage() {
                           <History className="w-4 h-4" />
                         </button>
                       </td>
+
+                      {visibleColumns.remark && (
+                        <td className="px-3 py-2 text-center" style={{ width: `${columnWidths.remark}px` }}>
+                          {product.remark ? (
+                            <button
+                              onClick={() => setSelectedRemark(product.remark)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <span className="text-slate-600">-</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Product Link */}
                       {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
@@ -1458,6 +1503,126 @@ export default function PurchasesPage() {
             </motion.div>
           </>
         )}
+        {selectedRemark && (
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setSelectedRemark(null)}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      />
+
+      {/* Modal Box */}
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
+        >
+          {/* ========== HEADER ========== */}
+          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-slate-700">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Remark Details</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Product validation notes</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedRemark(null)}
+              className="p-2 hover:bg-slate-700 rounded-lg transition-colors group"
+              title="Close"
+            >
+              <X className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
+            </button>
+          </div>
+
+          {/* ========== BODY (Scrollable Content) ========== */}
+          <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+              {/* Remark Label */}
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+              </div>
+
+              {/* Remark Content */}
+              <div className="prose prose-invert prose-sm max-w-none">
+                <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                  {selectedRemark}
+                </p>
+              </div>
+
+              {/* Metadata Footer (Optional - shows character count) */}
+              <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {selectedRemark.length} characters
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {selectedRemark.split('\n').length} lines
+                </span>
+              </div>
+            </div>
+
+            {/* Info Box (Optional - can be removed if not needed) */}
+            <div className="mt-4 flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+              <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-xs text-blue-200">
+                <p className="font-semibold mb-1">About Remarks</p>
+                <p className="text-blue-300/80">This remark was added during the validation process to provide context or flags for this product.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ========== FOOTER (Action Buttons) ========== */}
+          <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
+            <div className="text-xs text-slate-500">
+              Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedRemark);
+                  // Optional: Add toast notification here
+                }}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy
+              </button>
+              <button
+                onClick={() => setSelectedRemark(null)}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-indigo-900/20"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  )}
       </AnimatePresence>
     </div>
   );

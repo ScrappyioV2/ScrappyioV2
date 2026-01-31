@@ -952,43 +952,64 @@ export default function VelvetVistaPage() {
                         {columnOrder.map((col) => {
                           if (col === 'reason' && activeTab !== 'reject') return null;
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
+                            if (col === 'remark') {
+    console.log('VV remark row:', {
+      asin: product.asin,
+      remark: product.remark,
+      hasRemark: !!product.remark,
+    });
+  }
 
                           return (
-                            <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                            <td
+                              key={col}
+                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'
+                                }`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
-                              {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
-                                col === 'remark' ? (
-                                  product.remark ? (
-                                    <button
-                                      onClick={() => setSelectedRemark(product.remark || '')}
-                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      View
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-600">-</span>
-                                  )
-                                ) : col === 'product_link' || col === 'amz_link' ? (
-                                  product[col as keyof ProductRow] ? (
-                                    <a href={String(product[col as keyof ProductRow])} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
-                                    >
-                                      View Link
-                                    </a>
-                                  ) : <span className="text-slate-600">-</span>
-                                ) : col === 'reason' ? (
-                                  <span className="text-rose-400">{product.reason || 'No reason'}</span>
-                                ) : col === 'product_name' ? (
-                                  <span className="text-slate-200 font-medium">{product.product_name}</span>
+                              {col === 'funnel' ? (
+                                <FunnelBadge funnel={product.funnel} />
+                              ) : col === 'remark' ? (
+                                product.remark ? (
+                                  <button
+                                    onClick={() => setSelectedRemark(product.remark || '')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1
+              rounded-lg text-xs font-medium transition-colors"
+                                  >
+                                    View
+                                  </button>
                                 ) : (
-                                  <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
-                                )}
+                                  <span className="text-slate-600">-</span>
+                                )
+                              ) : col === 'product_link' || col === 'amz_link' ? (
+                                product[col as keyof ProductRow] ? (
+                                  <a
+                                    href={String(product[col as keyof ProductRow])}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-2.5 py-1 rounded-md
+              bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white
+              transition-all text-xs font-medium border border-indigo-500/20"
+                                  >
+                                    View Link
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-600">-</span>
+                                )
+                              ) : col === 'reason' ? (
+                                <span className="text-rose-400">{product.reason || 'No reason'}</span>
+                              ) : col === 'product_name' ? (
+                                <span className="text-slate-200 font-medium">{product.product_name}</span>
+                              ) : (
+                                <span className="text-slate-400">
+                                  {String(product[col as keyof ProductRow] || '-')}
+                                </span>
+                              )}
                             </td>
                           );
                         })}
+
                         {activeTab !== 'reject' && (
                           <td className="p-4 text-center">
                             <div className="flex justify-center gap-2">
@@ -1039,23 +1060,23 @@ export default function VelvetVistaPage() {
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
         {selectedRemark && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">Remark Details</h3>
-              <button
-                onClick={() => setSelectedRemark(null)}
-                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
-              >
-                ×
-              </button>
-            </div>
-            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
-              {selectedRemark}
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Remark Details</h3>
+                <button
+                  onClick={() => setSelectedRemark(null)}
+                  className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+                {selectedRemark}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </PageTransition>
   );

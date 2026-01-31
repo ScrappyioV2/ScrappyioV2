@@ -45,6 +45,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     total_cost: 100,
     total_revenue: 100,
     profit: 100,
+    remark: 150,
 };
 // Controls how columns consume available width (layout-only)
 const COLUMN_FLEX: Record<string, boolean> = {
@@ -60,6 +61,7 @@ const COLUMN_FLEX: Record<string, boolean> = {
     inr_purchase: false,
     inr_purchase_link: false,   // 👈 flex but truncated
     judgement: false,
+    remark: false,
 };
 // ✅ ADD THIS TYPE for History
 type HistorySnapshot = {
@@ -121,6 +123,7 @@ interface ValidationProduct {
     sent_to_purchases?: boolean
     sent_to_purchases_at?: string
     calculated_judgement?: string | null
+    remark: string | null
 }
 
 interface Stats {
@@ -275,6 +278,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
     const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false)
     const [constants, setConstants] = useState<CalculationConstants>(getDefaultConstants())
     const [isSavingConstants, setIsSavingConstants] = useState(false)
+    const [selectedRemark, setSelectedRemark] = useState<string | null>(null)
 
     // 5. UPDATE visibleColumns state (around line 100)
     const [visibleColumns, setVisibleColumns] = useState({
@@ -293,6 +297,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         total_revenue: true,   // NEW
         profit: true,          // NEW
         judgement: true,
+        remark: true,
         // Remove: inr_sold, india_price, cargo_charge, final_purchase_rate, purchase_rate_inr
     })
 
@@ -1060,6 +1065,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                 total_revenue: product.total_revenue,
                 origin_india: product.origin_india,
                 origin_china: product.origin_china,
+                remark: product.remark,
                 timestamp: new Date().toISOString()
             }
 
@@ -1117,6 +1123,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                     usd_price: product.usd_price,
                     inr_purchase: product.inr_purchase,
                     profit: product.profit ?? null,
+                    remark: product.remark ?? null,
 
                     // 🔗 LINKING THE CYCLE
                     journey_id: journeyId,
@@ -1743,6 +1750,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                                                 {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
 
                                                 {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Status" onResizeStart={startResize} />}
+                                                 {visibleColumns.remark && <ResizableTH width={columnWidths.remark} columnKey="remark" label="Remark" align="center" onResizeStart={startResize} />}
                                             </tr>
                                         </thead>
 
@@ -1950,6 +1958,21 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                                                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
                                                                 );
                                                             })()}
+                                                        </td>
+                                                    )}
+                                                    {/* ✅ REMARK COLUMN */}
+                                                    {visibleColumns.remark && (
+                                                        <td className="p-3 text-center">
+                                                            {product.remark ? (
+                                                                <button
+                                                                    onClick={() => setSelectedRemark(product.remark)}
+                                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-slate-600">-</span>
+                                                            )}
                                                         </td>
                                                     )}
                                                 </tr>
@@ -2225,6 +2248,25 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                     </>
                 )}
             </AnimatePresence>
+            {/* ✅ REMARK MODAL */}
+            {selectedRemark && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-white">Remark Details</h3>
+                            <button
+                                onClick={() => setSelectedRemark(null)}
+                                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+                            {selectedRemark}
+                        </div>
+                    </div>
+                </div>
+            )}
         </PageTransition>
     )
 }

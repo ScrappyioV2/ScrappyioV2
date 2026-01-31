@@ -37,6 +37,7 @@ type ReorderProduct = {
   journey_id?: string // ✅ The Bag Link
   journey_number?: number
   is_in_final_reorder?: boolean
+  remark: string | null;
 }
 
 type HistorySnapshot = {
@@ -80,6 +81,8 @@ export default function ReorderPage() {
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
   const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [remarkModalOpen, setRemarkModalOpen] = useState(false);  // ✅ ADD THIS
+  const [selectedRemark, setSelectedRemark] = useState<{ id: string; asin: string; remark: string | null } | null>(null);
 
   // --- 1. Fetch Data ---
   const fetchReorderData = async () => {
@@ -113,7 +116,7 @@ export default function ReorderPage() {
       // ✅ Fetch journey_id from source
       const { data: listedItems, error: listError } = await supabase
         .from(listingTable)
-        .select('asin, product_name, seller_link, journey_id, journey_number')
+        .select('asin, product_name, seller_link, journey_id, journey_number,remark')
 
       if (listError) throw listError
       if (!listedItems || listedItems.length === 0) {
@@ -139,7 +142,8 @@ export default function ReorderPage() {
           status: 'Safe',
           journey_id: p.journey_id, // ✅ Pass the Bag
           journey_number: p.journey_number,
-          is_in_final_reorder: false
+          is_in_final_reorder: false,
+          remark: p.remark ?? null,
         }))
 
       if (newItems.length > 0) {
@@ -507,7 +511,7 @@ export default function ReorderPage() {
           { name: getTrackingTableName('SHIPMENT', sellerId), priority: 4 },
           { name: getTrackingTableName('CHECKING', sellerId), priority: 3 },
           { name: getTrackingTableName('INVOICE', sellerId), priority: 2 },
-          { name: 'usa_traking', priority: 1 }                                   // Lowest priority
+          { name: `usa_tracking_seller_${sellerId}`, priority: 1 }                                   // Lowest priority
         ]
 
         console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
@@ -780,7 +784,7 @@ export default function ReorderPage() {
           funnel: masterData?.funnel || null,
           origin: masterData?.origin || 'India', // Default to India if unknown
           usa_link: masterData?.usa_link || product.seller_link,
-
+          remark: product.remark ?? null,
           // Reset operational fields
           no_of_seller: 1,
           sent_to_purchases: false,
@@ -920,6 +924,7 @@ export default function ReorderPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 w-1/4">Product Name</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">History</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Remark</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-indigo-400 uppercase bg-indigo-900/20 border-r border-slate-800">Target Qty</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-900/20 border-r border-slate-800">Current</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Deficit</th>
@@ -954,6 +959,27 @@ export default function ReorderPage() {
                           >
                             <History className="w-4 h-4" />
                           </button>
+                        </td>
+
+                        {/* ✅ REMARK BUTTON */}
+                        <td className="px-4 py-3 text-center">
+                          {product.remark ? (
+                            <button
+                              onClick={() => {
+                                setSelectedRemark({
+                                  id: product.id,
+                                  asin: product.asin,
+                                  remark: product.remark,
+                                });
+                                setRemarkModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium transition-colors"
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-600 italic">-</span>
+                          )}
                         </td>
 
                         <td className="px-6 py-4 text-center bg-indigo-900/10 border-r border-slate-800/50">
@@ -1085,6 +1111,95 @@ export default function ReorderPage() {
                     </div>
                   ))
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+        {remarkModalOpen && selectedRemark && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setRemarkModalOpen(false);
+                setSelectedRemark(null);
+              }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+            />
+
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Remark</h2>
+                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedRemark.asin}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setRemarkModalOpen(false);
+                    setSelectedRemark(null);
+                  }}
+                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 flex flex-col gap-4">
+                <textarea
+                  value={selectedRemark.remark || ''}
+                  onChange={(e) =>
+                    setSelectedRemark({
+                      ...selectedRemark,
+                      remark: e.target.value,
+                    })
+                  }
+                  placeholder="Enter remark..."
+                  rows={10}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
+                />
+
+                {/* Save Button */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const tableName = `usa_reorder_${activeSeller.table_suffix}`;
+                      const { error } = await supabase
+                        .from(tableName)
+                        .update({ remark: selectedRemark.remark })
+                        .eq('id', selectedRemark.id);
+
+                      if (error) throw error;
+
+                      // Update local state
+                      setProducts((prev) =>
+                        prev.map((item) =>
+                          item.id === selectedRemark.id
+                            ? { ...item, remark: selectedRemark.remark }
+                            : item
+                        )
+                      );
+
+                      alert('Remark saved successfully!');
+                      setRemarkModalOpen(false);
+                      setSelectedRemark(null);
+                    } catch (error: any) {
+                      alert('Error: ' + error.message);
+                    }
+                  }}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold transition-all shadow-lg"
+                >
+                  <Save className="w-4 h-4 inline mr-2" />
+                  Save Remark
+                </button>
               </div>
             </motion.div>
           </>

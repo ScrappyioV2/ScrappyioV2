@@ -42,6 +42,7 @@ type AdminProduct = {
   admin_target_price: number | null;
   journey_id?: string | null;
   journey_number?: number | null;
+  remark: string | null;
 };
 
 // ADD THIS TYPE
@@ -82,10 +83,10 @@ export default function AdminValidationPage() {
   const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
 
   // History Sidebar State
-const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
-const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
-const [historyLoading, setHistoryLoading] = useState(false)
-
+  const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
+  const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
 
   const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false);
   const [isSavingConstants, setIsSavingConstants] = useState(false);
@@ -267,6 +268,7 @@ const [historyLoading, setHistoryLoading] = useState(false)
           total_cost: product.total_cost,
           total_revenue: product.total_revenue,
           inr_purchase_link: product.inr_purchase_link,
+          remark: product.remark ?? null,
         };
       });
 
@@ -387,26 +389,26 @@ const [historyLoading, setHistoryLoading] = useState(false)
 
 
   // Fetch History for Sidebar
-const fetchHistory = async (asin: string) => {
-  setSelectedHistoryAsin(asin)
-  setHistoryLoading(true)
-  try {
-    const { data, error } = await supabase
-      .from('usa_asin_history')
-      .select('*')
-      .eq('asin', asin)
-      .order('created_at', { ascending: false })
-      .limit(5)
-    
-    if (error) throw error
-    setHistoryData(data || [])
-  } catch (err) {
-    console.error(err)
-    alert('Failed to load history')
-  } finally {
-    setHistoryLoading(false)
+  const fetchHistory = async (asin: string) => {
+    setSelectedHistoryAsin(asin)
+    setHistoryLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('usa_asin_history')
+        .select('*')
+        .eq('asin', asin)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (error) throw error
+      setHistoryData(data || [])
+    } catch (err) {
+      console.error(err)
+      alert('Failed to load history')
+    } finally {
+      setHistoryLoading(false)
+    }
   }
-}
 
 
   const saveAdminConstants = async () => {
@@ -684,6 +686,7 @@ const fetchHistory = async (asin: string) => {
         'totalrevenue': 'total_revenue',
         'adminstatus': 'admin_status',
         'adminnotes': 'admin_notes',
+        remark: 'remark',
         'admintargetprice': 'admin_target_price',
         'usdprice': 'usd_price',
         'inrpurchase': 'inr_purchase',
@@ -822,6 +825,7 @@ const fetchHistory = async (asin: string) => {
           seller_link: product.seller_link,
           min_price: null,
           max_price: null,
+          remark: product.remark ?? null,
         };
 
         // B. Select Tables for THIS seller
@@ -1176,24 +1180,43 @@ const fetchHistory = async (asin: string) => {
                   </th>
 
                   {/* ✅ HISTORY COLUMN */}
-<th 
-  onDoubleClick={() => handleColumnDoubleClick('history')}
-  className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-  style={{ width: columnWidths.history, minWidth: 80 }}
->
-  <div className="flex items-center justify-between">
-    <span>HISTORY</span>
-  </div>
-  <div 
-    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" 
-    onMouseDown={(e) => handleResizeStart(e, 'history')}
-    style={{
-      backgroundColor: resizingColumn === 'history' ? '#6366f1' : 'transparent',
-      width: resizingColumn === 'history' ? '2px' : '4px',
-    }}
-  />
-</th>
+                  <th
+                    onDoubleClick={() => handleColumnDoubleClick('history')}
+                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
+                    style={{ width: columnWidths.history, minWidth: 80 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>HISTORY</span>
+                    </div>
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                      onMouseDown={(e) => handleResizeStart(e, 'history')}
+                      style={{
+                        backgroundColor: resizingColumn === 'history' ? '#6366f1' : 'transparent',
+                        width: resizingColumn === 'history' ? '2px' : '4px',
+                      }}
+                    />
+                  </th>
 
+                  {/* ✅✅ REMARK COLUMN */}
+                  <th
+                    onDoubleClick={() => handleColumnDoubleClick('remark')}
+                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
+                    style={{ width: columnWidths.remark, minWidth: 100 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>REMARK</span>
+                      <div />
+                    </div>
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                      onMouseDown={(e) => handleResizeStart(e, 'remark')}
+                      style={{
+                        backgroundColor: resizingColumn === 'remark' ? '#6366f1' : 'transparent',
+                        width: resizingColumn === 'remark' ? '2px' : '4px',
+                      }}
+                    />
+                  </th>
 
                   {/* 🆕 2. Journey # Column */}
                   <th
@@ -1500,21 +1523,35 @@ const fetchHistory = async (asin: string) => {
                       </td>
 
                       {/* 1. ASIN */}
-                    {/* ✅ 1. ASIN COLUMN - Only ASIN */}
-<td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">
-  {product.asin}
-</td>
+                      {/* ✅ 1. ASIN COLUMN - Only ASIN */}
+                      <td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">
+                        {product.asin}
+                      </td>
 
-{/* ✅ 2. HISTORY COLUMN - Only Clock Icon */}
-<td className="px-4 py-3 text-center">
-  <button
-    onClick={() => fetchHistory(product.asin)}
-    className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
-    title="View Journey History"
-  >
-    <History className="w-4 h-4" />
-  </button>
-</td>
+                      {/* ✅ 2. HISTORY COLUMN - Only Clock Icon */}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => fetchHistory(product.asin)}
+                          className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                          title="View Journey History"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
+                      </td>
+
+                      {/* ✅✅ REMARK COLUMN - Editable + View Button */}
+                      <td className="px-4 py-2" style={{ width: columnWidths.remark }}>
+                        <div className="flex items-center gap-2">
+                          {product.remark && (
+                            <button
+                              onClick={() => setSelectedRemark(product.remark)}
+                              className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                            >
+                              View
+                            </button>
+                          )}
+                        </div>
+                      </td>
 
                       {/* 🆕 2. Journey # */}
                       <td className="px-4 py-3 text-center bg-amber-900/10">
@@ -2275,6 +2312,45 @@ const fetchHistory = async (asin: string) => {
                     </div>
                   ))
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+        {selectedRemark && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedRemark(null)}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
+              >
+                <div className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700">
+                  <h2 className="text-xl font-bold text-white">Remark Details</h2>
+                  <button onClick={() => setSelectedRemark(null)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                    <X className="w-5 h-5 text-slate-400" />
+                  </button>
+                </div>
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                    <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{selectedRemark}</p>
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-slate-800 border-t border-slate-700 flex justify-end">
+                  <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+                    Close
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
