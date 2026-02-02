@@ -1,26 +1,22 @@
-import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
-import { supabase } from '@/lib/supabaseClient';
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
+import { supabase } from "@/lib/supabase";
 
+/* ============================================================================
+ * Types
+ * ============================================================================
+ */
 
 export interface UploadResult {
-  data: any[]
-  errors: string[]
+  data: any[];
+  errors: string[];
 }
 
-
-const chunkArray = <T,>(arr: T[], size: number): T[][] => {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-};
-
-
-/**
- * Parse CSV file
+/* ============================================================================
+ * File Parsing Helpers
+ * ============================================================================
  */
+
 export const parseCSV = (file: File): Promise<UploadResult> => {
   return new Promise((resolve) => {
     Papa.parse(file, {
@@ -30,66 +26,64 @@ export const parseCSV = (file: File): Promise<UploadResult> => {
         resolve({
           data: results.data,
           errors: results.errors.map((e: any) => e.message),
-        })
+        });
       },
       error: (error: any) => {
         resolve({
           data: [],
           errors: [error.message],
-        })
+        });
       },
-    })
-  })
-}
+    });
+  });
+};
 
-/**
- * Parse Excel file (.xlsx, .xls)
- */
 export const parseExcel = async (file: File): Promise<UploadResult> => {
   try {
-    const data = await file.arrayBuffer()
-    const workbook = XLSX.read(data, { type: 'array' })
-    const sheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[sheetName]
-    const jsonData = XLSX.utils.sheet_to_json(worksheet)
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
 
     return {
-      data: jsonData,
+      data: XLSX.utils.sheet_to_json(worksheet),
       errors: [],
-    }
+    };
   } catch (error: any) {
     return {
       data: [],
-      errors: [error.message || 'Failed to parse Excel file'],
-    }
+      errors: [error.message || "Failed to parse Excel file"],
+    };
   }
-}
+};
 
-/**
- * Detect file type and parse accordingly
- */
 export const parseFile = async (file: File): Promise<UploadResult> => {
-  const extension = file.name.split('.').pop()?.toLowerCase()
+  const ext = file.name.split(".").pop()?.toLowerCase();
 
-  switch (extension) {
-    case 'csv':
-      return parseCSV(file)
-    case 'xlsx':
-    case 'xls':
-      return parseExcel(file)
+  switch (ext) {
+    case "csv":
+      return parseCSV(file);
+    case "xlsx":
+    case "xls":
+      return parseExcel(file);
     default:
       return {
         data: [],
-        errors: [`Unsupported file type: ${extension}`],
-      }
+        errors: [`Unsupported file type: ${ext}`],
+      };
   }
-}
+};
+
+/* ============================================================================
+ * DUPLICATE CHECK (INSERT FLOW — UNCHANGED)
+ * ============================================================================
+ */
 
 export async function filterDuplicateASINs(
   products: any[],
   tableName: string
 ) {
-  const asins = products.map(p => p.asin).filter(Boolean);
+  const asins = products.map((p) => p.asin).filter(Boolean);
 
   if (asins.length === 0) {
     return { newProducts: [], duplicateCount: 0 };
@@ -103,21 +97,21 @@ export async function filterDuplicateASINs(
 
     const { data, error } = await supabase
       .from(tableName)
-      .select('asin')
-      .in('asin', batch);
+      .select("asin")
+      .in("asin", batch);
 
     if (error) {
-      console.error('Duplicate check failed:', error);
-      continue; // fail-safe: do not block upload
+      console.error("Duplicate ASIN check failed:", error);
+      continue;
     }
 
-    (data || []).forEach(row => {
+    data?.forEach((row: any) => {
       if (row?.asin) existingASINs.add(row.asin);
     });
   }
 
   const newProducts = products.filter(
-    p => p.asin && !existingASINs.has(p.asin)
+    (p) => p.asin && !existingASINs.has(p.asin)
   );
 
   return {
@@ -126,3 +120,71 @@ export async function filterDuplicateASINs(
   };
 }
 
+/* ============================================================================
+ * UPDATE-ONLY FLOW (NEW — SAFE)
+ * ============================================================================
+ */
+
+export async function bulkUpdateAsinRemarkMonthlyUnit(
+  rows: Array<{
+    asin: string;
+    remark?: string | null;
+    monthly_unit?: number | null;
+  }>,
+  tableName: string
+) {
+  let updatedCount = 0;
+  let skippedCount = 0;
+
+  for (const row of rows) {
+    if (!row.asin) continue;
+
+    // ✅ IMPORTANT: Fetch existing data to compare
+    const { data: existing, error: fetchError } = await supabase
+      .from(tableName)
+      .select('remark, monthly_unit')
+      .eq('asin', row.asin)
+      .single();
+
+    // Skip if ASIN doesn't exist
+    if (fetchError || !existing) {
+      skippedCount++;
+      continue;
+    }
+
+    // Skip if both values unchanged
+    const remarkUnchanged = existing.remark === row.remark;
+    const monthlyUnitUnchanged = existing.monthly_unit === row.monthly_unit;
+
+    if (remarkUnchanged && monthlyUnitUnchanged) {
+      skippedCount++;
+      continue;
+    }
+
+    // Update only changed fields
+    const payload: Record<string, any> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (row.remark !== undefined) payload.remark = row.remark;
+    if (row.monthly_unit !== undefined) payload.monthly_unit = row.monthly_unit;
+
+    const { error: updateError } = await supabase
+      .from(tableName)
+      .update(payload)
+      .eq('asin', row.asin);
+
+    if (updateError) {
+      console.error(`Update failed for ASIN ${row.asin}:`, updateError);
+      continue;
+    }
+
+    updatedCount++;
+  }
+
+  return { 
+    updatedCount, 
+    skippedCount,
+    message: `✅ Updated: ${updatedCount} | ⏭️ Skipped: ${skippedCount}`
+  };
+}

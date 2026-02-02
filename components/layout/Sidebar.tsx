@@ -21,7 +21,8 @@ export default function Sidebar() {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     '/dashboard/manage-sellers': true,
     '/dashboard/usa-selling': true,
-    '/dashboard/india-selling': true 
+    '/dashboard/india-selling': true ,
+    '/dashboard/uk-selling': true
   })
 
   const toggleMenu = (path: string) => {

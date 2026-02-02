@@ -199,14 +199,69 @@ export const APP_ROUTES: AppRoute[] = [
     ]
   },
 
-  // --- 4. Other Marketplaces ---
-  {
-    path: '/dashboard/uk-selling',
-    label: 'UK Selling',
-    icon: TrendingUp,
-    permission: 'uk-selling',
-    subRoutes: []
-  },
+{
+  path: '/dashboard/uk-selling',
+  label: 'UK Selling',
+  icon: TrendingUp,
+  permission: 'uk-selling', // Parent permission
+  subRoutes: [
+    {
+      path: '/dashboard/uk-selling/brand-checking',
+      label: 'Brand Checking',
+      permission: 'view-brand-checking',
+      icon: ShieldCheck,
+      subRoutes: [
+        { path: '/dashboard/uk-selling/brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
+        { path: '/dashboard/uk-selling/brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
+        { path: '/dashboard/uk-selling/brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
+        { path: '/dashboard/uk-selling/brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' }
+      ]
+    },
+    {
+      path: '/dashboard/uk-selling/validation',
+      label: 'Validation',
+      permission: 'view-validation',
+      icon: CheckCircle2
+    },
+    {
+      path: '/dashboard/uk-selling/listing-error',
+      label: 'Listing Errors',
+      permission: 'view-listing-errors',
+      icon: XCircle,
+      subRoutes: [
+        { path: '/dashboard/uk-selling/listing-error/golden-aura', label: 'Golden Aura', permission: 'view-listing-errors' },
+        { path: '/dashboard/uk-selling/listing-error/rudra-retail', label: 'Rudra Retail', permission: 'view-listing-errors' },
+        { path: '/dashboard/uk-selling/listing-error/ubeauty', label: 'UBeauty', permission: 'view-listing-errors' },
+        { path: '/dashboard/uk-selling/listing-error/velvet-vista', label: 'Velvet Vista', permission: 'view-listing-errors' }
+      ]
+    },
+    {
+      path: '/dashboard/uk-selling/purchases',
+      label: 'Purchases',
+      permission: 'view-purchases',
+      icon: ShoppingBag
+    },
+    {
+      path: '/dashboard/uk-selling/tracking',
+      label: 'Tracking',
+      permission: 'view-tracking',
+      icon: Truck
+    },
+    {
+      path: '/dashboard/uk-selling/reorder',
+      label: 'Reorder',
+      permission: 'view-reorder',
+      icon: RotateCcw
+    },
+    {
+      path: '/dashboard/uk-selling/admin-validation',
+      label: 'Admin Approvals',
+      permission: 'admin-access',
+      icon: ShieldCheck
+    }
+  ]
+},
+  // --- 3. Other Marketplaces ---
   {
     path: '/dashboard/uae-selling',
     label: 'UAE Selling',

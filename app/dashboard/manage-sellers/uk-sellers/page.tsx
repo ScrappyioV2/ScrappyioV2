@@ -19,21 +19,24 @@ import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
 import PageTransition from '@/components/layout/PageTransition';
-import { 
-  Search, 
-  Database, 
-  Upload, 
-  Columns, 
-  Download, 
-  ChevronLeft, 
+import {
+  Search,
+  Database,
+  Upload,
+  Columns,
+  Download,
+  ChevronLeft,
   ChevronRight,
-  Loader2 
+  Loader2
 } from 'lucide-react';
+import {
+  bulkUpdateAsinRemarkMonthlyUnit
+} from "@/lib/utils/master-table/uploadHelpers";
 
 const TABLE_NAME = 'uk_master_sellers';
 
 const ALL_COLUMNS = [
-  's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
+  's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
   'dimensions', 'weight', 'weight_unit'
 ];
@@ -44,6 +47,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   'link': 80,
   'amz_link': 120,
   'product_name': 300,
+  'remark': 120,
   'brand': 120,
   'price': 100,
   'monthly_unit': 120,
@@ -158,8 +162,52 @@ export default function UkSellersPage() {
     return `https://www.${domain}/dp/${asin}`;
   };
 
+function isPartialUpdateFile(headers: string[]) {
+  // ✅ Normalize: lowercase + spaces to underscores
+  const normalized = headers.map(h => 
+    h.trim()
+     .toLowerCase()
+     .replace(/\s+/g, '_')  // ← Convert spaces to underscores
+  );
+  
+  const allowed = [
+    "asin",
+    "remark", 
+    "remarks",
+    "monthly_unit",
+    "monthly_units",
+    "monthly_units_sold",
+    "monthly_unit_sold"
+  ];
+
+  // Must have ASIN
+  if (!normalized.includes("asin")) {
+    return false;
+  }
+
+  // All columns must be in allowed list
+  if (!normalized.every(h => allowed.includes(h))) {
+    return false;
+  }
+
+  // Must have at least one update column
+  const hasRemarkColumn = normalized.some(h => 
+    h === "remark" || h === "remarks"
+  );
+  
+  const hasMonthlyUnitColumn = normalized.some(h => 
+    h === "monthly_unit" || 
+    h === "monthly_units" || 
+    h === "monthly_units_sold" ||
+    h === "monthly_unit_sold"
+  );
+
+  return hasRemarkColumn || hasMonthlyUnitColumn;
+}
+
+
   // FIXED: Handle multiple file uploads with batch insert
-  const handleUpload = async (files: File[]) => {
+const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
 
@@ -169,6 +217,8 @@ export default function UkSellersPage() {
     try {
       let allNewProducts: any[] = [];
       let totalDuplicates = 0;
+      let totalUpdated = 0;
+      let hasPartialUpdate = false;
 
       // Step 1: Parse all files
       for (let i = 0; i < files.length; i++) {
@@ -192,18 +242,49 @@ export default function UkSellersPage() {
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                // UK logic applied here
                 product.amz_link = generateAmazonLink(product.asin, 'uk');
               }
               if (!product.link) {
                 product.link = product.amz_link;
+              }
+              if (!product.remark) {
+                product.remark = product.REMARK ||
+                  product.Remark ||
+                  product.remarks ||
+                  product.REMARKS ||
+                  product.Remarks ||
+                  null;
               }
             }
             return product;
           })
           .filter(Boolean);
 
-        // Filter duplicates
+        // Check if this is a partial update file
+        const rawHeaders = Object.keys(data[0] || {});
+        // ✅ ADD THESE DEBUG LINES
+console.log('🔍 Raw headers from CSV:', rawHeaders);
+console.log('🔍 Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
+console.log('🔍 First data row:', data[0]);
+console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
+console.log('🔍 Total rows:', data.length);
+        if (isPartialUpdateFile(rawHeaders)) {
+          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
+
+          const { updatedCount, skippedCount } =
+            await bulkUpdateAsinRemarkMonthlyUnit(
+              normalizedData,
+              TABLE_NAME
+            );
+
+          totalUpdated += updatedCount;
+          hasPartialUpdate = true;
+
+          console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+          continue;
+        }
+
+        // For full files, filter duplicates
         const { newProducts, duplicateCount } =
           await filterDuplicateASINs(normalizedData, TABLE_NAME);
 
@@ -211,7 +292,23 @@ export default function UkSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
-      if (allNewProducts.length === 0) {
+      // ============================================================
+      // DECISION LOGIC: What to do after processing all files
+      // ============================================================
+
+      // Case 1: Only partial updates (no new inserts)
+      if (hasPartialUpdate && allNewProducts.length === 0) {
+        toast.success(
+          `✅ ${totalUpdated} products updated successfully`,
+          { id: toastId, duration: 5000 }
+        );
+        setRefreshTrigger(prev => prev + 1);
+        setIsUploading(false);
+        return;
+      }
+
+      // Case 2: No updates and no new products (all duplicates)
+      if (!hasPartialUpdate && allNewProducts.length === 0) {
         toast.error(
           `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
           { id: toastId, duration: 5000 }
@@ -220,7 +317,11 @@ export default function UkSellersPage() {
         return;
       }
 
-      // CRITICAL: Remove duplicate ASINs within the batch
+      // ============================================================
+      // BATCH INSERT: Process new products
+      // ============================================================
+
+      // Remove duplicate ASINs within the batch
       const uniqueProductsMap = new Map();
       allNewProducts.forEach(product => {
         if (product.asin) {
@@ -231,7 +332,6 @@ export default function UkSellersPage() {
 
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
-      // Step 2: OPTIMIZED Batch insert
       const batchSize = 100;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
@@ -312,12 +412,16 @@ export default function UkSellersPage() {
         }
       }
 
+      // ============================================================
+      // FINAL SUMMARY
+      // ============================================================
       const summaryLines = [];
+      if (totalUpdated > 0) summaryLines.push(`✅ Updated ${totalUpdated} products`);
       if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
       if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
-      if (successCount > 0) {
+      if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
       } else {
@@ -333,6 +437,7 @@ export default function UkSellersPage() {
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
     }
   };
+
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
@@ -424,6 +529,24 @@ export default function UkSellersPage() {
           hasMore = false;
         }
       }
+
+      // ✅ FORMAT DATA FOR EXPORT - Include Remark column
+      const formattedData = allData.map((item, index) => ({
+        'S.No': index + 1,
+        'ASIN': item.asin || '',
+        'Link': item.amz_link || '',
+        'Product Name': item.product_name || '',
+        'Remark': item.remark || '',
+        'Brand': item.brand || '',
+        'Price': item.price || '',
+        'Monthly Units': item.monthly_unit || '',
+        'Monthly Sales': item.monthly_sales || '',
+        'BSR': item.bsr || '',
+        'Sellers': item.seller || '',
+        'Category': item.category || '',
+        'Dimensions': item.dimensions || '',
+        'Weight': `${item.weight || ''} ${item.weight_unit || ''}`.trim(),
+      }));
 
       exportData(allData, TABLE_NAME, format);
       alert(`Successfully exported ${allData.length} products!`);
