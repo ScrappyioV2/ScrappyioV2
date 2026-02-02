@@ -6,7 +6,7 @@ import {
   normalizeDataForDB,
   // filterDuplicateASINs,
 } from '@/lib/utils/master-table/dataHelpers'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
 import UploadModal from '@/components/shared/master-table/UploadModal';
@@ -18,22 +18,22 @@ import {
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
-import PageTransition from '@/components/layout/PageTransition';
-import { 
-  Search, 
-  Database, 
-  Upload, 
-  Columns, 
-  Download, 
-  ChevronLeft, 
+import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
+import {
+  Search,
+  Database,
+  Upload,
+  Columns,
+  Download,
+  ChevronLeft,
   ChevronRight,
-  Loader2 
-} from 'lucide-react';
+  Loader2
+} from 'lucide-react'; // Added Lucide icons for modern look
 
 const TABLE_NAME = 'india_master_sellers';
 
 const ALL_COLUMNS = [
-  's_no', 'asin', 'link', 'amz_link', 'product_name', 'brand', 'price',
+  's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
   'dimensions', 'weight', 'weight_unit'
 ];
@@ -44,6 +44,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   'link': 80,
   'amz_link': 120,
   'product_name': 300,
+  'remark': 120,
   'brand': 120,
   'price': 100,
   'monthly_unit': 120,
@@ -56,7 +57,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 };
 
 export default function IndiaSellersPage() {
-  // --- STATE & LOGIC (PRESERVED) ---
+  // --- EXISTING STATE & LOGIC (PRESERVED) ---
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -150,11 +151,10 @@ export default function IndiaSellersPage() {
     setCurrentPage(1);
   };
 
-  // Auto-generate Amazon link from ASIN (INDIA Specific Logic Preserved)
+  // Auto-generate Amazon link from ASIN
   const generateAmazonLink = (asin: string, country: 'india' | 'india'): string => {
     if (!asin) return '';
-    // Keeping your logic: defaults to amazon.in if country is 'india', else amazon.com
-    const domain = country === "india" ? "amazon.in" : "amazon.com";
+    const domain = country === 'india' ? 'amazon.com' : 'amazon.in';
     return `https://www.${domain}/dp/${asin}`;
   };
 
@@ -192,16 +192,26 @@ export default function IndiaSellersPage() {
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                // Ensuring 'india' logic is passed here
-                product.amz_link = generateAmazonLink(product.asin, 'india');
+                product.amz_link = generateAmazonLink(product.asin, "india")
               }
               if (!product.link) {
                 product.link = product.amz_link;
+              }
+
+              // ✅ HANDLE REMARK COLUMN - Case-insensitive mapping
+              if (!product.remark) {
+                product.remark = product.REMARK ||
+                  product.Remark ||
+                  product.remarks ||
+                  product.REMARKS ||
+                  product.Remarks ||
+                  null;
               }
             }
             return product;
           })
           .filter(Boolean);
+
 
         // Filter duplicates
         const { newProducts, duplicateCount } =
@@ -211,6 +221,7 @@ export default function IndiaSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
+      // If no new products after processing all files
       if (allNewProducts.length === 0) {
         toast.error(
           `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
@@ -294,8 +305,11 @@ export default function IndiaSellersPage() {
 
         const result = await uploadBatch(batches[i], i);
 
-        if (result.success) successCount += result.count;
-        else failedBatches++;
+        if (result.success) {
+          successCount += result.count;
+        } else {
+          failedBatches++;
+        }
 
         setUploadProgress({
           current: successCount,
@@ -422,7 +436,25 @@ export default function IndiaSellersPage() {
         }
       }
 
-      exportData(allData, TABLE_NAME, format);
+      // ✅ FORMAT DATA FOR EXPORT - Include Remark column
+      const formattedData = allData.map((item, index) => ({
+        'S.No': index + 1,
+        'ASIN': item.asin || '',
+        'Link': item.amz_link || '',
+        'Product Name': item.product_name || '',
+        'Remark': item.remark || '',
+        'Brand': item.brand || '',
+        'Price': item.price || '',
+        'Monthly Units': item.monthly_unit || '',
+        'Monthly Sales': item.monthly_sales || '',
+        'BSR': item.bsr || '',
+        'Sellers': item.seller || '',
+        'Category': item.category || '',
+        'Dimensions': item.dimensions || '',
+        'Weight': item.weight ? `${item.weight} ${item.weight_unit || 'kg'}` : '',
+      }));
+
+      exportData(formattedData, TABLE_NAME, format);
       alert(`Successfully exported ${allData.length} products!`);
     } catch (error) {
       console.error('Export error:', error);
@@ -502,8 +534,8 @@ export default function IndiaSellersPage() {
                 <Database className="w-6 h-6 text-indigo-400" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white tracking-tight">India Sellers Database</h1>
-                <p className="text-sm text-slate-400">Master inventory records (India)</p>
+                <h1 className="text-2xl font-bold text-white tracking-tight">INDIA Sellers Database</h1>
+                <p className="text-sm text-slate-400">Master inventory records</p>
               </div>
             </div>
 
@@ -527,10 +559,11 @@ export default function IndiaSellersPage() {
                 <Columns className="w-4 h-4" /> Columns
               </button>
 
-              <div onClick={() => handleExport('csv')} className="cursor-pointer"> 
-                 <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
-                    <Download className="w-4 h-4" /> Export
-                 </button>
+              <div onClick={() => handleExport('csv')} className="cursor-pointer">
+                {/* Re-using your Export Button logic but styling wrapper or passing styles if supported */}
+                <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
+                  <Download className="w-4 h-4" /> Export
+                </button>
               </div>
 
               <button
@@ -591,7 +624,7 @@ export default function IndiaSellersPage() {
           </div>
         </div>
 
-        {/* Modals */}
+        {/* Modals - Keeping Logic, wrapping them if necessary */}
         <ColumnToggle
           isOpen={isColumnToggleOpen}
           onClose={() => setIsColumnToggleOpen(false)}
