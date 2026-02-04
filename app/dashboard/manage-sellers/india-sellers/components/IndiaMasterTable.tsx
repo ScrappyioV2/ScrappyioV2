@@ -15,6 +15,7 @@ interface MasterData {
   display_number: number;
   amz_link: string;
   product_name: string;
+  remark: string | null;
   brand: string;
   price: number;
   monthly_unit: number;
@@ -48,6 +49,7 @@ const ALL_COLUMNS = [
   'asin',
   'amz_link',
   'product_name',
+  'remark',
   'brand',
   'price',
   'monthly_unit',
@@ -96,6 +98,7 @@ export default function IndiaMasterTable({
 }: IndiaMasterTableProps) {
   const [data, setData] = useState<MasterData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRemark, setSelectedRemark] = useState<string | null>(null); // ✅ Add this line
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, string[] | { value: string; count: number }[]>>({});
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
@@ -229,8 +232,8 @@ export default function IndiaMasterTable({
         if (!filter) return;
         if ((filter.type === 'text' || filter.type === 'multiselect') && filter.values?.length) countQuery = countQuery.in(column, filter.values);
         if (filter.type === 'numeric' && filter.value !== null) {
-           const v = parseFloat(filter.value);
-           if (!isNaN(v)) countQuery = countQuery[filter.operator](column, v);
+          const v = parseFloat(filter.value);
+          if (!isNaN(v)) countQuery = countQuery[filter.operator](column, v);
         }
       });
       const { count } = await countQuery;
@@ -525,7 +528,7 @@ export default function IndiaMasterTable({
       <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
         <div className="overflow-x-auto h-[calc(100vh-320px)] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
           <table className="min-w-full divide-y divide-slate-800 text-xs">
-            
+
             {/* Table Header */}
             <thead className="bg-slate-950 sticky top-0 z-20 shadow-md">
               <tr>
@@ -554,9 +557,8 @@ export default function IndiaMasterTable({
                       <div className="flex items-center gap-1 overflow-hidden">
                         <button
                           onClick={() => handleSort(column)}
-                          className={`flex items-center gap-1 min-w-0 transition-colors ${
-                            SORTABLE_COLUMNS.includes(column) ? 'hover:text-white cursor-pointer' : 'cursor-default'
-                          }`}
+                          className={`flex items-center gap-1 min-w-0 transition-colors ${SORTABLE_COLUMNS.includes(column) ? 'hover:text-white cursor-pointer' : 'cursor-default'
+                            }`}
                           disabled={!SORTABLE_COLUMNS.includes(column)}
                         >
                           <span className="truncate">{formatColumnHeader(column)}</span>
@@ -569,11 +571,10 @@ export default function IndiaMasterTable({
                         <div className="relative flex-shrink-0">
                           <button
                             onClick={() => handleOpenFilter(column, getColumnType(column))}
-                            className={`p-1 rounded transition-colors ${
-                              hasActiveFilter(column) 
-                                ? 'text-indigo-400 bg-indigo-500/10' 
-                                : 'text-slate-600 hover:text-slate-300 hover:bg-slate-800'
-                            }`}
+                            className={`p-1 rounded transition-colors ${hasActiveFilter(column)
+                              ? 'text-indigo-400 bg-indigo-500/10'
+                              : 'text-slate-600 hover:text-slate-300 hover:bg-slate-800'
+                              }`}
                             title="Filter"
                           >
                             <Filter className="w-3.5 h-3.5" />
@@ -581,34 +582,34 @@ export default function IndiaMasterTable({
 
                           {activeFilterColumn === column && (
                             <div className="absolute top-full right-0 mt-2 z-50">
-                                <FilterDropdown
-                                  isOpen={true}
-                                  onClose={() => setActiveFilterColumn(null)}
-                                  title={`Filter ${formatColumnHeader(column)}`}
-                                >
-                                  {column === 'category' || column === 'brand' ? (
-                                    <MultiSelectFilter
-                                        values={filterValues[column] as any[] || []}
-                                        selectedValues={localFilters[column]?.values || []}
-                                        onApply={(values) => handleApplyFilter(column, values.length ? { type: 'multiselect', values } : null)}
-                                        placeholder="Search..."
-                                        loading={!filterValues[column]}
-                                    />
-                                  ) : getColumnType(column) === 'numeric' ? (
-                                    <NumericFilter
-                                        currentFilter={localFilters[column]}
-                                        onApply={(data) => handleApplyFilter(column, data)}
-                                        columnName={column}
-                                    />
-                                  ) : (
-                                    <TextFilter 
-                                        values={filterValues[column] as string[] || []}
-                                        selectedValues={localFilters[column]?.values || []}
-                                        onApply={(values) => handleApplyFilter(column, values.length ? { type: 'text', values } : null)}
-                                        placeholder="Search..."
-                                    />
-                                  )}
-                                </FilterDropdown>
+                              <FilterDropdown
+                                isOpen={true}
+                                onClose={() => setActiveFilterColumn(null)}
+                                title={`Filter ${formatColumnHeader(column)}`}
+                              >
+                                {column === 'category' || column === 'brand' ? (
+                                  <MultiSelectFilter
+                                    values={filterValues[column] as any[] || []}
+                                    selectedValues={localFilters[column]?.values || []}
+                                    onApply={(values) => handleApplyFilter(column, values.length ? { type: 'multiselect', values } : null)}
+                                    placeholder="Search..."
+                                    loading={!filterValues[column]}
+                                  />
+                                ) : getColumnType(column) === 'numeric' ? (
+                                  <NumericFilter
+                                    currentFilter={localFilters[column]}
+                                    onApply={(data) => handleApplyFilter(column, data)}
+                                    columnName={column}
+                                  />
+                                ) : (
+                                  <TextFilter
+                                    values={filterValues[column] as string[] || []}
+                                    selectedValues={localFilters[column]?.values || []}
+                                    onApply={(values) => handleApplyFilter(column, values.length ? { type: 'text', values } : null)}
+                                    placeholder="Search..."
+                                  />
+                                )}
+                              </FilterDropdown>
                             </div>
                           )}
                         </div>
@@ -658,6 +659,17 @@ export default function IndiaMasterTable({
                         <div className="truncate" title={String(row[column as keyof MasterData] || '')}>
                           {column === 's_no' ? (
                             <span className="font-mono text-slate-500">{row.display_number}</span>
+                          ) : column === 'remark' ? ( // ✅ Add this block
+                            row.remark ? (
+                              <button
+                                onClick={() => setSelectedRemark(row.remark)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                              >
+                                View
+                              </button>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )
                           ) : column === 'asin' ? (
                             <span className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono text-[10px] select-all">
                               {row.asin}
@@ -692,6 +704,25 @@ export default function IndiaMasterTable({
           </table>
         </div>
       </div>
+      {/* ✅ Remark Detail Modal (India) */}
+      {selectedRemark && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Master Remark</h3>
+              <button
+                onClick={() => setSelectedRemark(null)}
+                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+              >
+                ×
+              </button>
+            </div>
+            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto font-sans">
+              {selectedRemark}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
