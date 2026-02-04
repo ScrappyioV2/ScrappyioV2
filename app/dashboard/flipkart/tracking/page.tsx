@@ -158,7 +158,7 @@ export default function TrackingPage() {
             setLoading(true);
 
             // ✅ FIX: Fetch from seller-specific Main File table
-            const mainFileTableName = `india_tracking_seller_${currentSellerId}`;
+            const mainFileTableName = `flipkart_tracking_seller_${currentSellerId}`;
             console.log('📋 Fetching from table:', mainFileTableName);
 
             // Recursive fetch to handle 1000+ rows
@@ -169,7 +169,7 @@ export default function TrackingPage() {
 
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
-                    .from(mainFileTableName) // ✅ FIXED: india_tracking_seller_X
+                    .from(mainFileTableName) // ✅ FIXED: flipkart_tracking_seller_X
                     .select('*') // Select ALL columns
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -189,7 +189,7 @@ export default function TrackingPage() {
             const enrichedData = await Promise.all(
                 allData.map(async (product) => {
                     let query = supabase
-                        .from('india_validation_main_file')
+                        .from('flipkart_validation_main_file')
                         .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
                         .eq('asin', product.asin);
 
@@ -207,7 +207,7 @@ export default function TrackingPage() {
                     // Fallback if no validation data found
                     if (!finalValidationData && !product.journey_id) {
                         const { data: fallbackData } = await supabase
-                            .from('india_validation_main_file')
+                            .from('flipkart_validation_main_file')
                             .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
                             .eq('asin', product.asin)
                             .order('created_at', { ascending: false })
@@ -250,10 +250,10 @@ export default function TrackingPage() {
 
             // Parallel fetch for speed
             const [invoiceRes, checkingRes, shipmentRes, restockRes] = await Promise.all([
-                supabase.from(`india_invoice_seller_${id}`).select('*', { count: 'exact', head: true }),
-                supabase.from(`india_checking_seller_${id}`).select('*', { count: 'exact', head: true }),
-                supabase.from(`india_shipment_seller_${id}`).select('*', { count: 'exact', head: true }),
-                supabase.from(`india_restock_seller_${id}`).select('*', { count: 'exact', head: true })
+                supabase.from(`flipkart_invoice_seller_${id}`).select('*', { count: 'exact', head: true }),
+                supabase.from(`flipkart_checking_seller_${id}`).select('*', { count: 'exact', head: true }),
+                supabase.from(`flipkart_shipment_seller_${id}`).select('*', { count: 'exact', head: true }),
+                supabase.from(`flipkart_restock_seller_${id}`).select('*', { count: 'exact', head: true })
             ]);
 
             const newCounts = {
@@ -277,7 +277,7 @@ export default function TrackingPage() {
     const refreshProductsSilently = async () => {
         try {
             // ✅ FIX: Fetch from seller-specific Main File table
-            const mainFileTableName = `india_tracking_seller_${currentSellerId}`;
+            const mainFileTableName = `flipkart_tracking_seller_${currentSellerId}`;
 
             // Recursive fetch to handle 1000+ rows
             let allData: any[] = [];
@@ -287,7 +287,7 @@ export default function TrackingPage() {
 
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
-                    .from(mainFileTableName) // ✅ FIXED: india_tracking_seller_X
+                    .from(mainFileTableName) // ✅ FIXED: flipkart_tracking_seller_X
                     .select('*')
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -307,7 +307,7 @@ export default function TrackingPage() {
             const allAsins = allData.map((p: any) => p.asin);
 
             const { data: validationDataArray } = await supabase
-                .from('india_validation_main_file')
+                .from('flipkart_validation_main_file')
                 .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase')
                 .in('asin', allAsins);
 
@@ -352,9 +352,9 @@ export default function TrackingPage() {
         fetchSellerCounts();
 
         // ✅ FIX: Subscribe to seller-specific table
-        const mainFileTableName = `india_tracking_seller_${currentSellerId}`;
-        const invoiceTableName = `india_invoice_seller_${currentSellerId}`;
-        const checkingTableName = `india_checking_seller_${currentSellerId}`;
+        const mainFileTableName = `flipkart_tracking_seller_${currentSellerId}`;
+        const invoiceTableName = `flipkart_invoice_seller_${currentSellerId}`;
+        const checkingTableName = `flipkart_checking_seller_${currentSellerId}`;
 
         const channel = supabase
             .channel(`tracking-${currentSellerId}`)
@@ -484,7 +484,7 @@ export default function TrackingPage() {
         }
 
         const { error: insertError } = await supabase
-            .from('india_traking')
+            .from('flipkart_tracking')
             .insert({
                 asin: product.asin,
                 product_link: product.product_link,
@@ -523,7 +523,7 @@ export default function TrackingPage() {
         }
 
         await supabase
-            .from('india_purchases')
+            .from('flipkart_purchases')
             .delete()
             .eq('id', product.id);
 

@@ -107,14 +107,14 @@ export default function AdminValidationPage() {
   // 🆕 NEW: Toggle to show all journey cycles or just latest
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
-  // Fetch products from india_admin_validation table
+  // Fetch products from flipkart_admin_validation table
   const fetchProducts = async (showLoader: boolean = false) => {
     try {
       if (showLoader) setLoading(true);
 
       // 1. Fetch base data from indiaadminvalidation
       const { data: adminData, error: adminError } = await supabase
-        .from('india_admin_validation')
+        .from('flipkart_admin_validation')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -146,11 +146,11 @@ export default function AdminValidationPage() {
 
       // 3️⃣ Batch fetch from BOTH tables
       const [purchaseResult, validationResult] = await Promise.all([
-        supabase.from('india_purchases')
+        supabase.from('flipkart_purchases')
           .select('asin, journey_id, journey_number, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, target_quantity, product_weight, usd_price, inr_purchase, funnel, seller_tag')
           .in('asin', asins),
 
-        supabase.from('india_validation_main_file')
+        supabase.from('flipkart_validation_main_file')
           .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase')
           .in('asin', asins)
       ]);
@@ -289,10 +289,10 @@ export default function AdminValidationPage() {
 
     // ✅ REALTIME → silent refresh (NO loader)
     const channel = supabase
-      .channel('admin_validation_changes')
+      .channel('flipkart_admin_validation_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'india_admin_validation' },
+        { event: '*', schema: 'public', table: 'flipkart_admin_validation' },
         () => fetchProducts(false)
       )
       .subscribe();
@@ -321,7 +321,7 @@ export default function AdminValidationPage() {
   // Column widths state
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('admin_validation_column_widths');
+      const saved = localStorage.getItem('flipkart_admin_validation_column_widths');
       return saved ? JSON.parse(saved) : {
         asin: 120,
         product_name: 120,
@@ -370,7 +370,7 @@ export default function AdminValidationPage() {
   const fetchAdminConstants = async () => {
     try {
       const { data, error } = await supabase
-        .from('india_admin_validation_constants')
+        .from('flipkart_admin_validation_constants')
         .select('*')
         .limit(1)
         .single();
@@ -396,7 +396,7 @@ export default function AdminValidationPage() {
     setHistoryLoading(true)
     try {
       const { data, error } = await supabase
-        .from('india_asin_history')
+        .from('flipkart_asin_history')
         .select('*')
         .eq('asin', asin)
         .order('created_at', { ascending: false })
@@ -418,19 +418,19 @@ export default function AdminValidationPage() {
     try {
       // Update constants in database
       const { data: existingData } = await supabase
-        .from('india_admin_validation_constants')
+        .from('flipkart_admin_validation_constants')
         .select('id')
         .limit(1)
         .single();
 
       if (existingData) {
         await supabase
-          .from('india_admin_validation_constants')
+          .from('flipkart_admin_validation_constants')
           .update(adminConstants)
           .eq('id', existingData.id);
       } else {
         await supabase
-          .from('india_admin_validation_constants')
+          .from('flipkart_admin_validation_constants')
           .insert(adminConstants);
       }
 
@@ -466,9 +466,9 @@ export default function AdminValidationPage() {
 
       console.log('Calculated profit:', result.profit);
 
-      // ✅ FIX: Update profit in CORRECT TABLE (india_admin_validation)
+      // ✅ FIX: Update profit in CORRECT TABLE (flipkart_admin_validation)
       const { error } = await supabase
-        .from('india_admin_validation')  // ✅ CORRECT TABLE!
+        .from('flipkart_admin_validation')  // ✅ CORRECT TABLE!
         .update({ profit: result.profit })
         .eq('id', productId);
 
@@ -530,7 +530,7 @@ export default function AdminValidationPage() {
 
     const newWidths = { ...columnWidths, [columnKey]: maxWidth };
     setColumnWidths(newWidths);
-    localStorage.setItem('admin_validation_column_widths', JSON.stringify(newWidths));
+    localStorage.setItem('flipkart_admin_validation_column_widths', JSON.stringify(newWidths));
 
     setToast({
       message: `Column resized to ${maxWidth}px`,
@@ -564,7 +564,7 @@ export default function AdminValidationPage() {
   // Handle column resize end
   const handleResizeEnd = () => {
     if (resizingColumn) {
-      localStorage.setItem('admin_validation_column_widths', JSON.stringify(columnWidths));
+      localStorage.setItem('flipkart_admin_validation_column_widths', JSON.stringify(columnWidths));
       setResizingColumn(null);
     }
   };
@@ -626,9 +626,9 @@ export default function AdminValidationPage() {
       const selectedProducts = products.filter(p => selectedIds.has(p.id));
 
       for (const product of selectedProducts) {
-        // ✅ STEP 1: UPDATE india_purchases (existing workflow preserved)
+        // ✅ STEP 1: UPDATE flipkart_purchases (existing workflow preserved)
         const { error: updatePurchaseError } = await supabase
-          .from('india_purchases')
+          .from('flipkart_purchases')
           .update({
             admin_confirmed: true,
             admin_confirmed_at: new Date().toISOString(),
@@ -643,9 +643,9 @@ export default function AdminValidationPage() {
 
         if (updatePurchaseError) throw updatePurchaseError;
 
-        // ✅ STEP 2: UPDATE status in india_admin_validation (KEEP the product, don't delete)
+        // ✅ STEP 2: UPDATE status in flipkart_admin_validation (KEEP the product, don't delete)
         const { error: updateAdminError } = await supabase
-          .from('india_admin_validation')
+          .from('flipkart_admin_validation')
           .update({
             admin_status: 'confirmed',  // ✅ Set to 'confirmed' so it appears in Confirm tab
             confirmed_at: new Date().toISOString(),
@@ -700,9 +700,9 @@ export default function AdminValidationPage() {
 
       console.log('📊 Updating product:', { id, field, dbField, value })
 
-      // UPDATE india_admin_validation table (not india_purchases)
+      // UPDATE flipkart_admin_validation table (not flipkart_purchases)
       const { error } = await supabase
-        .from('india_admin_validation')  // ✅ CORRECT TABLE
+        .from('flipkart_admin_validation')  // ✅ CORRECT TABLE
         .update({ [dbField]: value })  // ✅ Use the correct database column name
         .eq('id', id)
 
@@ -760,7 +760,7 @@ export default function AdminValidationPage() {
 
       // 1. FRESH FETCH (Only existing columns)
       const { data: validationData, error: fetchError } = await supabase
-        .from('india_validation_main_file')
+        .from('flipkart_validation_main_file')
         .select('funnel, seller_tag')
         .eq('asin', cleanAsin)
         .limit(1)
@@ -832,11 +832,11 @@ export default function AdminValidationPage() {
         };
 
         // B. Select Tables for THIS seller
-        const tablesToInsert = [`india_listing_error_seller_${sellerId}_pending`];
+        const tablesToInsert = [`flipkart_listing_error_seller_${sellerId}_pending`];
 
-        if (finalFunnelId === 1) tablesToInsert.push(`india_listing_error_seller_${sellerId}_high_demand`);
-        else if (finalFunnelId === 2) tablesToInsert.push(`india_listing_error_seller_${sellerId}_low_demand`);
-        else if (finalFunnelId === 3) tablesToInsert.push(`india_listing_error_seller_${sellerId}_dropshipping`);
+        if (finalFunnelId === 1) tablesToInsert.push(`flipkart_listing_error_seller_${sellerId}_high_demand`);
+        else if (finalFunnelId === 2) tablesToInsert.push(`flipkart_listing_error_seller_${sellerId}_low_demand`);
+        else if (finalFunnelId === 3) tablesToInsert.push(`flipkart_listing_error_seller_${sellerId}_dropshipping`);
 
         // C. Execute UPSERTS
         const insertPromises = tablesToInsert.map(table =>
@@ -863,7 +863,7 @@ export default function AdminValidationPage() {
       }
 
       // 6. Update FINAL Statuses (Once per product)
-      await supabase.from('india_purchases').update({
+      await supabase.from('flipkart_purchases').update({
         admin_confirmed: true,
         admin_confirmed_at: new Date().toISOString(),
         admin_target_price: product.admin_target_price,
@@ -874,7 +874,7 @@ export default function AdminValidationPage() {
         payment_method: product.payment_method,
       }).eq('asin', cleanAsin);
 
-      await supabase.from('india_admin_validation').update({
+      await supabase.from('flipkart_admin_validation').update({
         admin_status: 'confirmed',
         confirmed_at: new Date().toISOString(),
       }).eq('id', productId);
@@ -912,7 +912,7 @@ export default function AdminValidationPage() {
 
       // 2. Update Database
       const { error: updateAdminError } = await supabase
-        .from('india_admin_validation')
+        .from('flipkart_admin_validation')
         .update({
           admin_status: 'rejected',
           rejected_at: new Date().toISOString(),
@@ -951,9 +951,9 @@ export default function AdminValidationPage() {
 
       if (toStatus === 'confirmed') {
         // Rolling back from Confirm
-        // 1. Revert india_purchases
+        // 1. Revert flipkart_purchases
         const { error: updatePurchaseError } = await supabase
-          .from('india_purchases')
+          .from('flipkart_purchases')
           .update({
             admin_confirmed: false,
             admin_confirmed_at: null,
@@ -961,12 +961,12 @@ export default function AdminValidationPage() {
           .eq('asin', product.asin);
 
         if (updatePurchaseError) {
-          console.error('Error rolling back india_purchases:', updatePurchaseError);
+          console.error('Error rolling back flipkart_purchases:', updatePurchaseError);
         }
 
-        // 2. Revert india_admin_validation status
+        // 2. Revert flipkart_admin_validation status
         const { error: updateAdminError } = await supabase
-          .from('india_admin_validation')
+          .from('flipkart_admin_validation')
           .update({
             admin_status: fromStatus || 'pending',
             confirmed_at: null,
@@ -978,7 +978,7 @@ export default function AdminValidationPage() {
       } else if (toStatus === 'rejected') {
         // Rolling back from Reject
         const { error: updateAdminError } = await supabase
-          .from('india_admin_validation')
+          .from('flipkart_admin_validation')
           .update({
             admin_status: fromStatus || 'pending',
             rejected_at: null,

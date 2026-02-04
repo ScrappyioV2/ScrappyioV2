@@ -19,40 +19,40 @@ import {
 
 const SELLER_TABLE_GROUPS: Record<number, string[]> = {
   1: [
-    'india_seller_1_high_demand',
-    'india_seller_1_low_demand',
-    'india_seller_1_dropshipping',
-    'india_seller_1_not_approved',
+    'flipkart_seller_1_high_demand',
+    'flipkart_seller_1_low_demand',
+    'flipkart_seller_1_dropshipping',
+    'flipkart_seller_1_not_approved',
   ],
   2: [
-    'india_seller_2_high_demand',
-    'india_seller_2_low_demand',
-    'india_seller_2_dropshipping',
-    'india_seller_2_not_approved',
+    'flipkart_seller_2_high_demand',
+    'flipkart_seller_2_low_demand',
+    'flipkart_seller_2_dropshipping',
+    'flipkart_seller_2_not_approved',
   ],
   3: [
-    'india_seller_3_high_demand',
-    'india_seller_3_low_demand',
-    'india_seller_3_dropshipping',
-    'india_seller_3_not_approved',
+    'flipkart_seller_3_high_demand',
+    'flipkart_seller_3_low_demand',
+    'flipkart_seller_3_dropshipping',
+    'flipkart_seller_3_not_approved',
   ],
   4: [
-    'india_seller_4_high_demand',
-    'india_seller_4_low_demand',
-    'india_seller_4_dropshipping',
-    'india_seller_4_not_approved',
+    'flipkart_seller_4_high_demand',
+    'flipkart_seller_4_low_demand',
+    'flipkart_seller_4_dropshipping',
+    'flipkart_seller_4_not_approved',
   ],
   5: [
-    'india_seller_5_high_demand',
-    'india_seller_5_low_demand',
-    'india_seller_5_dropshipping',
-    'india_seller_5_not_approved',
+    'flipkart_seller_5_high_demand',
+    'flipkart_seller_5_low_demand',
+    'flipkart_seller_5_dropshipping',
+    'flipkart_seller_5_not_approved',
   ],
   6: [
-    'india_seller_6_high_demand',
-    'india_seller_6_low_demand',
-    'india_seller_6_dropshipping',
-    'india_seller_6_not_approved',
+    'flipkart_seller_6_high_demand',
+    'flipkart_seller_6_low_demand',
+    'flipkart_seller_6_dropshipping',
+    'flipkart_seller_6_not_approved',
   ],
 };
 
@@ -113,7 +113,7 @@ export default function BrandCheckingPage() {
   const handleSellerCardClick = (sellerId: number) => {
     const seller = ALL_SELLERS.find((s) => s.id === sellerId);
     if (seller) {
-      router.push(`/dashboard/india-selling/brand-checking/${seller.slug}`);
+      router.push(`/dashboard/flipkart/brand-checking/${seller.slug}`);
     }
   };
 
@@ -121,10 +121,10 @@ export default function BrandCheckingPage() {
   useEffect(() => {
     if (!user) return;
     const fetchProgress = async () => {
-      console.log("📊 Fetching initial India brand check progress...");
+      console.log("📊 Fetching initial Flipkart brand check progress...");
 
       const { data, error } = await supabase
-        .from("india_brand_check_progress")  // ✅ CORRECT: India table
+        .from("flipkart_brand_check_progress")  // ✅ CORRECT: flipkart table
         .select("*");
 
       if (error) {
@@ -133,7 +133,7 @@ export default function BrandCheckingPage() {
       }
 
       if (data) {
-        console.log("✅ Loaded India progress data:", data);
+        console.log("✅ Loaded Flipkart progress data:", data);
         setSellers((prev) =>
           prev.map((seller) => {
             const row = data.find(
@@ -158,16 +158,16 @@ export default function BrandCheckingPage() {
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {
     if (!user) return;
-    console.log("🔌 Setting up real-time subscription for india_brand_check_progress");
+    console.log("🔌 Setting up real-time subscription for flipkart_brand_check_progress");
 
     const channel = supabase
-      .channel("india-brand-check-progress-updates")  // ✅ FIXED: Unique channel name
+      .channel("flipkart-brand-check-progress-updates")  // ✅ FIXED: Unique channel name
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "india_brand_check_progress",  // ✅ FIXED: Changed from brand_check_progress to india_brand_check_progress
+          table: "flipkart_brand_check_progress",  // ✅ FIXED: Changed from brand_check_progress to flipkart_brand_check_progress
         },
         (payload) => {
           console.log("🔔 Real-time update received:", payload);
@@ -204,9 +204,9 @@ export default function BrandCheckingPage() {
 
     for (const seller of ALL_SELLERS) {
       const [high, low, drop] = await Promise.all([
-        supabase.from(`india_seller_${seller.id}_high_demand`).select('*', { count: 'exact', head: true }),
-        supabase.from(`india_seller_${seller.id}_low_demand`).select('*', { count: 'exact', head: true }),
-        supabase.from(`india_seller_${seller.id}_dropshipping`).select('*', { count: 'exact', head: true }),
+        supabase.from(`flipkart_seller_${seller.id}_high_demand`).select('*', { count: 'exact', head: true }),
+        supabase.from(`flipkart_seller_${seller.id}_low_demand`).select('*', { count: 'exact', head: true }),
+        supabase.from(`flipkart_seller_${seller.id}_dropshipping`).select('*', { count: 'exact', head: true }),
       ]);
 
       result[seller.id] = {
@@ -232,11 +232,11 @@ export default function BrandCheckingPage() {
         {/* === HEADER === */}
         <div className="mb-8">
           <Link
-            href="/dashboard/india-selling"
+            href="/dashboard/flipkart-selling"
             className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 mb-6 transition-colors group font-medium text-sm"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to INDIA Selling Dashboard
+            Back to FLIPKART Dashboard
           </Link>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/60 pb-8">

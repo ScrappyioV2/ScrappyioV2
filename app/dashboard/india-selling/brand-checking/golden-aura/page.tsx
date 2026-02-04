@@ -145,6 +145,8 @@ export default function GoldenAuraPage() {
     2: 'RR',
     3: 'UB',
     4: 'VV',
+    5: "DE",  
+    6: "CV",
   };
 
   // ✅ 4. ADD: Resize Handlers
@@ -1072,24 +1074,24 @@ export default function GoldenAuraPage() {
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
         {/* ✅ ADD THIS - Remark Modal */}
-      {selectedRemark && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">Remark Details</h3>
-              <button
-                onClick={() => setSelectedRemark(null)}
-                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
-              >
-                ×
-              </button>
-            </div>
-            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
-              {selectedRemark}
+        {selectedRemark && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Remark Details</h3>
+                <button
+                  onClick={() => setSelectedRemark(null)}
+                  className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+                {selectedRemark}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </PageTransition>
   );

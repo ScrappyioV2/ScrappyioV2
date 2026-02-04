@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
-import { getIndiaTrackingTableName } from '@/lib/utils';
+import { getFlipkartTrackingTableName } from '@/lib/utils';
 import * as XLSX from 'xlsx'
 import {
   Loader2,
@@ -91,7 +91,7 @@ export default function ReorderPage() {
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from(`india_reorder_${activeSeller.table_suffix}`)
+        .from(`flipkart_reorder_${activeSeller.table_suffix}`)
         .select('*')
         .order('status', { ascending: false })
         .order('product_name', { ascending: true })
@@ -114,7 +114,7 @@ export default function ReorderPage() {
     try {
       setProcessing(true)
 
-      const listingTable = `india_listing_error_${activeSeller.table_suffix}_done`
+      const listingTable = `flipkart_listing_error_${activeSeller.table_suffix}_done`
       // ✅ Fetch journey_id from source
       const { data: listedItems, error: listError } = await supabase
         .from(listingTable)
@@ -126,7 +126,7 @@ export default function ReorderPage() {
         return
       }
 
-      const reorderTable = `india_reorder_${activeSeller.table_suffix}`
+      const reorderTable = `flipkart_reorder_${activeSeller.table_suffix}`
       const { data: existingItems } = await supabase
         .from(reorderTable)
         .select('asin')
@@ -221,7 +221,7 @@ export default function ReorderPage() {
   //             matchCount++
   //             const pAsin = p.asin.trim().toUpperCase()
   //             return supabase
-  //               .from(`india_reorder_${activeSeller.table_suffix}`)
+  //               .from(`flipkart_reorder_${activeSeller.table_suffix}`)
   //               .update({ current_qty: updates[pAsin] })
   //               .eq('id', p.id)
   //           })
@@ -379,7 +379,7 @@ export default function ReorderPage() {
           matchCount++
           const pAsin = p.asin.trim().toUpperCase()
           return supabase
-            .from(`india_reorder_${activeSeller.table_suffix}`)
+            .from(`flipkart_reorder_${activeSeller.table_suffix}`)
             .update({ current_qty: updates[pAsin] })
             .eq('id', p.id)
         })
@@ -416,7 +416,7 @@ export default function ReorderPage() {
   //     setProcessing(true)
 
   //     const { data: trackingData, error: trackError } = await supabase
-  //       .from('india_traking')
+  //       .from('flipkart_traking')
   //       .select('asin, buying_quantity')
 
   //     if (trackError) throw trackError
@@ -429,7 +429,7 @@ export default function ReorderPage() {
   //     })
 
   //     const { data: currentReorderData } = await supabase
-  //       .from(`india_reorder_${activeSeller.table_suffix}`)
+  //       .from(`flipkart_reorder_${activeSeller.table_suffix}`)
   //       .select('*')
 
   //     if (!currentReorderData) return
@@ -469,7 +469,7 @@ export default function ReorderPage() {
 
   //     const updatePromises = updates.map(u =>
   //       supabase
-  //         .from(`india_reorder_${activeSeller.table_suffix}`)
+  //         .from(`flipkart_reorder_${activeSeller.table_suffix}`)
   //         .update({
   //           tracking_qty: u.tracking_qty,
   //           final_reorder_qty: u.final_reorder_qty,
@@ -511,11 +511,11 @@ export default function ReorderPage() {
 
         // ✅ PRIORITY ORDER: Check from final stage backward
         const tablesToCheck = [
-          // { name: getIndiaTrackingTableName('VYAPAR', sellerId), priority: 5 },      // ✅ CHANGED
-          { name: getIndiaTrackingTableName('SHIPMENT', sellerId), priority: 4 },    // ✅ CHANGED
-          { name: getIndiaTrackingTableName('CHECKING', sellerId), priority: 3 },    // ✅ CHANGED
-          { name: getIndiaTrackingTableName('INVOICE', sellerId), priority: 2 },     // ✅ CHANGED
-          { name: `indiatracking_seller${sellerId}`, priority: 1 }                   // ✅ Already correct
+          // { name: getFlipkartTrackingTableName('VYAPAR', sellerId), priority: 5 },      // ✅ CHANGED
+          { name: getFlipkartTrackingTableName('SHIPMENT', sellerId), priority: 4 },    // ✅ CHANGED
+          { name: getFlipkartTrackingTableName('CHECKING', sellerId), priority: 3 },    // ✅ CHANGED
+          { name: getFlipkartTrackingTableName('INVOICE', sellerId), priority: 2 },     // ✅ CHANGED
+          { name: `flipkarttraking_seller${sellerId}`, priority: 1 }                   // ✅ Already correct
         ];
 
         console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
@@ -566,7 +566,7 @@ export default function ReorderPage() {
 
       // Fetch current reorder data
       const { data: currentReorderData } = await supabase
-        .from(`india_reorder_${activeSeller.table_suffix}`)
+        .from(`flipkart_reorder_${activeSeller.table_suffix}`)
         .select('*')
 
       if (!currentReorderData) return
@@ -581,7 +581,7 @@ export default function ReorderPage() {
 
       // First, we need to get seller_tag for each ASIN from the tracking main table
       const { data: mainFileData } = await supabase
-        .from('india_traking')
+        .from('flipkart_traking')
         .select('asin, seller_tag')
 
       mainFileData?.forEach(item => {
@@ -636,7 +636,7 @@ export default function ReorderPage() {
       // Update database
       const updatePromises = updates.map(u =>
         supabase
-          .from(`india_reorder_${activeSeller.table_suffix}`)
+          .from(`flipkart_reorder_${activeSeller.table_suffix}`)
           .update({
             tracking_qty: u.tracking_qty,
             final_reorder_qty: u.final_reorder_qty,
@@ -693,7 +693,7 @@ export default function ReorderPage() {
     } : p))
 
     await supabase
-      .from(`india_reorder_${activeSeller.table_suffix}`)
+      .from(`flipkart_reorder_${activeSeller.table_suffix}`)
       .update({
         admin_target_qty: newTarget,
         final_reorder_qty: finalReorder,
@@ -710,7 +710,7 @@ export default function ReorderPage() {
     try {
       // Fetch last 5 history entries
       const { data, error } = await supabase
-        .from('india_asin_history')
+        .from('flipkart_asin_history')
         .select('*')
         .eq('asin', asin)
         .order('created_at', { ascending: false })
@@ -736,7 +736,7 @@ export default function ReorderPage() {
 
       // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
       const { data: historyData, error: historyError } = await supabase
-        .from('india_asin_history')
+        .from('flipkart_asin_history')
         .select('journey_number')
         .eq('asin', product.asin)
         .order('journey_number', { ascending: false })
@@ -755,8 +755,8 @@ export default function ReorderPage() {
 
       // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
       const { data: masterData, error: fetchError } = await supabase
-        .from('india_validation_main_file')
-        .select('brand, seller_tag, funnel, origin, product_name, india_link')
+        .from('flipkart_validation_main_file')
+        .select('brand, seller_tag, funnel, origin, product_name, flipkart_link')
         .eq('asin', product.asin)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -771,7 +771,7 @@ export default function ReorderPage() {
 
       // 4. Insert into Validation Main File with RESTORED DATA
       const { error: insertError } = await supabase
-        .from('india_validation_main_file')
+        .from('flipkart_validation_main_file')
         .insert({
           asin: product.asin,
 
@@ -787,7 +787,7 @@ export default function ReorderPage() {
           seller_tag: masterData?.seller_tag || null,
           funnel: masterData?.funnel || null,
           origin: masterData?.origin || 'India', // Default to India if unknown
-          india_link: masterData?.india_link || product.seller_link,
+          flipkart_link: masterData?.flipkart_link || product.seller_link,
           remark: product.remark ?? null,
           // Reset operational fields
           no_of_seller: 1,
@@ -799,7 +799,7 @@ export default function ReorderPage() {
 
       // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
       const { error: deleteError } = await supabase
-        .from(`india_reorder_${activeSeller.table_suffix}`)
+        .from(`flipkart_reorder_${activeSeller.table_suffix}`)
         .delete()
         .eq('id', product.id)
 
@@ -837,7 +837,7 @@ export default function ReorderPage() {
       <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">Replenishment Manager</h1>
+            <h1 className="text-3xl font-bold text-white">Flipkart Replenishment Manager</h1>
             <p className="text-slate-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
           </div>
 
@@ -1175,7 +1175,7 @@ export default function ReorderPage() {
                 <button
                   onClick={async () => {
                     try {
-                      const tableName = `india_reorder_${activeSeller.table_suffix}`;
+                      const tableName = `flipkart_reorder_${activeSeller.table_suffix}`;
                       const { error } = await supabase
                         .from(tableName)
                         .update({ remark: selectedRemark.remark })

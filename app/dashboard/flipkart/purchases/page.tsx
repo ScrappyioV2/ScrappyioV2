@@ -16,7 +16,7 @@ type PassFileProduct = {
   origin_china: boolean | null  // ✅ Underscore
   usd_price: number | null  // ✅ Underscore  
   inr_purchase: number | null  // ✅ Underscore
-  india_link: string | null  // ✅ Underscore
+  flipkart_link: string | null  // ✅ Underscore
   product_link: string | null  // ✅ Underscore
   target_price: number | null  // ✅ Underscore
   admin_target_price: number | null  // ✅ Underscore
@@ -129,7 +129,7 @@ export default function PurchasesPage() {
 
       // 1. Fetch all purchases (Batch 1)
       const { data: purchasesData, error: purchasesError } = await supabase
-        .from('india_purchases')
+        .from('flipkart_purchases')
         .select('*') // Select all columns
         .order('created_at', { ascending: false })
 
@@ -146,7 +146,7 @@ export default function PurchasesPage() {
       // 3. Fetch ALL validation data in ONE query (Batch 2)
       // This replaces the loop that was causing the lag
       const { data: validationDataArray, error: valError } = await supabase
-        .from('india_validation_main_file')
+        .from('flipkart_validation_main_file')
         .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue')
         .in('asin', allAsins)
 
@@ -210,7 +210,7 @@ export default function PurchasesPage() {
     try {
       // Fetch purchases
       const { data: purchasesData, error: purchasesError } = await supabase
-        .from('india_purchases')
+        .from('flipkart_purchases')
         .select('*')
         .order('created_at', { ascending: false })
 
@@ -219,7 +219,7 @@ export default function PurchasesPage() {
       // Fetch ALL validation data in ONE query (much faster)
       const allAsins = purchasesData.map((p: any) => p.asin)
       const { data: validationDataArray } = await supabase
-        .from('india_validation_main_file')
+        .from('flipkart_validation_main_file')
         .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
         .in('asin', allAsins)
 
@@ -288,8 +288,8 @@ export default function PurchasesPage() {
     fetchProducts()
 
     const channel = supabase
-      .channel('purchases-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'india_purchases' }, () => {
+      .channel('flipkart_purchases_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'flipkart_purchases' }, () => {
         refreshProductsSilently()
       })
       .subscribe()
@@ -358,7 +358,7 @@ export default function PurchasesPage() {
       if (product.journey_id) {
         // Try to match by journey_id first (most accurate)
         const { data } = await supabase
-          .from('india_validation_main_file')
+          .from('flipkart_validation_main_file')
           .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price,remark')
           .eq('asin', product.asin)
           .eq('current_journey_id', product.journey_id)
@@ -369,7 +369,7 @@ export default function PurchasesPage() {
       // Fallback: If no journey match, get latest by asin
       if (!validationData) {
         const { data } = await supabase
-          .from('india_validation_main_file')
+          .from('flipkart_validation_main_file')
           .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price,remark')
           .eq('asin', product.asin)
           .order('journey_number', { ascending: false })
@@ -386,12 +386,12 @@ export default function PurchasesPage() {
 
       // Insert into admin validation - ONLY fields that exist in schema
       const { error: insertError } = await supabase
-        .from('india_admin_validation')
+        .from('flipkart_admin_validation')
         .insert({
           // Core product info
           asin: product.asin,
           product_name: product.product_name,
-          product_link: product.india_link || product.product_link,
+          product_link: product.flipkart_link || product.product_link,
 
           // Target pricing from validation
           target_price: validationData?.inr_purchase || null,
@@ -438,9 +438,9 @@ export default function PurchasesPage() {
 
       if (insertError) throw insertError
 
-      // Update india_purchases
+      // Update flipkart_purchases
       const { error: updateError } = await supabase
-        .from('india_purchases')
+        .from('flipkart_purchases')
         .update({
           sent_to_admin: true,
           sent_to_admin_at: new Date().toISOString(),
@@ -462,7 +462,7 @@ export default function PurchasesPage() {
     setHistoryLoading(true)
     try {
       const { data, error } = await supabase
-        .from('india_asin_history')
+        .from('flipkart_asin_history')
         .select('*')
         .eq('asin', asin)
         .order('created_at', { ascending: false })
@@ -494,7 +494,7 @@ export default function PurchasesPage() {
       }))
 
       const { error } = await supabase
-        .from('india_purchases')  // ✅ Underscore
+        .from('flipkart_purchases')  // ✅ Underscore
         .update({ move_to: 'pricewait' })  // ✅ Underscore
         .eq('id', product.id)
 
@@ -522,7 +522,7 @@ export default function PurchasesPage() {
       }))
 
       const { error } = await supabase
-        .from('india_purchases')  // ✅ Underscore
+        .from('flipkart_purchases')  // ✅ Underscore
         .update({ move_to: 'notfound' })  // ✅ Underscore
         .eq('id', product.id)
 
@@ -554,7 +554,7 @@ export default function PurchasesPage() {
         updateData['sent_to_admin_at'] = null
 
         const { error: deleteError } = await supabase
-          .from('india_admin_validation')
+          .from('flipkart_admin_validation')
           .delete()
           .eq('asin', product.asin)
 
@@ -566,7 +566,7 @@ export default function PurchasesPage() {
       }
 
       const { error: updateError } = await supabase
-        .from('india_purchases')
+        .from('flipkart_purchases')
         .update(updateData)
         .eq('asin', product.asin)
 
@@ -598,7 +598,7 @@ export default function PurchasesPage() {
 
       // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
       const { data: freshProduct, error: fetchError } = await supabase
-        .from('india_purchases')
+        .from('flipkart_purchases')
         .select('*')
         .eq('id', product.id)
         .single();
@@ -641,7 +641,7 @@ export default function PurchasesPage() {
       // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
       const insertPromises = sellerTags.map(async (tag) => {
         const sellerId = sellerTagMapping[tag] || 1;
-        const trackingTableName = `india_tracking_seller_${sellerId}`;
+        const trackingTableName = `flipkart_tracking_seller_${sellerId}`;
 
         console.log(`📊 Inserting into: ${trackingTableName} (Seller: ${tag})`);
 
@@ -728,7 +728,7 @@ export default function PurchasesPage() {
 
       // STEP 4: DELETE from purchases (only after ALL inserts succeed)
       const { error: deleteError } = await supabase
-        .from('india_purchases')
+        .from('flipkart_purchases')
         .delete()
         .eq('id', product.id);
 
@@ -833,7 +833,7 @@ export default function PurchasesPage() {
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
       const { error } = await supabase
-        .from("india_purchases")  // CORRECT!
+        .from("flipkart_purchases")  // CORRECT!
         .update({ [field]: value })
         .eq("id", id);
 
@@ -1218,8 +1218,8 @@ export default function PurchasesPage() {
 
                       {/* Product Link */}
                       {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
-                        {(product.india_link || product.product_link) ? (
-                          <a href={(product.india_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
+                        {(product.flipkart_link || product.product_link) ? (
+                          <a href={(product.flipkart_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
                         ) : <span className="text-xs text-slate-600">-</span>}
                       </td>}
 

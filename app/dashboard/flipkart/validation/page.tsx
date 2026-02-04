@@ -34,7 +34,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     seller_tag: 100,
     funnel: 80,
     no_of_seller: 80,
-    india_link: 70,        // Minimal width for "View"
+    flipkart_link: 70,        // Minimal width for "View"
     product_weight: 90,
     usd_price: 90,
     inr_purchase: 100,
@@ -55,7 +55,7 @@ const COLUMN_FLEX: Record<string, boolean> = {
     seller_tag: false,
     funnel: false,
     no_of_seller: false,
-    india_link: false,
+    flipkart_link: false,
     product_weight: false,
     usd_price: false,
     inr_purchase: false,
@@ -97,7 +97,7 @@ interface ValidationProduct {
     seller_tag: string | null
     funnel: string | null
     no_of_seller: number | null
-    india_link: string | null
+    flipkart_link: string | null
     amz_link: string | null
     inr_purchase_link: string | null
     product_weight: number | null
@@ -267,7 +267,7 @@ export default function ValidationPage() {
 
 
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const indiaPriceCSVInputRef = useRef<HTMLInputElement>(null)
+    const flipkartPriceCSVInputRef = useRef<HTMLInputElement>(null)
 
     // ✅ History Sidebar State
     const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null);
@@ -290,7 +290,7 @@ export default function ValidationPage() {
         seller_tag: true,
         funnel: true,
         no_of_seller: true,
-        india_link: false,
+        flipkart_link: false,
         product_weight: true,
         usd_price: true,
         inr_purchase: true,
@@ -308,7 +308,7 @@ export default function ValidationPage() {
         if (typeof window === 'undefined') return DEFAULT_COLUMN_WIDTHS;
 
         try {
-            const saved = localStorage.getItem('india_validation_column_widths');
+            const saved = localStorage.getItem('flipkart_validation_column_widths');
             if (saved) {
                 const parsed = JSON.parse(saved);
                 // ✅ FIX: Merge with defaults to ensure all keys exist
@@ -327,7 +327,7 @@ export default function ValidationPage() {
             setColumnWidths((prev) => {
                 const updated = { ...prev, [key]: newWidth };
                 localStorage.setItem(
-                    'india_validation_column_widths',
+                    'flipkart_validation_column_widths',
                     JSON.stringify(updated)
                 );
                 return updated;
@@ -346,7 +346,7 @@ export default function ValidationPage() {
         try {
             // Note: No setLoading(true) here!
             const validationData = await fetchAllRows<ValidationProduct>(
-                'india_validation_main_with_sellers',
+                'flipkart_validation_main_file',
                 '*',
                 { column: 'created_at', ascending: false }
             );
@@ -377,13 +377,13 @@ export default function ValidationPage() {
         // Realtime Subscription
         const channel = supabase
             .channel('validation-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'indiavalidationmainfile' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'flipkart_validation_main_file' }, () => {
                 if (localEditCountRef.current > 0) return; // ✅ CHANGED: Skip if local edit in progress
                 debouncedRefresh(); // ✅ CHANGED: Use debounced version
             })
 
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_pass_file' }, () => fetchStats())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_fail_file' }, () => fetchStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'flipkart_validation_pass_file' }, () => fetchStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'flipkart_validation_fail_file' }, () => fetchStats())
             .subscribe();
 
         const handleVisibilityChange = () => {
@@ -417,7 +417,7 @@ export default function ValidationPage() {
     const fetchConstants = async () => {
         try {
             const { data, error } = await supabase
-                .from('india_validation_constants')
+                .from('flipkart_validation_constants')
                 .select('*')
                 .limit(1)
                 .single()
@@ -472,7 +472,7 @@ export default function ValidationPage() {
         try {
             // Get all products from main file
             const mainData = await fetchAllRows<{ judgement: string | null }>(
-                'india_validation_main_file',
+                'flipkart_validation_main_file',
                 'judgement'
             );
 
@@ -538,7 +538,7 @@ export default function ValidationPage() {
         try {
             // Fetch last 5 history entries
             const { data, error } = await supabase
-                .from('india_asin_history')
+                .from('flipkart_asin_history')
                 .select('*')
                 .eq('asin', asin)
                 .order('created_at', { ascending: false })
@@ -569,7 +569,7 @@ export default function ValidationPage() {
         try {
             // Step 1: Fetch all validation products
             const validationData = await fetchAllRows<ValidationProduct>(
-                'india_validation_main_with_sellers',
+                'flipkart_validation_main_file',
                 '*',
                 { column: 'created_at', ascending: false }
             );
@@ -631,7 +631,7 @@ export default function ValidationPage() {
         localEditCountRef.current += 1;; // ✅ START local edit lock
 
         try {
-            const tableName = 'india_validation_main_file';
+            const tableName = 'flipkart_validation_main_file';
 
             // Update DB
             const { error } = await supabase
@@ -809,7 +809,7 @@ export default function ValidationPage() {
             });
 
             const { error: updateError } = await supabase
-                .from('india_validation_main_file')
+                .from('flipkart_validation_main_file')
                 .update(updateData)
                 .eq('id', id);
 
@@ -919,7 +919,7 @@ export default function ValidationPage() {
         }
     }
 
-    const handleindiaPriceCSVUpload = async (
+    const handleFlipkartPriceCSVUpload = async (
         e: React.ChangeEvent<HTMLInputElement>
     ) => {
         const file = e.target.files?.[0]
@@ -949,7 +949,7 @@ export default function ValidationPage() {
 
                     for (const row of updates) {
                         const { data } = await supabase
-                            .from('india_validation_main_file')
+                            .from('flipkart_validation_main_file')
                             .select('*')
                             .eq('asin', row.asin)
                             .single()
@@ -1002,7 +1002,7 @@ export default function ValidationPage() {
         )
 
         const { error } = await supabase
-            .from('india_validation_main_file')
+            .from('flipkart_validation_main_file')
             .update({ [field]: value })
             .eq('id', id)
 
@@ -1030,7 +1030,7 @@ export default function ValidationPage() {
         )
 
         const { error } = await supabase
-            .from('india_validation_main_file')
+            .from('flipkart_validation_main_file')
             .update({ [field]: value })
             .eq('id', id)
 
@@ -1055,10 +1055,10 @@ export default function ValidationPage() {
 
         try {
             // 1. Fetch fresh data from DB to get the correct links
-            // We need 'india_link' (Product Link) and 'inr_purchase_link' (Source Link)
+            // We need 'flipkart_link' (Product Link) and 'inr_purchase_link' (Source Link)
             const { data: realData, error: fetchError } = await supabase
-                .from('india_validation_main_file')
-                .select('india_link, inr_purchase_link')
+                .from('flipkart_validation_main_file')
+                .select('flipkart_link, inr_purchase_link')
                 .eq('id', id)
                 .single();
 
@@ -1081,7 +1081,7 @@ export default function ValidationPage() {
                 timestamp: new Date().toISOString()
             }
 
-            await supabase.from('india_asin_history').insert({
+            await supabase.from('flipkart_asin_history').insert({
                 asin: product.asin,
                 journey_id: journeyId,
                 journey_number: journeyNum,
@@ -1099,7 +1099,7 @@ export default function ValidationPage() {
                         product.origin_india ? 'India' : 'India';
 
             const { error: insertError } = await supabase
-                .from('india_purchases')
+                .from('flipkart_purchases')
                 .insert({
                     asin: product.asin,
                     product_name: product.product_name,
@@ -1110,8 +1110,8 @@ export default function ValidationPage() {
                     origin_india: product.origin_india ?? false,
                     origin_china: product.origin_china ?? false,
 
-                    // ✅ FIXED: Product Link comes from 'india_link' (Amazon URL)
-                    product_link: realData?.india_link || product.india_link,
+                    // ✅ FIXED: Product Link comes from 'flipkart_link' (Amazon URL)
+                    product_link: realData?.flipkart_link || product.flipkart_link,
 
                     // ✅ FIXED: INR Purchase Link comes from 'inr_purchase_link' (Source Link input)
                     inr_purchase_link: realData?.inr_purchase_link || product.inr_purchase_link || '',
@@ -1149,7 +1149,7 @@ export default function ValidationPage() {
 
             // 4. Mark as Sent
             await supabase
-                .from('india_validation_main_file')
+                .from('flipkart_validation_main_file')
                 .update({
                     sent_to_purchases: true,
                     sent_to_purchases_at: new Date().toISOString(),
@@ -1186,7 +1186,7 @@ export default function ValidationPage() {
 
             // Use CORRECT database field names (snake_case with underscores)
             const { error } = await supabase
-                .from('india_validation_main_file')
+                .from('flipkart_validation_main_file')
                 .update({
                     // Clear judgement
                     judgement: 'PENDING',
@@ -1256,7 +1256,7 @@ export default function ValidationPage() {
 
             // Update judgement to PASS in main_file
             const { error } = await supabase
-                .from('india_validation_main_file')
+                .from('flipkart_validation_main_file')
                 .update({
                     judgement: 'PASS',
                 })
@@ -1307,7 +1307,7 @@ export default function ValidationPage() {
 
             // Update judgement to FAIL in main_file
             const { error } = await supabase
-                .from('india_validation_main_file')
+                .from('flipkart_validation_main_file')
                 .update({
                     judgement: 'FAIL',
                 })
@@ -1376,19 +1376,19 @@ export default function ValidationPage() {
         try {
             // Update constants in database
             const { data: existingData } = await supabase
-                .from('india_validation_constants')
+                .from('flipkart_validation_constants')
                 .select('id')
                 .limit(1)
                 .single()
 
             if (existingData) {
                 await supabase
-                    .from('india_validation_constants')
+                    .from('flipkart_validation_constants')
                     .update(constants)
                     .eq('id', existingData.id)
             } else {
                 await supabase
-                    .from('india_validation_constants')
+                    .from('flipkart_validation_constants')
                     .insert([constants])
             }
 
@@ -1428,7 +1428,7 @@ export default function ValidationPage() {
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
-                            <h1 className="text-3xl font-bold text-white">INDIA Selling - Validation</h1>
+                            <h1 className="text-3xl font-bold text-white">Flipkart Selling - Validation</h1>
                             <p className="text-slate-400 mt-1">Manage validation files and product status</p>
                         </div>
                         {/* Stats Cards */}
@@ -1646,14 +1646,14 @@ export default function ValidationPage() {
                                     </button>
                                     <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
 
-                                    {/* Bulk india Price Update */}
+                                    {/* Bulk Flipkart Price Update */}
                                     <button
-                                        onClick={() => indiaPriceCSVInputRef.current?.click()}
+                                        onClick={() => flipkartPriceCSVInputRef.current?.click()}
                                         className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
                                     >
-                                        Bulk INDIA Price Update
+                                        Bulk Flipkart Price Update
                                     </button>
-                                    <input type="file" accept=".csv" ref={indiaPriceCSVInputRef} onChange={handleindiaPriceCSVUpload} className="hidden" />
+                                    <input type="file" accept=".csv" ref={flipkartPriceCSVInputRef} onChange={handleFlipkartPriceCSVUpload} className="hidden" />
 
                                     {/* Configure Constants */}
                                     <button
@@ -1742,7 +1742,7 @@ export default function ValidationPage() {
                                                 {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
                                                 {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
                                                 {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
-                                                {visibleColumns.india_link && <ResizableTH width={columnWidths.india_link} columnKey="india_link" label="INDIA" onResizeStart={startResize} />}
+                                                {visibleColumns.flipkart_link && <ResizableTH width={columnWidths.flipkart_link} columnKey="flipkart_link" label="FLIPKART" onResizeStart={startResize} />}
 
                                                 {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
 
@@ -1803,11 +1803,11 @@ export default function ValidationPage() {
                                                     {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
                                                     {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
 
-                                                    {visibleColumns.india_link && (
+                                                    {visibleColumns.flipkart_link && (
                                                         <td className="p-3 overflow-hidden text-center">
-                                                            {product.india_link ? (
+                                                            {product.flipkart_link ? (
                                                                 <a
-                                                                    href={product.india_link}
+                                                                    href={product.flipkart_link}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="text-indigo-400 hover:text-indigo-300 hover:underline text-sm truncate block"

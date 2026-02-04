@@ -1,7 +1,6 @@
 'use client';
 
 import { useAuth } from '@/lib/hooks/useAuth'
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
@@ -49,7 +48,7 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   remark: 200,
 };
 
-export default function RudraRetailPage() {
+export default function GoldenAuraPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,9 +69,7 @@ export default function RudraRetailPage() {
     remark: true,
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
-  // Move To dropdown state (for Reject tab)
   const [isMoveToDropdownOpen, setIsMoveToDropdownOpen] = useState(false);
-
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -92,7 +89,7 @@ export default function RudraRetailPage() {
   // ✅ 2. UPDATE: Initialize widths with DEFAULT_WIDTHS
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('rudra_retail_column_widths');
+      const saved = localStorage.getItem('flipkart_golden_aura_column_widths');
       return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
     }
     return DEFAULT_WIDTHS;
@@ -104,11 +101,20 @@ export default function RudraRetailPage() {
   // Column order state
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('rudra_retail_column_order');
-      return saved ? JSON.parse(saved) : Object.keys(DEFAULT_WIDTHS);
+      const saved = localStorage.getItem('goldenaura_column_order');
+      if (saved) {
+        const parsedOrder = JSON.parse(saved);
+        // ✅ Add remark if it's missing from saved order
+        if (!parsedOrder.includes('remark')) {
+          parsedOrder.push('remark');
+        }
+        return parsedOrder;
+      }
+      return Object.keys(DEFAULT_WIDTHS);
     }
     return Object.keys(DEFAULT_WIDTHS);
   });
+
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
   // Roll back state
@@ -128,15 +134,18 @@ export default function RudraRetailPage() {
     isOpen: false,
     product: null,
   });
+  // ✅ ADD THIS - Remark Modal State
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
-  const SELLER_ID = 2;
+
+
+  const SELLER_ID = 1;
 
   const SELLER_CODE_MAP: Record<number, string> = {
     1: 'GR',
     2: 'RR',
     3: 'UB',
     4: 'VV',
-    5: "DE", 
+    5: "DE",
     6: "CV",
   };
 
@@ -157,7 +166,7 @@ export default function RudraRetailPage() {
   };
 
   const handleMouseUp = () => {
-    if (resizeRef.current) localStorage.setItem('rudra_retail_column_widths', JSON.stringify(columnWidths));
+    if (resizeRef.current) localStorage.setItem('flipkart_golden_aura_column_widths', JSON.stringify(columnWidths));
     resizeRef.current = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
@@ -207,7 +216,7 @@ export default function RudraRetailPage() {
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const tableName = `india_seller_${SELLER_ID}_${activeTab}`;
+      const tableName = `flipkart_seller_${SELLER_ID}_${activeTab}`;
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
@@ -265,9 +274,9 @@ export default function RudraRetailPage() {
   const fetchLastMovementHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from('india_seller_2_rudra_retail_movement_history')
+        .from('flipkart_seller_1_golden_aura_movement_history')
         .select('*')
-        .eq('from_table', `india_seller_${SELLER_ID}_${activeTab}`)
+        .eq('from_table', `flipkart_seller_${SELLER_ID}_${activeTab}`)
         .order('moved_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -293,7 +302,7 @@ export default function RudraRetailPage() {
 
         setMovementHistory((prev) => ({
           ...prev,
-          [`india_seller_${SELLER_ID}_${activeTab}`]: {
+          [`flipkart_seller_${SELLER_ID}_${activeTab}`]: {
             product,
             fromTable: data.from_table,
             toTable: data.to_table,
@@ -303,7 +312,7 @@ export default function RudraRetailPage() {
         // No history found - clear undo for this tab
         setMovementHistory((prev) => ({
           ...prev,
-          [`india_seller_${SELLER_ID}_${activeTab}`]: null,
+          [`flipkart_seller_${SELLER_ID}_${activeTab}`]: null,
         }));
       }
     } catch (error) {
@@ -311,13 +320,10 @@ export default function RudraRetailPage() {
     }
   };
 
-
-
-
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
       const { error } = await supabase
-        .from(`india_seller_2_rudra_retail_movement_history`)
+        .from(`flipkart_seller_1_golden_aura_movement_history`)
         .insert({
           asin: product.asin,
           product_name: product.product_name,
@@ -352,14 +358,14 @@ export default function RudraRetailPage() {
       let targetTable: string;
       let dataToInsert: any;
       const { id, working, reason: oldReason, ...productData } = product;
-      const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
+      const currentTable = `flipkart_seller_${SELLER_ID}_${activeTab}`;
 
       if (action === 'approved') {
-        targetTable = `india_validation_main_file`;
+        targetTable = `flipkart_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
         const { data: existingRow, error: selectError } = await supabase
-          .from('india_validation_main_file')
+          .from('flipkart_validation_main_file')
           .select('id, seller_tag')
           .eq('asin', product.asin)
           .maybeSingle();
@@ -367,14 +373,14 @@ export default function RudraRetailPage() {
         if (selectError) console.warn('Validation select warning:', selectError);
 
         if (!existingRow) {
-          await supabase.from('india_validation_main_file').insert({
+          await supabase.from('flipkart_validation_main_file').insert({
             asin: product.asin,
             product_name: product.product_name,
             brand: product.brand,
             seller_tag: SELLER_CODE,
             funnel: product.funnel,
             no_of_seller: 1,
-            india_link: product.product_link,
+            flipkart_link: product.product_link,
             amz_link: product.amz_link,
             product_weight: null,
             judgement: null,
@@ -384,7 +390,7 @@ export default function RudraRetailPage() {
           const existingTags = existingRow.seller_tag?.split(',') ?? [];
           if (!existingTags.includes(SELLER_CODE)) {
             await supabase
-              .from('india_validation_main_file')
+              .from('flipkart_validation_main_file')
               .update({
                 seller_tag: [...existingTags, SELLER_CODE].join(','),
                 no_of_seller: existingTags.length + 1,
@@ -399,7 +405,7 @@ export default function RudraRetailPage() {
         setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
       } else if (action === 'not_approved') {
-        targetTable = `india_seller_${SELLER_ID}_not_approved`;
+        targetTable = `flipkart_seller_${SELLER_ID}_not_approved`;
         dataToInsert = productData;
 
         const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
@@ -411,7 +417,7 @@ export default function RudraRetailPage() {
         setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
       } else if (action === 'reject') {
-        targetTable = `india_seller_${SELLER_ID}_reject`;
+        targetTable = `flipkart_seller_${SELLER_ID}_reject`;
         dataToInsert = { ...productData, reason: reason || 'No reason provided' };
 
         const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
@@ -431,7 +437,7 @@ export default function RudraRetailPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
+    const currentTable = `flipkart_seller_${SELLER_ID}_${activeTab}`;
     const lastMovement = movementHistory[currentTable];
 
     if (!lastMovement) {
@@ -442,59 +448,75 @@ export default function RudraRetailPage() {
     setLoading(true);
     try {
       const { product, fromTable, toTable } = lastMovement;
+      const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID]; // e.g. "CV"
 
-      // ✅ NEW: Check if product already exists in destination table
-      const { data: existingProduct, error: checkError } = await supabase
+      // 1. Restore Product to the Origin Table (Brand Checking)
+      // We check if it's already there to avoid duplicates
+      const { data: existingInOrigin, error: checkOriginError } = await supabase
         .from(fromTable)
         .select('asin')
         .eq('asin', product.asin)
         .maybeSingle();
 
-      if (checkError) throw checkError;
+      if (checkOriginError) throw checkOriginError;
 
-      if (existingProduct) {
-        // Product already exists - clear history and show message
-        setToast({
-          message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
-          type: 'warning',
+      if (!existingInOrigin) {
+        const { error: insertError } = await supabase.from(fromTable).insert({
+          asin: product.asin,
+          product_name: product.product_name,
+          brand: product.brand,
+          funnel: product.funnel,
+          monthly_unit: product.monthly_unit,
+          product_link: product.product_link,
+          amz_link: product.amz_link,
+          remark: product.remark,
         });
-
-        // Clear movement history since it's no longer valid
-        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-
-        // Delete the invalid history entry from database
-        await supabase
-          .from(`india_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
-          .delete()
-          .eq('asin', product.asin)
-          .eq('from_table', fromTable)
-          .eq('to_table', toTable)
-          .order('moved_at', { ascending: false })
-          .limit(1);
-
-        setLoading(false);
-        return;
+        if (insertError) throw insertError;
       }
 
-      // Product doesn't exist - proceed with rollback
-      const { error: insertError } = await supabase.from(fromTable).insert({
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.product_link,
-        amz_link: product.amz_link,
-        remark: product.remark,
-      });
+      // 2. Remove from Destination Table (Smart Delete)
+      if (toTable === 'flipkart_validation_main_file') {
+        // ✅ SMART LOGIC: Only remove THIS seller's tag.
+        // If other sellers remain, keep the row. If empty, delete the row.
 
-      if (insertError) throw insertError;
+        const { data: validationRow, error: valError } = await supabase
+          .from(toTable)
+          .select('id, seller_tag, no_of_seller')
+          .eq('asin', product.asin)
+          .single();
 
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-      if (deleteError) throw deleteError;
+        if (valError && valError.code !== 'PGRST116') throw valError;
 
+        if (validationRow) {
+          // Split tags, remove "CV", join back
+          const currentTags = validationRow.seller_tag ? validationRow.seller_tag.split(',') : [];
+          const newTags = currentTags.filter((tag: string) => tag.trim() !== SELLER_CODE);
+
+          if (newTags.length === 0) {
+            // No sellers left -> Delete the row
+            const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+            if (deleteError) throw deleteError;
+          } else {
+            // Other sellers exist -> Just update tags and count
+            const { error: updateError } = await supabase
+              .from(toTable)
+              .update({
+                seller_tag: newTags.join(','),
+                no_of_seller: newTags.length
+              })
+              .eq('id', validationRow.id);
+            if (updateError) throw updateError;
+          }
+        }
+      } else {
+        // For "Reject" or "Not Approved" tables (which are single-seller), Delete is fine.
+        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+        if (deleteError) throw deleteError;
+      }
+
+      // 3. Remove from History Log
       await supabase
-        .from(`india_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
+        .from('flipkart_seller_1_golden_aura_movement_history')
         .delete()
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
@@ -517,7 +539,6 @@ export default function RudraRetailPage() {
   };
 
 
-
   // ✅ NEW FUNCTION: Move products from Reject to other tabs
   const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
     if (selectedIds.size === 0) {
@@ -528,8 +549,8 @@ export default function RudraRetailPage() {
     setLoading(true);
     try {
       const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-      const targetTable = `india_seller_${SELLER_ID}_${targetTab}`;
-      const rejectTable = `india_seller_${SELLER_ID}_reject`;
+      const targetTable = `flipkart_seller_${SELLER_ID}_${targetTab}`;
+      const rejectTable = `flipkart_seller_${SELLER_ID}_reject`;
 
       let movedCount = 0;
       let skippedCount = 0;
@@ -600,7 +621,7 @@ export default function RudraRetailPage() {
 
       // ✅ NEW: Clear movement history for target table since products moved back
       // This prevents undo conflicts when products return to their original table
-      const targetTableKey = `india_seller_${SELLER_ID}_${targetTab}`;
+      const targetTableKey = `flipkart_seller_${SELLER_ID}_${targetTab}`;
       if (movementHistory[targetTableKey]) {
         setMovementHistory((prev) => ({
           ...prev,
@@ -669,7 +690,7 @@ export default function RudraRetailPage() {
     newOrder.splice(draggedIndex, 1);
     newOrder.splice(targetIndex, 0, draggedColumn);
     setColumnOrder(newOrder);
-    localStorage.setItem('rudra_retail_column_order', JSON.stringify(newOrder));
+    localStorage.setItem('flipkart_golden_aura_column_order', JSON.stringify(newOrder));
     setDraggedColumn(null);
   };
 
@@ -720,7 +741,7 @@ export default function RudraRetailPage() {
     );
   };
 
-  const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
+  const currentTable = `flipkart_seller_${SELLER_ID}_${activeTab}`;
   const hasRollback = !!movementHistory[currentTable];
 
   // Tab Styles
@@ -740,7 +761,6 @@ export default function RudraRetailPage() {
       )}
     </button>
   );
-
   // ------------------------------------------------------------------
   // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
   // ------------------------------------------------------------------
@@ -758,7 +778,7 @@ export default function RudraRetailPage() {
                   <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                     <LayoutList className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <h1 className="text-2xl font-bold tracking-tight text-white">Rudra Retail Listing</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-white">Golden Aura Listing</h1>
                 </div>
                 <p className="text-slate-400 pl-[3.25rem] text-sm">
                   Review and process listing errors and approvals
@@ -961,40 +981,64 @@ export default function RudraRetailPage() {
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
 
                           return (
-                            <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                            <td
+                              key={col}
+                              className={`px-4 py-3 text-sm border-r border-slate-800/50 ${col === 'product_name' ? 'text-left' : 'text-center'
+                                } ${col === 'product_link' || col === 'amz_link' ? '' : 'truncate'}`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
-                              title={String(product[col as keyof ProductRow] || '-')}
                             >
-                              {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
-                                col === 'remark' ? (
-                                  product.remark ? (
-                                    <button
-                                      onClick={() => setSelectedRemark(product.remark || '')}
-                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      View
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-600">-</span>
-                                  )
-                                ) : col === 'product_link' || col === 'amz_link' ? (
-                                  product[col as keyof ProductRow] ? (
-                                    <a href={String(product[col as keyof ProductRow])} target="_blank" rel="noopener noreferrer"
+                              {/* ✅ ADD DEBUG LOG */}
+                              {col === 'product_link' || col === 'amz_link' ? (
+                                <>
+                                  {console.log('🔍 DEBUG:', {
+                                    column: col,
+                                    value: product[col as keyof ProductRow],
+                                    hasValue: !!product[col as keyof ProductRow],
+                                    type: typeof product[col as keyof ProductRow]
+                                  })}
+                                  {product[col as keyof ProductRow] ? (
+                                    <a
+                                      href={String(product[col as keyof ProductRow])}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
                                     >
                                       View Link
                                     </a>
-                                  ) : <span className="text-slate-600">-</span>
-                                ) : col === 'reason' ? (
-                                  <span className="text-rose-400">{product.reason || 'No reason'}</span>
-                                ) : col === 'product_name' ? (
-                                  <span className="text-slate-200 font-medium">{product.product_name}</span>
+                                  ) : (
+                                    <span className="text-slate-600">-</span>
+                                  )}
+                                </>
+                              ) : col === 'funnel' ? (
+                                <FunnelBadge funnel={product.funnel} />
+                              ) : col === 'remark' ? (
+                                product.remark ? (
+                                  <button
+                                    onClick={() => setSelectedRemark(product.remark || '')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                  >
+                                    View
+                                  </button>
                                 ) : (
-                                  <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
-                                )}
+                                  <span className="text-slate-600">-</span>
+                                )
+
+                              ) : col === 'reason' ? (
+                                <span className="text-rose-400" title={product.reason || 'No reason'}>
+                                  {product.reason || 'No reason'}
+                                </span>
+                              ) : col === 'product_name' ? (
+                                <span className="text-slate-200 font-medium" title={product.product_name || '-'}>
+                                  {product.product_name}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400" title={String(product[col as keyof ProductRow] || '-')}>
+                                  {String(product[col as keyof ProductRow] || '-')}
+                                </span>
+                              )}
                             </td>
                           );
+
                         })}
                         {activeTab !== 'reject' && (
                           <td className="p-4 text-center">
@@ -1045,7 +1089,7 @@ export default function RudraRetailPage() {
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
-        {/* ✅ ADD REMARK MODAL */}
+        {/* ✅ ADD THIS - Remark Modal */}
         {selectedRemark && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">

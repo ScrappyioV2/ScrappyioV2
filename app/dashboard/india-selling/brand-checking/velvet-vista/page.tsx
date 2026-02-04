@@ -135,6 +135,8 @@ export default function VelvetVistaPage() {
     2: 'RR',
     3: 'UB',
     4: 'VV',
+    5: "DE",
+    6: "CV",
   };
 
   // ✅ 4. ADD: Resize Handlers
@@ -952,13 +954,13 @@ export default function VelvetVistaPage() {
                         {columnOrder.map((col) => {
                           if (col === 'reason' && activeTab !== 'reject') return null;
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
-                            if (col === 'remark') {
-    console.log('VV remark row:', {
-      asin: product.asin,
-      remark: product.remark,
-      hasRemark: !!product.remark,
-    });
-  }
+                          if (col === 'remark') {
+                            console.log('VV remark row:', {
+                              asin: product.asin,
+                              remark: product.remark,
+                              hasRemark: !!product.remark,
+                            });
+                          }
 
                           return (
                             <td

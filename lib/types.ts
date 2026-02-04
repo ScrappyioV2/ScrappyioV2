@@ -33,7 +33,7 @@ export type Seller = {
 
 // --- New Authentication & Routing Types ---
 
-export type PermissionKey = 
+export type PermissionKey =
   // Menu Groups (Parent Access)
   | 'manage-sellers'
   | 'usa-selling'
@@ -42,7 +42,7 @@ export type PermissionKey =
   | 'uae-selling'
   | 'flipkart'
   | 'jio-mart'
-  
+
   // Specific Page Permissions (Granular)
   | 'view-brand-checking'
   | 'view-validation'
@@ -50,17 +50,52 @@ export type PermissionKey =
   | 'view-purchases'
   | 'view-reorder'
   | 'view-tracking'
-  
-  
+
+
   // System
-  | 'admin-access' 
+  | 'admin-access'
   | 'public';
 
 export type AppRoute = {
-  path: string;            
-  label: string;           
-  icon?: LucideIcon;       
-  permission: PermissionKey; 
-  subRoutes?: AppRoute[];  
-  exactMatch?: boolean;    
+  path: string;
+  label: string;
+  icon?: LucideIcon;
+  permission: PermissionKey;
+  subRoutes?: AppRoute[];
+  exactMatch?: boolean;
 };
+
+// Add to existing file
+
+export interface FlipkartProduct {
+  id: string;
+  asin: string;
+  product_name?: string;
+  brand?: string;
+  monthly_unit?: number;
+  funnel?: 'HD' | 'LD' | 'DP';
+  seller_tag?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FlipkartValidation extends FlipkartProduct {
+  inr_purchase?: number;
+  inr_sold?: number;
+  profit?: number;
+  profit_percentage?: number;
+  roi?: number;
+  judgement?: string;
+  admin_status?: 'pending' | 'approved' | 'rejected';
+}
+
+export interface FlipkartTracking {
+  id: string;
+  asin: string;
+  product_name?: string;
+  seller_tag?: string;
+  status?: 'tracking' | 'invoice' | 'checking' | 'shipment' | 'restock' | 'vyapar';
+  journey_number?: number;
+  created_at?: string;
+  updated_at?: string;
+}
