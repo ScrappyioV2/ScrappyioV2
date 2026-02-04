@@ -34,7 +34,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     seller_tag: 100,
     funnel: 80,
     no_of_seller: 80,
-    uk_link: 70,        // Minimal width for "View"
+    uae_link: 70,        // Minimal width for "View"
     product_weight: 90,
     usd_price: 90,
     inr_purchase: 100,
@@ -55,7 +55,7 @@ const COLUMN_FLEX: Record<string, boolean> = {
     seller_tag: false,
     funnel: false,
     no_of_seller: false,
-    uk_link: false,
+    uae_link: false,
     product_weight: false,
     usd_price: false,
     inr_purchase: false,
@@ -97,7 +97,7 @@ interface ValidationProduct {
     seller_tag: string | null
     funnel: string | null
     no_of_seller: number | null
-    uk_link: string | null
+    uae_link: string | null
     amz_link: string | null
     inr_purchase_link: string | null
     product_weight: number | null
@@ -288,7 +288,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         seller_tag: true,
         funnel: true,
         no_of_seller: true,
-        uk_link: true,
+        uae_link: true,
         product_weight: true,
         usd_price: true,
         inr_purchase: true,
@@ -306,7 +306,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         if (typeof window === 'undefined') return DEFAULT_COLUMN_WIDTHS;
 
         try {
-            const saved = localStorage.getItem('uk_validation_column_widths');
+            const saved = localStorage.getItem('uae_validation_column_widths');
             if (saved) {
                 const parsed = JSON.parse(saved);
                 // ✅ FIX: Merge with defaults to ensure all keys exist
@@ -325,7 +325,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
             setColumnWidths((prev) => {
                 const updated = { ...prev, [key]: newWidth };
                 localStorage.setItem(
-                    'uk_validation_column_widths',
+                    'uae_validation_column_widths',
                     JSON.stringify(updated)
                 );
                 return updated;
@@ -344,7 +344,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         try {
             // Note: No setLoading(true) here!
             const validationData = await fetchAllRows<ValidationProduct>(
-                'uk_validation_main_with_sellers',
+                'uae_validation_main_with_sellers',
                 '*',
                 { column: 'created_at', ascending: false }
             );
@@ -380,8 +380,8 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                 debouncedRefresh(); // ✅ CHANGED: Use debounced version
             })
 
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'uk_validation_pass_file' }, () => fetchStats())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'uk_validation_fail_file' }, () => fetchStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'uae_validation_pass_file' }, () => fetchStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'uae_validation_fail_file' }, () => fetchStats())
             .subscribe();
 
         const handleVisibilityChange = () => {
@@ -415,10 +415,10 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
     const fetchConstants = async () => {
         try {
             const { data, error } = await supabase
-                .from('uk_validation_constants')
+                .from('uae_validation_constants')
                 .select('*')
                 .limit(1)
-                .single()
+                .maybeSingle()
 
             if (!error && data) {
                 setConstants({
@@ -470,7 +470,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         try {
             // Get all products from main file
             const mainData = await fetchAllRows<{ judgement: string | null }>(
-                'uk_validation_main_file',
+                'uae_validation_main_file',
                 'judgement'
             );
 
@@ -536,7 +536,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         try {
             // Fetch last 5 history entries
             const { data, error } = await supabase
-                .from('uk_asin_history')
+                .from('uae_asin_history')
                 .select('*')
                 .eq('asin', asin)
                 .order('created_at', { ascending: false })
@@ -567,7 +567,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         try {
             // Step 1: Fetch all validation products
             const validationData = await fetchAllRows<ValidationProduct>(
-                'uk_validation_main_with_sellers',
+                'uae_validation_main_with_sellers',
                 '*',
                 { column: 'created_at', ascending: false }
             );
@@ -629,7 +629,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         localEditCountRef.current += 1;; // ✅ START local edit lock
 
         try {
-            const tableName = 'uk_validation_main_file';
+            const tableName = 'uae_validation_main_file';
 
             // Update DB
             const { error } = await supabase
@@ -807,7 +807,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
             });
 
             const { error: updateError } = await supabase
-                .from('uk_validation_main_file')
+                .from('uae_validation_main_file')
                 .update(updateData)
                 .eq('id', id);
 
@@ -894,7 +894,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
             const workbook = XLSX.read(data)
             const worksheet = workbook.Sheets[workbook.SheetNames[0]]
             const jsonData = XLSX.utils.sheet_to_json(worksheet)
-            const tableName = `uk_validation_${activeTab}`
+            const tableName = `uae_validation_${activeTab}`
             const { error } = await supabase
                 .from(tableName)
                 .insert(jsonData)
@@ -947,7 +947,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
 
                     for (const row of updates) {
                         const { data } = await supabase
-                            .from('uk_validation_main_file')
+                            .from('uae_validation_main_file')
                             .select('*')
                             .eq('asin', row.asin)
                             .single()
@@ -1000,7 +1000,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         )
 
         const { error } = await supabase
-            .from('uk_validation_main_file')
+            .from('uae_validation_main_file')
             .update({ [field]: value })
             .eq('id', id)
 
@@ -1028,7 +1028,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         )
 
         const { error } = await supabase
-            .from('uk_validation_main_file')
+            .from('uae_validation_main_file')
             .update({ [field]: value })
             .eq('id', id)
 
@@ -1067,7 +1067,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         }
 
         const { error: historyError } = await supabase
-            .from('uk_asin_history')
+            .from('uae_asin_history')
             .insert({
                 asin: product.asin,
                 journey_id: journeyId,
@@ -1089,7 +1089,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                     product.origin_india ? 'India' : 'India';
 
         const { error: insertError } = await supabase
-            .from('uk_purchases')
+            .from('uae_purchases')
             .insert({
                 asin: product.asin,
                 product_name: product.product_name,
@@ -1099,7 +1099,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                 origin: originText,
                 origin_india: product.origin_india ?? false,
                 origin_china: product.origin_china ?? false,
-                product_link: product.uk_link,
+                product_link: product.uae_link,
                 target_price: product.inr_purchase,
                 target_quantity: 1,
                 funnel_quantity: 1,
@@ -1131,7 +1131,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         }
 
         const { error: updateError } = await supabase
-            .from('uk_validation_main_file')
+            .from('uae_validation_main_file')
             .update({
                 sent_to_purchases: true,
                 sent_to_purchases_at: new Date().toISOString(),
@@ -1173,7 +1173,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
 
             // Use CORRECT database field names (snake_case with underscores)
             const { error } = await supabase
-                .from('uk_validation_main_file')
+                .from('uae_validation_main_file')
                 .update({
                     // Clear judgement
                     judgement: 'PENDING',
@@ -1243,7 +1243,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
 
             // Update judgement to PASS in main_file
             const { error } = await supabase
-                .from('uk_validation_main_file')
+                .from('uae_validation_main_file')
                 .update({
                     judgement: 'PASS',
                 })
@@ -1294,7 +1294,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
 
             // Update judgement to FAIL in main_file
             const { error } = await supabase
-                .from('uk_validation_main_file')
+                .from('uae_validation_main_file')
                 .update({
                     judgement: 'FAIL',
                 })
@@ -1363,19 +1363,19 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
         try {
             // Update constants in database
             const { data: existingData } = await supabase
-                .from('uk_validation_constants')
+                .from('uae_validation_constants')
                 .select('id')
                 .limit(1)
-                .single()
+                .maybeSingle()
 
             if (existingData) {
                 await supabase
-                    .from('uk_validation_constants')
+                    .from('uae_validation_constants')
                     .update(constants)
                     .eq('id', existingData.id)
             } else {
                 await supabase
-                    .from('uk_validation_constants')
+                    .from('uae_validation_constants')
                     .insert([constants])
             }
 
@@ -1415,7 +1415,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
-                            <h1 className="text-3xl font-bold text-white">UK Selling - Validation</h1>
+                            <h1 className="text-3xl font-bold text-white">UAE Selling - Validation</h1>
                             <p className="text-slate-400 mt-1">Manage validation files and product status</p>
                         </div>
                         {/* Stats Cards */}
@@ -1729,7 +1729,7 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                                                 {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
                                                 {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
                                                 {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
-                                                {visibleColumns.uk_link && <ResizableTH width={columnWidths.uk_link} columnKey="uk_link" label="UK" onResizeStart={startResize} />}
+                                                {visibleColumns.uae_link && <ResizableTH width={columnWidths.uae_link} columnKey="uae_link" label="UAE" onResizeStart={startResize} />}
 
                                                 {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
 
@@ -1790,11 +1790,11 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                                                     {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
                                                     {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
 
-                                                    {visibleColumns.uk_link && (
+                                                    {visibleColumns.uae_link && (
                                                         <td className="p-3 overflow-hidden text-center">
-                                                            {product.uk_link ? (
+                                                            {product.uae_link ? (
                                                                 <a
-                                                                    href={product.uk_link}
+                                                                    href={product.uae_link}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="text-indigo-400 hover:text-indigo-300 hover:underline text-sm truncate block"

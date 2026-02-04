@@ -275,12 +275,67 @@ export const APP_ROUTES: AppRoute[] = [
 
   // --- 5. UAE Marketplace ---
   {
-    path: '/dashboard/uae-selling',
-    label: 'UAE Selling',
-    icon: Globe,
-    permission: 'uae-selling',
-    subRoutes: []
-  },
+  path: '/dashboard/uae-selling',
+  label: 'UAE Selling',
+  icon: Globe,
+  permission: 'uae-selling',
+  subRoutes: [
+    {
+      path: '/dashboard/uae-selling/brand-checking',
+      label: 'Brand Checking',
+      permission: 'view-brand-checking',
+      icon: ShieldCheck,
+      subRoutes: [
+        { path: '/dashboard/uae-selling/brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
+        { path: '/dashboard/uae-selling/brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
+        { path: '/dashboard/uae-selling/brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
+        { path: '/dashboard/uae-selling/brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' }
+      ]
+    },
+    {
+      path: '/dashboard/uae-selling/validation',
+      label: 'Validation',
+      permission: 'view-validation',
+      icon: CheckCircle2
+    },
+    {
+      path: '/dashboard/uae-selling/listing-error',
+      label: 'Listing Errors',
+      permission: 'view-listing-errors',
+      icon: XCircle,
+      subRoutes: [
+        { path: '/dashboard/uae-selling/listing-error/golden-aura', label: 'Golden Aura', permission: 'view-listing-errors' },
+        { path: '/dashboard/uae-selling/listing-error/rudra-retail', label: 'Rudra Retail', permission: 'view-listing-errors' },
+        { path: '/dashboard/uae-selling/listing-error/ubeauty', label: 'UBeauty', permission: 'view-listing-errors' },
+        { path: '/dashboard/uae-selling/listing-error/velvet-vista', label: 'Velvet Vista', permission: 'view-listing-errors' }
+      ]
+    },
+    {
+      path: '/dashboard/uae-selling/purchases',
+      label: 'Purchases',
+      permission: 'view-purchases',
+      icon: ShoppingBag
+    },
+    {
+      path: '/dashboard/uae-selling/tracking',
+      label: 'Tracking',
+      permission: 'view-tracking',
+      icon: Truck
+    },
+    {
+      path: '/dashboard/uae-selling/reorder',
+      label: 'Reorder',
+      permission: 'view-reorder',
+      icon: RotateCcw
+    },
+    {
+      path: '/dashboard/uae-selling/admin-validation',
+      label: 'Admin Approvals',
+      permission: 'admin-access',
+      icon: ShieldCheck
+    }
+  ]
+},
 
   // --- 6. FLIPKART MARKETPLACE ---
   {

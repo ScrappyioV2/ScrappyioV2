@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getUKTrackingTableName  } from '@/lib/utils';
+import { getUAETrackingTableName } from '@/lib/utils';
 
 type VyaparItem = {
     id: string;
@@ -44,7 +44,7 @@ export default function VyaparTable({
     const fetchVyaparData = async () => {
         try {
             setLoading(true);
-            const tableName = getUKTrackingTableName ('VYAPAR', sellerId);
+            const tableName = getUAETrackingTableName('VYAPAR', sellerId);
 
             const { data, error } = await supabase
                 .from(tableName)
@@ -65,7 +65,7 @@ export default function VyaparTable({
     const handleStatusChange = async (itemId: string, newStatus: string) => {
         try {
             // Update database
-            const tableName = getUKTrackingTableName ('VYAPAR', sellerId)
+            const tableName = getUAETrackingTableName('VYAPAR', sellerId)
             const { error } = await supabase
                 .from(tableName)
                 .update({ action_status: newStatus })
@@ -303,3 +303,4 @@ export default function VyaparTable({
         </div>
     )
 }
+//VyaparTable.tsx file for uae

@@ -29,6 +29,9 @@ import {
   ChevronRight,
   Loader2
 } from 'lucide-react';
+import {
+  bulkUpdateAsinRemarkMonthlyUnit
+} from "@/lib/utils/master-table/uploadHelpers";
 
 const TABLE_NAME = 'uae_master_sellers';
 
@@ -159,8 +162,51 @@ export default function UaeSellersPage() {
     return `https://www.${domain}/dp/${asin}`;
   };
 
+  function isPartialUpdateFile(headers: string[]) {
+  // ✅ Normalize: lowercase + spaces to underscores
+  const normalized = headers.map(h => 
+    h.trim()
+     .toLowerCase()
+     .replace(/\s+/g, '_')  // ← Convert spaces to underscores
+  );
+  
+  const allowed = [
+    "asin",
+    "remark", 
+    "remarks",
+    "monthly_unit",
+    "monthly_units",
+    "monthly_units_sold",
+    "monthly_unit_sold"
+  ];
+
+  // Must have ASIN
+  if (!normalized.includes("asin")) {
+    return false;
+  }
+
+  // All columns must be in allowed list
+  if (!normalized.every(h => allowed.includes(h))) {
+    return false;
+  }
+
+  // Must have at least one update column
+  const hasRemarkColumn = normalized.some(h => 
+    h === "remark" || h === "remarks"
+  );
+  
+  const hasMonthlyUnitColumn = normalized.some(h => 
+    h === "monthly_unit" || 
+    h === "monthly_units" || 
+    h === "monthly_units_sold" ||
+    h === "monthly_unit_sold"
+  );
+
+  return hasRemarkColumn || hasMonthlyUnitColumn;
+}
+
   // FIXED: Handle multiple file uploads with batch insert
-  const handleUpload = async (files: File[]) => {
+const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
 
@@ -170,6 +216,8 @@ export default function UaeSellersPage() {
     try {
       let allNewProducts: any[] = [];
       let totalDuplicates = 0;
+      let totalUpdated = 0;
+      let hasPartialUpdate = false;
 
       // Step 1: Parse all files
       for (let i = 0; i < files.length; i++) {
@@ -189,40 +237,53 @@ export default function UaeSellersPage() {
         }
 
         // Normalize data and generate Amazon links
-                // Normalize data and generate Amazon links
         const normalizedData = normalizeDataForDB(data)
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                // UAE logic applied here
-                product.amz_link = generateAmazonLink(product.asin, "uae")
+                product.amz_link = generateAmazonLink(product.asin, 'uae');
               }
               if (!product.link) {
                 product.link = product.amz_link;
               }
-              
-              // ✅ HANDLE REMARK COLUMN - Case-insensitive mapping
               if (!product.remark) {
-                product.remark = product.REMARK || 
-                                 product.Remark || 
-                                 product.remarks || 
-                                 product.REMARKS || 
-                                 product.Remarks || 
-                                 null;
-              }
-              // ✅ DEBUG: Log when remark is found
-              if (product.remark) {
-                console.log('✅ Remark found for ASIN:', product.asin, '→', product.remark.substring(0, 50));
+                product.remark = product.REMARK ||
+                  product.Remark ||
+                  product.remarks ||
+                  product.REMARKS ||
+                  product.Remarks ||
+                  null;
               }
             }
             return product;
           })
           .filter(Boolean);
-          // ✅ DEBUG: Summary of remarks
-        const remarksCount = normalizedData.filter(p => p.remark).length;
-        console.log(`📝 Total products with remarks: ${remarksCount}/${normalizedData.length}`);
 
-        // Filter duplicates
+        // Check if this is a partial update file
+        const rawHeaders = Object.keys(data[0] || {});
+        // ✅ ADD THESE DEBUG LINES
+console.log('🔍 Raw headers from CSV:', rawHeaders);
+console.log('🔍 Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
+console.log('🔍 First data row:', data[0]);
+console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
+console.log('🔍 Total rows:', data.length);
+        if (isPartialUpdateFile(rawHeaders)) {
+          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
+
+          const { updatedCount, skippedCount } =
+            await bulkUpdateAsinRemarkMonthlyUnit(
+              normalizedData,
+              TABLE_NAME
+            );
+
+          totalUpdated += updatedCount;
+          hasPartialUpdate = true;
+
+          console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+          continue;
+        }
+
+        // For full files, filter duplicates
         const { newProducts, duplicateCount } =
           await filterDuplicateASINs(normalizedData, TABLE_NAME);
 
@@ -230,7 +291,23 @@ export default function UaeSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
-      if (allNewProducts.length === 0) {
+      // ============================================================
+      // DECISION LOGIC: What to do after processing all files
+      // ============================================================
+
+      // Case 1: Only partial updates (no new inserts)
+      if (hasPartialUpdate && allNewProducts.length === 0) {
+        toast.success(
+          `✅ ${totalUpdated} products updated successfully`,
+          { id: toastId, duration: 5000 }
+        );
+        setRefreshTrigger(prev => prev + 1);
+        setIsUploading(false);
+        return;
+      }
+
+      // Case 2: No updates and no new products (all duplicates)
+      if (!hasPartialUpdate && allNewProducts.length === 0) {
         toast.error(
           `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
           { id: toastId, duration: 5000 }
@@ -239,7 +316,11 @@ export default function UaeSellersPage() {
         return;
       }
 
-      // CRITICAL: Remove duplicate ASINs within the batch
+      // ============================================================
+      // BATCH INSERT: Process new products
+      // ============================================================
+
+      // Remove duplicate ASINs within the batch
       const uniqueProductsMap = new Map();
       allNewProducts.forEach(product => {
         if (product.asin) {
@@ -250,7 +331,6 @@ export default function UaeSellersPage() {
 
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
-      // Step 2: OPTIMIZED Batch insert
       const batchSize = 100;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
@@ -331,12 +411,16 @@ export default function UaeSellersPage() {
         }
       }
 
+      // ============================================================
+      // FINAL SUMMARY
+      // ============================================================
       const summaryLines = [];
+      if (totalUpdated > 0) summaryLines.push(`✅ Updated ${totalUpdated} products`);
       if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
       if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
-      if (successCount > 0) {
+      if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
       } else {
@@ -352,7 +436,8 @@ export default function UaeSellersPage() {
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
     }
   };
-
+  
+  
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
     try {

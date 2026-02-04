@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { X, Upload } from 'lucide-react';
-import { getUKTrackingTableName } from '@/lib/utils';
+import { getUAETrackingTableName } from '@/lib/utils';
+
 
 type InvoiceItem = {
   id?: string;
@@ -192,9 +193,9 @@ export default function InvoiceModal({
     }
 
     try {
-      // 1. Save to MASTER table (uk_company_invoice)
+      // 1. Save to MASTER table (uae_company_invoice)
       const { error: masterError } = await supabase
-        .from('uk_company_invoice')
+        .from('uae_company_invoice')
         .upsert(
           {
             invoice_number: invoiceNo,
@@ -271,11 +272,11 @@ export default function InvoiceModal({
       console.log('📋 Seller ID:', sellerId);
 
       // ✅ FIX #1: Use seller-specific INVOICE table
-      const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
-console.log('📥 Inserting into table:', invoiceTableName);
+      const invoiceTableName = getUAETrackingTableName('INVOICE', sellerId);
+      console.log('📥 Inserting into table:', invoiceTableName);
 
       const { data: insertData, error: insertError } = await supabase
-        .from(invoiceTableName) // ✅ FIXED: uk_invoice_seller_X
+        .from(invoiceTableName) // ✅ FIXED: uae_invoice_seller_X
         .insert(payload);
 
       if (insertError) {
@@ -290,8 +291,8 @@ console.log('📥 Inserting into table:', invoiceTableName);
       console.log('✅ Insert successful:', insertData);
 
       // ✅ FIX #2: Use seller-specific MAIN FILE table
-      const mainFileTableName = getUKTrackingTableName('MAIN', sellerId);
-console.log('🗑️ Deleting from table:', mainFileTableName);
+      const mainFileTableName = getUAETrackingTableName('MAIN', sellerId);
+      console.log('🗑️ Deleting from table:', mainFileTableName);
 
       // Get IDs to delete
       const idsToDelete = editableItems
@@ -302,7 +303,7 @@ console.log('🗑️ Deleting from table:', mainFileTableName);
 
       if (idsToDelete.length > 0) {
         const { error: deleteError } = await supabase
-          .from(mainFileTableName) // ✅ FIXED: uk_tracking_seller_X (not uk_traking!)
+          .from(mainFileTableName) // ✅ FIXED: uae_tracking_seller_X (not uae_traking!)
           .delete()
           .in('id', idsToDelete);
 

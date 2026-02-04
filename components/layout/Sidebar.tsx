@@ -22,7 +22,8 @@ export default function Sidebar() {
     '/dashboard/manage-sellers': true,
     '/dashboard/usa-selling': true,
     '/dashboard/india-selling': true ,
-    '/dashboard/uk-selling': true
+    '/dashboard/uk-selling': true,
+    '/dashboard/uae-selling': true,
   })
 
   const toggleMenu = (path: string) => {

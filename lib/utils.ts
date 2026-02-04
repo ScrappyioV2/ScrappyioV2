@@ -110,6 +110,66 @@ export const getIndiaTrackingTableName = (stage: IndiaTrackingStage, sellerId: n
   return `${prefix}_seller_${sellerId}`;
 };
 
+
+// ============================================
+// UK TRACKING CONFIGURATION
+// ============================================
+
+export const UK_TRACKING_STAGES = {
+  MAIN: 'main_file',
+  INVOICE: 'uk_invoice',
+  CHECKING: 'uk_checking',
+  SHIPMENT: 'uk_shipment',
+  RESTOCK: 'uk_restock',
+  VYAPAR: 'uk_vyapar'
+} as const;
+
+export type UKTrackingStage = keyof typeof UK_TRACKING_STAGES;
+
+/**
+ * Helper to get UK table name for a specific tracking stage and seller
+ * Example: getUKTrackingTableName('INVOICE', 1) -> 'uk_invoice_seller_1'
+ */
+export const getUKTrackingTableName = (stage: UKTrackingStage, sellerId: number): string => {
+  const prefix = UK_TRACKING_STAGES[stage];
+  
+  if (stage === 'MAIN') {
+    return `uk_tracking_seller_${sellerId}`;
+  }
+  
+  return `${prefix}_seller_${sellerId}`;
+};
+
+
+// ============================================
+// UAE TRACKING CONFIGURATION
+// ============================================
+
+export const UAE_TRACKING_STAGES = {
+  MAIN: 'main_file',
+  INVOICE: 'uae_invoice',
+  CHECKING: 'uae_checking',
+  SHIPMENT: 'uae_shipment',
+  RESTOCK: 'uae_restock',
+  VYAPAR: 'uae_vyapar'
+} as const;
+
+export type UAETrackingStage = keyof typeof UAE_TRACKING_STAGES;
+
+/**
+ * Helper to get UAE table name for a specific tracking stage and seller
+ * Example: getUAETrackingTableName('INVOICE', 1) -> 'uae_invoice_seller_1'
+ */
+export const getUAETrackingTableName = (stage: UAETrackingStage, sellerId: number): string => {
+  const prefix = UAE_TRACKING_STAGES[stage];
+  
+  if (stage === 'MAIN') {
+    return `uae_tracking_seller_${sellerId}`;
+  }
+  
+  return `${prefix}_seller_${sellerId}`;
+};
+
 // ============================================
 // FLIPKART CONFIGURATION
 // ============================================

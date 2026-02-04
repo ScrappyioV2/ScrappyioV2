@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getUKTrackingTableName } from '@/lib/utils';
+import { getUAETrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -94,7 +94,7 @@ export default function CompanyInvoiceTable({
       let hasMore = true;
 
       while (hasMore) {
-        const tableName = getUKTrackingTableName('INVOICE', sellerId); // uk_invoice_seller_X
+        const tableName = getUAETrackingTableName('INVOICE', sellerId);// uae_invoice_seller_X
         const { data, error } = await supabase
           .from(tableName)
           .select('*')
@@ -177,11 +177,11 @@ export default function CompanyInvoiceTable({
         console.log('🔄 Moving invoice to checking:', invoiceNumber);
 
         // 1. Get all items with this invoice_number from INVOICE table
-       const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
+        const invoiceTableName = getUAETrackingTableName('INVOICE', sellerId);
         console.log('📋 Fetching from:', invoiceTableName);
 
         const { data: itemsToMove, error: fetchError } = await supabase
-          .from(invoiceTableName) // ✅ uk_invoice_seller_X
+          .from(invoiceTableName) // ✅ uae_invoice_seller_X
           .select('*')
           .eq('invoice_number', invoiceNumber);
 
@@ -262,11 +262,11 @@ export default function CompanyInvoiceTable({
         }));
 
         // 3. Insert into CHECKING table
-        const checkingTableName = getUKTrackingTableName('CHECKING', sellerId);
+        const checkingTableName = getUAETrackingTableName('CHECKING', sellerId);
         console.log('📥 Inserting into:', checkingTableName);
 
         const { error: insertError } = await supabase
-          .from(checkingTableName) // ✅ uk_checking_seller_X
+          .from(checkingTableName) // ✅ uae_checking_seller_X
           .insert(dataToInsert);
 
         if (insertError) {
@@ -280,7 +280,7 @@ export default function CompanyInvoiceTable({
         console.log('🗑️ Deleting from:', invoiceTableName);
 
         const { error: deleteError } = await supabase
-          .from(invoiceTableName) // ✅ FIXED: uk_invoice_seller_X (not uk_tracking_company_invoice!)
+          .from(invoiceTableName) // ✅ FIXED: uae_invoice_seller_X (not uae_tracking_company_invoice!)
           .delete()
           .eq('invoice_number', invoiceNumber);
 
@@ -696,3 +696,4 @@ export default function CompanyInvoiceTable({
     </div>
   );
 }
+//CompanyInvoiceTable.tsx for uae
