@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-// ✅ ADD:
-import { getUKTrackingTableName } from '@/lib/utils';
+import { getUAETrackingTableName } from '@/lib/utils';
 import { X } from 'lucide-react';
 
 type InvoiceGroup = {
@@ -45,12 +44,12 @@ export default function RollbackModal({
             setLoading(true);
 
             // ✅ FIX #1: Use seller-specific invoice table
-            const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
+            const invoiceTableName = getUAETrackingTableName('INVOICE', sellerId);
             console.log('📋 Fetching from table:', invoiceTableName);
 
             // Step 1: Get ALL invoice groups from seller's invoice table
             const { data, error } = await supabase
-                .from(invoiceTableName) // ✅ FIXED: uk_invoice_seller_X
+                .from(invoiceTableName) // ✅ FIXED: uae_invoice_seller_X
                 .select('invoice_number, invoice_date, amount, tax_amount')
 
 
@@ -141,8 +140,8 @@ export default function RollbackModal({
 
             for (const invoiceNumber of selectedInvoices) {
                 // ✅ FIX #2: Use seller-specific invoice table
-                const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
-                const mainFileTableName = getUKTrackingTableName('MAIN', sellerId);
+                const invoiceTableName = getUAETrackingTableName('INVOICE', sellerId);
+                const mainFileTableName = getUAETrackingTableName('MAIN', sellerId);
 
                 console.log(`🔄 Rolling back invoice ${invoiceNumber}`);
                 console.log(`📋 Invoice table: ${invoiceTableName}`);
@@ -150,7 +149,7 @@ export default function RollbackModal({
 
                 // 1. Get all items for this invoice
                 const { data: invoiceItems, error: fetchError } = await supabase
-                    .from(invoiceTableName) // ✅ FIXED: uk_invoice_seller_X
+                    .from(invoiceTableName) // ✅ FIXED: uae_invoice_seller_X
                     .select('*')
                     .eq('invoice_number', invoiceNumber);
 
@@ -178,7 +177,7 @@ export default function RollbackModal({
                 const asins = invoiceItems.map((item) => item.asin);
 
                 const { data: existingAsins } = await supabase
-                    .from(mainFileTableName) // ✅ FIXED: uk_tracking_seller_X
+                    .from(mainFileTableName) // ✅ FIXED: uae_tracking_seller_X
                     .select('asin')
                     .in('asin', asins);
 
@@ -223,7 +222,7 @@ export default function RollbackModal({
                 // 5. Insert back to Main File (if any non-duplicate ASINs)
                 if (dataToRestore.length > 0) {
                     const { error: restoreError } = await supabase
-                        .from(mainFileTableName) // ✅ FIXED: uk_tracking_seller_X
+                        .from(mainFileTableName) // ✅ FIXED: uae_tracking_seller_X
                         .insert(dataToRestore);
 
                     if (restoreError) {
@@ -240,7 +239,7 @@ export default function RollbackModal({
 
                 // 6. Delete from invoice table
                 const { error: deleteError } = await supabase
-                    .from(invoiceTableName) // ✅ FIXED: uk_invoice_seller_X
+                    .from(invoiceTableName) // ✅ FIXED: uae_invoice_seller_X
                     .delete()
                     .eq('invoice_number', invoiceNumber);
 
@@ -248,7 +247,7 @@ export default function RollbackModal({
 
                 // 7. Delete from master invoice table
                 const { error: deleteMasterError } = await supabase
-                    .from('uk_company_invoice')
+                    .from('uae_company_invoice')
                     .delete()
                     .eq('invoice_number', invoiceNumber);
 

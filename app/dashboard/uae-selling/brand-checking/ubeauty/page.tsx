@@ -204,7 +204,7 @@ export default function UBeautyPage() {
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const tableName = `uk_seller_${SELLER_ID}_${activeTab}`;
+      const tableName = `uae_seller_${SELLER_ID}_${activeTab}`;
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
@@ -262,9 +262,9 @@ export default function UBeautyPage() {
   const fetchLastMovementHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from('uk_seller_3_ubeauty_movement_history')
+        .from('uae_seller_3_ubeauty_movement_history')
         .select('*')
-        .eq('from_table', `uk_seller_${SELLER_ID}_${activeTab}`)
+        .eq('from_table', `uae_seller_${SELLER_ID}_${activeTab}`)
         .order('moved_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -290,7 +290,7 @@ export default function UBeautyPage() {
 
         setMovementHistory((prev) => ({
           ...prev,
-          [`uk_seller_${SELLER_ID}_${activeTab}`]: {
+          [`uae_seller_${SELLER_ID}_${activeTab}`]: {
             product,
             fromTable: data.from_table,
             toTable: data.to_table,
@@ -300,7 +300,7 @@ export default function UBeautyPage() {
         // No history found - clear undo for this tab
         setMovementHistory((prev) => ({
           ...prev,
-          [`uk_seller_${SELLER_ID}_${activeTab}`]: null,
+          [`uae_seller_${SELLER_ID}_${activeTab}`]: null,
         }));
       }
     } catch (error) {
@@ -312,7 +312,7 @@ export default function UBeautyPage() {
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
       const { error } = await supabase
-        .from(`uk_seller_3_ubeauty_movement_history`)
+        .from(`uae_seller_3_ubeauty_movement_history`)
         .insert({
           asin: product.asin,
           product_name: product.product_name,
@@ -347,14 +347,14 @@ export default function UBeautyPage() {
       let targetTable: string;
       let dataToInsert: any;
       const { id, working, reason: oldReason, ...productData } = product;
-      const currentTable = `uk_seller_${SELLER_ID}_${activeTab}`;
+      const currentTable = `uae_seller_${SELLER_ID}_${activeTab}`;
 
       if (action === 'approved') {
-        targetTable = `uk_validation_main_file`;
+        targetTable = `uae_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
         const { data: existingRow, error: selectError } = await supabase
-          .from('uk_validation_main_file')
+          .from('uae_validation_main_file')
           .select('id, seller_tag')
           .eq('asin', product.asin)
           .maybeSingle();
@@ -362,14 +362,14 @@ export default function UBeautyPage() {
         if (selectError) console.warn('Validation select warning:', selectError);
 
         if (!existingRow) {
-          await supabase.from('uk_validation_main_file').insert({
+          await supabase.from('uae_validation_main_file').insert({
             asin: product.asin,
             product_name: product.product_name,
             brand: product.brand,
             seller_tag: SELLER_CODE,
             funnel: product.funnel,
             no_of_seller: 1,
-            uk_link: product.product_link,
+            uae_link: product.product_link,
             amz_link: product.amz_link,
             product_weight: null,
             judgement: null,
@@ -379,7 +379,7 @@ export default function UBeautyPage() {
           const existingTags = existingRow.seller_tag?.split(',') ?? [];
           if (!existingTags.includes(SELLER_CODE)) {
             await supabase
-              .from('uk_validation_main_file')
+              .from('uae_validation_main_file')
               .update({
                 seller_tag: [...existingTags, SELLER_CODE].join(','),
                 no_of_seller: existingTags.length + 1,
@@ -394,7 +394,7 @@ export default function UBeautyPage() {
         setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
       } else if (action === 'not_approved') {
-        targetTable = `uk_seller_${SELLER_ID}_not_approved`;
+        targetTable = `uae_seller_${SELLER_ID}_not_approved`;
         dataToInsert = productData;
 
         const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
@@ -406,7 +406,7 @@ export default function UBeautyPage() {
         setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
       } else if (action === 'reject') {
-        targetTable = `uk_seller_${SELLER_ID}_reject`;
+        targetTable = `uae_seller_${SELLER_ID}_reject`;
         dataToInsert = { ...productData, reason: reason || 'No reason provided' };
 
         const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
@@ -426,7 +426,7 @@ export default function UBeautyPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `uk_seller_${SELLER_ID}_${activeTab}`;
+    const currentTable = `uae_seller_${SELLER_ID}_${activeTab}`;
     const lastMovement = movementHistory[currentTable];
 
     if (!lastMovement) {
@@ -459,7 +459,7 @@ export default function UBeautyPage() {
 
         // Delete the invalid history entry from database
         await supabase
-          .from(`uk_seller_${SELLER_ID}_ubeauty_movement_history`) // Change table name per seller
+          .from(`uae_seller_${SELLER_ID}_ubeauty_movement_history`) // Change table name per seller
           .delete()
           .eq('asin', product.asin)
           .eq('from_table', fromTable)
@@ -489,7 +489,7 @@ export default function UBeautyPage() {
       if (deleteError) throw deleteError;
 
       await supabase
-        .from(`uk_seller_${SELLER_ID}_ubeauty_movement_history`) // Change table name per seller
+        .from(`uae_seller_${SELLER_ID}_ubeauty_movement_history`) // Change table name per seller
         .delete()
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
@@ -522,8 +522,8 @@ export default function UBeautyPage() {
     setLoading(true);
     try {
       const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-      const targetTable = `uk_seller_${SELLER_ID}_${targetTab}`;
-      const rejectTable = `uk_seller_${SELLER_ID}_reject`;
+      const targetTable = `uae_seller_${SELLER_ID}_${targetTab}`;
+      const rejectTable = `uae_seller_${SELLER_ID}_reject`;
 
       let movedCount = 0;
       let skippedCount = 0;
@@ -594,7 +594,7 @@ export default function UBeautyPage() {
 
       // ✅ NEW: Clear movement history for target table since products moved back
       // This prevents undo conflicts when products return to their original table
-      const targetTableKey = `uk_seller_${SELLER_ID}_${targetTab}`;
+      const targetTableKey = `uae_seller_${SELLER_ID}_${targetTab}`;
       if (movementHistory[targetTableKey]) {
         setMovementHistory((prev) => ({
           ...prev,
@@ -714,7 +714,7 @@ export default function UBeautyPage() {
     );
   };
 
-  const currentTable = `uk_seller_${SELLER_ID}_${activeTab}`;
+  const currentTable = `uae_seller_${SELLER_ID}_${activeTab}`;
   const hasRollback = !!movementHistory[currentTable];
 
   // Tab Styles

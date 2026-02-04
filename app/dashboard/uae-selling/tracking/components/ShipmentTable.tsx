@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getUKTrackingTableName  } from '@/lib/utils';
+import { getUAETrackingTableName } from '@/lib/utils';
 
-type RestockItem = {
+type ShipmentItem = {
     id: string;
     invoice_number: string;
     invoice_date: string;
@@ -25,24 +25,25 @@ type RestockItem = {
     uploaded_invoice_url: string;
     uploaded_invoice_name: string;
     moved_at: string;
-    status: string;
 };
 
-export default function RestockTable({
-    sellerId,
-    onCountsChange
-}: {
+interface ShipmentTableProps {
     sellerId: number;
     onCountsChange?: () => void | Promise<void>;
-}) {
-    const [items, setItems] = useState<RestockItem[]>([]);
+}
+
+export default function ShipmentTable({
+    sellerId,
+    onCountsChange
+}: ShipmentTableProps) {
+    const [items, setItems] = useState<ShipmentItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
-    const fetchRestockData = async () => {
+    const fetchShipmentData = async () => {
         try {
             setLoading(true);
-            const tableName = getUKTrackingTableName ('RESTOCK', sellerId);
+            const tableName = getUAETrackingTableName('SHIPMENT', sellerId);
 
             const { data, error } = await supabase
                 .from(tableName)
@@ -51,18 +52,79 @@ export default function RestockTable({
 
             if (error) throw error;
 
-            console.log('✅ Restock data fetched:', data?.length || 0);
+            console.log('✅ Shipment data fetched:', data?.length || 0);
             setItems(data || []);
         } catch (error) {
-            console.error('Error fetching restock data:', error);
+            console.error('Error fetching shipment data:', error);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchRestockData();
+        fetchShipmentData();
     }, [sellerId]);
+
+    // Move to Vyapar
+    // Move to Restock
+    const handleMoveToRestock = async (invoiceNumber: string) => {
+        const confirmMove = confirm(`Move invoice ${invoiceNumber} to Restock?`);
+        if (!confirmMove) return;
+
+        try {
+            console.log('📦 Moving to Restock:', invoiceNumber);
+
+            // 1. Get all items for this invoice
+            const shipmentTableName = getUAETrackingTableName('SHIPMENT', sellerId);
+            const { data: itemsToMove, error: fetchError } = await supabase
+                .from(shipmentTableName)
+                .select('*')
+                .eq('invoice_number', invoiceNumber);
+
+            if (fetchError) throw fetchError;
+
+            if (!itemsToMove || itemsToMove.length === 0) {
+                alert('No items found.');
+                return;
+            }
+
+            // 2. Prepare for Restock
+            const restockData = itemsToMove.map(({ id, created_at, ...rest }) => ({
+                ...rest,
+                status: 'restocking',
+                moved_at: new Date().toISOString(),
+            }));
+
+            // 3. Insert into Restock
+            const restockTableName = getUAETrackingTableName('RESTOCK', sellerId);
+            const { error: insertError } = await supabase
+                .from(restockTableName)
+                .insert(restockData);
+
+            if (insertError) throw insertError;
+
+            // 4. Delete from Shipment
+            const { error: deleteError } = await supabase
+                .from(shipmentTableName)
+                .delete()
+                .eq('invoice_number', invoiceNumber);
+
+            if (deleteError) throw deleteError;
+
+            // 5. Update UI
+            setItems((prev) => prev.filter((i) => i.invoice_number !== invoiceNumber));
+
+            if (onCountsChange) {
+                onCountsChange();
+            }
+
+            alert(`✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Restock!`);
+        } catch (error: any) {
+            console.error('Error moving to Restock:', error);
+            alert('Failed: ' + error.message);
+        }
+    };
+
 
     // Filter
     const filteredItems = items.filter((item) =>
@@ -70,7 +132,7 @@ export default function RestockTable({
         item.asin?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    if (loading) return <div className="p-8 text-slate-400">Loading restock data...</div>;
+    if (loading) return <div className="p-8 text-slate-400">Loading shipment data...</div>;
 
     return (
         <div className="h-full flex flex-col">
@@ -107,14 +169,14 @@ export default function RestockTable({
                                     </th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking</th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Status</th>
+                                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
                                 {filteredItems.length === 0 ? (
                                     <tr>
                                         <td colSpan={13} className="text-center py-8 text-slate-500">
-                                            {searchQuery ? 'No items found' : 'No restock items'}
+                                            {searchQuery ? 'No items found' : 'No shipment items'}
                                         </td>
                                     </tr>
                                 ) : (
@@ -145,10 +207,14 @@ export default function RestockTable({
                                             <td className="px-4 py-3 text-slate-300">
                                                 {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <span className="px-2 py-1 text-xs rounded bg-green-600/20 text-green-400 border border-green-600/30 font-semibold">
-                                                    {item.status || 'Restocking'}
-                                                </span>
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    onClick={() => handleMoveToRestock(item.invoice_number)}
+                                                    className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors"
+                                                >
+                                                    To Restock
+                                                </button>
+
                                             </td>
                                         </tr>
                                     ))
@@ -168,3 +234,4 @@ export default function RestockTable({
         </div>
     );
 }
+//ShipmentTable.tsx file for uae 

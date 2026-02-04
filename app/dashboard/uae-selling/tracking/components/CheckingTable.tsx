@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getUKTrackingTableName  } from '@/lib/utils';
+import { getUAETrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -116,7 +116,7 @@ export default function CheckingTable({
     }
   }, []);
 
-  // Fetch data from uk_checking table
+  // Fetch data from uae_checking table
   useEffect(() => {
     fetchCheckingData();
   }, []);
@@ -132,7 +132,7 @@ export default function CheckingTable({
       let hasMore = true;
 
       while (hasMore) {
-        const tableName = getUKTrackingTableName ('CHECKING', sellerId); // uk_checking_seller_X
+        const tableName = getUAETrackingTableName('CHECKING', sellerId); // uae_checking_seller_X
         const { data, error } = await supabase
           .from(tableName)
           .select('*')
@@ -210,7 +210,7 @@ export default function CheckingTable({
       console.log(`${checked ? '✅' : '❌'} Marking item as ${checked ? 'received' : 'not received'}:`, itemId);
 
       // Update database
-      const tableName = getUKTrackingTableName ('CHECKING', sellerId);
+      const tableName = getUAETrackingTableName('CHECKING', sellerId);
       const { error } = await supabase
         .from(tableName)
         .update({ product_received: checked })
@@ -239,7 +239,7 @@ export default function CheckingTable({
       console.log('Moving items to Shipment & Vyapar:', itemIds)
 
       // 1. Get items to move from CHECKING table (removed product_received filter)
-      const checkingTableName = getUKTrackingTableName ('CHECKING', sellerId)
+      const checkingTableName = getUAETrackingTableName('CHECKING', sellerId)
       const { data: itemsToMove, error: fetchError } = await supabase
         .from(checkingTableName)
         .select('*')
@@ -276,7 +276,7 @@ export default function CheckingTable({
       }));
 
       // 5. Insert into SHIPMENT table
-      const shipmentTableName = getUKTrackingTableName ('SHIPMENT', sellerId);
+      const shipmentTableName = getUAETrackingTableName('SHIPMENT', sellerId);
       console.log('📥 Inserting into Shipment:', shipmentTableName);
 
       const { error: shipmentInsertError } = await supabase
@@ -291,7 +291,7 @@ export default function CheckingTable({
       console.log('✅ Shipment insert successful');
 
       // 6. Insert into VYAPAR table
-      const vyaparTableName = getUKTrackingTableName ('VYAPAR', sellerId);
+      const vyaparTableName = getUAETrackingTableName('VYAPAR', sellerId);
       console.log('📥 Inserting into Vyapar:', vyaparTableName);
 
       const { error: vyaparInsertError } = await supabase
@@ -374,7 +374,7 @@ export default function CheckingTable({
       }
 
       // Update database
-      const tableName = getUKTrackingTableName ('CHECKING', sellerId);
+      const tableName = getUAETrackingTableName('CHECKING', sellerId);
       const { error } = await supabase
         .from(tableName)
         .update(updateData)
@@ -431,7 +431,7 @@ export default function CheckingTable({
       console.log('🚀 Bulk moving items:', Array.from(selectedItemIds));
 
       // 1. Get items from CHECKING table
-      const checkingTableName = getUKTrackingTableName ('CHECKING', sellerId);
+      const checkingTableName = getUAETrackingTableName('CHECKING', sellerId);
       const { data: itemsToMove, error: fetchError } = await supabase
         .from(checkingTableName)
         .select('*')
@@ -455,7 +455,7 @@ export default function CheckingTable({
       });
 
       // 3. Insert into SHIPMENT
-      const shipmentTableName = getUKTrackingTableName ('SHIPMENT', sellerId);
+      const shipmentTableName = getUAETrackingTableName('SHIPMENT', sellerId);
       const shipmentData = preparedData.map(item => ({ ...item, status: 'shipped' }));
       const { error: shipmentInsertError } = await supabase
         .from(shipmentTableName)
@@ -465,7 +465,7 @@ export default function CheckingTable({
       console.log('✅ Shipment insert successful');
 
       // 4. Insert into VYAPAR
-      const vyaparTableName = getUKTrackingTableName ('VYAPAR', sellerId);
+      const vyaparTableName = getUAETrackingTableName('VYAPAR', sellerId);
       const vyaparData = preparedData.map(item => ({ ...item, status: 'vyapar_logged' }));
       const { error: vyaparInsertError } = await supabase
         .from(vyaparTableName)
@@ -1501,3 +1501,4 @@ export default function CheckingTable({
     </div>
   );
 }
+// CheckingTable.tsx for uae

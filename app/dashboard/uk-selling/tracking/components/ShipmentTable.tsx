@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getTrackingTableName } from '@/lib/utils';
+import { getUKTrackingTableName  } from '@/lib/utils';
 
 type ShipmentItem = {
     id: string;
@@ -43,7 +43,7 @@ export default function ShipmentTable({
     const fetchShipmentData = async () => {
         try {
             setLoading(true);
-            const tableName = getTrackingTableName('SHIPMENT', sellerId);
+            const tableName = getUKTrackingTableName ('SHIPMENT', sellerId);
 
             const { data, error } = await supabase
                 .from(tableName)
@@ -75,7 +75,7 @@ export default function ShipmentTable({
             console.log('📦 Moving to Restock:', invoiceNumber);
 
             // 1. Get all items for this invoice
-            const shipmentTableName = getTrackingTableName('SHIPMENT', sellerId);
+            const shipmentTableName = getUKTrackingTableName ('SHIPMENT', sellerId);
             const { data: itemsToMove, error: fetchError } = await supabase
                 .from(shipmentTableName)
                 .select('*')
@@ -96,7 +96,7 @@ export default function ShipmentTable({
             }));
 
             // 3. Insert into Restock
-            const restockTableName = getTrackingTableName('RESTOCK', sellerId);
+            const restockTableName = getUKTrackingTableName ('RESTOCK', sellerId);
             const { error: insertError } = await supabase
                 .from(restockTableName)
                 .insert(restockData);

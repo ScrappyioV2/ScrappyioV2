@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
-import { getUKTrackingTableName  } from '@/lib/utils'
+import { getUAETrackingTableName } from '@/lib/utils'
 import * as XLSX from 'xlsx'
 import {
   Loader2,
@@ -89,7 +89,7 @@ export default function ReorderPage() {
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from(`uk_reorder_${activeSeller.table_suffix}`)
+        .from(`uae_reorder_${activeSeller.table_suffix}`)
         .select('*')
         .order('status', { ascending: false })
         .order('product_name', { ascending: true })
@@ -112,7 +112,7 @@ export default function ReorderPage() {
     try {
       setProcessing(true)
 
-      const listingTable = `uk_listing_error_${activeSeller.table_suffix}_done`
+      const listingTable = `uae_listing_error_${activeSeller.table_suffix}_done`
       // ✅ Fetch journey_id from source
       const { data: listedItems, error: listError } = await supabase
         .from(listingTable)
@@ -124,7 +124,7 @@ export default function ReorderPage() {
         return
       }
 
-      const reorderTable = `uk_reorder_${activeSeller.table_suffix}`
+      const reorderTable = `uae_reorder_${activeSeller.table_suffix}`
       const { data: existingItems } = await supabase
         .from(reorderTable)
         .select('asin')
@@ -219,7 +219,7 @@ export default function ReorderPage() {
   //             matchCount++
   //             const pAsin = p.asin.trim().toUpperCase()
   //             return supabase
-  //               .from(`uk_reorder_${activeSeller.table_suffix}`)
+  //               .from(`uae_reorder_${activeSeller.table_suffix}`)
   //               .update({ current_qty: updates[pAsin] })
   //               .eq('id', p.id)
   //           })
@@ -377,7 +377,7 @@ export default function ReorderPage() {
           matchCount++
           const pAsin = p.asin.trim().toUpperCase()
           return supabase
-            .from(`uk_reorder_${activeSeller.table_suffix}`)
+            .from(`uae_reorder_${activeSeller.table_suffix}`)
             .update({ current_qty: updates[pAsin] })
             .eq('id', p.id)
         })
@@ -414,7 +414,7 @@ export default function ReorderPage() {
   //     setProcessing(true)
 
   //     const { data: trackingData, error: trackError } = await supabase
-  //       .from('uk_traking')
+  //       .from('uae_traking')
   //       .select('asin, buying_quantity')
 
   //     if (trackError) throw trackError
@@ -427,7 +427,7 @@ export default function ReorderPage() {
   //     })
 
   //     const { data: currentReorderData } = await supabase
-  //       .from(`uk_reorder_${activeSeller.table_suffix}`)
+  //       .from(`uae_reorder_${activeSeller.table_suffix}`)
   //       .select('*')
 
   //     if (!currentReorderData) return
@@ -467,7 +467,7 @@ export default function ReorderPage() {
 
   //     const updatePromises = updates.map(u =>
   //       supabase
-  //         .from(`uk_reorder_${activeSeller.table_suffix}`)
+  //         .from(`uae_reorder_${activeSeller.table_suffix}`)
   //         .update({
   //           tracking_qty: u.tracking_qty,
   //           final_reorder_qty: u.final_reorder_qty,
@@ -507,11 +507,11 @@ export default function ReorderPage() {
 
         // ✅ PRIORITY ORDER: Check from final stage backward
         const tablesToCheck = [
-          // { name: getUKTrackingTableName ('VYAPAR', sellerId), priority: 5 },       // Highest priority
-          { name: getUKTrackingTableName ('SHIPMENT', sellerId), priority: 4 },
-          { name: getUKTrackingTableName ('CHECKING', sellerId), priority: 3 },
-          { name: getUKTrackingTableName ('INVOICE', sellerId), priority: 2 },
-          { name: `uk_tracking_seller_${sellerId}`, priority: 1 }                                   // Lowest priority
+          // { name: getUAETrackingTableName('VYAPAR', sellerId), priority: 5 },       // Highest priority
+          { name: getUAETrackingTableName('SHIPMENT', sellerId), priority: 4 },
+          { name: getUAETrackingTableName('CHECKING', sellerId), priority: 3 },
+          { name: getUAETrackingTableName('INVOICE', sellerId), priority: 2 },
+          { name: `uae_tracking_seller_${sellerId}`, priority: 1 }                                   // Lowest priority
         ]
 
         console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
@@ -562,7 +562,7 @@ export default function ReorderPage() {
 
       // Fetch current reorder data
       const { data: currentReorderData } = await supabase
-        .from(`uk_reorder_${activeSeller.table_suffix}`)
+        .from(`uae_reorder_${activeSeller.table_suffix}`)
         .select('*')
 
       if (!currentReorderData) return
@@ -577,7 +577,7 @@ export default function ReorderPage() {
 
       // First, we need to get seller_tag for each ASIN from the tracking main table
       const { data: mainFileData } = await supabase
-        .from('uk_traking')
+        .from('uae_traking')
         .select('asin, seller_tag')
 
       mainFileData?.forEach(item => {
@@ -632,7 +632,7 @@ export default function ReorderPage() {
       // Update database
       const updatePromises = updates.map(u =>
         supabase
-          .from(`uk_reorder_${activeSeller.table_suffix}`)
+          .from(`uae_reorder_${activeSeller.table_suffix}`)
           .update({
             tracking_qty: u.tracking_qty,
             final_reorder_qty: u.final_reorder_qty,
@@ -689,7 +689,7 @@ export default function ReorderPage() {
     } : p))
 
     await supabase
-      .from(`uk_reorder_${activeSeller.table_suffix}`)
+      .from(`uae_reorder_${activeSeller.table_suffix}`)
       .update({
         admin_target_qty: newTarget,
         final_reorder_qty: finalReorder,
@@ -706,7 +706,7 @@ export default function ReorderPage() {
     try {
       // Fetch last 5 history entries
       const { data, error } = await supabase
-        .from('uk_asin_history')
+        .from('uae_asin_history')
         .select('*')
         .eq('asin', asin)
         .order('created_at', { ascending: false })
@@ -732,7 +732,7 @@ export default function ReorderPage() {
 
       // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
       const { data: historyData, error: historyError } = await supabase
-        .from('uk_asin_history')
+        .from('uae_asin_history')
         .select('journey_number')
         .eq('asin', product.asin)
         .order('journey_number', { ascending: false })
@@ -751,8 +751,8 @@ export default function ReorderPage() {
 
       // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
       const { data: masterData, error: fetchError } = await supabase
-        .from('uk_validation_main_file')
-        .select('brand, seller_tag, funnel, origin, product_name, uk_link')
+        .from('uae_validation_main_file')
+        .select('brand, seller_tag, funnel, origin, product_name, uae_link')
         .eq('asin', product.asin)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -767,7 +767,7 @@ export default function ReorderPage() {
 
       // 4. Insert into Validation Main File with RESTORED DATA
       const { error: insertError } = await supabase
-        .from('uk_validation_main_file')
+        .from('uae_validation_main_file')
         .insert({
           asin: product.asin,
 
@@ -783,7 +783,7 @@ export default function ReorderPage() {
           seller_tag: masterData?.seller_tag || null,
           funnel: masterData?.funnel || null,
           origin: masterData?.origin || 'India', // Default to India if unknown
-          uk_link: masterData?.uk_link || product.seller_link,
+          uae_link: masterData?.uae_link || product.seller_link,
           remark: product.remark ?? null,
           // Reset operational fields
           no_of_seller: 1,
@@ -795,7 +795,7 @@ export default function ReorderPage() {
 
       // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
       const { error: deleteError } = await supabase
-        .from(`uk_reorder_${activeSeller.table_suffix}`)
+        .from(`uae_reorder_${activeSeller.table_suffix}`)
         .delete()
         .eq('id', product.id)
 
@@ -1171,7 +1171,7 @@ export default function ReorderPage() {
                 <button
                   onClick={async () => {
                     try {
-                      const tableName = `uk_reorder_${activeSeller.table_suffix}`;
+                      const tableName = `uae_reorder_${activeSeller.table_suffix}`;
                       const { error } = await supabase
                         .from(tableName)
                         .update({ remark: selectedRemark.remark })

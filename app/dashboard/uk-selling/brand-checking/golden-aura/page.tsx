@@ -26,7 +26,7 @@ interface ProductRow {
   brand: string | null;
   funnel: string | null;
   monthly_unit: number | null;
-  link: string | null;
+  product_link: string | null;
   amz_link: string | null;
   working?: boolean;
   reason?: string | null;
@@ -293,7 +293,7 @@ export default function GoldenAuraPage() {
           brand: data.brand,
           funnel: data.funnel,
           monthly_unit: data.monthly_unit,
-          link: data.link,
+          product_link: data.product_link,
           amz_link: data.amz_link,
           remark: data.remark,
         };
@@ -328,7 +328,7 @@ export default function GoldenAuraPage() {
           brand: product.brand,
           funnel: product.funnel,
           monthly_unit: product.monthly_unit,
-          link: product.link,
+          product_link: product.product_link,
           amz_link: product.amz_link,
           remark: product.remark,
           from_table: fromTable,
@@ -378,7 +378,7 @@ export default function GoldenAuraPage() {
             seller_tag: SELLER_CODE,
             funnel: product.funnel,
             no_of_seller: 1,
-            uk_link: product.link,
+            uk_link: product.product_link,
             amz_link: product.amz_link,
             product_weight: null,
             judgement: null,
@@ -487,7 +487,7 @@ export default function GoldenAuraPage() {
         brand: product.brand,
         funnel: product.funnel,
         monthly_unit: product.monthly_unit,
-        link: product.link,
+        product_link: product.product_link,
         amz_link: product.amz_link,
         remark: product.remark,
       });
