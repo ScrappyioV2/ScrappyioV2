@@ -209,135 +209,133 @@ export default function BrandCheckingPage() {
     }
   }, [user]);
 
-  return (
-    <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white p-8">
-        {/* === HEADER === */}
-        <div className="max-w-7xl mx-auto mb-12">
-          <Link
-            href="/dashboard/uae-selling"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-400 transition-colors mb-6 group"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to UAE Selling Dashboard
-          </Link>
+ return (
+  <PageTransition>
+    <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
 
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
-              <ShieldCheck className="w-8 h-8 text-indigo-400" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent">
-                Brand Checking Dashboard
-              </h1>
-              <p className="text-slate-400 mt-1">
-                Monitor real-time brand approval progress across all sellers.
-              </p>
-            </div>
-          </div>
+      {/* === HEADER === */}
+      <div className="mb-8">
+        <Link
+          href="/dashboard/uae-selling"  // 👈 Already UAE-correct
+          className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 mb-6 transition-colors group font-medium text-sm"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Back to UAE Selling Dashboard  // 👈 Update this text to match UAE
+        </Link>
 
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-slate-300">
-              Total Sellers: <span className="font-semibold text-white">{sellers.length}</span>
-            </span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/60 pb-8">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+                <ShieldCheck className="w-6 h-6 text-indigo-400" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">Brand Checking Dashboard</h1>
+            </div>
+            <p className="text-slate-400 pl-[3.75rem] max-w-2xl">
+              Monitor real-time brand approval progress across all sellers.
+              <span className="ml-3 inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-xs font-mono text-slate-300">
+                Total Sellers: {sellers.length}
+              </span>
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* === SELLER GRID === */}
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {sellers.map((seller) => {
-            const checkedTotal = seller.approved + seller.notApproved;
-            const approvedPercentage =
-              checkedTotal === 0 ? 0 : (seller.approved / checkedTotal) * 100;
-            const notApprovedPercentage =
-              checkedTotal === 0 ? 0 : (seller.notApproved / checkedTotal) * 100;
+      {/* === SELLER GRID === */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {sellers.map((seller) => {
+          const checkedTotal = seller.approved + seller.notApproved;
+          const approvedPercentage =
+            checkedTotal === 0 ? 0 : (seller.approved / checkedTotal) * 100;
+          const notApprovedPercentage =
+            checkedTotal === 0 ? 0 : (seller.notApproved / checkedTotal) * 100;
 
-            return (
-              <div
-                key={seller.id}
-                onClick={() => handleSellerCardClick(seller.id)}
-                className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/50 backdrop-blur-sm overflow-hidden"
-              >
-                {/* Hover Glow Effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-indigo-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500 rounded-2xl" />
+          return (
+            <div
+              key={seller.id}
+              onClick={() => handleSellerCardClick(seller.id)}
+              className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/50 backdrop-blur-sm overflow-hidden"
+            >
+              {/* Hover Glow Effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left: Seller Card */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
-                      {seller.name.charAt(0)}
+              <div className="grid grid-cols-5 gap-6 relative z-10">
+
+                {/* Left: Seller Card */}
+                <div className="col-span-2 flex flex-col">
+                  <div className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl p-5 flex flex-col items-center justify-center text-center group-hover:border-indigo-500/20 transition-colors">
+                    <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-3 text-slate-400 group-hover:text-indigo-400 group-hover:scale-110 transition-all shadow-inner">
+                      <LayoutDashboard className="w-6 h-6" />
                     </div>
-
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">{seller.name}</h2>
-                      <p className="text-sm text-slate-400">Seller {seller.id}</p>
-
-                      <p className="text-4xl font-extrabold text-indigo-400 mt-2">
-                        {seller.totalProducts.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-slate-400 uppercase tracking-wide">
-                        Total Products
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Progress Bars */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-                      Brand Check Status
+                    <h3 className="text-sm font-semibold text-slate-300 mb-1 pb-1 w-full text-center">
+                      {seller.name}
                     </h3>
+                    <div className="text-3xl font-bold text-white tracking-tight">
+                      {seller.totalProducts.toLocaleString()}
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-1 font-semibold">Total Products</span>
+                  </div>
+                </div>
+
+                {/* Right: Progress Bars */}
+                <div className="col-span-3 flex flex-col justify-center space-y-6">
+
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      Brand Check Status
+                      <div className="h-px flex-1 bg-slate-800"></div>
+                    </h4>
 
                     {/* Approved Progress Bar */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span className="text-sm font-medium text-slate-300">Approved</span>
-                        </div>
-                        <span className="text-sm font-semibold text-emerald-400">
+                    <div className="mb-5">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="text-sm text-emerald-400 font-medium flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4" /> Approved
+                        </span>
+                        <span className="text-xs font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
                           {seller.approved.toLocaleString()}
                         </span>
                       </div>
-                      <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-green-400 rounded-full transition-all duration-500"
+                          className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out"
                           style={{ width: `${approvedPercentage}%` }}
                         />
                       </div>
-                      <p className="text-xs text-slate-500 mt-1 text-right">
-                        {Math.round(approvedPercentage)}%
-                      </p>
+                      <div className="text-right mt-1">
+                        <span className="text-[10px] text-slate-500">{Math.round(approvedPercentage)}%</span>
+                      </div>
                     </div>
 
                     {/* Not Approved Progress Bar */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 text-rose-400" />
-                          <span className="text-sm font-medium text-slate-300">Not Approved</span>
-                        </div>
-                        <span className="text-sm font-semibold text-rose-400">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="text-sm text-rose-400 font-medium flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4" /> Not Approved
+                        </span>
+                        <span className="text-xs font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
                           {seller.notApproved.toLocaleString()}
                         </span>
                       </div>
-                      <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
                         <div
-                          className="h-full bg-gradient-to-r from-rose-500 to-red-400 rounded-full transition-all duration-500"
+                          className="bg-rose-500 h-full rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all duration-700 ease-out"
                           style={{ width: `${notApprovedPercentage}%` }}
                         />
                       </div>
-                      <p className="text-xs text-slate-500 mt-1 text-right">
-                        {Math.round(notApprovedPercentage)}%
-                      </p>
+                      <div className="text-right mt-1">
+                        <span className="text-[10px] text-slate-500">{Math.round(notApprovedPercentage)}%</span>
+                      </div>
                     </div>
                   </div>
+
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
-    </PageTransition>
-  );
+    </div>
+  </PageTransition>
+);
 }

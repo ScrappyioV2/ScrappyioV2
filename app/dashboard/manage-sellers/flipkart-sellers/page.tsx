@@ -17,7 +17,8 @@ import {
 } from '@/lib/utils/master-table/uploadHelpers'
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
-import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
+import { filterDuplicateASINs, bulkUpdateAsinRemarkMonthlyUnit } from '@/lib/utils/master-table/uploadHelpers';
+
 import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
 import {
   Search,
@@ -31,6 +32,50 @@ import {
 } from 'lucide-react'; // Added Lucide icons for modern look
 
 const TABLE_NAME = 'flipkart_master_sellers';
+
+// ✅ Helper function to detect partial update file
+  function isPartialUpdateFile(headers: string[]) {
+    // ✅ Normalize: lowercase + spaces to underscores
+    const normalized = headers.map(h => 
+      h.trim()
+       .toLowerCase()
+       .replace(/\s+/g, '_')  // ← Convert spaces to underscores
+    );
+    
+    const allowed = [
+      "asin",
+      "remark", 
+      "remarks",
+      "monthly_unit",
+      "monthly_units",
+      "monthly_units_sold",
+      "monthly_unit_sold"
+    ];
+
+    // Must have ASIN
+    if (!normalized.includes("asin")) {
+      return false;
+    }
+
+    // All columns must be in allowed list
+    if (!normalized.every(h => allowed.includes(h))) {
+      return false;
+    }
+
+    // Must have at least one update column
+    const hasRemarkColumn = normalized.some(h => 
+      h === "remark" || h === "remarks"
+    );
+    
+    const hasMonthlyUnitColumn = normalized.some(h => 
+      h === "monthly_unit" || 
+      h === "monthly_units" || 
+      h === "monthly_units_sold" ||
+      h === "monthly_unit_sold"
+    );
+
+    return hasRemarkColumn || hasMonthlyUnitColumn;
+  }
 
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
@@ -56,7 +101,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   'weight': 120,
 };
 
-export default function IndiaSellersPage() {
+export default function FlipkartSellersPage() {
   // --- EXISTING STATE & LOGIC (PRESERVED) ---
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
@@ -151,15 +196,15 @@ export default function IndiaSellersPage() {
     setCurrentPage(1);
   };
 
-  // Auto-generate Amazon link from ASIN
-  const generateAmazonLink = (asin: string, country: 'india' | 'india'): string => {
-    if (!asin) return '';
-    const domain = country === 'india' ? 'amazon.com' : 'amazon.in';
-    return `https://www.${domain}/dp/${asin}`;
-  };
+  // Auto-generate Amazon link from ASIN (Flipkart = India = amazon.in)
+const generateAmazonLink = (asin: string): string => {
+  if (!asin) return '';
+  return `https://www.amazon.in/dp/${asin}`;
+};
 
-  // FIXED: Handle multiple file uploads with batch insert
-  const handleUpload = async (files: File[]) => {
+ 
+// FIXED: Handle multiple file uploads with batch insert
+const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
 
@@ -169,6 +214,8 @@ export default function IndiaSellersPage() {
     try {
       let allNewProducts: any[] = [];
       let totalDuplicates = 0;
+      let totalUpdated = 0;
+      let hasPartialUpdate = false;
 
       // Step 1: Parse all files
       for (let i = 0; i < files.length; i++) {
@@ -192,7 +239,7 @@ export default function IndiaSellersPage() {
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                product.amz_link = generateAmazonLink(product.asin, "india")
+                product.amz_link = generateAmazonLink(product.asin)
               }
               if (!product.link) {
                 product.link = product.amz_link;
@@ -212,8 +259,33 @@ export default function IndiaSellersPage() {
           })
           .filter(Boolean);
 
+        // ✅ Check if this is a partial update file
+        const rawHeaders = Object.keys(data[0] || {});
+        
+        // ✅ DEBUG LOGGING (remove after testing)
+        console.log('🔍 Raw headers from CSV:', rawHeaders);
+        console.log('🔍 Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
+        console.log('🔍 First data row:', data[0]);
+        console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
+        console.log('🔍 Total rows:', data.length);
+        
+        if (isPartialUpdateFile(rawHeaders)) {
+          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
 
-        // Filter duplicates
+          const { updatedCount, skippedCount } =
+            await bulkUpdateAsinRemarkMonthlyUnit(
+              normalizedData,
+              TABLE_NAME
+            );
+
+          totalUpdated += updatedCount;
+          hasPartialUpdate = true;
+
+          console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+          continue;
+        }
+
+        // For full files, filter duplicates
         const { newProducts, duplicateCount } =
           await filterDuplicateASINs(normalizedData, TABLE_NAME);
 
@@ -221,8 +293,23 @@ export default function IndiaSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
-      // If no new products after processing all files
-      if (allNewProducts.length === 0) {
+      // ============================================================
+      // DECISION LOGIC: What to do after processing all files
+      // ============================================================
+
+      // Case 1: Only partial updates (no new inserts)
+      if (hasPartialUpdate && allNewProducts.length === 0) {
+        toast.success(
+          `✅ ${totalUpdated} products updated successfully`,
+          { id: toastId, duration: 5000 }
+        );
+        setRefreshTrigger(prev => prev + 1);
+        setIsUploading(false);
+        return;
+      }
+
+      // Case 2: No updates and no new products (all duplicates)
+      if (!hasPartialUpdate && allNewProducts.length === 0) {
         toast.error(
           `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
           { id: toastId, duration: 5000 }
@@ -230,6 +317,10 @@ export default function IndiaSellersPage() {
         setIsUploading(false);
         return;
       }
+
+      // ============================================================
+      // BATCH INSERT: Process new products
+      // ============================================================
 
       // CRITICAL: Remove duplicate ASINs within the batch
       const uniqueProductsMap = new Map();
@@ -323,12 +414,16 @@ export default function IndiaSellersPage() {
         }
       }
 
+      // ============================================================
+      // FINAL SUMMARY
+      // ============================================================
       const summaryLines = [];
+      if (totalUpdated > 0) summaryLines.push(`✅ Updated ${totalUpdated} products`);
       if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
       if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
-      if (successCount > 0) {
+      if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
       } else {
@@ -344,6 +439,8 @@ export default function IndiaSellersPage() {
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
     }
   };
+
+
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
@@ -641,4 +738,4 @@ export default function IndiaSellersPage() {
       </div>
     </PageTransition>
   );
-}
+}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\manage-sellers\flipkart-sellers\page.tsx
