@@ -70,19 +70,19 @@ export default function ListingErrorDashboard() {
   const [loading, setLoading] = useState(false);
 
   const handleSellerCardClick = (sellerSlug: string) => {
-    router.push(`/dashboard/india-selling/listing-error/${sellerSlug}`);
+    router.push(`/dashboard/flipkart/listing-error/${sellerSlug}`);
   };
 
   /* ===== FETCH REAL COUNTS DIRECTLY ===== */
   const fetchRealCounts = useCallback(async () => {
     try {
-      // console.log("📊 Fetching counts from india_listing_error tables...");
+      // console.log("📊 Fetching counts from flipkart_listing_error tables...");
 
       const promises = ALL_SELLERS.map(async (seller) => {
         // ✅ UPDATED: Exact table names from your screenshot
-        const pendingTable = `india_listing_error_seller_${seller.id}_pending`;
-        const listedTable = `india_listing_error_seller_${seller.id}_done`; // 'done' = listed
-        const errorTable = `india_listing_error_seller_${seller.id}_error`;
+        const pendingTable = `flipkart_listing_error_seller_${seller.id}_pending`;
+        const listedTable = `flipkart_listing_error_seller_${seller.id}_done`; // 'done' = listed
+        const errorTable = `flipkart_listing_error_seller_${seller.id}_error`;
 
         // Run counts in parallel
         const [pending, listed, error] = await Promise.all([
@@ -188,7 +188,7 @@ export default function ListingErrorDashboard() {
                   <div className="flex justify-between items-start mb-6 relative z-10">
                     <div>
                       <h3 className="text-xl font-bold text-slate-100 group-hover:text-white transition-colors">{seller.name}</h3>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">INDIA Marketplace</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">flipkart Marketplace</p>
                     </div>
 
                     <div className="flex flex-col items-end">

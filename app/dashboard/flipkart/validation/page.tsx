@@ -1081,16 +1081,23 @@ export default function ValidationPage() {
                 timestamp: new Date().toISOString()
             }
 
-            await supabase.from('flipkart_asin_history').insert({
-                asin: product.asin,
-                journey_id: journeyId,
-                journey_number: journeyNum,
-                stage: 'validation_to_purchase',
-                snapshot_data: snapshotData,
-                profit: product.profit,
-                total_cost: product.total_cost,
-                status: 'passed'
-            })
+            const { error: historyError } = await supabase
+                .from('flipkart_asin_history')
+                .insert({
+                    asin: product.asin,
+                    journey_id: journeyId,
+                    journey_number: journeyNum,
+                    stage: 'validation_to_purchase',
+                    snapshot_data: snapshotData,
+                    profit: product.profit,
+                    total_cost: product.total_cost,
+                    status: 'passed'
+                })
+
+            if (historyError) {
+                console.error('History snapshot failed:', historyError)
+                // We don't stop the flow for history error, but we log it
+            }
 
             // 3. Insert into Purchases
             const originText =
@@ -2071,7 +2078,7 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
                                         <input
                                             type="number"
-                                            value={constants.dollar_rate}
+                                           value={constants.dollar_rate || ''}
                                             onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
@@ -2081,7 +2088,7 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
                                         <input
                                             type="number"
-                                            value={constants.bank_conversion_rate * 100}
+                                             value={(constants.bank_conversion_rate * 100) || ''}
                                             onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
@@ -2091,7 +2098,7 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
                                         <input
                                             type="number"
-                                            value={constants.shipping_charge_per_kg}
+                                            value={constants.shipping_charge_per_kg || ''}  
                                             onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
