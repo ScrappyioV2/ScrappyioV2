@@ -133,14 +133,94 @@ export default function FlipkartMasterTable({
   }, [isSomeSelected]);
 
   // --- Data Fetching Logic ---
+  // const fetchData = async () => {
+  //   if (!supabase) return;
+  //   try {
+  //     setLoading(true);
+
+  //     let countQuery: any = supabase
+  //       .from('flipkart_master_sellers')
+  //       .select('*', { count: 'exact', head: true });
+
+  //     if (searchTerm) {
+  //       countQuery = countQuery.or(
+  //         `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
+  //       );
+  //     }
+
+  //     Object.entries(localFilters).forEach(([columnKey, filterData]) => {
+  //       if (!filterData) return;
+
+  //       // Handle text, multiselect filters
+  //       if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
+  //         countQuery = countQuery.in(columnKey, filterData.values);
+  //       }
+
+  //       if (filterData.type === 'numeric' && filterData.value !== null) {
+  //         const value = parseFloat(filterData.value);
+  //         if (!isNaN(value)) {
+  //           countQuery = countQuery[filterData.operator](columnKey, value);
+  //         }
+  //       }
+  //     });
+
+  //     const { count } = await countQuery;
+  //     const totalCount = count || 0;
+  //     const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  //     onTotalProductsChange(totalCount);
+  //     onTotalPagesChange(totalPages);
+
+  //     let query: any = supabase.from('flipkart_master_sellers').select('*');
+
+  //     if (searchTerm) {
+  //       query = query.or(
+  //         `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
+  //       );
+  //     }
+
+  //     Object.entries(localFilters).forEach(([columnKey, filterData]) => {
+  //       if (!filterData) return;
+
+  //       if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
+  //         query = query.in(columnKey, filterData.values);
+  //       }
+
+  //       if (filterData.type === 'numeric' && filterData.value !== null) {
+  //         const value = parseFloat(filterData.value);
+  //         if (!isNaN(value)) {
+  //           query = query[filterData.operator](columnKey, value);
+  //         }
+  //       }
+  //     });
+
+  //     const from = (currentPage - 1) * itemsPerPage;
+  //     const to = from + itemsPerPage - 1;
+
+  //     const { data: result, error } = await query
+  //       .order(sortConfig.key, { ascending: sortConfig.direction === 'asc' })
+  //       .range(from, to);
+
+  //     if (error) throw error;
+  //     setData(result || []);
+  //   } catch (error) {
+  //     console.error('Error fetching data:', error);
+  //     setData([]);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const fetchData = async () => {
     if (!supabase) return;
     try {
       setLoading(true);
 
+      // 1. LIGHTWEIGHT COUNT QUERY
+      // Only select 'id' to minimize database processing during count
       let countQuery: any = supabase
         .from('flipkart_master_sellers')
-        .select('*', { count: 'exact', head: true });
+        .select('id', { count: 'exact', head: true });
 
       if (searchTerm) {
         countQuery = countQuery.or(
@@ -150,12 +230,9 @@ export default function FlipkartMasterTable({
 
       Object.entries(localFilters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
-
-        // Handle text, multiselect filters
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           countQuery = countQuery.in(columnKey, filterData.values);
         }
-
         if (filterData.type === 'numeric' && filterData.value !== null) {
           const value = parseFloat(filterData.value);
           if (!isNaN(value)) {
@@ -171,7 +248,30 @@ export default function FlipkartMasterTable({
       onTotalProductsChange(totalCount);
       onTotalPagesChange(totalPages);
 
-      let query: any = supabase.from('flipkart_master_sellers').select('*');
+      // 2. SPECIFIC COLUMN SELECTION
+      // Replace '*' with only the columns you actually show in your UI
+      const columnsToFetch = [
+        'id',
+        'asin',
+        'display_number',
+        'amz_link',
+        'product_name',
+        'remark',
+        'brand',
+        'price',
+        'monthly_unit',
+        'monthly_sales',
+        'bsr',
+        'seller',
+        'category',
+        'dimensions',
+        'weight',
+        'weight_unit'
+      ].join(',');
+
+      let query: any = supabase
+        .from('flipkart_master_sellers')
+        .select(columnsToFetch);
 
       if (searchTerm) {
         query = query.or(
@@ -181,11 +281,9 @@ export default function FlipkartMasterTable({
 
       Object.entries(localFilters).forEach(([columnKey, filterData]) => {
         if (!filterData) return;
-
         if ((filterData.type === 'text' || filterData.type === 'multiselect') && filterData.values?.length > 0) {
           query = query.in(columnKey, filterData.values);
         }
-
         if (filterData.type === 'numeric' && filterData.value !== null) {
           const value = parseFloat(filterData.value);
           if (!isNaN(value)) {
@@ -204,7 +302,7 @@ export default function FlipkartMasterTable({
       if (error) throw error;
       setData(result || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching optimized data:', error);
       setData([]);
     } finally {
       setLoading(false);
