@@ -734,4 +734,4 @@ console.log('🔍 Total rows:', data.length);
       </div>
     </PageTransition>
   );
-}
+}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\manage-sellers\uk-sellers\page.tsx

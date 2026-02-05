@@ -726,4 +726,4 @@ export default function FlipkartMasterTable({
       )}
     </div>
   );
-}
+}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\manage-sellers\flipkart-sellers\components\FlipkartMasterTable.tsx

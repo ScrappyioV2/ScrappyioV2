@@ -40,31 +40,31 @@ export const APP_ROUTES: AppRoute[] = [
       },
       {
         path: '/dashboard/manage-sellers/usa-sellers',
-        label: 'USA Sellers',
+        label: 'USA Master',
         permission: 'manage-sellers',
         icon: Users
       },
       {
         path: '/dashboard/manage-sellers/india-sellers',
-        label: 'India Sellers',
+        label: 'India Master',
         permission: 'manage-sellers',
         icon: Users
       },
       {
         path: '/dashboard/manage-sellers/flipkart-sellers',
-        label: 'Flipkart Sellers',
+        label: 'Flipkart Master',
         permission: 'manage-sellers',
         icon: Users
       },
       {
         path: '/dashboard/manage-sellers/uk-sellers',
-        label: 'UK Sellers',
+        label: 'UK Master',
         permission: 'manage-sellers',
         icon: Users
       },
       {
         path: '/dashboard/manage-sellers/uae-sellers',
-        label: 'UAE Sellers',
+        label: 'UAE Master',
         permission: 'manage-sellers',
         icon: Users
       },
@@ -149,24 +149,6 @@ export const APP_ROUTES: AppRoute[] = [
     permission: 'india-selling',
     subRoutes: [
       {
-        path: '/dashboard/india-selling/validation',
-        label: 'Validation',
-        permission: 'view-validation',
-        icon: CheckCircle2
-      },
-      {
-        path: '/dashboard/india-selling/admin-validation',
-        label: 'Admin Approvals',
-        permission: 'admin-access',
-        icon: ShieldCheck
-      },
-      {
-        path: '/dashboard/india-selling/purchases',
-        label: 'Purchases',
-        permission: 'view-purchases',
-        icon: ShoppingBag
-      },
-      {
         path: '/dashboard/india-selling/brand-checking',
         label: 'Brand Checking',
         permission: 'view-brand-checking',
@@ -181,10 +163,10 @@ export const APP_ROUTES: AppRoute[] = [
         ]
       },
       {
-        path: '/dashboard/india-selling/tracking',
-        label: 'Tracking',
-        permission: 'view-tracking',
-        icon: Truck
+        path: '/dashboard/india-selling/validation',
+        label: 'Validation',
+        permission: 'view-validation',
+        icon: CheckCircle2
       },
       {
         path: '/dashboard/india-selling/listing-error',
@@ -201,11 +183,29 @@ export const APP_ROUTES: AppRoute[] = [
         ]
       },
       {
+        path: '/dashboard/india-selling/purchases',
+        label: 'Purchases',
+        permission: 'view-purchases',
+        icon: ShoppingBag
+      },
+      {
+        path: '/dashboard/india-selling/tracking',
+        label: 'Tracking',
+        permission: 'view-tracking',
+        icon: Truck
+      },
+      {
         path: '/dashboard/india-selling/reorder',
         label: 'Reorder',
         permission: 'view-reorder',
         icon: RotateCcw
-      }
+      },
+      {
+        path: '/dashboard/india-selling/admin-validation',
+        label: 'Admin Approvals',
+        permission: 'admin-access',
+        icon: ShieldCheck
+      },
     ]
   },
 
@@ -365,12 +365,6 @@ export const APP_ROUTES: AppRoute[] = [
         icon: CheckCircle2
       },
       {
-        path: '/dashboard/flipkart/admin-validation',
-        label: 'Admin Approvals',
-        permission: 'admin-access',
-        icon: ShieldCheck
-      },
-      {
         path: '/dashboard/flipkart/listing-error',
         label: 'Listing Errors',
         permission: 'view-listing-errors',
@@ -401,10 +395,15 @@ export const APP_ROUTES: AppRoute[] = [
         label: 'Reorder',
         permission: 'view-reorder',
         icon: RotateCcw
-      }
+      },
+      {
+        path: '/dashboard/flipkart/admin-validation',
+        label: 'Admin Approvals',
+        permission: 'admin-access',
+        icon: ShieldCheck
+      },
     ]
   },
-
   // --- 7. JioMart ---
   {
     path: '/dashboard/jio-mart',
