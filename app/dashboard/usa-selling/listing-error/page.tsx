@@ -41,7 +41,13 @@ export default function ListingErrorDashboard() {
   const [sellers, setSellers] = useState<SellerUI[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('listing_error_real_counts');
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+      const parsed = JSON.parse(cached);
+      // ✅ Only use cache if it has exactly 4 sellers
+      if (parsed.length === 4) {
+        return parsed;
+      }
+    }
     }
     return ALL_SELLERS.map((s) => ({
       ...s,
