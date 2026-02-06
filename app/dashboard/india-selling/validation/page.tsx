@@ -34,7 +34,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     seller_tag: 100,
     funnel: 80,
     no_of_seller: 80,
-    india_link: 70,        // Minimal width for "View"
+    india_link: 160,        // Minimal width for "View"
     product_weight: 90,
     usd_price: 90,
     inr_purchase: 100,
@@ -171,7 +171,7 @@ const renderSellerTags = (sellerTag: string | null) => {
 const FUNNEL_STYLES: Record<string, string> = {
     HD: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
     LD: 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg border border-blue-600/30',
-    DP: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'    
+    DP: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'
 };
 
 
@@ -232,6 +232,8 @@ export default function ValidationPage() {
     // } | null>(null)
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
     const [products, setProducts] = useState<ValidationProduct[]>([])
+    const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+    const [editingLinkValue, setEditingLinkValue] = useState<string>('');
     // const [filteredProducts, setFilteredProducts] = useState<ValidationProduct[]>([])
     const [loading, setLoading] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -290,7 +292,7 @@ export default function ValidationPage() {
         seller_tag: true,
         funnel: true,
         no_of_seller: true,
-        india_link: false,
+        india_link: true,
         product_weight: true,
         usd_price: true,
         inr_purchase: true,
@@ -346,7 +348,7 @@ export default function ValidationPage() {
         try {
             // Note: No setLoading(true) here!
             const validationData = await fetchAllRows<ValidationProduct>(
-                'india_validation_main_with_sellers',
+                'india_validation_main_file',
                 '*',
                 { column: 'created_at', ascending: false }
             );
@@ -569,7 +571,7 @@ export default function ValidationPage() {
         try {
             // Step 1: Fetch all validation products
             const validationData = await fetchAllRows<ValidationProduct>(
-                'india_validation_main_with_sellers',
+                'india_validation_main_file',
                 '*',
                 { column: 'created_at', ascending: false }
             );
@@ -1742,7 +1744,7 @@ export default function ValidationPage() {
                                                 {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
                                                 {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
                                                 {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
-                                                {visibleColumns.india_link && <ResizableTH width={columnWidths.india_link} columnKey="india_link" label="INDIA" onResizeStart={startResize} />}
+                                                {visibleColumns.india_link && <ResizableTH width={columnWidths.india_link} columnKey="india_link" label="INDIA Link" onResizeStart={startResize} />}
 
                                                 {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
 
@@ -1803,23 +1805,94 @@ export default function ValidationPage() {
                                                     {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
                                                     {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
 
+                                                    {/* REPLACE the existing india_link <td> block with this: */}
                                                     {visibleColumns.india_link && (
-                                                        <td className="p-3 overflow-hidden text-center">
-                                                            {product.india_link ? (
-                                                                <a
-                                                                    href={product.india_link}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline text-sm truncate block"
-                                                                >
-                                                                    View
-                                                                </a>
-                                                            ) : (
-                                                                <span className="text-slate-600 text-xs">-</span>
-                                                            )}
+                                                        <td className="px-4 py-3 text-sm">
+                                                            <div className="w-40"> {/* Adjusted width to fit buttons better */}
+                                                                {editingLinkId === product.id ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editingLinkValue}
+                                                                            onChange={(e) => setEditingLinkValue(e.target.value)}
+                                                                            className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                                                            placeholder="URL..."
+                                                                            autoFocus
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter') {
+                                                                                    handleCellEdit(product.id, 'india_link', editingLinkValue);
+                                                                                    setEditingLinkId(null);
+                                                                                } else if (e.key === 'Escape') {
+                                                                                    setEditingLinkId(null);
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                handleCellEdit(product.id, 'india_link', editingLinkValue);
+                                                                                setEditingLinkId(null);
+                                                                            }}
+                                                                            className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
+                                                                            title="Save (Enter)"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setEditingLinkId(null)}
+                                                                            className="text-rose-500 hover:text-rose-400 flex-shrink-0"
+                                                                            title="Cancel (Esc)"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-2">
+                                                                        {product.india_link ? (
+                                                                            <>
+                                                                                <a
+                                                                                    href={product.india_link}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs"
+                                                                                >
+                                                                                    View Link
+                                                                                </a>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setEditingLinkId(product.id);
+                                                                                        setEditingLinkValue(product.india_link || '');
+                                                                                    }}
+                                                                                    className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
+                                                                                    title="Edit link"
+                                                                                >
+                                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                                    </svg>
+                                                                                </button>
+                                                                            </>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setEditingLinkId(product.id);
+                                                                                    setEditingLinkValue('');
+                                                                                }}
+                                                                                className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
+                                                                            >
+                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                                                </svg>
+                                                                                Add Link
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                     )}
-
 
                                                     {activeTab === 'pass_file' && (
                                                         <td className="p-3">
