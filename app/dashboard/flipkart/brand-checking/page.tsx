@@ -68,10 +68,10 @@ const ALL_SELLERS = [
 
 /* ================= TYPES ================= */
 type BrandProgressRow = {
-  sellerid: number;  // ✅ FIXED: Changed from seller_id to sellerid
+  seller_id: number;  // ✅ FIXED: Changed from seller_id to sellerid
   total: number;
   approved: number;
-  notapproved: number;  // ✅ FIXED: Changed from not_approved to notapproved
+  not_approved: number;  // ✅ FIXED: Changed from not_approved to notapproved
 };
 
 type SellerApprovalBreakdown = {
@@ -121,7 +121,7 @@ export default function BrandCheckingPage() {
   useEffect(() => {
     if (!user) return;
     const fetchProgress = async () => {
-      console.log("📊 Fetching initial Flipkart brand check progress...");
+      console.log("📊 Fetching initial flipkart brand check progress...");
 
       const { data, error } = await supabase
         .from("flipkart_brand_check_progress")  // ✅ CORRECT: flipkart table
@@ -133,11 +133,11 @@ export default function BrandCheckingPage() {
       }
 
       if (data) {
-        console.log("✅ Loaded Flipkart progress data:", data);
+        console.log("✅ Loaded flipkart progress data:", data);
         setSellers((prev) =>
           prev.map((seller) => {
             const row = data.find(
-              (d: BrandProgressRow) => d.sellerid === seller.id  // ✅ FIXED: sellerid instead of seller_id
+              (d: BrandProgressRow) => d.seller_id === seller.id  // ✅ FIXED: sellerid instead of seller_id
             );
             if (!row) return seller;
 
@@ -145,7 +145,7 @@ export default function BrandCheckingPage() {
               ...seller,
               totalProducts: row.total,
               approved: row.approved,
-              notApproved: row.notapproved,  // ✅ FIXED: notapproved instead of not_approved
+              notApproved: row.not_approved,  // ✅ FIXED: notapproved instead of not_approved
             };
           })
         );
@@ -173,16 +173,16 @@ export default function BrandCheckingPage() {
           console.log("🔔 Real-time update received:", payload);
           const data = payload.new as BrandProgressRow;
 
-          if (!data || !data.sellerid) return;  // ✅ FIXED: sellerid instead of seller_id
+          if (!data || !data.seller_id) return;  // ✅ FIXED: sellerid instead of seller_id
 
           setSellers((prev) => {
             const updated = prev.map((seller) =>
-              seller.id === data.sellerid  // ✅ FIXED: sellerid instead of seller_id
+              seller.id === data.seller_id  // ✅ FIXED: sellerid instead of seller_id
                 ? {
                   ...seller,
                   totalProducts: data.total,
                   approved: data.approved,
-                  notApproved: data.notapproved,  // ✅ FIXED: notapproved instead of not_approved
+                  notApproved: data.not_approved,  // ✅ FIXED: notapproved instead of not_approved
                 }
                 : seller
             );
@@ -232,11 +232,11 @@ export default function BrandCheckingPage() {
         {/* === HEADER === */}
         <div className="mb-8">
           <Link
-            href="/dashboard/flipkart"
+            href="/dashboard/flipkart-selling"
             className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 mb-6 transition-colors group font-medium text-sm"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to FLIPKART Dashboard
+            Back to flipkart Selling Dashboard
           </Link>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/60 pb-8">
