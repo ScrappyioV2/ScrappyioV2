@@ -16,8 +16,8 @@ const SELLERS = [
     { tag: "RR", name: "Rudra Retail", id: 2, color: "bg-indigo-500" },
     { tag: "UB", name: "UBeauty", id: 3, color: "bg-pink-500" },
     { tag: "VV", name: "Velvet Vista", id: 4, color: "bg-emerald-500" },
-    { tag: "DE", name: "Dropy Ecom", id: 5, color: "bg-orange-500" },        
-    { tag: "CV", name: "Costech Ventures", id: 6, color: "bg-green-600" },  
+    { tag: "DE", name: "Dropy Ecom", id: 5, color: "bg-orange-500" },
+    { tag: "CV", name: "Costech Ventures", id: 6, color: "bg-green-600" },
 ];
 
 type PassFileProduct = {
@@ -185,54 +185,45 @@ export default function TrackingPage() {
                 }
             }
 
-            // Enrich data with Validation Info (keep existing logic)
-            const enrichedData = await Promise.all(
-                allData.map(async (product) => {
-                    let query = supabase
-                        .from('india_validation_main_file')
-                        .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                        .eq('asin', product.asin);
+            // ✅ OPTIMIZED: Get all potential validation data in ONE query
+            const allAsins = allData.map((p: any) => p.asin);
 
-                    if (product.journey_id) {
-                        query = query.eq('current_journey_id', product.journey_id);
-                    }
+            const { data: validationDataArray } = await supabase
+                .from('india_validation_main_file')
+                .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                .in('asin', allAsins);
 
-                    const { data: validationData } = await query
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
+            // Create maps for quick lookup
+            const validationMap = new Map();
+            const fallbackMap = new Map();
 
-                    let finalValidationData = validationData;
+            validationDataArray?.forEach((v: any) => {
+                if (v.current_journey_id) {
+                    validationMap.set(`${v.asin}${v.current_journey_id}`, v);
+                }
+                fallbackMap.set(v.asin, v);
+            });
 
-                    // Fallback if no validation data found
-                    if (!finalValidationData && !product.journey_id) {
-                        const { data: fallbackData } = await supabase
-                            .from('india_validation_main_file')
-                            .select('seller_tag, funnel, product_weight, usd_price, inr_purchase')
-                            .eq('asin', product.asin)
-                            .order('created_at', { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
+            // ✅ FAST: Map data in memory (no async)
+            const enrichedData = allData.map((product: any) => {
+                const validationData =
+                    validationMap.get(`${product.asin}${product.journey_id}`) ||
+                    fallbackMap.get(product.asin);
 
-                        finalValidationData = fallbackData;
-                    }
-
-                    return {
-                        ...product,
-                        product_name: product.product_name ?? null,
-                        // Origin handling
-                        origin_india: product.origin?.toLowerCase().includes('india') || product.origin_india === true,
-                        origin_china: product.origin?.toLowerCase().includes('china') || product.origin_china === true,
-                        // Validation data
-                        validation_funnel: finalValidationData?.funnel ?? null,
-                        validation_seller_tag: finalValidationData?.seller_tag ?? null,
-                        product_weight: finalValidationData?.product_weight ?? null,
-                        usd_price: finalValidationData?.usd_price ?? null,
-                        inr_purchase_from_validation: finalValidationData?.inr_purchase ?? null,
-                    };
-                })
-            );
-
+                return {
+                    ...product,
+                    product_name: product.product_name ?? null,
+                    // Origin handling
+                    origin_india: product.origin?.toLowerCase().includes('india') || product.origin_india === true,
+                    origin_china: product.origin?.toLowerCase().includes('china') || product.origin_china === true,
+                    // Validation data
+                    validation_funnel: validationData?.funnel ?? null,
+                    validation_seller_tag: validationData?.seller_tag ?? null,
+                    product_weight: validationData?.product_weight ?? null,
+                    usd_price: validationData?.usd_price ?? null,
+                    inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                };
+            });
             console.log(`✅ Loaded ${enrichedData.length} products from ${mainFileTableName}`);
             setProducts(enrichedData);
         } catch (error) {
@@ -1249,9 +1240,10 @@ export default function TrackingPage() {
                 sellerId={currentSellerId}
                 onSuccess={() => {
                     fetchProducts();
+                    fetchSellerCounts();
                     setRollbackOpen(false);
                 }}
             />
         </PageGuard>
     );
-}
+}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\india-selling\tracking\page.tsx

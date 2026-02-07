@@ -16,8 +16,8 @@ import {
   parseFile as parseUploadedFile
 } from '@/lib/utils/master-table/uploadHelpers'
 import { exportData } from '@/lib/utils/exportHelpers'
-import { supabase } from '@/lib/supabaseClient'
-import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
+import { supabase } from '@/lib/supabase'
+import { filterDuplicateASINs, bulkUpdateAsinRemarkMonthlyUnit } from '@/lib/utils/master-table/uploadHelpers';
 import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
 import {
   Search,
@@ -31,6 +31,110 @@ import {
 } from 'lucide-react'; // Added Lucide icons for modern look
 
 const TABLE_NAME = 'india_master_sellers';
+
+// ✅ FIXED: Strict detection - ALL columns must be in allowed list
+function isPartialUpdateFile(headers: string[]) {
+  // 1️⃣ Normalize headers (trim, lowercase, spaces → underscore)
+  const normalized = headers
+    .map(h =>
+      h
+        ?.trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+    )
+    // 2️⃣ Remove empty headers and Excel auto columns (_1, _2, ...)
+    .filter(h => h && !h.startsWith('_') && h !== 'export_time' && h.length > 0);
+
+  const allowed = [
+    'asin',
+    'remark',
+    'remarks',
+    'monthly_unit',
+    'monthly_units',
+    'monthly_units_sold',
+    'monthly_unit_sold'
+  ];
+
+  console.log('🔍 [DETECTION] Filtered headers:', normalized);
+
+  // 3️⃣ Must contain ASIN
+  if (!normalized.includes('asin')) {
+    console.log('❌ [DETECTION] No ASIN column found');
+    return false;
+  }
+
+  // 4️⃣ Must have ONLY 2-3 columns (ASIN + remark/monthly_unit)
+  if (normalized.length > 3) {
+    console.log(`❌ [DETECTION] Too many columns (${normalized.length}) - not a partial update`);
+    return false;
+  }
+
+  // 5️⃣ ALL columns must be in allowed list
+  const allAllowed = normalized.every(h => allowed.includes(h));
+  if (!allAllowed) {
+    const disallowed = normalized.filter(h => !allowed.includes(h));
+    console.log('❌ [DETECTION] Contains disallowed columns:', disallowed);
+    return false;
+  }
+
+  // 6️⃣ Must contain at least one update column
+  const hasUpdateColumn = normalized.some(h =>
+    allowed.includes(h) && h !== 'asin'
+  );
+
+  if (!hasUpdateColumn) {
+    console.log('❌ [DETECTION] No update columns found');
+    return false;
+  }
+
+  console.log('✅ [DETECTION] Valid partial update file detected');
+  return true;
+}
+
+
+// // ✅ Helper function to detect partial update file
+// function isPartialUpdateFile(headers: string[]) {
+//   // ✅ Normalize: lowercase + spaces to underscores
+//   const normalized = headers.map(h => 
+//     h.trim()
+//      .toLowerCase()
+//      .replace(/\s+/g, '_')
+//   );
+  
+//   const allowed = [
+//     "asin",
+//     "remark", 
+//     "remarks",
+//     "monthly_unit",
+//     "monthly_units",
+//     "monthly_units_sold",
+//     "monthly_unit_sold"
+//   ];
+
+//   // Must have ASIN
+//   if (!normalized.includes("asin")) {
+//     return false;
+//   }
+
+//   // All columns must be in allowed list
+//   if (!normalized.every(h => allowed.includes(h))) {
+//     return false;
+//   }
+
+//   // Must have at least one update column
+//   const hasRemarkColumn = normalized.some(h => 
+//     h === "remark" || h === "remarks"
+//   );
+  
+//   const hasMonthlyUnitColumn = normalized.some(h => 
+//     h === "monthly_unit" || 
+//     h === "monthly_units" || 
+//     h === "monthly_units_sold" ||
+//     h === "monthly_unit_sold"
+//   );
+
+//   return hasRemarkColumn || hasMonthlyUnitColumn;
+// }
 
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
@@ -159,6 +263,7 @@ export default function IndiaSellersPage() {
   };
 
   // FIXED: Handle multiple file uploads with batch insert
+    // Handle multiple file uploads with batch insert
   const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
@@ -169,6 +274,8 @@ export default function IndiaSellersPage() {
     try {
       let allNewProducts: any[] = [];
       let totalDuplicates = 0;
+      let totalUpdated = 0;
+      let hasPartialUpdate = false;
 
       // Step 1: Parse all files
       for (let i = 0; i < files.length; i++) {
@@ -212,8 +319,33 @@ export default function IndiaSellersPage() {
           })
           .filter(Boolean);
 
+        // ✅ Check if this is a partial update file
+        const rawHeaders = Object.keys(data[0] || {});
+        
+        // ✅ DEBUG LOGGING
+        console.log('🔍 [INDIA] Raw headers from CSV:', rawHeaders);
+        console.log('🔍 [INDIA] Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
+        console.log('🔍 [INDIA] First data row:', data[0]);
+        console.log('🔍 [INDIA] Is partial update?', isPartialUpdateFile(rawHeaders));
+        console.log('🔍 [INDIA] Total rows:', data.length);
+        
+        if (isPartialUpdateFile(rawHeaders)) {
+          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
 
-        // Filter duplicates
+          const { updatedCount, skippedCount } =
+            await bulkUpdateAsinRemarkMonthlyUnit(
+              normalizedData,
+              TABLE_NAME
+            );
+
+          totalUpdated += updatedCount;
+          hasPartialUpdate = true;
+
+          console.log(`✅ [INDIA] Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+          continue;
+        }
+
+        // For full files, filter duplicates
         const { newProducts, duplicateCount } =
           await filterDuplicateASINs(normalizedData, TABLE_NAME);
 
@@ -221,8 +353,23 @@ export default function IndiaSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
-      // If no new products after processing all files
-      if (allNewProducts.length === 0) {
+      // ============================================================
+      // DECISION LOGIC: What to do after processing all files
+      // ============================================================
+
+      // Case 1: Only partial updates (no new inserts)
+      if (hasPartialUpdate && allNewProducts.length === 0) {
+        toast.success(
+          `✅ ${totalUpdated} products updated successfully`,
+          { id: toastId, duration: 5000 }
+        );
+        setRefreshTrigger(prev => prev + 1);
+        setIsUploading(false);
+        return;
+      }
+
+      // Case 2: No updates and no new products (all duplicates)
+      if (!hasPartialUpdate && allNewProducts.length === 0) {
         toast.error(
           `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
           { id: toastId, duration: 5000 }
@@ -231,7 +378,11 @@ export default function IndiaSellersPage() {
         return;
       }
 
-      // CRITICAL: Remove duplicate ASINs within the batch
+      // ============================================================
+      // BATCH INSERT: Process new products
+      // ============================================================
+
+      // Remove duplicate ASINs within the batch
       const uniqueProductsMap = new Map();
       allNewProducts.forEach(product => {
         if (product.asin) {
@@ -240,9 +391,8 @@ export default function IndiaSellersPage() {
       });
       allNewProducts = Array.from(uniqueProductsMap.values());
 
-      console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
+      console.log(`✅ [INDIA] After deduplication: ${allNewProducts.length} unique products`);
 
-      // Step 2: OPTIMIZED Batch insert
       const batchSize = 100;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
@@ -262,40 +412,40 @@ export default function IndiaSellersPage() {
       }
 
       const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
-        const maxRetries = 3;
-        let attempt = 0;
+  const maxRetries = 3;
+  let attempt = 0;
 
-        while (attempt < maxRetries) {
-          try {
-            const cleanBatch = batch.map((product) => {
-              const cleaned: any = {};
-              Object.keys(product).forEach((key) => {
-                if (product[key] !== undefined && product[key] !== null) {
-                  cleaned[key] = product[key];
-                }
-              });
-              return cleaned;
-            });
-
-            const { error } = await supabase
-              .from(TABLE_NAME)
-              .upsert(cleanBatch, {
-                onConflict: 'asin',
-                ignoreDuplicates: false
-              });
-
-            if (error) throw error;
-
-            return { success: true, count: batch.length };
-          } catch (error: any) {
-            attempt++;
-            console.error(`Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
-            if (attempt >= maxRetries) return { success: false, count: 0 };
-            await new Promise(resolve => setTimeout(resolve, 1000));
+  while (attempt < maxRetries) {
+    try {
+      const cleanBatch = batch.map((product) => {
+        const cleaned: any = {};
+        Object.keys(product).forEach((key) => {
+          if (product[key] !== undefined && product[key] !== null) {
+            cleaned[key] = product[key];
           }
-        }
-        return { success: false, count: 0 };
-      };
+        });
+        return cleaned;
+      });
+
+      // ✅ NEW: Call bulk insert function instead of direct insert
+      const { data, error } = await supabase
+        .rpc('bulk_insert_india_master_with_distribution', {
+          batch_data: cleanBatch
+        });
+
+      if (error) throw error;
+
+      return { success: true, count: batch.length };
+    } catch (error: any) {
+      attempt++;
+      console.error(`Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
+      if (attempt >= maxRetries) return { success: false, count: 0 };
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  return { success: false, count: 0 };
+};
+
 
       for (let i = 0; i < batches.length; i++) {
         toast.loading(
@@ -323,12 +473,16 @@ export default function IndiaSellersPage() {
         }
       }
 
+      // ============================================================
+      // FINAL SUMMARY
+      // ============================================================
       const summaryLines = [];
+      if (totalUpdated > 0) summaryLines.push(`✅ Updated ${totalUpdated} products`);
       if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
       if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
-      if (successCount > 0) {
+      if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
       } else {
@@ -344,6 +498,7 @@ export default function IndiaSellersPage() {
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
     }
   };
+
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
@@ -641,4 +796,4 @@ export default function IndiaSellersPage() {
       </div>
     </PageTransition>
   );
-}
+}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\manage-sellers\india-sellers\page.tsx

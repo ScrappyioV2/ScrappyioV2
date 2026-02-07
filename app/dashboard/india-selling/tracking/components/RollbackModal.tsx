@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getTrackingTableName } from '@/lib/utils';
+import { getIndiaTrackingTableName  } from '@/lib/utils';
 import { X } from 'lucide-react';
 
 type InvoiceGroup = {
@@ -44,7 +44,7 @@ export default function RollbackModal({
             setLoading(true);
 
             // ✅ FIX #1: Use seller-specific invoice table
-            const invoiceTableName = getTrackingTableName('INVOICE', sellerId);
+            const invoiceTableName = getIndiaTrackingTableName ('INVOICE', sellerId);
             console.log('📋 Fetching from table:', invoiceTableName);
 
             // Step 1: Get ALL invoice groups from seller's invoice table
@@ -140,8 +140,8 @@ export default function RollbackModal({
 
             for (const invoiceNumber of selectedInvoices) {
                 // ✅ FIX #2: Use seller-specific invoice table
-                const invoiceTableName = getTrackingTableName('INVOICE', sellerId);
-                const mainFileTableName = getTrackingTableName('MAIN', sellerId);
+                const invoiceTableName = getIndiaTrackingTableName ('INVOICE', sellerId);
+                const mainFileTableName = getIndiaTrackingTableName ('MAIN', sellerId);
 
                 console.log(`🔄 Rolling back invoice ${invoiceNumber}`);
                 console.log(`📋 Invoice table: ${invoiceTableName}`);
@@ -446,4 +446,4 @@ export default function RollbackModal({
             )}
         </div>
     );
-}
+}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\india-selling\tracking\components\RollbackModal.tsx

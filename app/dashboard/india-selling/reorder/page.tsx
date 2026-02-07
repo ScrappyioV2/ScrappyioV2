@@ -515,7 +515,7 @@ export default function ReorderPage() {
           { name: getIndiaTrackingTableName('SHIPMENT', sellerId), priority: 4 },    // ✅ CHANGED
           { name: getIndiaTrackingTableName('CHECKING', sellerId), priority: 3 },    // ✅ CHANGED
           { name: getIndiaTrackingTableName('INVOICE', sellerId), priority: 2 },     // ✅ CHANGED
-          { name: `indiatracking_seller${sellerId}`, priority: 1 }                   // ✅ Already correct
+          { name: getIndiaTrackingTableName('MAIN', sellerId), priority: 1 }                   // ✅ Already correct
         ];
 
         console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
@@ -582,11 +582,11 @@ export default function ReorderPage() {
       // First, we need to get seller_tag for each ASIN from the tracking main table
       const { data: mainFileData } = await supabase
         .from('india_traking')
-        .select('asin, seller_tag')
+        .select('asin, sellertag')
 
       mainFileData?.forEach(item => {
-        if (item.asin && item.seller_tag) {
-          asinSellerMap.set(item.asin, item.seller_tag)
+        if (item.asin && item.sellertag) {
+          asinSellerMap.set(item.asin, item.sellertag)
         }
       })
 

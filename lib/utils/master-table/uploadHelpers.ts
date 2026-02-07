@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabaseClient";
 
 /* ============================================================================
  * Types
@@ -136,6 +136,32 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
   let updatedCount = 0;
   let skippedCount = 0;
 
+  // ✅ NEW: Helper function to retry on deadlock
+  const updateWithRetry = async (asin: string, payload: Record<string, any>, maxRetries = 3): Promise<boolean> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update(payload)
+        .eq('asin', asin);
+
+      if (updateError) {
+        // Deadlock error code: 40P01
+        if (updateError.code === '40P01' && attempt < maxRetries) {
+          console.warn(`⚠️ Deadlock on ASIN ${asin}, retrying (${attempt}/${maxRetries})...`);
+          // Wait with exponential backoff before retry
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+          continue;
+        }
+        
+        console.error(`Update failed for ASIN ${asin}:`, updateError);
+        return false;
+      }
+      
+      return true; // Success
+    }
+    return false; // All retries failed
+  };
+
   for (const row of rows) {
     if (!row.asin) continue;
 
@@ -144,7 +170,7 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
       .from(tableName)
       .select('remark, monthly_unit')
       .eq('asin', row.asin)
-      .single();
+      .maybeSingle();
 
     // Skip if ASIN doesn't exist
     if (fetchError || !existing) {
@@ -169,17 +195,14 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
     if (row.remark !== undefined) payload.remark = row.remark;
     if (row.monthly_unit !== undefined) payload.monthly_unit = row.monthly_unit;
 
-    const { error: updateError } = await supabase
-      .from(tableName)
-      .update(payload)
-      .eq('asin', row.asin);
-
-    if (updateError) {
-      console.error(`Update failed for ASIN ${row.asin}:`, updateError);
-      continue;
+    // ✅ CHANGED: Use retry logic instead of direct update
+    const success = await updateWithRetry(row.asin, payload);
+    
+    if (success) {
+      updatedCount++;
+    } else {
+      skippedCount++;
     }
-
-    updatedCount++;
   }
 
   return { 

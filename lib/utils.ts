@@ -262,3 +262,4 @@ export const resolveSellerId = (tag: string): number | null => {
   const cleanTag = tag?.toUpperCase().trim() as SellerTag;
   return SELLER_TAG_MAPPING[cleanTag] || null;
 };
+//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\lib\utils.ts
