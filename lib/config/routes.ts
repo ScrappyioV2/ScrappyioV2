@@ -11,9 +11,12 @@ import {
   PlusCircle,
   Users,
   Home,
-  Truck
+  Truck,
+  List,
+  ListX
 } from 'lucide-react';
 import { AppRoute } from '@/lib/types';
+
 
 export const APP_ROUTES: AppRoute[] = [
   // --- 0. MAIN DASHBOARD ---
@@ -24,6 +27,7 @@ export const APP_ROUTES: AppRoute[] = [
     permission: 'public',
     subRoutes: []
   },
+
 
   // --- 1. General Management ---
   {
@@ -76,6 +80,7 @@ export const APP_ROUTES: AppRoute[] = [
       }
     ]
   },
+
 
   // --- 2. USA Marketplace ---
   {
@@ -140,6 +145,7 @@ export const APP_ROUTES: AppRoute[] = [
       }
     ]
   },
+
 
   // --- 3. India Marketplace ---
   {
@@ -209,6 +215,7 @@ export const APP_ROUTES: AppRoute[] = [
     ]
   },
 
+
   // --- 4. UK Marketplace ---
   {
     path: '/dashboard/uk-selling',
@@ -273,71 +280,72 @@ export const APP_ROUTES: AppRoute[] = [
     ]
   },
 
+
   // --- 5. UAE Marketplace ---
   {
-  path: '/dashboard/uae-selling',
-  label: 'UAE Selling',
-  icon: Globe,
-  permission: 'uae-selling',
-  subRoutes: [
-    {
-      path: '/dashboard/uae-selling/brand-checking',
-      label: 'Brand Checking',
-      permission: 'view-brand-checking',
-      icon: ShieldCheck,
-      subRoutes: [
-        { path: '/dashboard/uae-selling/brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
-        { path: '/dashboard/uae-selling/brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
-        { path: '/dashboard/uae-selling/brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
-        { path: '/dashboard/uae-selling/brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' }
-      ]
-    },
-    {
-      path: '/dashboard/uae-selling/validation',
-      label: 'Validation',
-      permission: 'view-validation',
-      icon: CheckCircle2
-    },
-    {
-      path: '/dashboard/uae-selling/listing-error',
-      label: 'Listing Errors',
-      permission: 'view-listing-errors',
-      icon: XCircle,
-      subRoutes: [
-        { path: '/dashboard/uae-selling/listing-error/golden-aura', label: 'Golden Aura', permission: 'view-listing-errors' },
-        { path: '/dashboard/uae-selling/listing-error/rudra-retail', label: 'Rudra Retail', permission: 'view-listing-errors' },
-        { path: '/dashboard/uae-selling/listing-error/ubeauty', label: 'UBeauty', permission: 'view-listing-errors' },
-        { path: '/dashboard/uae-selling/listing-error/velvet-vista', label: 'Velvet Vista', permission: 'view-listing-errors' }
-      ]
-    },
-    {
-      path: '/dashboard/uae-selling/purchases',
-      label: 'Purchases',
-      permission: 'view-purchases',
-      icon: ShoppingBag
-    },
-    {
-      path: '/dashboard/uae-selling/tracking',
-      label: 'Tracking',
-      permission: 'view-tracking',
-      icon: Truck
-    },
-    {
-      path: '/dashboard/uae-selling/reorder',
-      label: 'Reorder',
-      permission: 'view-reorder',
-      icon: RotateCcw
-    },
-    {
-      path: '/dashboard/uae-selling/admin-validation',
-      label: 'Admin Approvals',
-      permission: 'admin-access',
-      icon: ShieldCheck
-    }
-  ]
-},
+    path: '/dashboard/uae-selling',
+    label: 'UAE Selling',
+    icon: Globe,
+    permission: 'uae-selling',
+    subRoutes: [
+      {
+        path: '/dashboard/uae-selling/brand-checking',
+        label: 'Brand Checking',
+        permission: 'view-brand-checking',
+        icon: ShieldCheck,
+        subRoutes: [
+          { path: '/dashboard/uae-selling/brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
+          { path: '/dashboard/uae-selling/brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
+          { path: '/dashboard/uae-selling/brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
+          { path: '/dashboard/uae-selling/brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' }
+        ]
+      },
+      {
+        path: '/dashboard/uae-selling/validation',
+        label: 'Validation',
+        permission: 'view-validation',
+        icon: CheckCircle2
+      },
+      {
+        path: '/dashboard/uae-selling/listing-error',
+        label: 'Listing Errors',
+        permission: 'view-listing-errors',
+        icon: XCircle,
+        subRoutes: [
+          { path: '/dashboard/uae-selling/listing-error/golden-aura', label: 'Golden Aura', permission: 'view-listing-errors' },
+          { path: '/dashboard/uae-selling/listing-error/rudra-retail', label: 'Rudra Retail', permission: 'view-listing-errors' },
+          { path: '/dashboard/uae-selling/listing-error/ubeauty', label: 'UBeauty', permission: 'view-listing-errors' },
+          { path: '/dashboard/uae-selling/listing-error/velvet-vista', label: 'Velvet Vista', permission: 'view-listing-errors' }
+        ]
+      },
+      {
+        path: '/dashboard/uae-selling/purchases',
+        label: 'Purchases',
+        permission: 'view-purchases',
+        icon: ShoppingBag
+      },
+      {
+        path: '/dashboard/uae-selling/tracking',
+        label: 'Tracking',
+        permission: 'view-tracking',
+        icon: Truck
+      },
+      {
+        path: '/dashboard/uae-selling/reorder',
+        label: 'Reorder',
+        permission: 'view-reorder',
+        icon: RotateCcw
+      },
+      {
+        path: '/dashboard/uae-selling/admin-validation',
+        label: 'Admin Approvals',
+        permission: 'admin-access',
+        icon: ShieldCheck
+      }
+    ]
+  },
 
-  // --- 6. FLIPKART MARKETPLACE ---
+  // --- 6. FLIPKART MARKETPLACE (✅ ALL LEVELS INCLUDED) ---
   {
     path: '/dashboard/flipkart',
     label: 'Flipkart',
@@ -350,12 +358,41 @@ export const APP_ROUTES: AppRoute[] = [
         permission: 'view-brand-checking',
         icon: ShieldCheck,
         subRoutes: [
-          { path: '/dashboard/flipkart/brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/brand-checking/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
+          // ✅ LEVEL 1: Selector Pages (with Listed/Not Listed buttons)
+          { path: '/dashboard/flipkart/brand-checking/golden-aura', label: 'Golden Aura (Select)', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking/rudra-retail', label: 'Rudra Retail (Select)', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking/ubeauty', label: 'UBeauty (Select)', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking/velvet-vista', label: 'Velvet Vista (Select)', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking/dropy-ecom', label: 'Dropy Ecom (Select)', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking/costech-ventures', label: 'Costech Ventures (Select)', permission: 'view-brand-checking' },
+        ]
+      },
+      {
+        path: '/dashboard/flipkart/listed-brand-checking',
+        label: 'Listed Products',
+        permission: 'view-brand-checking',
+        icon: List,
+        subRoutes: [
+          { path: '/dashboard/flipkart/listed-brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/listed-brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/listed-brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/listed-brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/listed-brand-checking/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/listed-brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
+        ]
+      },
+      {
+        path: '/dashboard/flipkart/not-listed-brand-checking',
+        label: 'Not Listed Products',
+        permission: 'view-brand-checking',
+        icon: ListX,
+        subRoutes: [
+          { path: '/dashboard/flipkart/not-listed-brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/not-listed-brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/not-listed-brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/not-listed-brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/not-listed-brand-checking/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/not-listed-brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
         ]
       },
       {
@@ -404,6 +441,8 @@ export const APP_ROUTES: AppRoute[] = [
       },
     ]
   },
+
+
   // --- 7. JioMart ---
   {
     path: '/dashboard/jio-mart',

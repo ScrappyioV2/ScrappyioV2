@@ -14,56 +14,41 @@ import {
   Loader2
 } from 'lucide-react'
 
-// ✅ CRITICAL: This must be "export default"
+
 export default function Sidebar() {
   const { userRole, logout, hasPageAccess, loading } = useAuth()
   const pathname = usePathname()
 
-  // ✅ UPDATED: Initialize with function to detect active menu
+  // ✅ UPDATED: Initialize with function to detect active menu (supports 4 levels now)
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
-    // Find which module the current path belongs to
-    const activeModule = [
-      '/dashboard/manage-sellers',
-      '/dashboard/usa-selling',
-      '/dashboard/india-selling',
-      '/dashboard/uk-selling',
-      '/dashboard/uae-selling',
-      '/dashboard/flipkart'
-    ].find(module => pathname.startsWith(module))
-
-    // Only open the active module
-    return {
-      '/dashboard/manage-sellers': activeModule === '/dashboard/manage-sellers',
-      '/dashboard/usa-selling': activeModule === '/dashboard/usa-selling',
-      '/dashboard/india-selling': activeModule === '/dashboard/india-selling',
-      '/dashboard/uk-selling': activeModule === '/dashboard/uk-selling',
-      '/dashboard/uae-selling': activeModule === '/dashboard/uae-selling',
-      '/dashboard/flipkart': activeModule === '/dashboard/flipkart',
-    }
+    const initial: Record<string, boolean> = {}
+    
+    // Find all parent paths of current pathname
+    const pathSegments = pathname.split('/').filter(Boolean)
+    let currentPath = ''
+    
+    pathSegments.forEach((segment) => {
+      currentPath += `/${segment}`
+      initial[currentPath] = true
+    })
+    
+    return initial
   })
 
-  // ✅ NEW: Update open menus when pathname changes (e.g., user navigates)
+  // ✅ UPDATED: Update open menus when pathname changes
   useEffect(() => {
-    const activeModule = [
-      '/dashboard/manage-sellers',
-      '/dashboard/usa-selling',
-      '/dashboard/india-selling',
-      '/dashboard/uk-selling',
-      '/dashboard/uae-selling',
-      '/dashboard/flipkart'
-    ].find(module => pathname.startsWith(module))
-
-    if (activeModule) {
-      setOpenMenus(prev => ({
-        '/dashboard/manage-sellers': false,
-        '/dashboard/usa-selling': false,
-        '/dashboard/india-selling': false,
-        '/dashboard/uk-selling': false,
-        '/dashboard/uae-selling': false,
-        '/dashboard/flipkart': false,
-        [activeModule]: true, // Only keep active module open
-      }))
-    }
+    const newOpenMenus: Record<string, boolean> = {}
+    
+    // Open all parent paths of current pathname
+    const pathSegments = pathname.split('/').filter(Boolean)
+    let currentPath = ''
+    
+    pathSegments.forEach((segment) => {
+      currentPath += `/${segment}`
+      newOpenMenus[currentPath] = true
+    })
+    
+    setOpenMenus(newOpenMenus)
   }, [pathname])
 
   const toggleMenu = (path: string) => {
@@ -123,7 +108,8 @@ export default function Sidebar() {
   )
 }
 
-// Helper Component for Recursive Menu
+
+// ✅ UPDATED: Helper Component with better depth handling
 function SidebarItem({
   item,
   depth,
@@ -140,26 +126,25 @@ function SidebarItem({
   const pathname = usePathname()
   const router = useRouter()
 
-  // 🔒 STRICT CHECK: Hide item if user lacks permission
   if (!hasPageAccess(item.permission)) return null
 
   const isOpen = openMenus[item.path]
   const hasSubRoutes = item.subRoutes && item.subRoutes.length > 0
-  const isActive = pathname === item.path || (hasSubRoutes && pathname.startsWith(item.path))
+  const isActive = pathname === item.path
+  const isParentOfActive = pathname.startsWith(item.path + '/')
   const Icon = item.icon || Circle
 
-  // Handle click: Navigate to page
   const handleMainClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    router.push(item.path)
-
-    // If closed and has children, expand it
-    if (hasSubRoutes && !isOpen) {
+    
+    // If has children, toggle. If no children, navigate
+    if (hasSubRoutes) {
       toggleMenu(item.path)
+    } else {
+      router.push(item.path)
     }
   }
 
-  // Handle toggle: Expand/Collapse only
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     toggleMenu(item.path)
@@ -171,16 +156,18 @@ function SidebarItem({
         className={`
           flex items-center justify-between gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-200
           ${depth > 0 ? 'mt-1' : ''}
-          ${isActive && depth === 0 ? 'bg-indigo-600 text-white shadow-md' : ''}
-          ${isActive && depth > 0 ? 'text-indigo-400 bg-indigo-500/10' : ''}
-          ${!isActive ? 'hover:bg-slate-900 hover:text-slate-200 text-slate-500' : ''}
-          ${depth > 0 ? 'text-xs' : ''}
+          ${isActive ? 'bg-indigo-600 text-white shadow-md' : ''}
+          ${!isActive && isParentOfActive ? 'text-indigo-400 bg-indigo-500/5' : ''}
+          ${!isActive && !isParentOfActive ? 'hover:bg-slate-900 hover:text-slate-200 text-slate-500' : ''}
+          ${depth === 1 ? 'text-xs' : ''}
+          ${depth === 2 ? 'text-xs' : ''}
+          ${depth === 3 ? 'text-[11px]' : ''}
         `}
         style={{ paddingLeft: `${12 + (depth * 12)}px` }}
         onClick={handleMainClick}
       >
         <div className="flex items-center gap-2">
-          <Icon className={`w-${depth > 0 ? 3 : 4} h-${depth > 0 ? 3 : 4}`} />
+          <Icon className={`w-${depth > 1 ? 3 : 4} h-${depth > 1 ? 3 : 4}`} />
           <span className="font-medium">{item.label}</span>
         </div>
         {hasSubRoutes && (
