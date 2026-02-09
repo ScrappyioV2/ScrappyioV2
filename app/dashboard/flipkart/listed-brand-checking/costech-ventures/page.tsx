@@ -27,10 +27,12 @@ interface ProductRow {
     funnel: string | null;
     monthly_unit: number | null;
     product_link: string | null;
+    link: string | null; // ✅ ADD THIS
     amz_link: string | null;
     working?: boolean;
     reason?: string | null;
     remark?: string | null;
+    category?: string;
 }
 
 type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
@@ -42,8 +44,8 @@ const DEFAULT_WIDTHS: Record<string, number> = {
     brand: 160,
     funnel: 110,
     monthly_unit: 120,
-    product_link: 100,
-    amz_link: 100,
+    link: 120,           // ✅ Product Link column
+    amz_link: 120,       // ✅ AMZ Link column
     reason: 250,
     remark: 200,
 };
@@ -63,8 +65,8 @@ export default function CostechVenturesListedPage() {
         brand: true,
         funnel: true,
         monthly_unit: true,
-        product_link: true,
-        amz_link: true,
+        link: true,          // ✅ Product Link
+        amz_link: true,      // ✅ AMZ Link
         reason: true,
         remark: true,
     });
@@ -104,11 +106,10 @@ export default function CostechVenturesListedPage() {
             const saved = localStorage.getItem('flipkart_costechventures_listed_column_order');
             if (saved) {
                 const parsedOrder = JSON.parse(saved);
-                // ✅ Add remark if it's missing from saved order
-                if (!parsedOrder.includes('remark')) {
-                    parsedOrder.push('remark');
-                }
-                return parsedOrder;
+                // ✅ Ensure both link and amz_link are in the order
+                const requiredColumns = ['asin', 'product_name', 'brand', 'funnel', 'monthly_unit', 'link', 'amz_link', 'reason', 'remark'];
+                const missingColumns = requiredColumns.filter(col => !parsedOrder.includes(col));
+                return [...parsedOrder, ...missingColumns];
             }
             return Object.keys(DEFAULT_WIDTHS);
         }
@@ -141,10 +142,10 @@ export default function CostechVenturesListedPage() {
     const SELLER_ID = 6;
 
     const SELLER_CODE_MAP: Record<number, string> = {
-        1: "GR",
-        2: "RR",
-        3: "UB",
-        4: "VV",
+        1: 'GR',
+        2: 'RR',
+        3: 'UB',
+        4: 'VV',
         5: "DE",
         6: "CV",
     };
@@ -216,17 +217,28 @@ export default function CostechVenturesListedPage() {
     const fetchProducts = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
-            const tableName = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
+            const tableName = `flipkart_brand_checking_listed_seller_${SELLER_ID}`;
             const start = (currentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage - 1;
 
-            let query = supabase.from(tableName).select('*', { count: 'exact' });
+            let query = supabase
+                .from(tableName)
+                .select('*', { count: 'exact' });
+
+            // ✅ Map tab to funnel format
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
+
+            query = query.eq('category', categoryMap[activeTab]);  // ✅ Now looks for 'HD'
 
             if (debouncedSearch.trim()) {
-                // ✅ Limit search to 100 characters to prevent 400 errors
                 const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
 
-                // Show warning if search was truncated
                 if (debouncedSearch.length > 100) {
                     setToast({
                         message: 'Search query too long - truncated to 100 characters',
@@ -238,7 +250,6 @@ export default function CostechVenturesListedPage() {
                     `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
                 );
             }
-
 
             const { data, error, count } = await query
                 .range(start, end)
@@ -255,6 +266,9 @@ export default function CostechVenturesListedPage() {
                 return;
             }
 
+            // ✅ ADD DEBUG: Check if link is in the data
+            console.log('🔍 FETCHED PRODUCTS:', data?.[0]);
+
             setProducts(data || []);
             setTotalCount(count || 0);
         } catch (error: any) {
@@ -270,13 +284,16 @@ export default function CostechVenturesListedPage() {
         }
     };
 
+
     // ✅ NEW FUNCTION - Fetch last movement from database
     const fetchLastMovementHistory = async () => {
         try {
+            const currentTableKey = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
+
             const { data, error } = await supabase
                 .from('flipkart_brand_checking_listed_seller_6_movement_history')
                 .select('*')
-                .eq('from_table', `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`)
+                .eq('from_table', currentTableKey)  // ✅ Query with suffix
                 .order('moved_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
@@ -287,15 +304,15 @@ export default function CostechVenturesListedPage() {
             }
 
             if (data) {
-                // Populate movementHistory state with the last movement
                 const product: ProductRow = {
-                    id: '', // Not needed for rollback
+                    id: '',
                     asin: data.asin,
                     product_name: data.product_name,
                     brand: data.brand,
                     funnel: data.funnel,
                     monthly_unit: data.monthly_unit,
                     product_link: data.product_link,
+                    link: data.product_link, // ✅ ADD THIS LINE
                     amz_link: data.amz_link,
                     remark: data.remark,
                 };
@@ -309,7 +326,6 @@ export default function CostechVenturesListedPage() {
                     },
                 }));
             } else {
-                // No history found - clear undo for this tab
                 setMovementHistory((prev) => ({
                     ...prev,
                     [`flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`]: null,
@@ -320,8 +336,12 @@ export default function CostechVenturesListedPage() {
         }
     };
 
-    const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
+    const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string, fromCategory?: string, toCategory?: string) => {
         try {
+            // ✅ Add funnel suffix for per-tab tracking
+            const funnelSuffix = fromCategory || 'unknown';
+            const fromTableWithSuffix = `${fromTable}_${funnelSuffix}`;
+
             const { error } = await supabase
                 .from(`flipkart_brand_checking_listed_seller_6_movement_history`)
                 .insert({
@@ -330,18 +350,20 @@ export default function CostechVenturesListedPage() {
                     brand: product.brand,
                     funnel: product.funnel,
                     monthly_unit: product.monthly_unit,
-                    product_link: product.product_link,
+                    product_link: product.link || product.product_link,
                     amz_link: product.amz_link,
                     remark: product.remark,
-                    from_table: fromTable,
+                    from_table: fromTableWithSuffix,  // ✅ Save with suffix
                     to_table: toTable,
+                    from_category: fromCategory,
+                    to_category: toCategory,
                 });
 
             if (error) throw error;
 
             setMovementHistory((prev) => ({
                 ...prev,
-                [fromTable]: { product, fromTable, toTable },
+                [fromTableWithSuffix]: { product, fromTable: fromTableWithSuffix, toTable },
             }));
         } catch (error) {
             console.error('Error saving history:', error);
@@ -356,79 +378,77 @@ export default function CostechVenturesListedPage() {
         setProcessingId(product.id);
         try {
             let targetTable: string;
-            let dataToInsert: any;
-            const { id, working, reason: oldReason, ...productData } = product;
-            const currentTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
+            const { id, working, reason: oldReason, category, ...productData } = product;
+            const currentTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}`;
 
             if (action === 'approved') {
-                targetTable = 'flipkart_validation_main_file';  // ✅ FIXED TABLE NAME
+                targetTable = `flipkart_validation_main_file`;
                 const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
                 const { data: existingRow, error: selectError } = await supabase
-                    .from('flipkart_validation_main_file')  // ✅ CORRECT TABLE
-                    .select('id, seller_tag, no_of_seller')  // ✅ CORRECT FIELD NAMES
+                    .from('flipkart_validation_main_file')
+                    .select('id, seller_tag')
                     .eq('asin', product.asin)
                     .maybeSingle();
 
                 if (selectError) console.warn('Validation select warning:', selectError);
 
                 if (!existingRow) {
-                    const { error: insertError } = await supabase
-                        .from('flipkart_validation_main_file')
-                        .insert({
-                            asin: product.asin,
-                            product_name: product.product_name,  // ✅ FIXED
-                            brand: product.brand,
-                            seller_tag: SELLER_CODE,  // ✅ snake_case
-                            funnel: product.funnel,
-                            no_of_seller: 1,  // ✅ FIXED
-                            india_link: product.product_link,  // ✅ FIXED
-                            amz_link: product.amz_link,  // ✅ FIXED
-                            product_weight: null,  // ✅ FIXED
-                            judgement: null,
-                            remark: product.remark,
-                        });
-                    if (insertError) throw insertError;
+                    await supabase.from('flipkart_validation_main_file').insert({
+                        asin: product.asin,
+                        product_name: product.product_name,
+                        brand: product.brand,
+                        seller_tag: SELLER_CODE,
+                        funnel: product.funnel,
+                        no_of_seller: 1,
+                        flipkart_link: product.link, // ✅ CHANGED: Use link field
+                        amz_link: product.amz_link,
+                        product_weight: null,
+                        judgement: null,
+                        remark: product.remark,
+                    });
                 } else {
                     const existingTags = existingRow.seller_tag?.split(',') ?? [];
                     if (!existingTags.includes(SELLER_CODE)) {
-                        const { error: updateError } = await supabase
+                        await supabase
                             .from('flipkart_validation_main_file')
                             .update({
                                 seller_tag: [...existingTags, SELLER_CODE].join(','),
                                 no_of_seller: existingTags.length + 1,
                             })
                             .eq('id', existingRow.id);
-                        if (updateError) throw updateError;
                     }
                 }
 
-                await saveToHistory(product, currentTable, targetTable);
-                await supabase.from(currentTable).delete().eq('asin', product.asin);
+                await saveToHistory(product, currentTable, targetTable, activeTab, undefined);
+                await supabase.from(currentTable).delete().eq('id', product.id);
                 await fetchProducts(true);
                 setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
             } else if (action === 'not_approved') {
-                targetTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_not_approved`;
-                dataToInsert = productData;
+                const { error: updateError } = await supabase
+                    .from(currentTable)
+                    .update({ category: 'not_approved' })
+                    .eq('id', product.id);
 
-                const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-                if (insertError) throw insertError;
+                if (updateError) throw updateError;
 
-                await saveToHistory(product, currentTable, targetTable);
-                await supabase.from(currentTable).delete().eq('asin', product.asin);
+                await saveToHistory(product, currentTable, currentTable, activeTab, 'not_approved');
                 await fetchProducts(true);
                 setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
             } else if (action === 'reject') {
-                targetTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_reject`;
-                dataToInsert = { ...productData, reason: reason || 'No reason provided' };
+                const { error: updateError } = await supabase
+                    .from(currentTable)
+                    .update({
+                        category: 'reject',
+                        reason: reason || 'No reason provided'
+                    })
+                    .eq('id', product.id);
 
-                const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-                if (insertError) throw insertError;
+                if (updateError) throw updateError;
 
-                await saveToHistory(product, currentTable, targetTable);
-                await supabase.from(currentTable).delete().eq('asin', product.asin);
+                await saveToHistory(product, currentTable, currentTable, activeTab, 'reject');
                 await fetchProducts(true);
                 setToast({ message: `Product rejected!`, type: 'success' });
             }
@@ -441,8 +461,8 @@ export default function CostechVenturesListedPage() {
     };
 
     const handleRollBack = async () => {
-        const currentTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
-        const lastMovement = movementHistory[currentTable];
+        const currentTableKey = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
+        const lastMovement = movementHistory[currentTableKey];
 
         if (!lastMovement) {
             setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
@@ -452,36 +472,62 @@ export default function CostechVenturesListedPage() {
         setLoading(true);
         try {
             const { product, fromTable, toTable } = lastMovement;
-            const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID]; // e.g. "CV"
+            const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-            // 1. Restore Product to the Origin Table (Brand Checking)
-            // We check if it's already there to avoid duplicates
-            const { data: existingInOrigin, error: checkOriginError } = await supabase
-                .from(fromTable)
-                .select('asin')
-                .eq('asin', product.asin)
-                .maybeSingle();
+            const actualFromTable = fromTable.replace(/_high_demand$|_low_demand$|_dropshipping$|_not_approved$|_reject$/, '');
 
-            if (checkOriginError) throw checkOriginError;
+            // ✅ ADD THIS: Category mapping
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
 
-            if (!existingInOrigin) {
-                const { error: insertError } = await supabase.from(fromTable).insert({
-                    asin: product.asin,
-                    product_name: product.product_name,
-                    brand: product.brand,
-                    funnel: product.funnel,
-                    monthly_unit: product.monthly_unit,
-                    product_link: product.product_link,
-                    amz_link: product.amz_link,
-                    remark: product.remark,
-                });
-                if (insertError) throw insertError;
-            }
-
-            // 2. Remove from Destination Table (Smart Delete)
             if (toTable === 'flipkart_validation_main_file') {
-                // ✅ SMART LOGIC: Only remove THIS seller's tag.
-                // If other sellers remain, keep the row. If empty, delete the row.
+
+                const { data: existingInListed, error: checkError } = await supabase
+                    .from(actualFromTable)
+                    .select('asin')
+                    .eq('asin', product.asin)
+                    .maybeSingle();
+
+                if (checkError) throw checkError;
+
+                if (existingInListed) {
+                    setToast({
+                        message: `Cannot undo: Product already exists in Listed`,
+                        type: 'warning',
+                    });
+                    setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
+                    await supabase
+                        .from(`flipkart_brand_checking_listed_seller_${SELLER_ID}_movement_history`)
+                        .delete()
+                        .eq('asin', product.asin)
+                        .eq('from_table', fromTable)
+                        .order('moved_at', { ascending: false })
+                        .limit(1);
+                    setLoading(false);
+                    return;
+                }
+
+                // ✅ FIXED: Clean the product object before inserting
+                const { id, reason, category: oldCategory, product_link, working, ...cleanProduct } = product;
+
+                const { error: insertError } = await supabase.from(actualFromTable).insert({
+                    asin: cleanProduct.asin,
+                    product_name: cleanProduct.product_name,
+                    brand: cleanProduct.brand,
+                    funnel: cleanProduct.funnel,
+                    monthly_unit: cleanProduct.monthly_unit,
+                    link: cleanProduct.link,
+                    amz_link: cleanProduct.amz_link,
+                    remark: cleanProduct.remark,
+                    category: categoryMap[activeTab],  // ✅ Use mapped category
+                });
+
+                if (insertError) throw insertError;
 
                 const { data: validationRow, error: valError } = await supabase
                     .from(toTable)
@@ -492,47 +538,47 @@ export default function CostechVenturesListedPage() {
                 if (valError && valError.code !== 'PGRST116') throw valError;
 
                 if (validationRow) {
-                    // Split tags, remove "CV", join back
                     const currentTags = validationRow.seller_tag ? validationRow.seller_tag.split(',') : [];
                     const newTags = currentTags.filter((tag: string) => tag.trim() !== SELLER_CODE);
 
                     if (newTags.length === 0) {
-                        // No sellers left -> Delete the row
-                        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-                        if (deleteError) throw deleteError;
+                        await supabase.from(toTable).delete().eq('asin', product.asin);
                     } else {
-                        // Other sellers exist -> Just update tags and count
-                        const { error: updateError } = await supabase
+                        await supabase
                             .from(toTable)
                             .update({
                                 seller_tag: newTags.join(','),
                                 no_of_seller: newTags.length
                             })
                             .eq('id', validationRow.id);
-                        if (updateError) throw updateError;
                     }
                 }
+
             } else {
-                // For "Reject" or "Not Approved" tables (which are single-seller), Delete is fine.
-                const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-                if (deleteError) throw deleteError;
+                // ✅ FIXED: Only update category (don't touch reason)
+                const { error: updateError } = await supabase
+                    .from(actualFromTable)
+                    .update({
+                        category: categoryMap[activeTab]  // ✅ Only update category
+                    })
+                    .eq('asin', product.asin);
+                if (updateError) throw updateError;
             }
 
-            // 3. Remove from History Log
             await supabase
-                .from('flipkart_brand_checking_listed_seller_6_movement_history')
+                .from(`flipkart_brand_checking_listed_seller_${SELLER_ID}_movement_history`)
                 .delete()
                 .eq('asin', product.asin)
                 .eq('from_table', fromTable)
-                .eq('to_table', toTable)
                 .order('moved_at', { ascending: false })
                 .limit(1);
 
-            setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
-            setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-            fetchProducts(true);
+            setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
+            setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
+            await fetchProducts(true);
+
         } catch (error: any) {
-            console.error('Error rolling back:', error);
+            console.error('❌ Error rolling back:', error);
             setToast({
                 message: error?.message || 'Rollback failed',
                 type: 'error'
@@ -542,7 +588,7 @@ export default function CostechVenturesListedPage() {
         }
     };
 
-    // ✅ NEW FUNCTION: Move products from Reject to other tabs
+    // ✅ FIXED: Move products from Reject to other tabs (Single Table Architecture)
     const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
         if (selectedIds.size === 0) {
             setToast({ message: 'Please select products to move', type: 'warning' });
@@ -552,62 +598,35 @@ export default function CostechVenturesListedPage() {
         setLoading(true);
         try {
             const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-            const targetTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${targetTab}`;
-            const rejectTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_reject`;
+            const currentTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}`;
+
+            // ✅ Category mapping
+            const categoryMap: Record<'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved', string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved'
+            };
 
             let movedCount = 0;
-            let skippedCount = 0;
-            const skippedAsins: string[] = [];
 
             for (const product of selectedProducts) {
-                // Check if ASIN already exists in target table
-                const { data: existing, error: checkError } = await supabase
-                    .from(targetTable)
-                    .select('asin')
-                    .eq('asin', product.asin)
-                    .maybeSingle();
+                const { error: updateError } = await supabase
+                    .from(currentTable)
+                    .update({
+                        category: categoryMap[targetTab],  // ✅ Use mapped category
+                        reason: null  // ✅ Clear reason when moving out of reject
+                    })
+                    .eq('id', product.id);
 
-                if (checkError) {
-                    console.error('Error checking existing product:', checkError);
-                    continue;
-                }
-
-                if (existing) {
-                    // Skip if already exists
-                    skippedCount++;
-                    skippedAsins.push(product.asin);
-                    continue;
-                }
-
-                // Prepare data (remove reject-specific fields)
-                const { id, reason, working, ...productData } = product;
-
-                // Insert into target table
-                const { error: insertError } = await supabase
-                    .from(targetTable)
-                    .insert(productData);
-
-                if (insertError) {
-                    console.error('Insert error:', insertError);
-                    continue;
-                }
-
-                // Delete from reject table
-                const { error: deleteError } = await supabase
-                    .from(rejectTable)
-                    .delete()
-                    .eq('asin', product.asin);
-
-                if (deleteError) {
-                    console.error('Delete error:', deleteError);
+                if (updateError) {
+                    console.error('Update error:', updateError);
                     continue;
                 }
 
                 movedCount++;
             }
 
-            // Show result
-            // Show result
             if (movedCount > 0) {
                 setToast({
                     message: `Successfully moved ${movedCount} product(s) to ${targetTab.replace('_', ' ')}`,
@@ -615,15 +634,6 @@ export default function CostechVenturesListedPage() {
                 });
             }
 
-            if (skippedCount > 0) {
-                setToast({
-                    message: `Skipped ${skippedCount} product(s) - already exists in target table. ASINs: ${skippedAsins.slice(0, 3).join(', ')}${skippedAsins.length > 3 ? '...' : ''}`,
-                    type: 'warning',
-                });
-            }
-
-            // ✅ NEW: Clear movement history for target table since products moved back
-            // This prevents undo conflicts when products return to their original table
             const targetTableKey = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${targetTab}`;
             if (movementHistory[targetTableKey]) {
                 setMovementHistory((prev) => ({
@@ -632,11 +642,9 @@ export default function CostechVenturesListedPage() {
                 }));
             }
 
-            // Clear selection and refresh
             setSelectedIds(new Set());
             setIsMoveToDropdownOpen(false);
             await fetchProducts(true);
-
 
         } catch (error: any) {
             console.error('Move from reject error:', error);
@@ -645,7 +653,6 @@ export default function CostechVenturesListedPage() {
             setLoading(false);
         }
     };
-
 
     const PaginationControls = () => {
         const totalPages = Math.ceil(totalCount / rowsPerPage);
@@ -693,7 +700,7 @@ export default function CostechVenturesListedPage() {
         newOrder.splice(draggedIndex, 1);
         newOrder.splice(targetIndex, 0, draggedColumn);
         setColumnOrder(newOrder);
-        localStorage.setItem('flipkart_costech_ventures_column_order', JSON.stringify(newOrder));
+        localStorage.setItem('flipkart_costechventures_listed_column_order', JSON.stringify(newOrder));
         setDraggedColumn(null);
     };
 
@@ -744,8 +751,8 @@ export default function CostechVenturesListedPage() {
         );
     };
 
-    const currentTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
-    const hasRollback = !!movementHistory[currentTable];
+    const currentTableKey = `flipkart_brand_checking_listed_seller_${SELLER_ID}_${activeTab}`;
+    const hasRollback = !!movementHistory[currentTableKey];
 
     // Tab Styles
     const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
@@ -853,9 +860,8 @@ export default function CostechVenturesListedPage() {
                                             }
                                             setSearchQuery(value);                        // ← Update search if OK
                                         }}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                                     />
-
                                 </div>
 
                                 {/* ✅ NEW: Move To Button (only on Reject tab) */}
@@ -956,8 +962,15 @@ export default function CostechVenturesListedPage() {
                                             </th>
                                             {columnOrder.map((col) => {
                                                 const columnNames: Record<string, string> = {
-                                                    asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                                                    monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
+                                                    asin: 'ASIN',
+                                                    product_name: 'Product Name',
+                                                    brand: 'Brand',
+                                                    funnel: 'Funnel',
+                                                    monthly_unit: 'Monthly Unit',
+                                                    link: 'Product Link',        // ✅ CLEAR NAME: Product Link
+                                                    amz_link: 'AMZ Link',        // ✅ CLEAR NAME: AMZ Link
+                                                    reason: 'Reason',
+                                                    remark: 'Remark',
                                                 };
                                                 if (col === 'reason' && activeTab !== 'reject') return null;
 
@@ -987,33 +1000,29 @@ export default function CostechVenturesListedPage() {
                                                         <td
                                                             key={col}
                                                             className={`px-4 py-3 text-sm border-r border-slate-800/50 ${col === 'product_name' ? 'text-left' : 'text-center'
-                                                                } ${col === 'product_link' || col === 'amz_link' ? '' : 'truncate'}`}
+                                                                } ${col === 'link' || col === 'amz_link' ? '' : 'truncate'}`}
                                                             style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                                                         >
-                                                            {/* ✅ ADD DEBUG LOG */}
-                                                            {col === 'product_link' || col === 'amz_link' ? (
-                                                                <>
-                                                                    {console.log('🔍 DEBUG:', {
-                                                                        column: col,
-                                                                        value: product[col as keyof ProductRow],
-                                                                        hasValue: !!product[col as keyof ProductRow],
-                                                                        type: typeof product[col as keyof ProductRow]
-                                                                    })}
-                                                                    {product[col as keyof ProductRow] ? (
-                                                                        <a
-                                                                            href={String(product[col as keyof ProductRow])}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
-                                                                        >
-                                                                            View Link
-                                                                        </a>
-                                                                    ) : (
-                                                                        <span className="text-slate-600">-</span>
-                                                                    )}
-                                                                </>
+                                                            {/* ✅ PRODUCT LINK or AMZ LINK */}
+                                                            {col === 'link' || col === 'amz_link' ? (
+                                                                product[col as keyof ProductRow] ? (
+                                                                    <a
+                                                                        href={String(product[col as keyof ProductRow])}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
+                                                                    >
+                                                                        {col === 'link' ? 'Product' : 'Seller'}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-slate-600">-</span>
+                                                                )
+
+                                                                /* ✅ FUNNEL BADGE */
                                                             ) : col === 'funnel' ? (
                                                                 <FunnelBadge funnel={product.funnel} />
+
+                                                                /* ✅ REMARK MODAL */
                                                             ) : col === 'remark' ? (
                                                                 product.remark ? (
                                                                     <button
@@ -1026,14 +1035,19 @@ export default function CostechVenturesListedPage() {
                                                                     <span className="text-slate-600">-</span>
                                                                 )
 
+                                                                /* ✅ REASON (Reject tab only) */
                                                             ) : col === 'reason' ? (
                                                                 <span className="text-rose-400" title={product.reason || 'No reason'}>
                                                                     {product.reason || 'No reason'}
                                                                 </span>
+
+                                                                /* ✅ PRODUCT NAME (left-aligned) */
                                                             ) : col === 'product_name' ? (
                                                                 <span className="text-slate-200 font-medium" title={product.product_name || '-'}>
                                                                     {product.product_name}
                                                                 </span>
+
+                                                                /* ✅ ALL OTHER COLUMNS */
                                                             ) : (
                                                                 <span className="text-slate-400" title={String(product[col as keyof ProductRow] || '-')}>
                                                                     {String(product[col as keyof ProductRow] || '-')}
@@ -1041,8 +1055,8 @@ export default function CostechVenturesListedPage() {
                                                             )}
                                                         </td>
                                                     );
-
                                                 })}
+
                                                 {activeTab !== 'reject' && (
                                                     <td className="p-4 text-center">
                                                         <div className="flex justify-center gap-2">

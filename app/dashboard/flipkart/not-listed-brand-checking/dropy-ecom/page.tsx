@@ -27,10 +27,12 @@ interface ProductRow {
     funnel: string | null;
     monthly_unit: number | null;
     product_link: string | null;
+    link: string | null;
     amz_link: string | null;
     working?: boolean;
     reason?: string | null;
     remark?: string | null;
+    category?: string;
 }
 
 type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
@@ -42,8 +44,8 @@ const DEFAULT_WIDTHS: Record<string, number> = {
     brand: 160,
     funnel: 110,
     monthly_unit: 120,
-    product_link: 100,
-    amz_link: 100,
+    link: 120,           // ✅ CHANGED: from product_link to link
+    amz_link: 120,       // ✅ CHANGED: increased width
     reason: 250,
     remark: 200,
 };
@@ -63,7 +65,7 @@ export default function DropyEcomNotListedPage() {
         brand: true,
         funnel: true,
         monthly_unit: true,
-        product_link: true,
+        link: true,          // ✅ CHANGED: from product_link to link
         amz_link: true,
         reason: true,
         remark: true,
@@ -140,12 +142,11 @@ export default function DropyEcomNotListedPage() {
 
     const SELLER_ID = 5;
 
-    const SELLERID = 5;
     const SELLER_CODE_MAP: Record<number, string> = {
-        1: "GR",
-        2: "RR",
-        3: "UB",
-        4: "VV",
+        1: 'GR',
+        2: 'RR',
+        3: 'UB',
+        4: 'VV',
         5: "DE",
         6: "CV",
     };
@@ -217,17 +218,27 @@ export default function DropyEcomNotListedPage() {
     const fetchProducts = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
-            const tableName = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
+            const tableName = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}`;
             const start = (currentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage - 1;
 
-            let query = supabase.from(tableName).select('*', { count: 'exact' });
+            // ✅ ADD THIS: Map tab to database category format
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
+
+            let query = supabase
+                .from(tableName)
+                .select('*', { count: 'exact' })
+                .eq('category', categoryMap[activeTab]);  // ✅ FIXED: Now uses mapped value
 
             if (debouncedSearch.trim()) {
-                // ✅ Limit search to 100 characters to prevent 400 errors
                 const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
 
-                // Show warning if search was truncated
                 if (debouncedSearch.length > 100) {
                     setToast({
                         message: 'Search query too long - truncated to 100 characters',
@@ -239,7 +250,6 @@ export default function DropyEcomNotListedPage() {
                     `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
                 );
             }
-
 
             const { data, error, count } = await query
                 .range(start, end)
@@ -255,6 +265,9 @@ export default function DropyEcomNotListedPage() {
                 setTotalCount(0);
                 return;
             }
+
+            // ✅ ADD DEBUG: Check fetched data
+            console.log('🔍 NOT LISTED - FETCHED PRODUCTS:', data?.[0]);
 
             setProducts(data || []);
             setTotalCount(count || 0);
@@ -277,7 +290,8 @@ export default function DropyEcomNotListedPage() {
             const { data, error } = await supabase
                 .from('flipkart_brand_checking_not_listed_seller_5_movement_history')
                 .select('*')
-                .eq('from_table', `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`)
+                .eq('from_table', `flipkart_brand_checking_not_listed_seller_${SELLER_ID}`)
+                .eq('from_category', activeTab)
                 .order('moved_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
@@ -288,32 +302,31 @@ export default function DropyEcomNotListedPage() {
             }
 
             if (data) {
-                // Populate movementHistory state with the last movement
                 const product: ProductRow = {
-                    id: '', // Not needed for rollback
+                    id: '',
                     asin: data.asin,
                     product_name: data.product_name,
                     brand: data.brand,
                     funnel: data.funnel,
                     monthly_unit: data.monthly_unit,
                     product_link: data.product_link,
+                    link: data.product_link, // ✅ ADD THIS LINE
                     amz_link: data.amz_link,
                     remark: data.remark,
                 };
 
                 setMovementHistory((prev) => ({
                     ...prev,
-                    [`flipkart_seller_${SELLER_ID}_${activeTab}`]: {
+                    [`flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`]: {
                         product,
                         fromTable: data.from_table,
                         toTable: data.to_table,
                     },
                 }));
             } else {
-                // No history found - clear undo for this tab
                 setMovementHistory((prev) => ({
                     ...prev,
-                    [`flipkart_seller_${SELLER_ID}_${activeTab}`]: null,
+                    [`flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`]: null,
                 }));
             }
         } catch (error) {
@@ -321,7 +334,7 @@ export default function DropyEcomNotListedPage() {
         }
     };
 
-    const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
+    const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string, fromCategory?: string, toCategory?: string) => {
         try {
             const { error } = await supabase
                 .from(`flipkart_brand_checking_not_listed_seller_5_movement_history`)
@@ -336,13 +349,15 @@ export default function DropyEcomNotListedPage() {
                     remark: product.remark,
                     from_table: fromTable,
                     to_table: toTable,
+                    from_category: fromCategory,
+                    to_category: toCategory,
                 });
 
             if (error) throw error;
 
             setMovementHistory((prev) => ({
                 ...prev,
-                [fromTable]: { product, fromTable, toTable },
+                [`${fromTable}_${fromCategory}`]: { product, fromTable, toTable },
             }));
         } catch (error) {
             console.error('Error saving history:', error);
@@ -357,9 +372,8 @@ export default function DropyEcomNotListedPage() {
         setProcessingId(product.id);
         try {
             let targetTable: string;
-            let dataToInsert: any;
-            const { id, working, reason: oldReason, ...productData } = product;
-            const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
+            const { id, working, reason: oldReason, category, ...productData } = product;
+            const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}`;
 
             if (action === 'approved') {
                 targetTable = `flipkart_validation_main_file`;
@@ -381,7 +395,7 @@ export default function DropyEcomNotListedPage() {
                         seller_tag: SELLER_CODE,
                         funnel: product.funnel,
                         no_of_seller: 1,
-                        flipkart_link: product.product_link,
+                        flipkart_link: product.link, // ✅ CHANGED: Use link field
                         amz_link: product.amz_link,
                         product_weight: null,
                         judgement: null,
@@ -400,32 +414,35 @@ export default function DropyEcomNotListedPage() {
                     }
                 }
 
-                await saveToHistory(product, currentTable, targetTable);
-                await supabase.from(currentTable).delete().eq('asin', product.asin);
+                await saveToHistory(product, currentTable, targetTable, activeTab, undefined);
+                await supabase.from(currentTable).delete().eq('id', product.id);
                 await fetchProducts(true);
                 setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
             } else if (action === 'not_approved') {
-                targetTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_not_approved`;
-                dataToInsert = productData;
+                const { error: updateError } = await supabase
+                    .from(currentTable)
+                    .update({ category: 'not_approved' })
+                    .eq('id', product.id);
 
-                const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-                if (insertError) throw insertError;
+                if (updateError) throw updateError;
 
-                await saveToHistory(product, currentTable, targetTable);
-                await supabase.from(currentTable).delete().eq('asin', product.asin);
+                await saveToHistory(product, currentTable, currentTable, activeTab, 'not_approved');
                 await fetchProducts(true);
                 setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
             } else if (action === 'reject') {
-                targetTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_reject`;
-                dataToInsert = { ...productData, reason: reason || 'No reason provided' };
+                const { error: updateError } = await supabase
+                    .from(currentTable)
+                    .update({
+                        category: 'reject',
+                        reason: reason || 'No reason provided'
+                    })
+                    .eq('id', product.id);
 
-                const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-                if (insertError) throw insertError;
+                if (updateError) throw updateError;
 
-                await saveToHistory(product, currentTable, targetTable);
-                await supabase.from(currentTable).delete().eq('asin', product.asin);
+                await saveToHistory(product, currentTable, currentTable, activeTab, 'reject');
                 await fetchProducts(true);
                 setToast({ message: `Product rejected!`, type: 'success' });
             }
@@ -438,8 +455,9 @@ export default function DropyEcomNotListedPage() {
     };
 
     const handleRollBack = async () => {
-        const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
-        const lastMovement = movementHistory[currentTable];
+        const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}`;
+        const currentTableKey = `${currentTable}_${activeTab}`;
+        const lastMovement = movementHistory[currentTableKey];
 
         if (!lastMovement) {
             setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
@@ -449,37 +467,65 @@ export default function DropyEcomNotListedPage() {
         setLoading(true);
         try {
             const { product, fromTable, toTable } = lastMovement;
-            const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID]; // e.g. "CV"
+            const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-            // 1. Restore Product to the Origin Table (Brand Checking)
-            // We check if it's already there to avoid duplicates
-            const { data: existingInOrigin, error: checkOriginError } = await supabase
-                .from(fromTable)
-                .select('asin')
-                .eq('asin', product.asin)
-                .maybeSingle();
+            // ✅ Strip suffix to get actual table name
+            const actualFromTable = fromTable.replace(/_high_demand$|_low_demand$|_dropshipping$|_not_approved$|_reject$/, '');
 
-            if (checkOriginError) throw checkOriginError;
+            // ✅ ADD THIS: Category mapping
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
 
-            if (!existingInOrigin) {
-                const { error: insertError } = await supabase.from(fromTable).insert({
+            // ✅ Check if toTable is Validation (this is what we expect!)
+            if (toTable === 'flipkart_validation_main_file') {
+
+                // 1. Check if already exists in Not Listed
+                const { data: existingInNotListed, error: checkError } = await supabase
+                    .from(actualFromTable)
+                    .select('asin')
+                    .eq('asin', product.asin)
+                    .maybeSingle();
+
+                if (checkError) throw checkError;
+
+                if (existingInNotListed) {
+                    setToast({
+                        message: `Cannot undo: Product already exists in Not Listed`,
+                        type: 'warning',
+                    });
+                    setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
+                    await supabase
+                        .from(`flipkart_brand_checking_not_listed_seller_${SELLER_ID}_movement_history`)
+                        .delete()
+                        .eq('asin', product.asin)
+                        .eq('from_table', fromTable)
+                        .eq('from_category', activeTab)
+                        .order('moved_at', { ascending: false })
+                        .limit(1);
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Re-insert into Not Listed with MAPPED category
+                const { error: insertError } = await supabase.from(actualFromTable).insert({
                     asin: product.asin,
                     product_name: product.product_name,
                     brand: product.brand,
                     funnel: product.funnel,
                     monthly_unit: product.monthly_unit,
-                    product_link: product.product_link,
+                    link: product.link || product.product_link,
                     amz_link: product.amz_link,
                     remark: product.remark,
+                    category: categoryMap[activeTab],  // ✅ CHANGED: Now uses 'HD' instead of 'high_demand'
                 });
                 if (insertError) throw insertError;
-            }
 
-            // 2. Remove from Destination Table (Smart Delete)
-            if (toTable === 'flipkart_validation_main_file') {
-                // ✅ SMART LOGIC: Only remove THIS seller's tag.
-                // If other sellers remain, keep the row. If empty, delete the row.
-
+                // 3. Remove from Validation
                 const { data: validationRow, error: valError } = await supabase
                     .from(toTable)
                     .select('id, seller_tag, no_of_seller')
@@ -489,47 +535,48 @@ export default function DropyEcomNotListedPage() {
                 if (valError && valError.code !== 'PGRST116') throw valError;
 
                 if (validationRow) {
-                    // Split tags, remove "CV", join back
                     const currentTags = validationRow.seller_tag ? validationRow.seller_tag.split(',') : [];
                     const newTags = currentTags.filter((tag: string) => tag.trim() !== SELLER_CODE);
 
                     if (newTags.length === 0) {
-                        // No sellers left -> Delete the row
-                        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-                        if (deleteError) throw deleteError;
+                        await supabase.from(toTable).delete().eq('asin', product.asin);
                     } else {
-                        // Other sellers exist -> Just update tags and count
-                        const { error: updateError } = await supabase
+                        await supabase
                             .from(toTable)
                             .update({
                                 seller_tag: newTags.join(','),
                                 no_of_seller: newTags.length
                             })
                             .eq('id', validationRow.id);
-                        if (updateError) throw updateError;
                     }
                 }
+
             } else {
-                // For "Reject" or "Not Approved" tables (which are single-seller), Delete is fine.
-                const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-                if (deleteError) throw deleteError;
+                // ✅ Handle category changes within same table - only update category
+                const { error: updateError } = await supabase
+                    .from(actualFromTable)
+                    .update({
+                        category: categoryMap[activeTab]  // ✅ Only update category, don't touch reason
+                    })
+                    .eq('asin', product.asin);
+                if (updateError) throw updateError;
             }
 
-            // 3. Remove from History Log
             await supabase
-                .from('flipkart_brand_checking_not_listed_seller_5_movement_history')
+                .from(`flipkart_brand_checking_not_listed_seller_${SELLER_ID}_movement_history`)
                 .delete()
                 .eq('asin', product.asin)
                 .eq('from_table', fromTable)
-                .eq('to_table', toTable)
+                .eq('from_category', activeTab)
                 .order('moved_at', { ascending: false })
                 .limit(1);
 
-            setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
-            setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
-            fetchProducts(true);
+            setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
+            setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
+            await fetchProducts(true);
+
         } catch (error: any) {
-            console.error('Error rolling back:', error);
+            console.error('❌ Error rolling back:', error);
             setToast({
                 message: error?.message || 'Rollback failed',
                 type: 'error'
@@ -538,7 +585,6 @@ export default function DropyEcomNotListedPage() {
             setLoading(false);
         }
     };
-
 
     // ✅ NEW FUNCTION: Move products from Reject to other tabs
     const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
@@ -550,62 +596,34 @@ export default function DropyEcomNotListedPage() {
         setLoading(true);
         try {
             const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-            const targetTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${targetTab}`;
-            const rejectTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_reject`;
+            const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}`;
+
+            // ✅ ADD THIS: Category mapping
+            const categoryMap: Record<'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved', string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved'
+            };
 
             let movedCount = 0;
-            let skippedCount = 0;
-            const skippedAsins: string[] = [];
 
             for (const product of selectedProducts) {
-                // Check if ASIN already exists in target table
-                const { data: existing, error: checkError } = await supabase
-                    .from(targetTable)
-                    .select('asin')
-                    .eq('asin', product.asin)
-                    .maybeSingle();
-
-                if (checkError) {
-                    console.error('Error checking existing product:', checkError);
-                    continue;
-                }
-
-                if (existing) {
-                    // Skip if already exists
-                    skippedCount++;
-                    skippedAsins.push(product.asin);
-                    continue;
-                }
-
-                // Prepare data (remove reject-specific fields)
-                const { id, reason, working, ...productData } = product;
-
-                // Insert into target table
-                const { error: insertError } = await supabase
-                    .from(targetTable)
-                    .insert(productData);
-
-                if (insertError) {
-                    console.error('Insert error:', insertError);
-                    continue;
-                }
-
-                // Delete from reject table
-                const { error: deleteError } = await supabase
-                    .from(rejectTable)
-                    .delete()
-                    .eq('asin', product.asin);
-
-                if (deleteError) {
-                    console.error('Delete error:', deleteError);
+                const { error: updateError } = await supabase
+                    .from(currentTable)
+                    .update({
+                        category: categoryMap[targetTab],  // ✅ CORRECT - uses 'HD' instead of 'high_demand'
+                        reason: null
+                    })
+                    .eq('id', product.id);
+                if (updateError) {
+                    console.error('Update error:', updateError);
                     continue;
                 }
 
                 movedCount++;
             }
 
-            // Show result
-            // Show result
             if (movedCount > 0) {
                 setToast({
                     message: `Successfully moved ${movedCount} product(s) to ${targetTab.replace('_', ' ')}`,
@@ -613,15 +631,6 @@ export default function DropyEcomNotListedPage() {
                 });
             }
 
-            if (skippedCount > 0) {
-                setToast({
-                    message: `Skipped ${skippedCount} product(s) - already exists in target table. ASINs: ${skippedAsins.slice(0, 3).join(', ')}${skippedAsins.length > 3 ? '...' : ''}`,
-                    type: 'warning',
-                });
-            }
-
-            // ✅ NEW: Clear movement history for target table since products moved back
-            // This prevents undo conflicts when products return to their original table
             const targetTableKey = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${targetTab}`;
             if (movementHistory[targetTableKey]) {
                 setMovementHistory((prev) => ({
@@ -630,11 +639,9 @@ export default function DropyEcomNotListedPage() {
                 }));
             }
 
-            // Clear selection and refresh
             setSelectedIds(new Set());
             setIsMoveToDropdownOpen(false);
             await fetchProducts(true);
-
 
         } catch (error: any) {
             console.error('Move from reject error:', error);
@@ -643,7 +650,6 @@ export default function DropyEcomNotListedPage() {
             setLoading(false);
         }
     };
-
 
     const PaginationControls = () => {
         const totalPages = Math.ceil(totalCount / rowsPerPage);
@@ -742,8 +748,8 @@ export default function DropyEcomNotListedPage() {
         );
     };
 
-    const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
-    const hasRollback = !!movementHistory[currentTable];
+    const currentTableKey = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
+    const hasRollback = !!movementHistory[currentTableKey];
 
     // Tab Styles
     const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
@@ -779,9 +785,7 @@ export default function DropyEcomNotListedPage() {
                                     <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                                         <LayoutList className="w-6 h-6 text-indigo-400" />
                                     </div>
-                                    <h1 className="text-2xl font-bold tracking-tight text-white">
-                                        Dropy Ecom (DE) - Not Listed Products
-                                    </h1>
+                                    <h1 className="text-2xl font-bold tracking-tight text-white">Dropy Ecom (DE) - Not Listed Products</h1>
                                 </div>
                                 <p className="text-slate-400 pl-[3.25rem] text-sm">
                                     Review and process listing errors and approvals
@@ -853,7 +857,7 @@ export default function DropyEcomNotListedPage() {
                                             }
                                             setSearchQuery(value);                        // ← Update search if OK
                                         }}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                                     />
 
                                 </div>
@@ -956,11 +960,17 @@ export default function DropyEcomNotListedPage() {
                                             </th>
                                             {columnOrder.map((col) => {
                                                 const columnNames: Record<string, string> = {
-                                                    asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                                                    monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
+                                                    asin: 'ASIN',
+                                                    product_name: 'Product Name',
+                                                    brand: 'Brand',
+                                                    funnel: 'Funnel',
+                                                    monthly_unit: 'Monthly Unit',
+                                                    link: 'Product Link',        // ✅ CHANGED: from product_link to link
+                                                    amz_link: 'AMZ Link',
+                                                    reason: 'Reason',
+                                                    remark: 'Remark',
                                                 };
                                                 if (col === 'reason' && activeTab !== 'reject') return null;
-
                                                 return renderColumnHeader(col, columnNames[col]);
                                             })}
                                             {activeTab !== 'reject' && (
@@ -987,33 +997,29 @@ export default function DropyEcomNotListedPage() {
                                                         <td
                                                             key={col}
                                                             className={`px-4 py-3 text-sm border-r border-slate-800/50 ${col === 'product_name' ? 'text-left' : 'text-center'
-                                                                } ${col === 'product_link' || col === 'amz_link' ? '' : 'truncate'}`}
+                                                                } ${col === 'link' || col === 'amz_link' ? '' : 'truncate'}`}  // ✅ CHANGED
                                                             style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                                                         >
-                                                            {/* ✅ ADD DEBUG LOG */}
-                                                            {col === 'product_link' || col === 'amz_link' ? (
-                                                                <>
-                                                                    {console.log('🔍 DEBUG:', {
-                                                                        column: col,
-                                                                        value: product[col as keyof ProductRow],
-                                                                        hasValue: !!product[col as keyof ProductRow],
-                                                                        type: typeof product[col as keyof ProductRow]
-                                                                    })}
-                                                                    {product[col as keyof ProductRow] ? (
-                                                                        <a
-                                                                            href={String(product[col as keyof ProductRow])}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
-                                                                        >
-                                                                            View Link
-                                                                        </a>
-                                                                    ) : (
-                                                                        <span className="text-slate-600">-</span>
-                                                                    )}
-                                                                </>
+                                                            {/* ✅ PRODUCT LINK or AMZ LINK */}
+                                                            {col === 'link' || col === 'amz_link' ? (  // ✅ CHANGED: from product_link to link
+                                                                product[col as keyof ProductRow] ? (
+                                                                    <a
+                                                                        href={String(product[col as keyof ProductRow])}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
+                                                                    >
+                                                                        {col === 'link' ? 'Product' : 'Seller'}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-slate-600">-</span>
+                                                                )
+
+                                                                /* ✅ FUNNEL BADGE */
                                                             ) : col === 'funnel' ? (
                                                                 <FunnelBadge funnel={product.funnel} />
+
+                                                                /* ✅ REMARK MODAL */
                                                             ) : col === 'remark' ? (
                                                                 product.remark ? (
                                                                     <button
@@ -1026,14 +1032,19 @@ export default function DropyEcomNotListedPage() {
                                                                     <span className="text-slate-600">-</span>
                                                                 )
 
+                                                                /* ✅ REASON (Reject tab only) */
                                                             ) : col === 'reason' ? (
                                                                 <span className="text-rose-400" title={product.reason || 'No reason'}>
                                                                     {product.reason || 'No reason'}
                                                                 </span>
+
+                                                                /* ✅ PRODUCT NAME (left-aligned) */
                                                             ) : col === 'product_name' ? (
                                                                 <span className="text-slate-200 font-medium" title={product.product_name || '-'}>
                                                                     {product.product_name}
                                                                 </span>
+
+                                                                /* ✅ ALL OTHER COLUMNS */
                                                             ) : (
                                                                 <span className="text-slate-400" title={String(product[col as keyof ProductRow] || '-')}>
                                                                     {String(product[col as keyof ProductRow] || '-')}
@@ -1041,7 +1052,6 @@ export default function DropyEcomNotListedPage() {
                                                             )}
                                                         </td>
                                                     );
-
                                                 })}
                                                 {activeTab !== 'reject' && (
                                                     <td className="p-4 text-center">

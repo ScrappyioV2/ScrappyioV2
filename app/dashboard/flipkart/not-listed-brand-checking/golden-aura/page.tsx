@@ -44,8 +44,8 @@ const DEFAULT_WIDTHS: Record<string, number> = {
     brand: 160,
     funnel: 110,
     monthly_unit: 120,
-    product_link: 100,
-    amz_link: 100,
+    link: 120,           // ✅ CHANGED: from product_link to link
+    amz_link: 120,       // ✅ CHANGED: increased width
     reason: 250,
     remark: 200,
 };
@@ -65,7 +65,7 @@ export default function GoldenAuraNotListedPage() {
         brand: true,
         funnel: true,
         monthly_unit: true,
-        product_link: true,
+        link: true,          // ✅ CHANGED: from product_link to link
         amz_link: true,
         reason: true,
         remark: true,
@@ -91,7 +91,7 @@ export default function GoldenAuraNotListedPage() {
     // ✅ 2. UPDATE: Initialize widths with DEFAULT_WIDTHS
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('flipkart_golden_aura_column_widths');
+            const saved = localStorage.getItem('flipkart_goldenaura_notlisted_column_widths');
             return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
         }
         return DEFAULT_WIDTHS;
@@ -103,7 +103,7 @@ export default function GoldenAuraNotListedPage() {
     // Column order state
     const [columnOrder, setColumnOrder] = useState<string[]>(() => {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('goldenaura_column_order');
+            const saved = localStorage.getItem('flipkart_goldenaura_notlisted_column_order');
             if (saved) {
                 const parsedOrder = JSON.parse(saved);
                 // ✅ Add remark if it's missing from saved order
@@ -168,7 +168,7 @@ export default function GoldenAuraNotListedPage() {
     };
 
     const handleMouseUp = () => {
-        if (resizeRef.current) localStorage.setItem('flipkart_golden_aura_column_widths', JSON.stringify(columnWidths));
+        if (resizeRef.current) localStorage.setItem('flipkart_goldenaura_notlisted_column_widths', JSON.stringify(columnWidths));
         resizeRef.current = null;
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -222,10 +222,19 @@ export default function GoldenAuraNotListedPage() {
             const start = (currentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage - 1;
 
+            // ✅ ADD THIS: Map tab to database category format
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
+
             let query = supabase
                 .from(tableName)
                 .select('*', { count: 'exact' })
-                .eq('category', activeTab);
+                .eq('category', categoryMap[activeTab]);  // ✅ FIXED: Now uses mapped value
 
             if (debouncedSearch.trim()) {
                 const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
@@ -257,6 +266,9 @@ export default function GoldenAuraNotListedPage() {
                 return;
             }
 
+            // ✅ ADD DEBUG: Check fetched data
+            console.log('🔍 NOT LISTED - FETCHED PRODUCTS:', data?.[0]);
+
             setProducts(data || []);
             setTotalCount(count || 0);
         } catch (error: any) {
@@ -271,7 +283,6 @@ export default function GoldenAuraNotListedPage() {
             if (!isSilent) setLoading(false);
         }
     };
-
 
     // ✅ NEW FUNCTION - Fetch last movement from database
     const fetchLastMovementHistory = async () => {
@@ -458,37 +469,63 @@ export default function GoldenAuraNotListedPage() {
             const { product, fromTable, toTable } = lastMovement;
             const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
+            // ✅ Strip suffix to get actual table name
+            const actualFromTable = fromTable.replace(/_high_demand$|_low_demand$|_dropshipping$|_not_approved$|_reject$/, '');
+
+            // ✅ ADD THIS: Category mapping
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
+
+            // ✅ Check if toTable is Validation (this is what we expect!)
             if (toTable === 'flipkart_validation_main_file') {
-                const { data: existingInOrigin, error: checkOriginError } = await supabase
-                    .from(fromTable)
-                    .select('id, category')
+
+                // 1. Check if already exists in Not Listed
+                const { data: existingInNotListed, error: checkError } = await supabase
+                    .from(actualFromTable)
+                    .select('asin')
                     .eq('asin', product.asin)
                     .maybeSingle();
 
-                if (checkOriginError) throw checkOriginError;
+                if (checkError) throw checkError;
 
-                if (existingInOrigin) {
-                    const { error: updateError } = await supabase
-                        .from(fromTable)
-                        .update({ category: activeTab })
-                        .eq('asin', product.asin);
-                    if (updateError) throw updateError;
-                } else {
-                    const { error: insertError } = await supabase.from(fromTable).insert({
-                        asin: product.asin,
-                        product_name: product.product_name,
-                        brand: product.brand,
-                        funnel: product.funnel,
-                        monthly_unit: product.monthly_unit,
-                        product_link: product.product_link,
-                        link: product.link, // ✅ ADD THIS LINE
-                        amz_link: product.amz_link,
-                        remark: product.remark,
-                        category: activeTab,
+                if (existingInNotListed) {
+                    setToast({
+                        message: `Cannot undo: Product already exists in Not Listed`,
+                        type: 'warning',
                     });
-                    if (insertError) throw insertError;
+                    setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
+                    await supabase
+                        .from(`flipkart_brand_checking_not_listed_seller_${SELLER_ID}_movement_history`)
+                        .delete()
+                        .eq('asin', product.asin)
+                        .eq('from_table', fromTable)
+                        .eq('from_category', activeTab)
+                        .order('moved_at', { ascending: false })
+                        .limit(1);
+                    setLoading(false);
+                    return;
                 }
 
+                // 2. Re-insert into Not Listed with MAPPED category
+                const { error: insertError } = await supabase.from(actualFromTable).insert({
+                    asin: product.asin,
+                    product_name: product.product_name,
+                    brand: product.brand,
+                    funnel: product.funnel,
+                    monthly_unit: product.monthly_unit,
+                    link: product.link || product.product_link,
+                    amz_link: product.amz_link,
+                    remark: product.remark,
+                    category: categoryMap[activeTab],  // ✅ CHANGED: Now uses 'HD' instead of 'high_demand'
+                });
+                if (insertError) throw insertError;
+
+                // 3. Remove from Validation
                 const { data: validationRow, error: valError } = await supabase
                     .from(toTable)
                     .select('id, seller_tag, no_of_seller')
@@ -502,28 +539,26 @@ export default function GoldenAuraNotListedPage() {
                     const newTags = currentTags.filter((tag: string) => tag.trim() !== SELLER_CODE);
 
                     if (newTags.length === 0) {
-                        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-                        if (deleteError) throw deleteError;
+                        await supabase.from(toTable).delete().eq('asin', product.asin);
                     } else {
-                        const { error: updateError } = await supabase
+                        await supabase
                             .from(toTable)
                             .update({
                                 seller_tag: newTags.join(','),
                                 no_of_seller: newTags.length
                             })
                             .eq('id', validationRow.id);
-                        if (updateError) throw updateError;
                     }
                 }
+
             } else {
+                // ✅ Handle category changes within same table - only update category
                 const { error: updateError } = await supabase
-                    .from(fromTable)
+                    .from(actualFromTable)
                     .update({
-                        category: activeTab,
-                        reason: null
+                        category: categoryMap[activeTab]  // ✅ Only update category, don't touch reason
                     })
                     .eq('asin', product.asin);
-
                 if (updateError) throw updateError;
             }
 
@@ -536,12 +571,16 @@ export default function GoldenAuraNotListedPage() {
                 .order('moved_at', { ascending: false })
                 .limit(1);
 
-            setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+            setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
             setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
-            fetchProducts(true);
+            await fetchProducts(true);
+
         } catch (error: any) {
-            console.error('Error rolling back:', error);
-            setToast({ message: error?.message || 'Rollback failed', type: 'error' });
+            console.error('❌ Error rolling back:', error);
+            setToast({
+                message: error?.message || 'Rollback failed',
+                type: 'error'
+            });
         } finally {
             setLoading(false);
         }
@@ -559,17 +598,24 @@ export default function GoldenAuraNotListedPage() {
             const selectedProducts = products.filter((p) => selectedIds.has(p.id));
             const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}`;
 
+            // ✅ ADD THIS: Category mapping
+            const categoryMap: Record<'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved', string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved'
+            };
+
             let movedCount = 0;
 
             for (const product of selectedProducts) {
                 const { error: updateError } = await supabase
                     .from(currentTable)
                     .update({
-                        category: targetTab,
+                        category: categoryMap[targetTab],  // ✅ CORRECT - uses 'HD' instead of 'high_demand'
                         reason: null
                     })
                     .eq('id', product.id);
-
                 if (updateError) {
                     console.error('Update error:', updateError);
                     continue;
@@ -651,7 +697,7 @@ export default function GoldenAuraNotListedPage() {
         newOrder.splice(draggedIndex, 1);
         newOrder.splice(targetIndex, 0, draggedColumn);
         setColumnOrder(newOrder);
-        localStorage.setItem('flipkart_golden_aura_column_order', JSON.stringify(newOrder));
+        localStorage.setItem('flipkart_goldenaura_notlisted_column_order', JSON.stringify(newOrder));
         setDraggedColumn(null);
     };
 
@@ -702,8 +748,8 @@ export default function GoldenAuraNotListedPage() {
         );
     };
 
-    const currentTable = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
-    const hasRollback = !!movementHistory[currentTable];
+    const currentTableKey = `flipkart_brand_checking_not_listed_seller_${SELLER_ID}_${activeTab}`;
+    const hasRollback = !!movementHistory[currentTableKey];
 
     // Tab Styles
     const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
@@ -811,7 +857,7 @@ export default function GoldenAuraNotListedPage() {
                                             }
                                             setSearchQuery(value);                        // ← Update search if OK
                                         }}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                                     />
 
                                 </div>
@@ -914,11 +960,17 @@ export default function GoldenAuraNotListedPage() {
                                             </th>
                                             {columnOrder.map((col) => {
                                                 const columnNames: Record<string, string> = {
-                                                    asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                                                    monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
+                                                    asin: 'ASIN',
+                                                    product_name: 'Product Name',
+                                                    brand: 'Brand',
+                                                    funnel: 'Funnel',
+                                                    monthly_unit: 'Monthly Unit',
+                                                    link: 'Product Link',        // ✅ CHANGED: from product_link to link
+                                                    amz_link: 'AMZ Link',
+                                                    reason: 'Reason',
+                                                    remark: 'Remark',
                                                 };
                                                 if (col === 'reason' && activeTab !== 'reject') return null;
-
                                                 return renderColumnHeader(col, columnNames[col]);
                                             })}
                                             {activeTab !== 'reject' && (
@@ -945,33 +997,29 @@ export default function GoldenAuraNotListedPage() {
                                                         <td
                                                             key={col}
                                                             className={`px-4 py-3 text-sm border-r border-slate-800/50 ${col === 'product_name' ? 'text-left' : 'text-center'
-                                                                } ${col === 'product_link' || col === 'amz_link' ? '' : 'truncate'}`}
+                                                                } ${col === 'link' || col === 'amz_link' ? '' : 'truncate'}`}  // ✅ CHANGED
                                                             style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                                                         >
-                                                            {/* ✅ ADD DEBUG LOG */}
-                                                            {col === 'product_link' || col === 'amz_link' ? (
-                                                                <>
-                                                                    {console.log('🔍 DEBUG:', {
-                                                                        column: col,
-                                                                        value: product[col as keyof ProductRow],
-                                                                        hasValue: !!product[col as keyof ProductRow],
-                                                                        type: typeof product[col as keyof ProductRow]
-                                                                    })}
-                                                                    {product[col as keyof ProductRow] ? (
-                                                                        <a
-                                                                            href={String(product[col as keyof ProductRow])}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
-                                                                        >
-                                                                            View Link
-                                                                        </a>
-                                                                    ) : (
-                                                                        <span className="text-slate-600">-</span>
-                                                                    )}
-                                                                </>
+                                                            {/* ✅ PRODUCT LINK or AMZ LINK */}
+                                                            {col === 'link' || col === 'amz_link' ? (  // ✅ CHANGED: from product_link to link
+                                                                product[col as keyof ProductRow] ? (
+                                                                    <a
+                                                                        href={String(product[col as keyof ProductRow])}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
+                                                                    >
+                                                                        {col === 'link' ? 'Product' : 'Seller'}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-slate-600">-</span>
+                                                                )
+
+                                                                /* ✅ FUNNEL BADGE */
                                                             ) : col === 'funnel' ? (
                                                                 <FunnelBadge funnel={product.funnel} />
+
+                                                                /* ✅ REMARK MODAL */
                                                             ) : col === 'remark' ? (
                                                                 product.remark ? (
                                                                     <button
@@ -984,14 +1032,19 @@ export default function GoldenAuraNotListedPage() {
                                                                     <span className="text-slate-600">-</span>
                                                                 )
 
+                                                                /* ✅ REASON (Reject tab only) */
                                                             ) : col === 'reason' ? (
                                                                 <span className="text-rose-400" title={product.reason || 'No reason'}>
                                                                     {product.reason || 'No reason'}
                                                                 </span>
+
+                                                                /* ✅ PRODUCT NAME (left-aligned) */
                                                             ) : col === 'product_name' ? (
                                                                 <span className="text-slate-200 font-medium" title={product.product_name || '-'}>
                                                                     {product.product_name}
                                                                 </span>
+
+                                                                /* ✅ ALL OTHER COLUMNS */
                                                             ) : (
                                                                 <span className="text-slate-400" title={String(product[col as keyof ProductRow] || '-')}>
                                                                     {String(product[col as keyof ProductRow] || '-')}
@@ -999,7 +1052,6 @@ export default function GoldenAuraNotListedPage() {
                                                             )}
                                                         </td>
                                                     );
-
                                                 })}
                                                 {activeTab !== 'reject' && (
                                                     <td className="p-4 text-center">

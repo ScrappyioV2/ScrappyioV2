@@ -453,12 +453,13 @@ export default function GoldenAuraPage() {
     try {
       const { product, fromTable, toTable } = lastMovement;
 
-      // ✅ Strip funnel suffix from table names (they're just for tracking)
+      // ✅ Strip funnel suffix from table names
       const actualFromTable = fromTable.replace(/_hd$|_ld$|_dp$/, '');
+      const actualToTable = toTable.replace(/_hd$|_ld$|_dp$/, '');
 
-      // ✅ Check if product already exists in origin table
+      // ✅ Check if product already exists in Brand Checking
       const { data: existingProduct, error: checkError } = await supabase
-        .from(actualFromTable)  // ✅ NOW USES ACTUAL TABLE NAME
+        .from(actualFromTable)
         .select('asin')
         .eq('asin', product.asin)
         .maybeSingle();
@@ -486,8 +487,8 @@ export default function GoldenAuraPage() {
         return;
       }
 
-      // ✅ Product doesn't exist - proceed with rollback
-      const { error: insertError } = await supabase.from(actualFromTable).insert({  // ✅ USES ACTUAL TABLE
+      // ✅ Re-insert into Brand Checking
+      const { error: insertError } = await supabase.from(actualFromTable).insert({
         asin: product.asin,
         product_name: product.product_name,
         brand: product.brand,
@@ -500,9 +501,15 @@ export default function GoldenAuraPage() {
 
       if (insertError) throw insertError;
 
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+      // ✅ Delete from Listed/Not Listed (toTable)
+      const { error: deleteError } = await supabase
+        .from(actualToTable)
+        .delete()
+        .eq('asin', product.asin);
+
       if (deleteError) throw deleteError;
 
+      // Delete history
       await supabase
         .from(`flipkart_seller_${SELLER_ID}_golden_aura_movement_history`)
         .delete()
@@ -512,11 +519,11 @@ export default function GoldenAuraPage() {
         .order('moved_at', { ascending: false })
         .limit(1);
 
-      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+      setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts(true);
     } catch (error: any) {
-      console.error('Error rolling back:', error);
+      console.error('❌ Error rolling back:', error);
       setToast({
         message: error?.message || 'Rollback failed',
         type: 'error'
@@ -525,7 +532,6 @@ export default function GoldenAuraPage() {
       setLoading(false);
     }
   };
-
 
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);

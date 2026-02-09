@@ -16,22 +16,43 @@ import {
   ChevronRight,
   Filter
 } from 'lucide-react';
+const formatUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+};
 
 interface ProductRow {
   id: string;
   asin: string;
+  link: string | null;          // ✅ CHANGED: from product_link to link
   product_name: string | null;
   brand: string | null;
   funnel: string | null;
   monthly_unit: number | null;
-  product_link: string | null;
   amz_link: string | null;
-  link: string | null; // ← ADD THIS (some rows use 'link' instead of 'product_link')
   working?: boolean;
+  reason?: string | null;
   remark?: string | null;
+  // ✅ ADD THESE MISSING FIELDS
+  source_id?: string | null;
+  tag?: string | null;
+  price?: number | null;
+  monthly_sales?: number | null;
+  bsr?: number | null;
+  seller?: string | null;
+  dimensions?: string | null;
+  weight?: number | null;
+  weight_unit?: string | null;
+  journey_number?: number | null;
+  status?: string | null;
 }
 
-type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
+
+type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping';
 
 const DEFAULT_WIDTHS: Record<string, number> = {
   asin: 140,
@@ -39,12 +60,12 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   brand: 160,
   funnel: 110,
   monthly_unit: 120,
-  product_link: 100,
+  link: 100,           // ✅ FIXED
   amz_link: 100,
   remark: 200,
 };
 
-export default function UBeautyPage() {
+export default function UbeautyPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +80,7 @@ export default function UBeautyPage() {
     brand: true,
     funnel: true,
     monthly_unit: true,
-    product_link: true,
+    link: true,          // ✅ FIXED
     amz_link: true,
     remark: true,
   });
@@ -82,7 +103,7 @@ export default function UBeautyPage() {
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flipkart_ubeauty_column_widths');
+      const saved = localStorage.getItem('flipkart_ubeauty_column_order');
       return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
     }
     return DEFAULT_WIDTHS;
@@ -136,7 +157,7 @@ export default function UBeautyPage() {
   };
 
   const handleMouseUp = () => {
-    if (resizeRef.current) localStorage.setItem('flipkart_ubeauty_column_widths', JSON.stringify(columnWidths));
+    if (resizeRef.current) localStorage.setItem('flipkart_ubeauty_column_order', JSON.stringify(columnWidths));
     resizeRef.current = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
@@ -181,12 +202,23 @@ export default function UBeautyPage() {
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const tableName = `flipkart_seller_${SELLER_ID}_${activeTab}`;
+      const tableName = `flipkart_brand_checking_seller_${SELLER_ID}`;
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
-      let query = supabase.from(tableName).select('*', { count: 'exact' });
+      let query = supabase
+        .from(tableName)
+        .select('*', { count: 'exact' });
 
+      // ✅ ALWAYS filter by funnel based on active tab
+      const funnelMap: Record<string, string> = {
+        'high_demand': 'HD',
+        'low_demand': 'LD',
+        'dropshipping': 'DP'
+      };
+      query = query.eq('funnel', funnelMap[activeTab]);
+
+      // ✅ THEN apply search if present
       if (debouncedSearch.trim()) {
         const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
 
@@ -198,7 +230,7 @@ export default function UBeautyPage() {
         }
 
         query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
         );
       }
 
@@ -234,10 +266,19 @@ export default function UBeautyPage() {
 
   const fetchLastMovementHistory = async () => {
     try {
+      // ✅ Build tab-specific table name
+      const funnelMap: Record<CategoryTab, string> = {
+        'high_demand': 'hd',
+        'low_demand': 'ld',
+        'dropshipping': 'dp'
+      };
+
+      const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}_${funnelMap[activeTab]}`;
+
       const { data, error } = await supabase
         .from('flipkart_seller_3_ubeauty_movement_history')
         .select('*')
-        .eq('from_table', `flipkart_seller_${SELLER_ID}_${activeTab}`)
+        .eq('from_table', currentTable)  // ✅ Now tab-specific
         .order('moved_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -255,15 +296,14 @@ export default function UBeautyPage() {
           brand: data.brand,
           funnel: data.funnel,
           monthly_unit: data.monthly_unit,
-          product_link: data.product_link,
-          amz_link: data.amz_link,
           link: data.product_link,
+          amz_link: data.amz_link,
           remark: data.remark,
         };
 
         setMovementHistory((prev) => ({
           ...prev,
-          [`flipkart_seller_${SELLER_ID}_${activeTab}`]: {
+          [currentTable]: {
             product,
             fromTable: data.from_table,
             toTable: data.to_table,
@@ -272,7 +312,7 @@ export default function UBeautyPage() {
       } else {
         setMovementHistory((prev) => ({
           ...prev,
-          [`flipkart_seller_${SELLER_ID}_${activeTab}`]: null,
+          [currentTable]: null,
         }));
       }
     } catch (error) {
@@ -282,18 +322,22 @@ export default function UBeautyPage() {
 
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
+      // ✅ Add funnel suffix to track per-tab movements
+      const funnelSuffix = product.funnel?.toLowerCase() || 'unknown';
+      const fromTableWithFunnel = `${fromTable}_${funnelSuffix}`;
+
       const { error } = await supabase
-        .from(`flipkart_seller_3_ubeauty_movement_history`)
+        .from(`flipkart_seller_${SELLER_ID}_ubeauty_movement_history`)
         .insert({
           asin: product.asin,
           product_name: product.product_name,
           brand: product.brand,
           funnel: product.funnel,
           monthly_unit: product.monthly_unit,
-          product_link: product.product_link || product.link,
+          product_link: product.link,
           amz_link: product.amz_link,
           remark: product.remark,
-          from_table: fromTable,
+          from_table: fromTableWithFunnel,  // ✅ Saved with funnel suffix
           to_table: toTable,
         });
 
@@ -301,7 +345,7 @@ export default function UBeautyPage() {
 
       setMovementHistory((prev) => ({
         ...prev,
-        [fromTable]: { product, fromTable, toTable },
+        [fromTableWithFunnel]: { product, fromTable: fromTableWithFunnel, toTable },
       }));
     } catch (error) {
       console.error('Error saving history:', error);
@@ -318,31 +362,73 @@ export default function UBeautyPage() {
       const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}`;
       const targetTable = `flipkart_brand_checking_${action}_seller_${SELLER_ID}`;
 
-      // 1. Insert into target table (listed or not_listed)
-      const { id, working, ...productData } = product;
+      // 1. Check if already exists
+      const { data: existingRow, error: checkError } = await supabase
+        .from(targetTable)
+        .select('asin')
+        .eq('asin', product.asin)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingRow) {
+        setToast({
+          message: `Product already in ${action === 'listed' ? 'Listed' : 'Not Listed'}`,
+          type: 'warning'
+        });
+        setProcessingId(null);
+        return;
+      }
+
+      // 2. Insert into target (listed or not_listed)
       const { error: insertError } = await supabase
         .from(targetTable)
         .insert({
-          ...productData,
+          source_id: product.source_id,
+          tag: product.tag || 'GA',
+          asin: product.asin,
+          link: product.link,
+          product_name: product.product_name,
+          brand: product.brand,
+          price: product.price,
+          monthly_unit: product.monthly_unit,
+          monthly_sales: product.monthly_sales,
+          bsr: product.bsr,
+          seller: product.seller,
+          category: product.funnel, // Save current funnel as category
+          dimensions: product.dimensions,
+          weight: product.weight,
+          weight_unit: product.weight_unit,
+          remark: product.remark,
+          amz_link: product.amz_link,
+          funnel: product.funnel,
+          journey_number: product.journey_number || 1,
+          status: product.status,
           listing_status: action,
-          link: product.product_link || product.link, // Ensure link field is populated
         });
 
       if (insertError) throw insertError;
 
-      // 2. Save to movement history
+      // 3. Save to history for rollback
       await saveToHistory(product, currentTable, targetTable);
 
-      // 3. Delete from current table
-      await supabase.from(currentTable).delete().eq('asin', product.asin);
+      // 4. Delete from selector table
+      const { error: deleteError } = await supabase
+        .from(currentTable)
+        .delete()
+        .eq('asin', product.asin);
 
-      // 4. Refresh
-      await fetchProducts(true);
+      if (deleteError) throw deleteError;
+
       setToast({
-        message: `Product moved to ${action === 'listed' ? 'Listed' : 'Not Listed'} tab!`,
+        message: `✅ Moved to ${action === 'listed' ? 'Listed' : 'Not Listed'}!`,
         type: 'success'
       });
+
+      await fetchProducts(true);
+
     } catch (error: any) {
+      console.error('Error:', error);
       setToast({ message: `Error: ${error.message}`, type: 'error' });
     } finally {
       setProcessingId(null);
@@ -350,7 +436,12 @@ export default function UBeautyPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `flipkart_seller_${SELLER_ID}_${activeTab}`;
+    const funnelMap: Record<CategoryTab, string> = {
+      'high_demand': 'hd',
+      'low_demand': 'ld',
+      'dropshipping': 'dp'
+    };
+    const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}_${funnelMap[activeTab]}`;
     const lastMovement = movementHistory[currentTable];
 
     if (!lastMovement) {
@@ -362,37 +453,65 @@ export default function UBeautyPage() {
     try {
       const { product, fromTable, toTable } = lastMovement;
 
-      // 1. Restore Product to the Origin Table
-      const { data: existingInOrigin, error: checkOriginError } = await supabase
-        .from(fromTable)
+      // ✅ Strip funnel suffix from table names
+      const actualFromTable = fromTable.replace(/_hd$|_ld$|_dp$/, '');
+      const actualToTable = toTable.replace(/_hd$|_ld$|_dp$/, '');
+
+      // ✅ Check if product already exists in Brand Checking
+      const { data: existingProduct, error: checkError } = await supabase
+        .from(actualFromTable)
         .select('asin')
         .eq('asin', product.asin)
         .maybeSingle();
 
-      if (checkOriginError) throw checkOriginError;
+      if (checkError) throw checkError;
 
-      if (!existingInOrigin) {
-        const { error: insertError } = await supabase.from(fromTable).insert({
-          asin: product.asin,
-          product_name: product.product_name,
-          brand: product.brand,
-          funnel: product.funnel,
-          monthly_unit: product.monthly_unit,
-          product_link: product.product_link,
-          link: product.link,
-          amz_link: product.amz_link,
-          remark: product.remark,
+      if (existingProduct) {
+        setToast({
+          message: `Cannot undo: Product "${product.product_name}" already exists in the table`,
+          type: 'warning',
         });
-        if (insertError) throw insertError;
+
+        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+
+        await supabase
+          .from(`flipkart_seller_${SELLER_ID}_ubeauty_movement_history`)
+          .delete()
+          .eq('asin', product.asin)
+          .eq('from_table', fromTable)
+          .eq('to_table', toTable)
+          .order('moved_at', { ascending: false })
+          .limit(1);
+
+        setLoading(false);
+        return;
       }
 
-      // 2. Remove from Destination Table
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+      // ✅ Re-insert into Brand Checking
+      const { error: insertError } = await supabase.from(actualFromTable).insert({
+        asin: product.asin,
+        product_name: product.product_name,
+        brand: product.brand,
+        funnel: product.funnel,
+        monthly_unit: product.monthly_unit,
+        link: product.link,
+        amz_link: product.amz_link,
+        remark: product.remark,
+      });
+
+      if (insertError) throw insertError;
+
+      // ✅ Delete from Listed/Not Listed (toTable)
+      const { error: deleteError } = await supabase
+        .from(actualToTable)
+        .delete()
+        .eq('asin', product.asin);
+
       if (deleteError) throw deleteError;
 
-      // 3. Remove from History Log
+      // Delete history
       await supabase
-        .from('flipkart_seller_3_ubeauty_movement_history')
+        .from(`flipkart_seller_${SELLER_ID}_ubeauty_movement_history`)
         .delete()
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
@@ -400,11 +519,11 @@ export default function UBeautyPage() {
         .order('moved_at', { ascending: false })
         .limit(1);
 
-      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+      setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts(true);
     } catch (error: any) {
-      console.error('Error rolling back:', error);
+      console.error('❌ Error rolling back:', error);
       setToast({
         message: error?.message || 'Rollback failed',
         type: 'error'
@@ -502,7 +621,12 @@ export default function UBeautyPage() {
     );
   };
 
-  const currentTable = `flipkart_seller_${SELLER_ID}_${activeTab}`;
+  const funnelMap: Record<CategoryTab, string> = {
+    'high_demand': 'hd',
+    'low_demand': 'ld',
+    'dropshipping': 'dp'
+  };
+  const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}_${funnelMap[activeTab]}`;
   const hasRollback = !!movementHistory[currentTable];
 
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
@@ -534,7 +658,7 @@ export default function UBeautyPage() {
                   <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                     <LayoutList className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <h1 className="text-2xl font-bold tracking-tight text-white">UBeauty - Brand Checking</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-white">Ubeauty - Brand Checking</h1>
                 </div>
                 <p className="text-slate-400 pl-[3.25rem] text-sm">
                   Decide which products to list or not list
@@ -553,8 +677,6 @@ export default function UBeautyPage() {
               {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
               {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
-              {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
-              {tabStyles('reject', 'text-slate-400', 'Reject')}
             </div>
 
             {/* CONTROLS */}
@@ -654,14 +776,19 @@ export default function UBeautyPage() {
                       </th>
                       {columnOrder.map((col) => {
                         const columnNames: Record<string, string> = {
-                          asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                          monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', remark: 'Remark',
+                          asin: 'ASIN',
+                          product_name: 'Product Name',
+                          brand: 'Brand',
+                          funnel: 'Funnel',
+                          monthly_unit: 'Monthly Unit',
+                          link: 'Product Link',        // ✅ CHANGED: key is 'link', display is 'Product Link'
+                          amz_link: 'AMZ Link',
+                          reason: 'Reason',
+                          remark: 'Remark',
                         };
                         return renderColumnHeader(col, columnNames[col]);
                       })}
-                      {activeTab !== 'reject' && (
-                        <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '200px' }}>Actions</th>
-                      )}
+                      <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '200px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
@@ -696,42 +823,70 @@ export default function UBeautyPage() {
                                   ) : (
                                     <span className="text-slate-600">-</span>
                                   )
-                                ) : col === 'product_link' || col === 'amz_link' ? (
-                                  (product[col as keyof ProductRow] || product.link) ? (
-                                    <a href={String(product[col as keyof ProductRow] || product.link)} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
+                                ) : col === 'link' ? (  // ✅ FIXED - added `) :`
+                                  product.link ? (
+                                    <a
+                                      href={formatUrl(product.link) || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-medium border border-blue-500/20"
                                     >
-                                      View Link
+                                      Product
                                     </a>
                                   ) : <span className="text-slate-600">-</span>
+
+                                ) : col === 'amz_link' ? (
+                                  product.amz_link ? (
+                                    <a
+                                      href={formatUrl(product.amz_link) || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
+                                    >
+                                      Seller
+                                    </a>
+                                  ) : <span className="text-slate-600">-</span>
+
+                                ) : col === 'funnel' ? (
+                                  <FunnelBadge funnel={product.funnel} />
+
+                                ) : col === 'remark' ? (
+                                  product.remark ? (
+                                    <button
+                                      onClick={() => setSelectedRemark(product.remark || '')}
+                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    >
+                                      View
+                                    </button>
+                                  ) : <span className="text-slate-600">-</span>
+
                                 ) : col === 'product_name' ? (
                                   <span className="text-slate-200 font-medium">{product.product_name}</span>
+
                                 ) : (
                                   <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
                                 )}
                             </td>
                           );
                         })}
-                        {activeTab !== 'reject' && (
-                          <td className="p-4 text-center">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => handleListingAction(product, 'listed')}
-                                disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
-                              >
-                                {processingId === product.id ? '...' : '✓ List'}
-                              </button>
-                              <button
-                                onClick={() => handleListingAction(product, 'not_listed')}
-                                disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
-                              >
-                                {processingId === product.id ? '...' : '✗ Not List'}
-                              </button>
-                            </div>
-                          </td>
-                        )}
+                        <td className="p-4 text-center">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => handleListingAction(product, 'listed')}
+                              disabled={processingId === product.id}
+                              className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                            >
+                              {processingId === product.id ? '...' : '✓ List'}
+                            </button>
+                            <button
+                              onClick={() => handleListingAction(product, 'not_listed')}
+                              disabled={processingId === product.id}
+                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                            >
+                              {processingId === product.id ? '...' : '✗ Not List'}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

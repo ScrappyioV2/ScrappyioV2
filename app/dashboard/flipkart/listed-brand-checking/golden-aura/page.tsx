@@ -474,38 +474,60 @@ export default function GoldenAuraListedPage() {
             const { product, fromTable, toTable } = lastMovement;
             const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-            // ✅ Strip suffix to get actual table name
             const actualFromTable = fromTable.replace(/_high_demand$|_low_demand$|_dropshipping$|_not_approved$|_reject$/, '');
 
+            // ✅ ADD THIS: Category mapping
+            const categoryMap: Record<CategoryTab, string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved',
+                'reject': 'reject'
+            };
+
             if (toTable === 'flipkart_validation_main_file') {
-                const { data: existingInOrigin, error: checkOriginError } = await supabase
-                    .from(actualFromTable)  // ✅ Use actual table
-                    .select('id, category')
+
+                const { data: existingInListed, error: checkError } = await supabase
+                    .from(actualFromTable)
+                    .select('asin')
                     .eq('asin', product.asin)
                     .maybeSingle();
 
-                if (checkOriginError) throw checkOriginError;
+                if (checkError) throw checkError;
 
-                if (existingInOrigin) {
-                    const { error: updateError } = await supabase
-                        .from(actualFromTable)  // ✅ Use actual table
-                        .update({ category: activeTab })
-                        .eq('asin', product.asin);
-                    if (updateError) throw updateError;
-                } else {
-                    const { error: insertError } = await supabase.from(actualFromTable).insert({  // ✅ Use actual table
-                        asin: product.asin,
-                        product_name: product.product_name,
-                        brand: product.brand,
-                        funnel: product.funnel,
-                        monthly_unit: product.monthly_unit,
-                        link: product.link,
-                        amz_link: product.amz_link,
-                        remark: product.remark,
-                        category: activeTab,
+                if (existingInListed) {
+                    setToast({
+                        message: `Cannot undo: Product already exists in Listed`,
+                        type: 'warning',
                     });
-                    if (insertError) throw insertError;
+                    setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
+                    await supabase
+                        .from(`flipkart_brand_checking_listed_seller_${SELLER_ID}_movement_history`)
+                        .delete()
+                        .eq('asin', product.asin)
+                        .eq('from_table', fromTable)
+                        .order('moved_at', { ascending: false })
+                        .limit(1);
+                    setLoading(false);
+                    return;
                 }
+
+                // ✅ FIXED: Clean the product object before inserting
+                const { id, reason, category: oldCategory, product_link, working, ...cleanProduct } = product;
+
+                const { error: insertError } = await supabase.from(actualFromTable).insert({
+                    asin: cleanProduct.asin,
+                    product_name: cleanProduct.product_name,
+                    brand: cleanProduct.brand,
+                    funnel: cleanProduct.funnel,
+                    monthly_unit: cleanProduct.monthly_unit,
+                    link: cleanProduct.link,
+                    amz_link: cleanProduct.amz_link,
+                    remark: cleanProduct.remark,
+                    category: categoryMap[activeTab],  // ✅ Use mapped category
+                });
+
+                if (insertError) throw insertError;
 
                 const { data: validationRow, error: valError } = await supabase
                     .from(toTable)
@@ -520,28 +542,26 @@ export default function GoldenAuraListedPage() {
                     const newTags = currentTags.filter((tag: string) => tag.trim() !== SELLER_CODE);
 
                     if (newTags.length === 0) {
-                        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-                        if (deleteError) throw deleteError;
+                        await supabase.from(toTable).delete().eq('asin', product.asin);
                     } else {
-                        const { error: updateError } = await supabase
+                        await supabase
                             .from(toTable)
                             .update({
                                 seller_tag: newTags.join(','),
                                 no_of_seller: newTags.length
                             })
                             .eq('id', validationRow.id);
-                        if (updateError) throw updateError;
                     }
                 }
+
             } else {
+                // ✅ FIXED: Only update category (don't touch reason)
                 const { error: updateError } = await supabase
-                    .from(actualFromTable)  // ✅ Use actual table
+                    .from(actualFromTable)
                     .update({
-                        category: activeTab,
-                        reason: null
+                        category: categoryMap[activeTab]  // ✅ Only update category
                     })
                     .eq('asin', product.asin);
-
                 if (updateError) throw updateError;
             }
 
@@ -549,22 +569,26 @@ export default function GoldenAuraListedPage() {
                 .from(`flipkart_brand_checking_listed_seller_${SELLER_ID}_movement_history`)
                 .delete()
                 .eq('asin', product.asin)
-                .eq('from_table', fromTable)  // ✅ Keep original with suffix for delete
+                .eq('from_table', fromTable)
                 .order('moved_at', { ascending: false })
                 .limit(1);
 
-            setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+            setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
             setMovementHistory((prev) => ({ ...prev, [currentTableKey]: null }));
-            fetchProducts(true);
+            await fetchProducts(true);
+
         } catch (error: any) {
-            console.error('Error rolling back:', error);
-            setToast({ message: error?.message || 'Rollback failed', type: 'error' });
+            console.error('❌ Error rolling back:', error);
+            setToast({
+                message: error?.message || 'Rollback failed',
+                type: 'error'
+            });
         } finally {
             setLoading(false);
         }
-    };  
+    };
 
-    // ✅ NEW FUNCTION: Move products from Reject to other tabs
+    // ✅ FIXED: Move products from Reject to other tabs (Single Table Architecture)
     const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
         if (selectedIds.size === 0) {
             setToast({ message: 'Please select products to move', type: 'warning' });
@@ -576,14 +600,22 @@ export default function GoldenAuraListedPage() {
             const selectedProducts = products.filter((p) => selectedIds.has(p.id));
             const currentTable = `flipkart_brand_checking_listed_seller_${SELLER_ID}`;
 
+            // ✅ Category mapping
+            const categoryMap: Record<'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved', string> = {
+                'high_demand': 'HD',
+                'low_demand': 'LD',
+                'dropshipping': 'DP',
+                'not_approved': 'not_approved'
+            };
+
             let movedCount = 0;
 
             for (const product of selectedProducts) {
                 const { error: updateError } = await supabase
                     .from(currentTable)
                     .update({
-                        category: targetTab,
-                        reason: null
+                        category: categoryMap[targetTab],  // ✅ Use mapped category
+                        reason: null  // ✅ Clear reason when moving out of reject
                     })
                     .eq('id', product.id);
 
@@ -828,9 +860,8 @@ export default function GoldenAuraListedPage() {
                                             }
                                             setSearchQuery(value);                        // ← Update search if OK
                                         }}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                                     />
-
                                 </div>
 
                                 {/* ✅ NEW: Move To Button (only on Reject tab) */}
@@ -1098,4 +1129,3 @@ export default function GoldenAuraListedPage() {
         </PageTransition>
     );
 }
-
