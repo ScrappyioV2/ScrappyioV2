@@ -475,7 +475,7 @@ export default function RudraRetailPage() {
         setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
 
         await supabase
-          .from(`flipkart_seller_${SELLER_ID}_retail_rudra_movement_history`)
+          .from(`flipkart_seller_${SELLER_ID}_rudra_retail_movement_history`)
           .delete()
           .eq('asin', product.asin)
           .eq('from_table', fromTable)
@@ -511,7 +511,7 @@ export default function RudraRetailPage() {
 
       // Delete history
       await supabase
-        .from(`flipkart_seller_${SELLER_ID}_retail_rudra_movement_history`)
+        .from(`flipkart_seller_${SELLER_ID}_rudra_retail_movement_history`)
         .delete()
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
