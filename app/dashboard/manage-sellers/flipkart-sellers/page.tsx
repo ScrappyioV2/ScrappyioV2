@@ -34,48 +34,48 @@ import {
 const TABLE_NAME = 'flipkart_master_sellers';
 
 // ✅ Helper function to detect partial update file
-  function isPartialUpdateFile(headers: string[]) {
-    // ✅ Normalize: lowercase + spaces to underscores
-    const normalized = headers.map(h => 
-      h.trim()
-       .toLowerCase()
-       .replace(/\s+/g, '_')  // ← Convert spaces to underscores
-    );
-    
-    const allowed = [
-      "asin",
-      "remark", 
-      "remarks",
-      "monthly_unit",
-      "monthly_units",
-      "monthly_units_sold",
-      "monthly_unit_sold"
-    ];
+function isPartialUpdateFile(headers: string[]) {
+  // ✅ Normalize: lowercase + spaces to underscores
+  const normalized = headers.map(h =>
+    h.trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')  // ← Convert spaces to underscores
+  );
 
-    // Must have ASIN
-    if (!normalized.includes("asin")) {
-      return false;
-    }
+  const allowed = [
+    "asin",
+    "remark",
+    "remarks",
+    "monthly_unit",
+    "monthly_units",
+    "monthly_units_sold",
+    "monthly_unit_sold"
+  ];
 
-    // All columns must be in allowed list
-    if (!normalized.every(h => allowed.includes(h))) {
-      return false;
-    }
-
-    // Must have at least one update column
-    const hasRemarkColumn = normalized.some(h => 
-      h === "remark" || h === "remarks"
-    );
-    
-    const hasMonthlyUnitColumn = normalized.some(h => 
-      h === "monthly_unit" || 
-      h === "monthly_units" || 
-      h === "monthly_units_sold" ||
-      h === "monthly_unit_sold"
-    );
-
-    return hasRemarkColumn || hasMonthlyUnitColumn;
+  // Must have ASIN
+  if (!normalized.includes("asin")) {
+    return false;
   }
+
+  // All columns must be in allowed list
+  if (!normalized.every(h => allowed.includes(h))) {
+    return false;
+  }
+
+  // Must have at least one update column
+  const hasRemarkColumn = normalized.some(h =>
+    h === "remark" || h === "remarks"
+  );
+
+  const hasMonthlyUnitColumn = normalized.some(h =>
+    h === "monthly_unit" ||
+    h === "monthly_units" ||
+    h === "monthly_units_sold" ||
+    h === "monthly_unit_sold"
+  );
+
+  return hasRemarkColumn || hasMonthlyUnitColumn;
+}
 
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
@@ -197,14 +197,14 @@ export default function FlipkartSellersPage() {
   };
 
   // Auto-generate Amazon link from ASIN (Flipkart = India = amazon.in)
-const generateAmazonLink = (asin: string): string => {
-  if (!asin) return '';
-  return `https://www.amazon.in/dp/${asin}`;
-};
+  const generateAmazonLink = (asin: string): string => {
+    if (!asin) return '';
+    return `https://www.amazon.in/dp/${asin}`;
+  };
 
- 
-// FIXED: Handle multiple file uploads with batch insert
-const handleUpload = async (files: File[]) => {
+
+  // FIXED: Handle multiple file uploads with batch insert
+  const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
 
@@ -261,14 +261,14 @@ const handleUpload = async (files: File[]) => {
 
         // ✅ Check if this is a partial update file
         const rawHeaders = Object.keys(data[0] || {});
-        
+
         // ✅ DEBUG LOGGING (remove after testing)
         console.log('🔍 Raw headers from CSV:', rawHeaders);
         console.log('🔍 Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
         console.log('🔍 First data row:', data[0]);
         console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
         console.log('🔍 Total rows:', data.length);
-        
+
         if (isPartialUpdateFile(rawHeaders)) {
           toast.loading(`Updating products from ${file.name}...`, { id: toastId });
 
@@ -368,11 +368,10 @@ const handleUpload = async (files: File[]) => {
               return cleaned;
             });
 
-            const { error } = await supabase
-              .from(TABLE_NAME)
-              .upsert(cleanBatch, {
-                onConflict: 'asin',
-                ignoreDuplicates: false
+            // ✅ Use RPC function instead of direct upsert
+            const { data, error } = await supabase
+              .rpc('bulk_insert_flipkart_master_with_distribution', {
+                batch_data: cleanBatch
               });
 
             if (error) throw error;
@@ -408,10 +407,7 @@ const handleUpload = async (files: File[]) => {
           batch: i + 1,
           totalBatches,
         });
-
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // ============================================================
@@ -488,7 +484,7 @@ const handleUpload = async (files: File[]) => {
 
       let allData: any[] = [];
       let offset = 0;
-      const batchSize = 1000;
+      const batchSize = 500;
       let hasMore = true;
 
       while (hasMore) {
