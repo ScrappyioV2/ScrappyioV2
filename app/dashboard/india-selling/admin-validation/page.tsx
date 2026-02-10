@@ -461,7 +461,8 @@ export default function AdminValidationPage() {
           product_weight: product.productweight,
           inr_purchase: product.inrpurchase,
         },
-        adminConstants
+        adminConstants,
+        'INDIA'
       );
 
       console.log('Calculated profit:', result.profit);

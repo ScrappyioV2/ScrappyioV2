@@ -484,7 +484,7 @@ export default function FlipkartSellersPage() {
 
       let allData: any[] = [];
       let offset = 0;
-      const batchSize = 500;
+      const batchSize = 300;
       let hasMore = true;
 
       while (hasMore) {
