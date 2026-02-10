@@ -749,7 +749,8 @@ export default function ValidationPage() {
                     product_weight: product.product_weight,
                     inr_purchase: product.inr_purchase,
                 },
-                constants
+                constants,
+                'INDIA'
             );
 
             const newJudgement = result.judgement;

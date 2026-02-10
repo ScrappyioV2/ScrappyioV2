@@ -747,7 +747,8 @@ const setCurrentPage = (pageOrUpdater: number | ((prev: number) => number)) => {
                     product_weight: product.product_weight,
                     inr_purchase: product.inr_purchase,
                 },
-                constants
+                constants,
+                'USA'
             );
 
             const newJudgement = result.judgement;
