@@ -334,7 +334,7 @@ export default function FlipkartSellersPage() {
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
       // Step 2: OPTIMIZED Batch insert
-      const batchSize = 100;
+      const batchSize = 300;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
