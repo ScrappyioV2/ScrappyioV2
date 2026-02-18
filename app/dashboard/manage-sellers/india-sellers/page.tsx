@@ -257,10 +257,9 @@ export default function IndiaSellersPage() {
   };
 
   // Auto-generate Amazon link from ASIN
-  const generateAmazonLink = (asin: string, country: 'india' | 'india'): string => {
+  const generateAmazonLink = (asin: string): string => {
     if (!asin) return '';
-    const domain = country === 'india' ? 'amazon.com' : 'amazon.in';
-    return `https://www.${domain}/dp/${asin}`;
+    return `https://www.amazon.in/dp/${asin}`;
   };
 
   // FIXED: Handle multiple file uploads with batch insert
@@ -300,7 +299,7 @@ export default function IndiaSellersPage() {
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                product.amz_link = generateAmazonLink(product.asin, "india")
+                product.amz_link = generateAmazonLink(product.asin)
               }
               if (!product.link) {
                 product.link = product.amz_link;
@@ -426,7 +425,7 @@ export default function IndiaSellersPage() {
 
       console.log(`✅ [INDIA] After deduplication: ${allNewProducts.length} unique products`);
 
-      const batchSize = 200;
+      const batchSize = 500;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
@@ -492,30 +491,35 @@ export default function IndiaSellersPage() {
         return { success: false, count: 0 };
       };
 
-      for (let i = 0; i < batches.length; i++) {
+      // ✅ NEW (parallel - 3 batches at a time):
+      const CONCURRENCY = 3;
+
+      for (let i = 0; i < batches.length; i += CONCURRENCY) {
+        const chunk = batches.slice(i, i + CONCURRENCY);
+
         toast.loading(
-          `Uploading batch ${i + 1} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
+          `Uploading batches ${i + 1}-${Math.min(i + CONCURRENCY, totalBatches)} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
           { id: toastId }
         );
 
-        const result = await uploadBatch(batches[i], i);
+        const results = await Promise.all(
+          chunk.map((batch, idx) => uploadBatch(batch, i + idx))
+        );
 
-        if (result.success) {
-          successCount += result.count;
-        } else {
-          failedBatches++;
-        }
+        results.forEach(result => {
+          if (result.success) {
+            successCount += result.count;
+          } else {
+            failedBatches++;
+          }
+        });
 
         setUploadProgress({
           current: successCount,
           total: allNewProducts.length,
-          batch: i + 1,
+          batch: Math.min(i + CONCURRENCY, totalBatches),
           totalBatches,
         });
-
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
       }
 
       // ============================================================
@@ -551,47 +555,77 @@ export default function IndiaSellersPage() {
   // ============================================
   // AUTO-TRIGGER BACKGROUND DISTRIBUTION
   // ============================================
+  // ============================================
+  // AUTO-TRIGGER BACKGROUND DISTRIBUTION (Queue-based, like Flipkart)
+  // ============================================
   const triggerBackgroundDistribution = async (tableName: string) => {
     if (!supabase) return;
 
     setIsDistributing(true);
-    const distToastId = toast.loading('Distributing to demand sorting tables...', {
+    const distToastId = toast.loading('Distributing to all seller tables...', {
       style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' },
     });
 
     try {
-      const { data, error } = await supabase.rpc('india_distribute_all_batched');
+      // Get total records to distribute from queue
+      const { count, error: countError } = await supabase
+        .from('india_distribution_queue')
+        .select('*', { count: 'exact', head: true });
 
-      if (error) {
-        console.error('Distribution error:', error);
-        toast.error(`Distribution error: ${error.message}`, {
-          id: distToastId,
-          duration: 5000,
+      if (countError || !count) {
+        toast.success('Distribution complete — all records already synced', {
+          id: distToastId, duration: 3000,
         });
         return;
       }
 
-      const processed = data?.processed || 0;
-      const timeTaken = data?.time_seconds?.toFixed(1) || '?';
+      const DIST_CHUNK = 10000;
+      const totalChunks = Math.ceil(count / DIST_CHUNK);
+      let totalInserted = 0;
 
-      if (processed > 0) {
+      for (let chunk = 0; chunk < totalChunks; chunk++) {
+        const offset = chunk * DIST_CHUNK;
+        toast.loading(
+          `Distributing ${Math.min(offset + DIST_CHUNK, count).toLocaleString()}/${count.toLocaleString()} to all seller tables...`,
+          { id: distToastId }
+        );
+
+        const { data, error } = await supabase.rpc('distribute_india_chunked', {
+          chunk_offset: offset,
+          chunk_limit: DIST_CHUNK,
+        });
+
+        if (error) {
+          console.error(`Distribution chunk ${chunk + 1}/${totalChunks} failed:`, error);
+          continue; // Don't throw — continue with next chunk
+        }
+
+        if (data?.inserted) {
+          totalInserted += data.inserted;
+        }
+
+        // Small delay between chunks
+        if (chunk < totalChunks - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+      }
+
+      if (totalInserted > 0) {
         toast.success(
-          `✅ Distributed ${processed.toLocaleString()} records to 6 demand sorting tables (${timeTaken}s)`,
-          { id: distToastId, duration: 5000 }
+          `✅ ${totalInserted.toLocaleString()} records distributed to all seller tables!`,
+          { id: distToastId, duration: 4000 }
         );
       } else {
         toast.success('Distribution complete — all records already synced', {
-          id: distToastId,
-          duration: 3000,
+          id: distToastId, duration: 3000,
         });
       }
 
-      setRefreshTrigger((prev) => prev + 1);
+      setRefreshTrigger((prev: number) => prev + 1);
     } catch (err: any) {
       console.error('Distribution failed:', err);
-      toast.error('Distribution failed. Check console.', {
-        id: distToastId,
-        duration: 5000,
+      toast.error(`Distribution failed: ${err.message}`, {
+        id: distToastId, duration: 4000,
       });
     } finally {
       setIsDistributing(false);

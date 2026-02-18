@@ -422,23 +422,23 @@ export default function ValidationPage() {
         try {
             const { data, error } = await supabase
                 .from('india_validation_constants')
-                .select('*')
+                .select()
                 .limit(1)
-                .single()
+                .single();
 
             if (!error && data) {
                 setConstants({
-                    dollar_rate: data.dollar_rate,
-                    bank_conversion_rate: data.bank_conversion_rate,  // ✅ NEW
-                    shipping_charge_per_kg: data.shipping_charge_per_kg,  // ✅ NEW
-                    commission_rate: data.commission_rate,
-                    packing_cost: data.packing_cost,
-                })
+                    dollar_rate: data.dollarrate,
+                    bank_conversion_rate: data.bankconversionrate,
+                    shipping_charge_per_kg: data.shippingchargeperkg,
+                    commission_rate: data.commissionrate,
+                    packing_cost: data.packingcost,
+                });
             }
         } catch (err) {
-            console.error('Error fetching constants:', err)
+            console.error('Error fetching constants', err);
         }
-    }
+    };
 
     const fetchStats = async () => {
         try {
@@ -575,48 +575,27 @@ export default function ValidationPage() {
 
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
-        localEditCountRef.current += 1;; // ✅ START local edit lock
-
+        localEditCountRef.current += 1;
         try {
             const tableName = 'india_validation_main_file';
+            const { error } = await supabase.from(tableName).update({ [field]: value }).eq('id', id);
+            if (error) { setToast({ message: 'Failed to update', type: 'error' }); return; }
 
-            // Update DB
-            const { error } = await supabase
-                .from(tableName)
-                .update({ [field]: value })
-                .eq('id', id);
+            const existingProduct = products.find(p => p.id === id);
 
-            if (error) {
-                setToast({ message: 'Failed to update', type: 'error' });
-                return;
-            }
-
-            // Get current product snapshot
-            const existingProduct = products.find((p) => p.id === id);
-
-            if (existingProduct && activeTab === 'main_file') {
-                const latestProduct: ValidationProduct = {
-                    ...existingProduct,
-                    [field]: value,
-                };
-
-                // ✅ Run calculation ONLY once per edit
+            // ✅ Only auto-calculate for numeric fields that affect the formula
+            const CALC_FIELDS = ['usd_price', 'product_weight', 'inr_purchase'];
+            if (existingProduct && activeTab === 'main_file' && CALC_FIELDS.includes(field)) {
+                const latestProduct = { ...existingProduct, [field]: value } as ValidationProduct;
                 await autoCalculateAndUpdate(id, latestProduct);
             }
 
-            // Update UI immediately
-            // Update UI immediately
-            setProducts((prev) =>
-                prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
-            );
-
-
+            setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
         } catch (err) {
-            console.error('Update error:', err);
+            console.error('Update error', err);
             setToast({ message: 'Update failed', type: 'error' });
-            await new Promise(resolve => setTimeout(resolve, 100));
         } finally {
-            // ✅ RELEASE lock after short delay
+            await new Promise(resolve => setTimeout(resolve, 100));
             localEditCountRef.current -= 1;
         }
     };
@@ -1520,38 +1499,46 @@ export default function ValidationPage() {
     }
 
     const saveConstants = async () => {
-        setIsSavingConstants(true)
+        setIsSavingConstants(true);
         try {
-            // Update constants in database
+            // Map state keys → DB column names
+            const dbPayload = {
+                dollarrate: constants.dollar_rate,
+                bankconversionrate: constants.bank_conversion_rate,
+                shippingchargeperkg: constants.shipping_charge_per_kg,
+                commissionrate: constants.commission_rate,
+                packingcost: constants.packing_cost,
+            };
+
             const { data: existingData } = await supabase
                 .from('india_validation_constants')
                 .select('id')
                 .limit(1)
-                .single()
+                .single();
 
             if (existingData) {
-                await supabase
+                const { error } = await supabase
                     .from('india_validation_constants')
-                    .update(constants)
-                    .eq('id', existingData.id)
+                    .update(dbPayload)
+                    .eq('id', existingData.id);
+                if (error) throw error;
             } else {
-                await supabase
+                const { error } = await supabase
                     .from('india_validation_constants')
-                    .insert([constants])
+                    .insert(dbPayload);
+                if (error) throw error;
             }
 
-            setToast({ message: 'Constants saved successfully!', type: 'success' })
-            setIsConstantsModalOpen(false)
-
-            // Recalculate all products in main file
-            await recalculateAllProducts()
+            setToast({ message: 'Constants saved successfully!', type: 'success' });
+            setIsConstantsModalOpen(false);
+            await recalculateAllProducts();
         } catch (err) {
-            console.error('Save constants error:', err)
-            setToast({ message: 'Failed to save constants', type: 'error' })
+            console.error('Save constants error', err);
+            setToast({ message: 'Failed to save constants', type: 'error' });
         } finally {
-            setIsSavingConstants(false)
+            setIsSavingConstants(false);
         }
-    }
+    };
 
     const recalculateAllProducts = async () => {
         if (activeTab !== 'main_file') return
@@ -2178,7 +2165,7 @@ export default function ValidationPage() {
                                                         <td className="p-3 text-slate-300 overflow-hidden">
                                                             {activeTab === 'main_file' ? (
                                                                 <input type="number" key={product.id} defaultValue={product.product_weight ?? ''}
-                                                                    onBlur={(e) => handleCellEdit(product.id, 'productweight', Number(e.target.value) || null)}
+                                                                    onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
                                                                     className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
 
                                                                 />
@@ -2192,7 +2179,7 @@ export default function ValidationPage() {
                                                         <td className="p-3 text-slate-300 overflow-hidden">
                                                             {activeTab === 'main_file' ? (
                                                                 <input type="text" key={product.id} defaultValue={product.usd_price ?? ''}
-                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usdprice', parsed) }}
+                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
                                                                     className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
 
                                                                 />
@@ -2207,7 +2194,7 @@ export default function ValidationPage() {
                                                         <td className="p-3 text-slate-300 overflow-hidden">
                                                             {activeTab === 'main_file' ? (
                                                                 <input type="text" key={product.id} defaultValue={product.inr_purchase ?? ''}
-                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inrpurchase', parsed) }}
+                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
                                                                     className="w-full max-w-[90px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
                                                                 />
                                                             ) : (
@@ -2221,62 +2208,77 @@ export default function ValidationPage() {
                                                         <td className="px-4 py-3 text-sm overflow-hidden">
                                                             <input
                                                                 type="url"
-                                                                value={product.inr_purchase_link || ''}
-                                                                onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
+                                                                defaultValue={product.inr_purchase_link || ''}
+                                                                key={`${product.id}-${product.inr_purchase_link}`}
+                                                                onBlur={(e) => {
+                                                                    const val = e.target.value.trim();
+                                                                    if (val !== (product.inr_purchase_link || '')) {
+                                                                        handleCellEdit(product.id, 'inr_purchase_link', val);
+                                                                    }
+                                                                }}
                                                                 onKeyDown={async (e) => {
                                                                     if (e.key === 'Enter') {
                                                                         e.preventDefault();
                                                                         const link = (e.target as HTMLInputElement).value.trim();
                                                                         if (!link) {
-                                                                            setToast({ message: '⚠️ Please enter a source link first', type: 'warning' });
+                                                                            setToast({ message: 'Please enter a source link first', type: 'warning' });
                                                                             return;
                                                                         }
-                                                                        const currentProduct = products.find((p) => p.id === product.id);
+
+                                                                        const currentProduct = products.find(p => p.id === product.id);
                                                                         if (!currentProduct) return;
+
                                                                         if (!currentProduct.usd_price || !currentProduct.product_weight || !currentProduct.inr_purchase) {
-                                                                            setToast({ message: '⚠️ Fill Weight, USD & INR first', type: 'warning' });
+                                                                            setToast({ message: 'Fill Weight, USD & INR first', type: 'warning' });
                                                                             return;
                                                                         }
+
                                                                         const result = calculateProductValues(
                                                                             { usd_price: currentProduct.usd_price, product_weight: currentProduct.product_weight, inr_purchase: currentProduct.inr_purchase },
-                                                                            constants,
-                                                                            'INDIA'
+                                                                            constants, 'INDIA'
                                                                         );
+
                                                                         const finalJudgement = result.judgement || 'PENDING';
+
                                                                         const { error } = await supabase
                                                                             .from('india_validation_main_file')
                                                                             .update({
-                                                                                inr_purchase_link: link,
+                                                                                inrpurchaselink: link,
                                                                                 judgement: finalJudgement,
                                                                                 calculated_judgement: finalJudgement,
-                                                                                total_cost: isFinite(result.total_cost) ? result.total_cost : null,
-                                                                                total_revenue: isFinite(result.total_revenue) ? result.total_revenue : null,
+                                                                                totalcost: isFinite(result.total_cost) ? result.total_cost : null,
+                                                                                totalrevenue: isFinite(result.total_revenue) ? result.total_revenue : null,
                                                                                 profit: isFinite(result.profit) ? result.profit : null,
                                                                             })
                                                                             .eq('id', product.id);
+
                                                                         if (error) {
-                                                                            setToast({ message: '❌ Failed to finalize', type: 'error' });
+                                                                            setToast({ message: 'Failed to finalize', type: 'error' });
                                                                             return;
                                                                         }
-                                                                        setProducts((prev) =>
-                                                                            prev.map((p) =>
-                                                                                p.id === product.id
-                                                                                    ? {
-                                                                                        ...p, inr_purchase_link: link, judgement: finalJudgement, calculated_judgement: finalJudgement,
-                                                                                        total_cost: result.total_cost, total_revenue: result.total_revenue, profit: result.profit
-                                                                                    }
-                                                                                    : p
-                                                                            )
-                                                                        );
+
+                                                                        setProducts(prev => prev.map(p =>
+                                                                            p.id === product.id ? {
+                                                                                ...p,
+                                                                                inrpurchaselink: link,
+                                                                                judgement: finalJudgement,
+                                                                                calculated_judgement: finalJudgement,
+                                                                                totalcost: result.total_cost,
+                                                                                totalrevenue: result.total_revenue,
+                                                                                profit: result.profit,
+                                                                            } : p
+                                                                        ));
+
                                                                         await fetchStats();
+
                                                                         if (finalJudgement === 'PASS') {
-                                                                            setToast({ message: `✅ ${currentProduct.asin} → Pass File!`, type: 'success' });
+                                                                            setToast({ message: `${currentProduct.asin} → Pass File!`, type: 'success' });
                                                                         } else if (finalJudgement === 'FAIL') {
-                                                                            setToast({ message: `❌ ${currentProduct.asin} → Fail File!`, type: 'error' });
+                                                                            setToast({ message: `${currentProduct.asin} → Fail File!`, type: 'error' });
                                                                         }
                                                                     }
                                                                 }}
-                                                                placeholder="Enter link + press Enter ↵"
+                                                                placeholder="Enter link → press Enter"
                                                                 className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate text-xs"
                                                             />
                                                         </td>
@@ -2515,8 +2517,8 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
                                         <input
                                             type="number"
-                                            value={constants.dollar_rate}
-                                            onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
+                                            value={constants.dollar_rate ?? ''}
+                                            onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, dollar_rate: isNaN(val) ? 0 : val }); }}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
@@ -2525,8 +2527,8 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
                                         <input
                                             type="number"
-                                            value={constants.bank_conversion_rate * 100}
-                                            onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
+                                            value={constants.bank_conversion_rate != null && !isNaN(constants.bank_conversion_rate) ? constants.bank_conversion_rate * 100 : ''}
+                                            onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, bank_conversion_rate: isNaN(val) ? 0 : val / 100 }); }}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
@@ -2535,8 +2537,31 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
                                         <input
                                             type="number"
-                                            value={constants.shipping_charge_per_kg}
-                                            onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
+                                            value={constants.shipping_charge_per_kg ?? ''}
+                                            onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, shipping_charge_per_kg: isNaN(val) ? 0 : val }); }}
+                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Commission Rate (%)</label>
+                                        <input
+                                            type="number"
+                                            value={constants.commission_rate != null && !isNaN(constants.commission_rate) ? constants.commission_rate * 100 : ''}
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value);
+                                                setConstants({ ...constants, commission_rate: isNaN(val) ? 0 : val / 100 });
+                                            }}
+                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Packing Cost (₹)</label>
+                                        <input
+                                            type="number"
+                                            value={constants.packing_cost ?? ''}
+                                            onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, packing_cost: isNaN(val) ? 0 : val }); }}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />

@@ -156,12 +156,6 @@ export const APP_ROUTES: AppRoute[] = [
     permission: 'india-selling',
     subRoutes: [
       {
-        path: '/dashboard/india-selling/demand-sorting',
-        label: 'Demand Sorting',
-        permission: 'view-brand-checking',
-        icon: Package,
-      },
-      {
         path: '/dashboard/india-selling/brand-checking',
         label: 'Brand Checking',
         permission: 'view-brand-checking',
