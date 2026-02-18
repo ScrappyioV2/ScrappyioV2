@@ -17,7 +17,7 @@ import {
 } from '@/lib/utils/master-table/uploadHelpers'
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
-import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
+import { filterDuplicateASINs, bulkUpdateAsinRemarkMonthlyUnit } from '@/lib/utils/master-table/uploadHelpers';
 import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
 import {
   Search,
@@ -31,6 +31,29 @@ import {
 } from 'lucide-react'; // Added Lucide icons for modern look
 
 const TABLE_NAME = 'usa_master_sellers';
+
+// ✅ Helper function to detect partial update file
+function isPartialUpdateFile(headers: string[]) {
+  const normalized = headers.map(h =>
+    h.trim().toLowerCase().replace(/[\s_]+/g, '_')
+  );
+
+  const allowed = [
+    "asin", "remark", "remarks", "monthly_unit", "monthly_units",
+    "monthly_units_sold", "monthly_unit_sold"
+  ];
+
+  if (!normalized.includes("asin")) return false;
+  if (!normalized.every(h => allowed.includes(h))) return false;
+
+  const hasRemarkColumn = normalized.some(h => h === "remark" || h === "remarks");
+  const hasMonthlyUnitColumn = normalized.some(h =>
+    h === "monthly_unit" || h === "monthly_units" ||
+    h === "monthly_units_sold" || h === "monthly_unit_sold"
+  );
+
+  return hasRemarkColumn || hasMonthlyUnitColumn;
+}
 
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
@@ -169,6 +192,8 @@ export default function UsaSellersPage() {
     try {
       let allNewProducts: any[] = [];
       let totalDuplicates = 0;
+      let totalUpdated = 0;
+      let hasPartialUpdate = false;
 
       // Step 1: Parse all files
       for (let i = 0; i < files.length; i++) {
@@ -192,13 +217,11 @@ export default function UsaSellersPage() {
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                product.amz_link = generateAmazonLink(product.asin, "usa")
+                product.amz_link = generateAmazonLink(product.asin, "usa");
               }
               if (!product.link) {
                 product.link = product.amz_link;
               }
-
-              // ✅ HANDLE REMARK COLUMN - Case-insensitive mapping
               if (!product.remark) {
                 product.remark = product.REMARK ||
                   product.Remark ||
@@ -212,8 +235,51 @@ export default function UsaSellersPage() {
           })
           .filter(Boolean);
 
+        // ✅ Check if this is a partial update file
+        const rawHeaders = Object.keys(data[0] || {});
+        console.log('🔍 Raw headers from CSV:', rawHeaders);
+        console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
 
-        // Filter duplicates
+        if (isPartialUpdateFile(rawHeaders)) {
+          const partialToastId = toast.loading(`Processing ${normalizedData.length.toLocaleString()} records...`);
+
+          try {
+            const { updatedCount, skippedCount, message } =
+              await bulkUpdateAsinRemarkMonthlyUnit(
+                normalizedData,
+                TABLE_NAME,
+                (current, total) => {
+                  const percentage = Math.round((current / total) * 100);
+                  toast.loading(
+                    `Updating: ${current.toLocaleString()}/${total.toLocaleString()} (${percentage}%)`,
+                    { id: partialToastId }
+                  );
+                }
+              );
+
+            totalUpdated += updatedCount;
+            hasPartialUpdate = true;
+
+            if (updatedCount > 0) {
+              toast.success(
+                message || `✅ ${updatedCount.toLocaleString()} products updated from ${file.name}`,
+                { id: partialToastId, duration: 5000 }
+              );
+            } else {
+              toast.error(
+                `⚠️ No products updated from ${file.name}. Check ASINs match master table.`,
+                { id: partialToastId, duration: 5000 }
+              );
+            }
+          } catch (err: any) {
+            console.error('Partial update failed:', err);
+            toast.error(`❌ Partial update failed: ${err.message}`, { id: partialToastId, duration: 5000 });
+          }
+
+          continue;
+        }
+
+        // For full files, filter duplicates
         const { newProducts, duplicateCount } =
           await filterDuplicateASINs(normalizedData, TABLE_NAME);
 
@@ -221,44 +287,40 @@ export default function UsaSellersPage() {
         totalDuplicates += duplicateCount;
       }
 
-      // If no new products after processing all files
-      if (allNewProducts.length === 0) {
-        toast.error(
-          `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
-          { id: toastId, duration: 5000 }
-        );
+      // Case 1: Only partial updates
+      if (hasPartialUpdate && allNewProducts.length === 0) {
+        toast.success(`✅ ${totalUpdated} products updated successfully`, { id: toastId, duration: 5000 });
+        setRefreshTrigger(prev => prev + 1);
         setIsUploading(false);
         return;
       }
 
-      // CRITICAL: Remove duplicate ASINs within the batch
+      // Case 2: All duplicates
+      if (!hasPartialUpdate && allNewProducts.length === 0) {
+        toast.error(`All ${totalDuplicates} products are duplicates. No new data uploaded.`, { id: toastId, duration: 5000 });
+        setIsUploading(false);
+        return;
+      }
+
+      // Deduplicate within batch
       const uniqueProductsMap = new Map();
       allNewProducts.forEach(product => {
-        if (product.asin) {
-          uniqueProductsMap.set(product.asin, product);
-        }
+        if (product.asin) uniqueProductsMap.set(product.asin, product);
       });
       allNewProducts = Array.from(uniqueProductsMap.values());
-
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
-      // Step 2: OPTIMIZED Batch insert
-      const batchSize = 100;
+      // Step 2: Batch insert via RPC
+      const batchSize = 200;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
 
-      setUploadProgress({
-        current: 0,
-        total: allNewProducts.length,
-        batch: 0,
-        totalBatches,
-      });
+      setUploadProgress({ current: 0, total: allNewProducts.length, batch: 0, totalBatches });
 
       const batches: any[][] = [];
       for (let i = 0; i < allNewProducts.length; i += batchSize) {
-        const batch = allNewProducts.slice(i, i + batchSize);
-        batches.push(batch);
+        batches.push(allNewProducts.slice(i, i + batchSize));
       }
 
       const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
@@ -277,15 +339,13 @@ export default function UsaSellersPage() {
               return cleaned;
             });
 
-            const { error } = await supabase
-              .from(TABLE_NAME)
-              .upsert(cleanBatch, {
-                onConflict: 'asin',
-                ignoreDuplicates: false
+            // ✅ Use RPC instead of direct upsert
+            const { data, error } = await supabase
+              .rpc('bulk_insert_usa_master_with_distribution', {
+                batch_data: cleanBatch
               });
 
             if (error) throw error;
-
             return { success: true, count: batch.length };
           } catch (error: any) {
             attempt++;
@@ -304,44 +364,97 @@ export default function UsaSellersPage() {
         );
 
         const result = await uploadBatch(batches[i], i);
-
         if (result.success) {
           successCount += result.count;
         } else {
           failedBatches++;
         }
 
-        setUploadProgress({
-          current: successCount,
-          total: allNewProducts.length,
-          batch: i + 1,
-          totalBatches,
-        });
-
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+        setUploadProgress({ current: successCount, total: allNewProducts.length, batch: i + 1, totalBatches });
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       const summaryLines = [];
+      if (totalUpdated > 0) summaryLines.push(`✅ Updated ${totalUpdated} products`);
       if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
       if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
-      if (successCount > 0) {
+      if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
+
+        // ✅ AUTO-TRIGGER BACKGROUND DISTRIBUTION
+        triggerBackgroundDistribution();
       } else {
         toast.error('Upload failed. Please try again.', { id: toastId, duration: 5000 });
       }
 
     } catch (error: any) {
       console.error('Upload error:', error);
-      const errorMessage = error?.message || 'Failed to upload data. Please try again.';
-      toast.error(errorMessage, { id: toastId, duration: 5000 });
+      toast.error(error?.message || 'Failed to upload data. Please try again.', { id: toastId, duration: 5000 });
     } finally {
       setIsUploading(false);
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
+    }
+  };
+
+  // ✅ AUTO-TRIGGER BACKGROUND DISTRIBUTION (CHUNKED — 100K SAFE)
+  const triggerBackgroundDistribution = async () => {
+    if (!supabase) return;
+
+    const distToastId = toast.loading('Distributing to all 16 USA tables...', {
+      style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }
+    });
+
+    try {
+      const { count, error: countError } = await supabase
+        .from('usa_distribution_queue')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError || !count) {
+        toast.error('Failed to get record count', { id: distToastId });
+        return;
+      }
+
+      const DIST_CHUNK = 10000;
+      const totalChunks = Math.ceil(count / DIST_CHUNK);
+      let totalInserted = 0;
+
+      for (let chunk = 0; chunk < totalChunks; chunk++) {
+        const offset = chunk * DIST_CHUNK;
+
+        toast.loading(
+          `Distributing ${Math.min(offset + DIST_CHUNK, count).toLocaleString()}/${count.toLocaleString()} to 16 USA tables...`,
+          { id: distToastId }
+        );
+
+        const { data, error } = await supabase.rpc(
+          'distribute_usa_chunked',
+          { chunk_offset: offset, chunk_limit: DIST_CHUNK }
+        );
+
+        if (error) {
+          console.error(`USA distribution chunk ${chunk + 1}/${totalChunks} failed:`, error);
+          continue;
+        }
+
+        if (data?.inserted) totalInserted += data.inserted;
+
+        if (chunk < totalChunks - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      toast.success(
+        `✅ ${totalInserted.toLocaleString()} records distributed to all 16 USA tables!`,
+        { id: distToastId, duration: 4000 }
+      );
+      setRefreshTrigger((prev: number) => prev + 1);
+
+    } catch (err: any) {
+      console.error('USA distribution failed:', err);
+      toast.error(`Distribution failed: ${err.message}`, { id: distToastId, duration: 4000 });
     }
   };
 

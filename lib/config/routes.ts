@@ -13,7 +13,8 @@ import {
   Home,
   Truck,
   List,
-  ListX
+  ListX,
+  Package
 } from 'lucide-react';
 import { AppRoute } from '@/lib/types';
 
@@ -154,6 +155,12 @@ export const APP_ROUTES: AppRoute[] = [
     icon: ShoppingCart,
     permission: 'india-selling',
     subRoutes: [
+      {
+        path: '/dashboard/india-selling/demand-sorting',
+        label: 'Demand Sorting',
+        permission: 'view-brand-checking',
+        icon: Package,
+      },
       {
         path: '/dashboard/india-selling/brand-checking',
         label: 'Brand Checking',

@@ -24,6 +24,17 @@ const debounce = <T extends (...args: any[]) => any>(
     };
 };
 
+const generateUUID = (): string => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Fallback for older browsers
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+};
 
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -116,6 +127,7 @@ interface ValidationProduct {
     status: string | null
     origin_india: boolean | null
     origin_china: boolean | null
+    origin_us: boolean | null
     check_brand: boolean | null
     check_item_expire: boolean | null
     check_small_size: boolean | null
@@ -127,10 +139,11 @@ interface ValidationProduct {
 }
 
 interface Stats {
-    total: number
-    passed: number
-    failed: number
-    pending: number
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+    rejected: number;
 }
 
 interface Filters {
@@ -139,8 +152,7 @@ interface Filters {
     funnel: string;
 }
 
-type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending'
-
+type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reject_file';
 
 const SELLER_STYLES: Record<string, string> = {
     GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',    // Golden Aura - YELLOW
@@ -171,7 +183,7 @@ const renderSellerTags = (sellerTag: string | null) => {
 const FUNNEL_STYLES: Record<string, string> = {
     HD: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
     LD: 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg border border-blue-600/30',
-    DP: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'    
+    DP: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'
 };
 
 
@@ -221,8 +233,6 @@ const ResizableTH = ({
     );
 };
 
-
-
 export default function ValidationPage() {
     const { user, loading: authLoading } = useAuth();
     // const [editingValue, setEditingValue] = useState<{
@@ -236,20 +246,16 @@ export default function ValidationPage() {
     const [loading, setLoading] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
-    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0 })
+    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0 })
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
     const localEditCountRef = useRef(0);
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
-    const [tabPages, setTabPages] = useState<Record<FileTab, number>>({
-        main_file: 1,
-        pass_file: 1,
-        fail_file: 1,
-        pending: 1,
-    });
+    const [tabPages, setTabPages] = useState<Record<FileTab, number>>({ main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reject_file: 1, });
     const [rowsPerPage] = useState(100);
+    const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
 
     // ✅ Get current page for active tab
     const currentPage = tabPages[activeTab];
@@ -476,19 +482,20 @@ export default function ValidationPage() {
                 'judgement'
             );
 
-
             const products = mainData || []
 
             // Count by judgement status
             const passed = products.filter(p => p.judgement === 'PASS').length
             const failed = products.filter(p => p.judgement === 'FAIL').length
             const pending = products.filter(p => !p.judgement || p.judgement === 'PENDING').length
+            const rejected = products.filter(p => p.judgement === 'REJECT').length  // ← ADD
 
             setStats({
-                total: products.length, // Total in main file
+                total: products.length,
                 passed: passed,
                 failed: failed,
-                pending: pending
+                pending: pending,
+                rejected: rejected   // ← ADD
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
@@ -588,44 +595,13 @@ export default function ValidationPage() {
     };
 
     // ✅ Cache filtered products per tab
-    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({
-        main_file: [],
-        pass_file: [],
-        fail_file: [],
-        pending: []
-    });
+    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reject_file: [] });
 
-
-    // Get products for current tab (before search/filters)
-    // const getTabProducts = () => {
-    //     let tabProducts = [...products];
-
-    //     // Filter based on active tab
-    //     if (activeTab === 'pass_file') {
-    //         // ✅ FIX: Hide items already sent to purchases
-    //         tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
-    //     } else if (activeTab === 'fail_file') {
-    //         tabProducts = tabProducts.filter((p) => p.judgement === 'FAIL');
-    //     } else if (activeTab === 'pending') {
-    //         tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
-    //     } else if (activeTab === 'main_file') {
-    //         // Main File now shows only PENDING items (same as Pending tab)
-    //         tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
-    //     }
-    //     tabProductsCache.current[activeTab] = tabProducts;
-    //     return tabProducts;
-    // };
     // ✅ Add this useEffect to clear cache when products change
     useEffect(() => {
         // Clear cache when products array updates
-        tabProductsCache.current = {
-            main_file: [],
-            pass_file: [],
-            fail_file: [],
-            pending: []
-        };
+        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reject_file: [] };
     }, [products]);
-
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
         localEditCountRef.current += 1;; // ✅ START local edit lock
@@ -679,9 +655,11 @@ export default function ValidationPage() {
         let result = products;
 
         if (activeTab === 'pass_file') {
-            result = products.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
+            result = products.filter((p) => p.judgement === 'PASS');
         } else if (activeTab === 'fail_file') {
             result = products.filter((p) => p.judgement === 'FAIL');
+        } else if (activeTab === 'reject_file') {
+            result = products.filter(p => p.judgement === 'REJECT');
         } else if (activeTab === 'pending' || activeTab === 'main_file') {
             result = products.filter((p) => !p.judgement || p.judgement === 'PENDING');
         }
@@ -729,85 +707,27 @@ export default function ValidationPage() {
     // 2. UPDATE the autoCalculateAndUpdate function around line 180
     const autoCalculateAndUpdate = async (id: string, product: ValidationProduct) => {
         try {
-            // Track if judgement changed
-            const previousJudgement = product.judgement;
-
-            // Validate inputs before calculation
             if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
-                console.log('⚠️ Missing required fields for calculation:', {
-                    usdprice: product.usd_price,
-                    productweight: product.product_weight,
-                    inrpurchase: product.inr_purchase,
-                });
-                return; // Exit if required fields are missing
-            }
-
-            // Calculate values
-            const result = calculateProductValues(
-                {
+                console.log('Missing required fields for calculation', {
                     usd_price: product.usd_price,
                     product_weight: product.product_weight,
                     inr_purchase: product.inr_purchase,
-                },
+                });
+                return;
+            }
+
+            const result = calculateProductValues(
+                { usd_price: product.usd_price, product_weight: product.product_weight, inr_purchase: product.inr_purchase },
                 constants,
                 'INDIA'
             );
 
-            const newJudgement = result.judgement;
-
-            // 🛡️ Validate and sanitize calculated values
             const updateData: any = {};
-
-            // Handle totalcost
-            if (result.total_cost !== null && result.total_cost !== undefined) {
-                updateData.total_cost = isFinite(result.total_cost) && !isNaN(result.total_cost)
-                    ? Number(result.total_cost)
-                    : null;
-            } else {
-                updateData.totalcost = null;
-            }
-
-            // Handle totalrevenue
-            if (result.total_revenue !== null && result.total_revenue !== undefined) {
-                updateData.total_revenue = isFinite(result.total_revenue) && !isNaN(result.total_revenue)
-                    ? Number(result.total_revenue)
-                    : null;
-            } else {
-                updateData.totalrevenue = null;
-            }
-
-            // Handle profit
-            if (result.profit !== null && result.profit !== undefined) {
-                updateData.profit = isFinite(result.profit) && !isNaN(result.profit)
-                    ? Number(result.profit)
-                    : null;
-            } else {
-                updateData.profit = null;
-            }
-
-            // Handle judgement - Calculate but don't finalize without INR Purchase Link
-            updateData.judgement = result.judgement || 'PENDING';
-
-            // 🔒 CRITICAL: Only save judgement to database if INR Purchase Link is filled
-            // Otherwise keep as PENDING even if calculations are done
-            const hasInrPurchaseLink = product.inr_purchase_link && product.inr_purchase_link.trim() !== '';
-
-            if (hasInrPurchaseLink) {
-                // INR Purchase Link is filled - save the calculated judgement
-                updateData.judgement = result.judgement || 'PENDING';
-            } else {
-                // INR Purchase Link NOT filled - keep as PENDING in database
-                updateData.judgement = 'PENDING';
-            }
-
-            console.log('📊 Updating product:', {
-                id,
-                asin: product.asin,
-                hasInrPurchaseLink,
-                calculatedJudgement: result.judgement,
-                savedJudgement: updateData.judgement,
-                ...updateData
-            });
+            updateData.total_cost = result.total_cost !== null && isFinite(result.total_cost) ? Number(result.total_cost) : null;
+            updateData.total_revenue = result.total_revenue !== null && isFinite(result.total_revenue) ? Number(result.total_revenue) : null;
+            updateData.profit = result.profit !== null && isFinite(result.profit) ? Number(result.profit) : null;
+            updateData.calculated_judgement = result.judgement || 'PENDING';
+            updateData.judgement = 'PENDING';
 
             const { error: updateError } = await supabase
                 .from('flipkart_validation_main_file')
@@ -815,72 +735,36 @@ export default function ValidationPage() {
                 .eq('id', id);
 
             if (updateError) {
-                console.error('❌ Auto-calc error:', updateError);
-                setToast({
-                    message: 'Failed to update product calculation',
-                    type: 'error',
-                });
+                console.error('Auto-calc error', updateError);
+                setToast({ message: 'Failed to update product calculation', type: 'error' });
                 return;
             }
 
-            console.log('✅ Product updated successfully');
-
-            // ⚠️ DO NOT call fetchStats() here - it causes page refresh!
-            // Stats will update via Supabase realtime subscription
-
-            // Update local state
             setProducts((prev) =>
                 prev.map((p) =>
                     p.id === id
                         ? {
                             ...p,
-                            // Update calculated fields
                             total_cost: result.total_cost,
                             total_revenue: result.total_revenue,
                             profit: result.profit,
-
-                            // 🔒 CRITICAL LOGIC: 
-                            // 1. Keep 'judgement' as updateData.judgement (keeps it in current tab if PENDING)
-                            judgement: updateData.judgement,
-
-                            // 2. Store the math result visually so the user sees "PASS" immediately
+                            judgement: 'PENDING',
                             calculated_judgement: result.judgement,
                         }
                         : p
                 )
             );
 
-            // ✅ Show appropriate toast based on what was updated
-            if (hasInrPurchaseLink) {
-                // INR Purchase Link is filled - show "moved to file" toast
-                if (result.judgement === 'PASS') {
-                    setToast({
-                        message: `✅ Product ready for Pass File! (ASIN: ${product.asin})`,
-                        type: 'success',
-                    });
-                } else if (result.judgement === 'FAIL') {
-                    setToast({
-                        message: `❌ Product ready for Fail File! (ASIN: ${product.asin})`,
-                        type: 'error',
-                    });
-                }
+            if (result.judgement === 'PASS') {
+                setToast({ message: `✅ Judgement: PASS — Fill source link & press Enter to move`, type: 'success' });
+            } else if (result.judgement === 'FAIL') {
+                setToast({ message: `❌ Judgement: FAIL — Fill source link & press Enter to move`, type: 'error' });
             } else {
-                // Calculation done but INR Purchase Link still needed
-                if (result.judgement && result.judgement !== 'PENDING') {
-                    console.log(`ℹ️ Judgement calculated (${result.judgement}) - waiting for INR Purchase Link`);
-                }
-                // Show generic success toast
-                setToast({
-                    message: 'Updated successfully',
-                    type: 'success',
-                });
+                setToast({ message: '✅ Updated successfully', type: 'success' });
             }
         } catch (err) {
-            console.error('💥 Exception in autoCalculateAndUpdate:', err);
-            setToast({
-                message: 'Calculation error occurred',
-                type: 'error',
-            });
+            console.error('Exception in autoCalculateAndUpdate', err);
+            setToast({ message: 'Calculation error occurred', type: 'error' });
         }
     };
 
@@ -889,36 +773,236 @@ export default function ValidationPage() {
     }
 
     const processCSVFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (!file) return
+        const file = event.target.files?.[0];
+        if (!file) return;
 
         try {
-            const data = await file.arrayBuffer()
-            const workbook = XLSX.read(data)
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-            const jsonData = XLSX.utils.sheet_to_json(worksheet)
-            const tableName = `india_validation_${activeTab}`
-            const { error } = await supabase
-                .from(tableName)
-                .insert(jsonData)
+            let rows: Record<string, string>[] = [];
+            const fileName = file.name.toLowerCase();
 
-            if (error) {
-                setToast({ message: `Upload failed: ${error.message}`, type: 'error' })
-                return
+            if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                rows = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: '' });
+            } else {
+                const text = (await file.text()).replace(/^\uFEFF/, '');
+                rows = await new Promise((resolve) => {
+                    Papa.parse(text, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => resolve(results.data as Record<string, string>[]),
+                    });
+                });
             }
 
-            setToast({ message: `Successfully uploaded ${jsonData.length} products!`, type: 'success' })
-            fetchProducts()
-            fetchStats()
+            if (rows.length === 0) {
+                setToast({ message: 'File is empty', type: 'error' });
+                return;
+            }
+
+            const rawHeaders = Object.keys(rows[0]);
+            console.log('📋 File Headers:', rawHeaders);
+
+            const headerMap: Record<string, string> = {};
+            rawHeaders.forEach((h) => {
+                const lower = h.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (lower === 'asin') headerMap['asin'] = h;
+                else if (lower === 'productweight' || lower === 'weightg' || lower === 'weight') headerMap['product_weight'] = h;
+                else if (lower === 'usdprice' || lower === 'usd' || lower === 'usdprice') headerMap['usd_price'] = h;
+                else if (lower === 'inrpurchase' || lower === 'inr' || lower === 'inrpurchase' || lower === 'inr₹') headerMap['inr_purchase'] = h;
+                else if (lower === 'inrpurchaselink' || lower === 'sourcelink' || lower === 'sourcelink' || lower === 'inrpurchaselink') headerMap['inr_purchase_link'] = h;
+                else if (lower === 'remark' || lower === 'remarks') headerMap['remark'] = h;
+                else if (lower === 'flipkartlink' || lower === 'flipkart_link' || lower === 'fklink') headerMap['flipkart_link'] = h;
+            });
+
+            if (!headerMap['asin']) {
+                setToast({ message: 'File must have an ASIN column', type: 'error' });
+                return;
+            }
+
+            console.log('🔍 Mapped headers:', headerMap);
+
+            const updates: {
+                asin: string;
+                product_weight?: number | null;
+                usd_price?: number | null;
+                inr_purchase?: number | null;
+                inr_purchase_link?: string | null;
+                remark?: string | null;
+                flipkart_link?: string | null
+            }[] = [];
+
+
+            for (const row of rows) {
+                const asin = row[headerMap['asin']]?.toString().trim();
+                if (!asin) continue;
+
+                const update: any = { asin };
+
+                if (headerMap['product_weight']) {
+                    const val = parseFloat(row[headerMap['product_weight']]);
+                    if (!isNaN(val)) update.product_weight = val;
+                }
+                if (headerMap['usd_price']) {
+                    const val = parseFloat(row[headerMap['usd_price']]);
+                    if (!isNaN(val)) update.usd_price = val;
+                }
+                if (headerMap['inr_purchase']) {
+                    const val = parseFloat(row[headerMap['inr_purchase']]);
+                    if (!isNaN(val)) update.inr_purchase = val;
+                }
+                if (headerMap['inr_purchase_link']) {
+                    const val = row[headerMap['inr_purchase_link']]?.toString().trim();
+                    if (val) update.inr_purchase_link = val;
+                }
+                if (headerMap['remark']) {
+                    const val = row[headerMap['remark']]?.toString().trim();
+                    if (val !== undefined) update.remark = val || null;
+                }
+                if (headerMap['flipkart_link']) {
+                    const val = row[headerMap['flipkart_link']]?.toString().trim();
+                    if (val) {
+                        update.flipkart_link = val.startsWith('http') ? val : `https://${val}`;
+                    }
+                }
+                updates.push(update);
+            }
+
+            if (updates.length === 0) {
+                setToast({ message: 'No valid rows found in file', type: 'warning' });
+                return;
+            }
+
+            console.log(`📊 Processing ${updates.length} rows for override...`);
+
+            const productsByAsin = new Map<string, ValidationProduct>();
+            products.forEach((p) => productsByAsin.set(p.asin, p));
+
+            let updated = 0;
+            let skipped = 0;
+            let passCount = 0;
+            let failCount = 0;
+            const BATCH_SIZE = 50;
+
+            for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+                const batch = updates.slice(i, i + BATCH_SIZE);
+
+                const promises = batch.map(async (csvRow) => {
+                    const existingProduct = productsByAsin.get(csvRow.asin);
+                    if (!existingProduct) {
+                        skipped++;
+                        return;
+                    }
+
+                    const mergedProduct: ValidationProduct = {
+                        ...existingProduct,
+                        product_weight: csvRow.product_weight ?? existingProduct.product_weight,
+                        usd_price: csvRow.usd_price ?? existingProduct.usd_price,
+                        inr_purchase: csvRow.inr_purchase ?? existingProduct.inr_purchase,
+                        inr_purchase_link: csvRow.inr_purchase_link ?? existingProduct.inr_purchase_link,
+                        remark: csvRow.remark !== undefined ? csvRow.remark : existingProduct.remark,
+                        flipkart_link: csvRow.flipkart_link ?? existingProduct.flipkart_link,
+                    };
+
+                    const dbUpdate: Record<string, any> = {};
+
+                    if (csvRow.product_weight !== undefined) dbUpdate.product_weight = csvRow.product_weight;
+                    if (csvRow.usd_price !== undefined) dbUpdate.usd_price = csvRow.usd_price;
+                    if (csvRow.inr_purchase !== undefined) dbUpdate.inr_purchase = csvRow.inr_purchase;
+                    if (csvRow.inr_purchase_link !== undefined) dbUpdate.inr_purchase_link = csvRow.inr_purchase_link;
+                    if (csvRow.remark !== undefined) dbUpdate.remark = csvRow.remark;
+                    if (csvRow.flipkart_link !== undefined) dbUpdate.flipkart_link = csvRow.flipkart_link;
+
+                    const usdPrice = mergedProduct.usd_price;
+                    const weight = mergedProduct.product_weight;
+                    const inrPurchase = mergedProduct.inr_purchase;
+
+                    if (usdPrice && usdPrice > 0 && weight && weight > 0 && inrPurchase && inrPurchase > 0) {
+                        const result = calculateProductValues(
+                            { usd_price: usdPrice, product_weight: weight, inr_purchase: inrPurchase },
+                            constants,
+                            'INDIA'
+                        );
+
+                        dbUpdate.total_cost = isFinite(result.total_cost) ? result.total_cost : null;
+                        dbUpdate.total_revenue = isFinite(result.total_revenue) ? result.total_revenue : null;
+                        dbUpdate.profit = isFinite(result.profit) ? result.profit : null;
+
+                        const hasLink = mergedProduct.inr_purchase_link && mergedProduct.inr_purchase_link.trim() !== '';
+                        if (hasLink) {
+                            dbUpdate.judgement = result.judgement || 'PENDING';
+                            dbUpdate.calculated_judgement = result.judgement || 'PENDING';
+                            if (result.judgement === 'PASS') passCount++;
+                            else if (result.judgement === 'FAIL') failCount++;
+                        } else {
+                            dbUpdate.judgement = 'PENDING';
+                            dbUpdate.calculated_judgement = result.judgement || 'PENDING';
+                        }
+                    }
+
+                    // ⚡ FLIPKART TABLE
+                    const { error } = await supabase
+                        .from('flipkart_validation_main_file')
+                        .update(dbUpdate)
+                        .eq('asin', csvRow.asin);
+
+                    if (error) {
+                        console.error(`❌ Failed to update ${csvRow.asin}:`, error.message);
+                        skipped++;
+                    } else {
+                        updated++;
+                        productsByAsin.set(csvRow.asin, { ...mergedProduct, ...dbUpdate });
+                    }
+                });
+
+                await Promise.all(promises);
+
+                if (i % 200 === 0 && i > 0) {
+                    setToast({
+                        message: `Processing... ${Math.min(i + BATCH_SIZE, updates.length)}/${updates.length}`,
+                        type: 'info',
+                    });
+                }
+            }
+
+            setProducts((prev) =>
+                prev.map((p) => {
+                    const updatedProduct = productsByAsin.get(p.asin);
+                    return updatedProduct ? { ...p, ...updatedProduct } : p;
+                })
+            );
+
+            await fetchStats();
+
+            if (updated === 0) {
+                setToast({ message: `⚠️ No matching ASINs found. ${skipped} skipped.`, type: 'warning' });
+            } else {
+                setToast({ message: `✅ ${updated} products updated from file`, type: 'success' });
+
+                setTimeout(() => {
+                    const movements: string[] = [];
+                    if (passCount > 0) movements.push(`✅ ${passCount} moved to Pass File`);
+                    if (failCount > 0) movements.push(`❌ ${failCount} moved to Fail File`);
+                    const pendingCount = updated - passCount - failCount;
+                    if (pendingCount > 0) movements.push(`⏳ ${pendingCount} still Pending`);
+                    if (skipped > 0) movements.push(`⚠️ ${skipped} ASINs not found`);
+
+                    setToast({
+                        message: movements.join(' | '),
+                        type: passCount > 0 ? 'success' : failCount > 0 ? 'error' : 'info',
+                    });
+                }, 2000);
+            }
+
+            console.log(`✅ Upload complete: ${updated} updated, ${passCount} pass, ${failCount} fail, ${skipped} skipped`);
         } catch (err) {
-            console.error('CSV processing error:', err)
-            setToast({ message: 'Failed to process CSV file', type: 'error' })
+            console.error('File processing error:', err);
+            setToast({ message: 'Failed to process file', type: 'error' });
         }
 
-        if (fileInputRef.current) {
-            fileInputRef.current.value = ''
-        }
-    }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     const handleFlipkartPriceCSVUpload = async (
         e: React.ChangeEvent<HTMLInputElement>
@@ -992,11 +1076,7 @@ export default function ValidationPage() {
         setSelectedIds(newSelected)
     }
 
-    const handleOriginToggle = async (
-        id: string,
-        field: 'origin_india' | 'origin_china',
-        value: boolean
-    ) => {
+    const handleOriginToggle = async (id: string, field: 'origin_india' | 'origin_china' | 'origin_us', value: boolean) => {
         // optimistic UI
         setProducts(prev =>
             prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
@@ -1051,7 +1131,7 @@ export default function ValidationPage() {
         const product = products.find(p => p.id === id)
         if (!product) return
 
-        const journeyId = product.current_journey_id || crypto.randomUUID()
+        const journeyId = product.current_journey_id || generateUUID()
         const journeyNum = product.journey_number || 1
 
         try {
@@ -1078,6 +1158,7 @@ export default function ValidationPage() {
                 total_revenue: product.total_revenue,
                 origin_india: product.origin_india,
                 origin_china: product.origin_china,
+                origin_us: product.origin_us,
                 remark: product.remark,
                 timestamp: new Date().toISOString()
             }
@@ -1101,10 +1182,11 @@ export default function ValidationPage() {
             }
 
             // 3. Insert into Purchases
-            const originText =
-                (product.origin_india && product.origin_china) ? 'Both' :
-                    product.origin_china ? 'China' :
-                        product.origin_india ? 'India' : 'India';
+            const originParts: string[] = [];
+            if (product.origin_india) originParts.push('India');
+            if (product.origin_china) originParts.push('China');
+            if (product.origin_us) originParts.push('US');
+            const originText = originParts.length > 0 ? originParts.join(', ') : 'India';
 
             const { error: insertError } = await supabase
                 .from('flipkart_purchases')
@@ -1117,6 +1199,7 @@ export default function ValidationPage() {
                     origin: originText,
                     origin_india: product.origin_india ?? false,
                     origin_china: product.origin_china ?? false,
+                    origin_us: product.origin_us ?? false,
 
                     // ✅ FIXED: Product Link comes from 'flipkart_link' (Amazon URL)
                     product_link: realData?.flipkart_link || product.flipkart_link,
@@ -1196,24 +1279,17 @@ export default function ValidationPage() {
             const { error } = await supabase
                 .from('flipkart_validation_main_file')
                 .update({
-                    // Clear judgement
                     judgement: 'PENDING',
-                    // Clear calculated values
-                    total_cost: null,
-                    total_revenue: null,
-                    profit: null,
-                    // Clear input fields
-                    usd_price: null,
-                    product_weight: null,
-                    inr_purchase: null,
-                    // Clear checklist - CORRECT NAMES with underscores
+                    calculated_judgement: null,
                     check_brand: false,
                     check_item_expire: false,
                     check_small_size: false,
                     check_multi_seller: false,
-                    // Clear origin
                     origin_india: false,
                     origin_china: false,
+                    origin_us: false,
+                    sent_to_purchases: false,
+                    sent_to_purchases_at: null,
                 })
                 .in('id', idsArray);
 
@@ -1225,7 +1301,26 @@ export default function ValidationPage() {
             console.log('✅ Successfully updated!');
 
             // Immediate UI update
-            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setProducts((prev) =>
+                prev.map((p) =>
+                    selectedIds.has(p.id)
+                        ? {
+                            ...p,
+                            judgement: 'PENDING',
+                            calculated_judgement: null,
+                            check_brand: false,
+                            check_item_expire: false,
+                            check_small_size: false,
+                            check_multi_seller: false,
+                            origin_india: false,
+                            origin_china: false,
+                            sent_to_purchases: false,
+                            sent_to_purchases_at: undefined,
+                        }
+                        : p
+                )
+            );
+
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
@@ -1276,7 +1371,26 @@ export default function ValidationPage() {
             }
 
             // Immediate UI update
-            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setProducts((prev) =>
+                prev.map((p) =>
+                    selectedIds.has(p.id)
+                        ? {
+                            ...p,
+                            judgement: 'PENDING',
+                            calculated_judgement: null,
+                            check_brand: false,
+                            check_item_expire: false,
+                            check_small_size: false,
+                            check_multi_seller: false,
+                            origin_india: false,
+                            origin_china: false,
+                            sent_to_purchases: false,
+                            sent_to_purchases_at: undefined,
+                        }
+                        : p
+                )
+            );
+
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
@@ -1327,7 +1441,26 @@ export default function ValidationPage() {
             }
 
             // Immediate UI update
-            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setProducts((prev) =>
+                prev.map((p) =>
+                    selectedIds.has(p.id)
+                        ? {
+                            ...p,
+                            judgement: 'PENDING',
+                            calculated_judgement: null,
+                            check_brand: false,
+                            check_item_expire: false,
+                            check_small_size: false,
+                            check_multi_seller: false,
+                            origin_india: false,
+                            origin_china: false,
+                            sent_to_purchases: false,
+                            sent_to_purchases_at: undefined,
+                        }
+                        : p
+                )
+            );
+
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
@@ -1346,34 +1479,90 @@ export default function ValidationPage() {
         }
     };
 
-
-    const downloadCSV = () => {
-        if (filteredProducts.length === 0) {
-            setToast({ message: 'No data to download', type: 'warning' })
-            return
+    // Move items to Reject
+    const handleMoveToRejectClick = async () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
         }
 
-        const headers = Object.keys(visibleColumns).filter(col => visibleColumns[col as keyof typeof visibleColumns])
+        const confirmed = window.confirm(`Move ${selectedIds.size} items to Rejected?`);
+        if (!confirmed) return;
+
+        try {
+            const idsArray = Array.from(selectedIds);
+
+            const { error } = await supabase
+                .from('flipkart_validation_main_file')
+                .update({ judgement: 'REJECT' })
+                .in('id', idsArray);
+
+            if (error) throw error;
+
+            setProducts(prev =>
+                prev.map(p =>
+                    selectedIds.has(p.id) ? { ...p, judgement: 'REJECT' } : p
+                )
+            );
+            setSelectedIds(new Set());
+            setToast({ message: `Successfully moved ${idsArray.length} items to Rejected!`, type: 'success' });
+
+            await fetchStats();
+
+        } catch (err) {
+            console.error('Move to reject error:', err);
+            setToast({ message: 'Failed to move items', type: 'error' });
+        }
+    };
+
+    const downloadCSV = (mode: 'selected' | 'page' | 'all') => {
+        let dataToDownload: ValidationProduct[] = [];
+        let label = '';
+
+        if (mode === 'selected') {
+            dataToDownload = allFilteredProducts.filter(p => selectedIds.has(p.id));
+            label = `${dataToDownload.length} selected`;
+        } else if (mode === 'page') {
+            dataToDownload = filteredProducts; // paginated 100 rows
+            label = `page ${currentPage}`;
+        } else {
+            dataToDownload = allFilteredProducts; // all in current tab
+            label = `all ${dataToDownload.length}`;
+        }
+
+        if (dataToDownload.length === 0) {
+            setToast({ message: 'No data to download', type: 'warning' });
+            return;
+        }
+
+        const headers = Object.keys(visibleColumns).filter(
+            col => visibleColumns[col as keyof typeof visibleColumns]
+        );
+
         const csvContent = [
             headers.join(','),
-            ...filteredProducts.map(product =>
+            ...dataToDownload.map(product =>
                 headers.map(header => {
-                    const value = product[header as keyof ValidationProduct]
-                    return value ? `"${value}"` : ''
+                    const value = product[header as keyof ValidationProduct];
+                    return value != null ? `"${String(value).replace(/"/g, '""')}"` : '';
                 }).join(',')
             )
-        ].join('\n')
+        ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `validation_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`
-        a.click()
-        window.URL.revokeObjectURL(url)
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `flipkart_validation_${activeTab}_${mode}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
 
-        setToast({ message: 'CSV downloaded successfully!', type: 'success' })
-    }
+        setToast({
+            message: `✅ Downloaded ${dataToDownload.length} products (${label})`,
+            type: 'success'
+        });
+        setIsDownloadDropdownOpen(false);
+    };
 
     const openConstantsModal = () => {
         setIsConstantsModalOpen(true)
@@ -1440,7 +1629,7 @@ export default function ValidationPage() {
                             <p className="text-slate-400 mt-1">Manage validation files and product status</p>
                         </div>
                         {/* Stats Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
                             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-slate-700/50">
                                 <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products</div>
                                 <div className="text-3xl font-bold mt-1">{stats.total}</div>
@@ -1460,6 +1649,10 @@ export default function ValidationPage() {
                                 <div className="text-xs font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</div>
                                 <div className="text-3xl font-bold mt-1 text-white">{stats.pending}</div>
                             </div>
+                            <div className="bg-gradient-to-br from-violet-900/50 to-violet-900/20 rounded-xl px-5 py-4 text-violet-100 shadow-lg border border-violet-500/20">
+                                <div className="text-xs font-medium text-violet-400 uppercase tracking-wider">Rejected</div>
+                                <div className="text-3xl font-bold mt-1 text-white">{stats.rejected}</div>
+                            </div>
                         </div>
 
                         {/* File Tabs */}
@@ -1468,6 +1661,7 @@ export default function ValidationPage() {
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
                                 { id: 'fail_file', label: 'Failed File' },
+                                { id: 'reject_file', label: 'Rejected' },
                                 { id: 'pending', label: 'Pending' }
                             ].map((tab) => (
                                 <button
@@ -1581,7 +1775,7 @@ export default function ValidationPage() {
                                 {/* RIGHT SIDE - Action Buttons */}
                                 <div className="flex gap-3 flex-wrap">
                                     {/* Move to Main */}
-                                    {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
+                                    {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
                                         <button
                                             onClick={handleMoveToMainClick}
                                             disabled={selectedIds.size === 0}
@@ -1631,16 +1825,72 @@ export default function ValidationPage() {
                                             </button>
                                         )} */}
 
-                                    {/* Download CSV */}
-                                    <button
-                                        onClick={downloadCSV}
-                                        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                        Download CSV
-                                    </button>
+                                    {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                        <button
+                                            onClick={handleMoveToRejectClick}
+                                            disabled={selectedIds.size === 0}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
+                                                }`}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                            </svg>
+                                            Move to Reject
+                                        </button>
+                                    )}
+
+                                    {/* Download CSV Dropdown */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
+                                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            Download CSV
+                                            <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        {isDownloadDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
+                                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+
+                                                    {selectedIds.size > 0 && (
+                                                        <button
+                                                            onClick={() => downloadCSV('selected')}
+                                                            className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                                                        >
+                                                            <span>📋 Download Selected</span>
+                                                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                                                        </button>
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => downloadCSV('page')}
+                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    >
+                                                        <span>📄 Download Page</span>
+                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() => downloadCSV('all')}
+                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    >
+                                                        <span>📦 Download All</span>
+                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
+                                                    </button>
+
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
 
                                     {/* Upload CSV */}
                                     <button
@@ -1815,7 +2065,7 @@ export default function ValidationPage() {
                                                         <td className="p-3 overflow-hidden text-center">
                                                             {product.flipkart_link ? (
                                                                 <a
-                                                                    href={product.flipkart_link}
+                                                                    href={product.flipkart_link?.startsWith('http') ? product.flipkart_link : `https://${product.flipkart_link}`}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="text-indigo-400 hover:text-indigo-300 hover:underline text-sm truncate block"
@@ -1839,6 +2089,12 @@ export default function ValidationPage() {
                                                                 <label className="flex items-center gap-2">
                                                                     <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
                                                                     China
+                                                                </label>
+                                                                <label className="flex items-center gap-2">
+                                                                    <input type="checkbox" checked={!!product.origin_us}
+                                                                        onChange={(e) => handleOriginToggle(product.id, 'origin_us', e.target.checked)}
+                                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    US
                                                                 </label>
                                                             </div>
                                                         </td>
@@ -1909,7 +2165,42 @@ export default function ValidationPage() {
                                                                 type="url"
                                                                 value={product.inr_purchase_link || ''}
                                                                 onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
-                                                                placeholder="Enter supplier link..."
+                                                                onKeyDown={async (e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        const link = (e.target as HTMLInputElement).value.trim();
+                                                                        if (!link) { setToast({ message: '⚠️ Please enter a source link first', type: 'warning' }); return; }
+                                                                        const currentProduct = products.find((p) => p.id === product.id);
+                                                                        if (!currentProduct) return;
+                                                                        if (!currentProduct.usd_price || !currentProduct.product_weight || !currentProduct.inr_purchase) {
+                                                                            setToast({ message: '⚠️ Fill Weight, USD & INR first', type: 'warning' }); return;
+                                                                        }
+                                                                        const result = calculateProductValues(
+                                                                            { usd_price: currentProduct.usd_price, product_weight: currentProduct.product_weight, inr_purchase: currentProduct.inr_purchase },
+                                                                            constants, 'INDIA'
+                                                                        );
+                                                                        const finalJudgement = result.judgement || 'PENDING';
+                                                                        const { error } = await supabase
+                                                                            .from('flipkart_validation_main_file')
+                                                                            .update({
+                                                                                inr_purchase_link: link, judgement: finalJudgement, calculated_judgement: finalJudgement,
+                                                                                total_cost: isFinite(result.total_cost) ? result.total_cost : null,
+                                                                                total_revenue: isFinite(result.total_revenue) ? result.total_revenue : null,
+                                                                                profit: isFinite(result.profit) ? result.profit : null,
+                                                                            })
+                                                                            .eq('id', product.id);
+                                                                        if (error) { setToast({ message: '❌ Failed to finalize', type: 'error' }); return; }
+                                                                        setProducts((prev) => prev.map((p) => p.id === product.id
+                                                                            ? {
+                                                                                ...p, inr_purchase_link: link, judgement: finalJudgement, calculated_judgement: finalJudgement,
+                                                                                total_cost: result.total_cost, total_revenue: result.total_revenue, profit: result.profit
+                                                                            } : p));
+                                                                        await fetchStats();
+                                                                        if (finalJudgement === 'PASS') setToast({ message: `✅ ${currentProduct.asin} → Pass File!`, type: 'success' });
+                                                                        else if (finalJudgement === 'FAIL') setToast({ message: `❌ ${currentProduct.asin} → Fail File!`, type: 'error' });
+                                                                    }
+                                                                }}
+                                                                placeholder="Enter link + press Enter ↵"
                                                                 className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate"
                                                             />
                                                         </td>
@@ -1918,11 +2209,7 @@ export default function ValidationPage() {
                                                     {activeTab === 'pass_file' && (
                                                         <td className="p-3">
                                                             {/* ✅ FIX: Require Checklist AND Origin to show OK button */}
-                                                            {product.check_brand &&
-                                                                product.check_item_expire &&
-                                                                product.check_small_size &&
-                                                                product.check_multi_seller &&
-                                                                (product.origin_india || product.origin_china) ? (
+                                                            {product.check_brand && product.check_item_expire && product.check_small_size && product.check_multi_seller && (product.origin_india || product.origin_china || product.origin_us) ? (
                                                                 <button
                                                                     onClick={() => handleChecklistOk(product.id)}
                                                                     className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
@@ -2079,7 +2366,7 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
                                         <input
                                             type="number"
-                                           value={constants.dollar_rate || ''}
+                                            value={constants.dollar_rate || ''}
                                             onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
@@ -2089,7 +2376,7 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
                                         <input
                                             type="number"
-                                             value={(constants.bank_conversion_rate * 100) || ''}
+                                            value={(constants.bank_conversion_rate * 100) || ''}
                                             onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
@@ -2099,7 +2386,7 @@ export default function ValidationPage() {
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
                                         <input
                                             type="number"
-                                            value={constants.shipping_charge_per_kg || ''}  
+                                            value={constants.shipping_charge_per_kg || ''}
                                             onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
                                             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"

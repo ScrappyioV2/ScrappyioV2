@@ -14,6 +14,7 @@ type PassFileProduct = {
   funnel: string | null
   origin_india: boolean | null  // ✅ Underscore
   origin_china: boolean | null  // ✅ Underscore
+  origin_us: boolean | null;
   usd_price: number | null  // ✅ Underscore  
   inr_purchase: number | null  // ✅ Underscore
   flipkart_link: string | null  // ✅ Underscore
@@ -74,7 +75,7 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
@@ -166,6 +167,7 @@ export default function PurchasesPage() {
           product_name: product.product_name ?? null,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
 
           // Validation Fields
           validation_funnel: validationData?.funnel ?? null,
@@ -237,6 +239,7 @@ export default function PurchasesPage() {
           product_name: product.product_name ?? null,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
           validation_funnel: validationData?.funnel ?? null,
           validation_seller_tag: validationData?.seller_tag ?? null,
           product_weight: validationData?.product_weight ?? null,
@@ -382,6 +385,7 @@ export default function PurchasesPage() {
       const originParts = []
       if (product.origin_india) originParts.push('India')
       if (product.origin_china) originParts.push('China')
+      if (product.origin_us) originParts.push('US');
       const originText = originParts.length > 0 ? originParts.join(', ') : 'India'
 
       // Insert into admin validation - ONLY fields that exist in schema
@@ -413,6 +417,7 @@ export default function PurchasesPage() {
           // Origin fields
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
           origin: originText,  // Text field for trigger
 
           // INR Purchase Link
@@ -680,6 +685,7 @@ export default function PurchasesPage() {
             origin: freshProduct.origin,
             origin_india: freshProduct.origin_india ?? false, // ✅ Fixed
             origin_china: freshProduct.origin_china ?? false, // ✅ Fixed
+            origin_us: freshProduct.origin_us ?? false,
 
             // 7. BUYING DETAILS (USER EDITABLE)
             buying_price: freshProduct.buying_price,       // ✅ Fixed
@@ -803,6 +809,7 @@ export default function PurchasesPage() {
         return p.origin_china  // ✅ Underscore
       case 'india':
         return p.origin_india  // ✅ Underscore
+      case 'us': return p.origin_us;
       case 'pending':
         return p.status === 'pending'
       case 'not_found':
@@ -849,6 +856,7 @@ export default function PurchasesPage() {
     { key: 'orderconfirmed', label: 'Order Confirmed', count: products.filter(p => p.admin_confirmed === true).length },
     { key: 'india', label: 'India', count: products.filter(p => p.origin_india).length },
     { key: 'china', label: 'China', count: products.filter(p => p.origin_china).length },
+    { key: 'us', label: 'US', count: products.filter(p => p.origin_us).length },
     { key: 'pending', label: 'Pending', count: products.filter(p => p.status === 'pending').length },
     { key: 'pricewait', label: 'Price Wait', count: products.filter(p => p.move_to === 'pricewait').length },
     { key: 'notfound', label: 'Not Found', count: products.filter(p => p.move_to === 'notfound').length },
@@ -918,6 +926,15 @@ export default function PurchasesPage() {
         >
           <span className="relative z-10">China ({products.filter(p => p.origin_china).length})</span>
           {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500" />}
+        </button>
+
+        {/* 5. US */}
+        <button onClick={() => setActiveTab('us')}
+          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'us'
+            ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-sky-400'
+            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'}`}>
+          <span className="relative z-10">US {products.filter(p => p.origin_us).length}</span>
+          {activeTab === 'us' && <div className="absolute inset-0 opacity-10 bg-sky-500" />}
         </button>
 
         {/* 5. Pending */}
@@ -1287,6 +1304,7 @@ export default function PurchasesPage() {
                         <div className="flex gap-1">
                           {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
                           {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
+                          {product.origin_us && <span className="px-2 py-0.5 bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded text-xs">US</span>}
                           {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
                         </div>
                       </td>}

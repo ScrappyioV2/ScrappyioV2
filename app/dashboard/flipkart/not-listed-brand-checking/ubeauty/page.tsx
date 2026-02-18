@@ -344,7 +344,7 @@ export default function UbeautyNotListedPage() {
                     brand: product.brand,
                     funnel: product.funnel,
                     monthly_unit: product.monthly_unit,
-                    product_link: product.product_link,
+                    product_link: product.link || product.product_link,
                     amz_link: product.amz_link,
                     remark: product.remark,
                     from_table: fromTable,

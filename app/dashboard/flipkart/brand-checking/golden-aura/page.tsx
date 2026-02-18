@@ -211,12 +211,8 @@ export default function GoldenAuraPage() {
         .select('*', { count: 'exact' });
 
       // ✅ ALWAYS filter by funnel based on active tab
-      const funnelMap: Record<string, string> = {
-        'high_demand': 'HD',
-        'low_demand': 'LD',
-        'dropshipping': 'DP'
-      };
-      query = query.eq('funnel', funnelMap[activeTab]);
+      const funnelMap: Record<string, string> = { high_demand: 'HD', low_demand: 'LD', dropshipping: 'DP' }
+      query = query.in('funnel', [funnelMap[activeTab], activeTab])
 
       // ✅ THEN apply search if present
       if (debouncedSearch.trim()) {
@@ -353,16 +349,18 @@ export default function GoldenAuraPage() {
   };
 
   // ✅ NEW FUNCTION - Handle List/Not List Actions
-  const handleListingAction = async (
-    product: ProductRow,
-    action: 'listed' | 'not_listed'
-  ) => {
+  const handleListingAction = async (product: ProductRow, action: 'listed' | 'not_listed') => {
     setProcessingId(product.id);
+
+    // ✅ OPTIMISTIC UI — remove row instantly, don't wait for DB
+    setProducts(prev => prev.filter(p => p.id !== product.id));
+    setTotalCount(prev => prev - 1);
+
     try {
       const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}`;
       const targetTable = `flipkart_brand_checking_${action}_seller_${SELLER_ID}`;
 
-      // 1. Check if already exists
+      // 1. Check if already exists in target (this one must go first)
       const { data: existingRow, error: checkError } = await supabase
         .from(targetTable)
         .select('asin')
@@ -372,20 +370,20 @@ export default function GoldenAuraPage() {
       if (checkError) throw checkError;
 
       if (existingRow) {
-        setToast({
-          message: `Product already in ${action === 'listed' ? 'Listed' : 'Not Listed'}`,
-          type: 'warning'
-        });
+        // ⚠️ ROLLBACK optimistic update — put row back
+        setProducts(prev => [...prev, product].sort((a, b) => a.id.localeCompare(b.id)));
+        setTotalCount(prev => prev + 1);
+        setToast({ message: `Product already in ${action === 'listed' ? 'Listed' : 'Not Listed'}`, type: 'warning' });
         setProcessingId(null);
         return;
       }
 
-      // 2. Insert into target (listed or not_listed)
-      const { error: insertError } = await supabase
+      // 2. Insert into target table (don't await yet — fire it)
+      const insertPromise = supabase
         .from(targetTable)
         .insert({
           source_id: product.source_id,
-          tag: product.tag || 'GA',
+          tag: product.tag || (SELLER_CODE_MAP[SELLER_ID] || 'GA'),
           asin: product.asin,
           link: product.link,
           product_name: product.product_name,
@@ -395,7 +393,7 @@ export default function GoldenAuraPage() {
           monthly_sales: product.monthly_sales,
           bsr: product.bsr,
           seller: product.seller,
-          category: product.funnel, // Save current funnel as category
+          category: product.funnel,
           dimensions: product.dimensions,
           weight: product.weight,
           weight_unit: product.weight_unit,
@@ -407,28 +405,50 @@ export default function GoldenAuraPage() {
           listing_status: action,
         });
 
-      if (insertError) throw insertError;
+      // 3. Save to history (fire it, don't await yet)
+      const historyPromise = saveToHistory(product, currentTable, targetTable);
 
-      // 3. Save to history for rollback
-      await saveToHistory(product, currentTable, targetTable);
-
-      // 4. Delete from selector table
-      const { error: deleteError } = await supabase
+      // 4. Delete from brand checking table (fire it)
+      const deleteMainPromise = supabase
         .from(currentTable)
         .delete()
         .eq('asin', product.asin);
 
-      if (deleteError) throw deleteError;
+      // 5. Delete from funnel sub-table (fire it)
+      const funnelTableSuffix: Record<string, string> = {
+        'hd': 'high_demand', 'highdemand': 'high_demand', 'high_demand': 'high_demand',
+        'dp': 'dropshipping', 'dropshipping': 'dropshipping',
+        'ld': 'low_demand', 'low_demand': 'low_demand', 'lowdemand': 'low_demand',
+      };
+      const suffix = funnelTableSuffix[product.funnel?.toLowerCase() || ''] || 'low_demand';
+      const funnelTable = `flipkart_seller_${SELLER_ID}_${suffix}`;
+      const deleteFunnelPromise = supabase.from(funnelTable).delete().eq('asin', product.asin);
+
+      // ✅ Run ALL 4 operations in PARALLEL
+      const [insertResult, , deleteMainResult, deleteFunnelResult] = await Promise.all([
+        insertPromise,
+        historyPromise,
+        deleteMainPromise,
+        deleteFunnelPromise,
+      ]);
+
+      // Check for errors from parallel operations
+      if (insertResult.error) throw insertResult.error;
+      if (deleteMainResult.error) throw deleteMainResult.error;
+      if (deleteFunnelResult.error) console.warn('Funnel delete warning:', deleteFunnelResult.error);
 
       setToast({
-        message: `✅ Moved to ${action === 'listed' ? 'Listed' : 'Not Listed'}!`,
+        message: `Moved to ${action === 'listed' ? 'Listed' : 'Not Listed'}!`,
         type: 'success'
       });
 
-      await fetchProducts(true);
+      // ✅ NO fetchProducts() call — optimistic UI already handled it
 
     } catch (error: any) {
       console.error('Error:', error);
+      // ⚠️ ROLLBACK — re-add product on failure
+      setProducts(prev => [...prev, product].sort((a, b) => a.id.localeCompare(b.id)));
+      setTotalCount(prev => prev + 1);
       setToast({ message: `Error: ${error.message}`, type: 'error' });
     } finally {
       setProcessingId(null);
@@ -811,61 +831,85 @@ export default function GoldenAuraPage() {
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
-                              {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
-                                col === 'remark' ? (
-                                  product.remark ? (
-                                    <button
-                                      onClick={() => setSelectedRemark(product.remark || '')}
-                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      View
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-600">-</span>
-                                  )
-                                ) : col === 'link' ? (  // ✅ FIXED - added `) :`
-                                  product.link ? (
-                                    <a
-                                      href={formatUrl(product.link) || '#'}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-medium border border-blue-500/20"
-                                    >
-                                      Product
-                                    </a>
-                                  ) : <span className="text-slate-600">-</span>
+                              {col === 'funnel' ? (
+                                (() => {
+                                  if (!product.funnel) return <span className="text-slate-600">-</span>;
 
-                                ) : col === 'amz_link' ? (
-                                  product.amz_link ? (
-                                    <a
-                                      href={formatUrl(product.amz_link) || '#'}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
-                                    >
-                                      Seller
-                                    </a>
-                                  ) : <span className="text-slate-600">-</span>
+                                  const funnelDisplay: Record<string, { tag: string; bgColor: string }> = {
+                                    'high_demand': { tag: 'HD', bgColor: 'bg-emerald-500' },
+                                    'hd': { tag: 'HD', bgColor: 'bg-emerald-500' },
+                                    'dropshipping': { tag: 'DP', bgColor: 'bg-amber-500' },
+                                    'dp': { tag: 'DP', bgColor: 'bg-amber-500' },
+                                    'low_demand': { tag: 'LD', bgColor: 'bg-blue-500' },
+                                    'ld': { tag: 'LD', bgColor: 'bg-blue-500' },
+                                  };
 
-                                ) : col === 'funnel' ? (
-                                  <FunnelBadge funnel={product.funnel} />
+                                  const config = funnelDisplay[product.funnel.toLowerCase()] || {
+                                    tag: product.funnel.substring(0, 2).toUpperCase(),
+                                    bgColor: 'bg-slate-600'
+                                  };
 
-                                ) : col === 'remark' ? (
-                                  product.remark ? (
-                                    <button
-                                      onClick={() => setSelectedRemark(product.remark || '')}
-                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      View
-                                    </button>
-                                  ) : <span className="text-slate-600">-</span>
+                                  return (
+                                    <span className={`inline-flex items-center justify-center w-12 h-12 rounded-full text-sm font-bold text-white shadow-lg ${config.bgColor}`}>
+                                      {config.tag}
+                                    </span>
+                                  );
+                                })()
+                              ) : col === 'remark' ? (
 
-                                ) : col === 'product_name' ? (
-                                  <span className="text-slate-200 font-medium">{product.product_name}</span>
-
+                                product.remark ? (
+                                  <button
+                                    onClick={() => setSelectedRemark(product.remark || '')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                  >
+                                    View
+                                  </button>
                                 ) : (
-                                  <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
-                                )}
+                                  <span className="text-slate-600">-</span>
+                                )
+                              ) : col === 'link' ? (  // ✅ FIXED - added `) :`
+                                product.link ? (
+                                  <a
+                                    href={formatUrl(product.link) || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-medium border border-blue-500/20"
+                                  >
+                                    Product
+                                  </a>
+                                ) : <span className="text-slate-600">-</span>
+
+                              ) : col === 'amz_link' ? (
+                                product.amz_link ? (
+                                  <a
+                                    href={formatUrl(product.amz_link) || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
+                                  >
+                                    Seller
+                                  </a>
+                                ) : <span className="text-slate-600">-</span>
+
+                                // ) : col === 'funnel' ? (
+                                //   <FunnelBadge funnel={product.funnel} />
+
+                              ) : col === 'remark' ? (
+                                product.remark ? (
+                                  <button
+                                    onClick={() => setSelectedRemark(product.remark || '')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                  >
+                                    View
+                                  </button>
+                                ) : <span className="text-slate-600">-</span>
+
+                              ) : col === 'product_name' ? (
+                                <span className="text-slate-200 font-medium">{product.product_name}</span>
+
+                              ) : (
+                                <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
+                              )}
                             </td>
                           );
                         })}

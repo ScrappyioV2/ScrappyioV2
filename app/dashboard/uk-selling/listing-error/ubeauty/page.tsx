@@ -21,6 +21,21 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+// ✅ ADD THIS - Safe UUID generator (works in all browsers)
+const generateUUID = (): string => {
+  if (typeof window !== 'undefined' &&
+    window.crypto &&
+    typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 /* === CONFIGURATION === */
 const SELLER_ID = 3;
 const SELLER_NAME = "UBeauty";
@@ -39,6 +54,8 @@ interface ListingProduct {
   listing_notes?: string | null;
   error_reason?: string | null;
   source_admin_validation_id?: string;
+  journey_id?: string | null;        // ✅ ADD THIS
+  journey_number?: number | null;    // ✅ ADD THIS
   remark: string | null;
 }
 
@@ -206,10 +223,16 @@ export default function UBeautyListingPage() {
 
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
+
+    // ✅ SELF-HEALING: Generate journey_id if missing
+    const journeyId = product.journey_id || generateUUID();
+    const journeyNum = product.journey_number || 1;
+
     try {
       const sourceTableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       const targetTableName = `${BASE_TABLE_PREFIX}_${target}`;
 
+      // ✅ Include journey tracking
       const payload = {
         source_admin_validation_id: product.source_admin_validation_id,
         asin: product.asin,
@@ -217,10 +240,36 @@ export default function UBeautyListingPage() {
         sku: product.sku,
         selling_price: product.selling_price,
         seller_link: product.seller_link,
+
+        // 🔗 Journey Tracking
+        journey_id: journeyId,
+        journey_number: journeyNum,
+
         remark: product.remark ?? null,
         ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
+
+      // ✅ Save to history if listed
+      if (target === 'done') {
+        const { error: historyError } = await supabase.from('uk_asin_history').insert({
+          asin: product.asin,
+          journey_id: journeyId,
+          journey_number: journeyNum,
+          stage: 'listing_done',
+          status: 'listed',
+          profit: null,
+          snapshot_data: {
+            final_price: product.selling_price,
+            sku: product.sku,
+            listed_at: new Date().toISOString()
+          }
+        });
+
+        if (historyError) {
+          console.error("⚠️ History snapshot failed:", historyError);
+        }
+      }
 
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
@@ -246,11 +295,10 @@ export default function UBeautyListingPage() {
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
 
-      // Refetch if page becomes empty
       if (products.length === 1 && page > 1) {
         setPage(prev => prev - 1);
       } else {
-        fetchProducts(); // Refresh count
+        fetchProducts();
       }
 
     } catch (err: any) {

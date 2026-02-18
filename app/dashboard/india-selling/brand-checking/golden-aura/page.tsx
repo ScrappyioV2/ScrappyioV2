@@ -33,7 +33,7 @@ interface ProductRow {
   remark?: string | null;
 }
 
-type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
+type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject';
 
 // ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -145,7 +145,7 @@ export default function GoldenAuraPage() {
     2: 'RR',
     3: 'UB',
     4: 'VV',
-    5: "DE",  
+    5: "DE",
     6: "CV",
   };
 
@@ -524,7 +524,7 @@ export default function GoldenAuraPage() {
 
 
   // ✅ NEW FUNCTION: Move products from Reject to other tabs
-  const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
+  const handleMoveFromReject = async (targetTab: 'high_demand' | 'dropshipping' | 'not_approved') => {
     if (selectedIds.size === 0) {
       setToast({ message: 'Please select products to move', type: 'warning' });
       return;
@@ -778,8 +778,7 @@ export default function GoldenAuraPage() {
 
             {/* TABS */}
             <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit">
-              {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
-              {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
+              {tabStyles('high_demand', 'text-emerald-400', 'Restock')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
               {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
               {tabStyles('reject', 'text-slate-400', 'Reject')}
@@ -858,19 +857,9 @@ export default function GoldenAuraPage() {
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
                         <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
-                          <button
-                            onClick={() => handleMoveFromReject('high_demand')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2"
-                          >
+                          <button onClick={() => handleMoveFromReject('high_demand')} className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                            High Demand
-                          </button>
-                          <button
-                            onClick={() => handleMoveFromReject('low_demand')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg transition-colors flex items-center gap-2"
-                          >
-                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                            Low Demand
+                            Restock
                           </button>
                           <button
                             onClick={() => handleMoveFromReject('dropshipping')}
@@ -1096,3 +1085,5 @@ export default function GoldenAuraPage() {
     </PageTransition>
   );
 }
+
+//app\dashboard\india-selling\brand-checking\golden-aura\page.tsx

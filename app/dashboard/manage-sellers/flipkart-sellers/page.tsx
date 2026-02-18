@@ -270,19 +270,50 @@ export default function FlipkartSellersPage() {
         console.log('🔍 Total rows:', data.length);
 
         if (isPartialUpdateFile(rawHeaders)) {
-          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
+          // ✅ Show initial toast with unique ID
+          const partialToastId = toast.loading(`Processing ${normalizedData.length.toLocaleString()} records...`);
 
-          const { updatedCount, skippedCount } =
-            await bulkUpdateAsinRemarkMonthlyUnit(
-              normalizedData,
-              TABLE_NAME
+          try {
+            // ✅ Call batched function with progress callback
+            const { updatedCount, skippedCount, message } =
+              await bulkUpdateAsinRemarkMonthlyUnit(
+                normalizedData,
+                TABLE_NAME,
+                (current, total) => {
+                  // Update toast with progress
+                  const percentage = Math.round((current / total) * 100);
+                  toast.loading(
+                    `Updating: ${current.toLocaleString()}/${total.toLocaleString()} (${percentage}%)`,
+                    { id: partialToastId }
+                  );
+                }
+              );
+
+            totalUpdated += updatedCount;
+            hasPartialUpdate = true;
+
+            if (updatedCount > 0) {
+              toast.success(
+                message || `✅ ${updatedCount.toLocaleString()} products updated from ${file.name}`,
+                { id: partialToastId, duration: 5000 }
+              );
+            } else {
+              toast.error(
+                `⚠️ No products updated from ${file.name}. Check ASINs match master table.`,
+                { id: partialToastId, duration: 5000 }
+              );
+            }
+
+            console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+          } catch (err: any) {
+            console.error('Partial update failed:', err);
+            toast.error(
+              `❌ Partial update failed: ${err.message}`,
+              { id: partialToastId, duration: 5000 }
             );
+          }
 
-          totalUpdated += updatedCount;
-          hasPartialUpdate = true;
-
-          console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
-          continue;
+          continue; // ✅ Skip to next file
         }
 
         // For full files, filter duplicates
@@ -334,7 +365,7 @@ export default function FlipkartSellersPage() {
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
       // Step 2: OPTIMIZED Batch insert
-      const batchSize = 300;
+      const batchSize = 200;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
@@ -419,9 +450,13 @@ export default function FlipkartSellersPage() {
       if (totalDuplicates > 0) summaryLines.push(`⚠️ Skipped ${totalDuplicates.toLocaleString()} duplicates`);
       if (failedBatches > 0) summaryLines.push(`❌ ${failedBatches} batch(es) failed`);
 
+      // AFTER (New code with auto-distribution):
       if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
+
+        // ✅ AUTO-TRIGGER BACKGROUND DISTRIBUTION
+        triggerBackgroundDistribution(TABLE_NAME);
       } else {
         toast.error('Upload failed. Please try again.', { id: toastId, duration: 5000 });
       }
@@ -436,7 +471,98 @@ export default function FlipkartSellersPage() {
     }
   };
 
+  // AUTO-TRIGGER BACKGROUND DISTRIBUTION (CHUNKED — 100K SAFE)
+  const triggerBackgroundDistribution = async (tableName: string) => {
+    if (!supabase) return;
 
+    if (tableName === 'flipkart_master_sellers') {
+      const distToastId = toast.loading('Distributing to all 24 tables...', {
+        style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }
+      });
+
+      try {
+        // Get total records to distribute
+        const { count, error: countError } = await supabase
+          .from('flipkart_distribution_queue')
+          .select('*', { count: 'exact', head: true });
+
+        if (countError || !count) {
+          toast.error('Failed to get record count', { id: distToastId });
+          return;
+        }
+
+        const DIST_CHUNK = 10000;
+        const totalChunks = Math.ceil(count / DIST_CHUNK);
+        let totalInserted = 0;
+
+        for (let chunk = 0; chunk < totalChunks; chunk++) {
+          const offset = chunk * DIST_CHUNK;
+
+          toast.loading(
+            `Distributing ${Math.min(offset + DIST_CHUNK, count).toLocaleString()}/${count.toLocaleString()} to 24 tables...`,
+            { id: distToastId }
+          );
+
+          const { data, error } = await supabase.rpc(
+            'distributeflipkartchunked',
+            { chunk_offset: offset, chunk_limit: DIST_CHUNK }
+          );
+
+          if (error) {
+            console.error(`Distribution chunk ${chunk + 1}/${totalChunks} failed:`, error);
+            // Don't throw — continue with next chunk
+            continue;
+          }
+
+          if (data?.inserted) totalInserted += data.inserted;
+
+          // Small delay between chunks
+          if (chunk < totalChunks - 1) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
+
+        toast.success(
+          `✅ ${totalInserted.toLocaleString()} records distributed to all 24 tables!`,
+          { id: distToastId, duration: 4000 }
+        );
+        setRefreshTrigger((prev: number) => prev + 1);
+
+      } catch (err: any) {
+        console.error('Distribution failed:', err);
+        toast.error(`Distribution failed: ${err.message}`, { id: distToastId, duration: 4000 });
+      }
+      return;
+    }
+
+    // Non-flipkart tables — original logic
+    const functionName =
+      tableName === 'india_master_sellers'
+        ? 'distributeindiatoalltables'
+        : 'distributeuktoalltables';
+
+    toast('Syncing to all tables in background...', {
+      duration: 3000,
+      style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }
+    });
+
+    try {
+      const { data, error } = await supabase.rpc(functionName);
+      if (error) {
+        console.error('Background distribution error:', error);
+        toast.error('Distribution may be delayed. Check tables manually.', { duration: 4000 });
+      } else if (data) {
+        const duration = data.durationseconds ? ` (${Math.round(data.durationseconds)}s)` : '';
+        toast.success(`All tables synced!${duration}`, { duration: 3000 });
+        setRefreshTrigger((prev: number) => prev + 1);
+      } else {
+        toast('Distribution completed', { duration: 2000 });
+        setRefreshTrigger((prev: number) => prev + 1);
+      }
+    } catch (err: any) {
+      console.error('Distribution failed:', err);
+    }
+  };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return

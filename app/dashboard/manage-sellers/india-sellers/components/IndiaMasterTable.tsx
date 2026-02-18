@@ -686,7 +686,7 @@ export default function IndiaMasterTable({
                           ) : column === 'weight' ? (
                             `${row.weight} ${row.weight_unit}`
                           ) : column === 'price' ? (
-                            <span className="text-emerald-400 font-mono font-medium">{row.price ? `$${row.price}` : '-'}</span>
+                            <span className="text-emerald-400 font-mono font-medium">{row.price ? `₹${row.price}` : '-'}</span>
                           ) : column === 'bsr' ? (
                             <span className="text-amber-400 font-mono">{row.bsr?.toLocaleString()}</span>
                           ) : column === 'monthly_sales' || column === 'monthly_unit' ? (

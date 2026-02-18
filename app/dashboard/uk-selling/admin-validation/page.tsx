@@ -19,6 +19,7 @@ type AdminProduct = {
   product_link: string | null;
   origin_india: boolean | null;
   origin_china: boolean | null;
+  origin_us: boolean | null;
   target_price: number | null;
   target_quantity: number | null;
   buying_price: number | null;
@@ -58,7 +59,7 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'overview' | 'india' | 'china' | 'pending' | 'confirm' | 'reject';
+type TabType = 'overview' | 'india' | 'china' | 'us' | 'pending' | 'confirm' | 'reject';
 
 // ✅ Seller Mapping Helper
 const getSellerNameFromTag = (tag: string | null) => {
@@ -209,6 +210,7 @@ export default function AdminValidationPage() {
           product_link: product.product_link,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
 
           // Pricing fields - respect confirmed status
           target_price: isConfirmed
@@ -600,6 +602,8 @@ export default function AdminValidationPage() {
       case 'china':
         // ✅ Hide Confirmed/Rejected items (work like Overview)
         return product.origin_china === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+      case 'us':
+        return product.origin_us === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
       case 'pending':
         return product.admin_status === 'pending' || !product.admin_status;
       case 'confirm':
@@ -682,6 +686,7 @@ export default function AdminValidationPage() {
         'paymentmethod': 'payment_method',
         'originindia': 'origin_india',
         'originchina': 'origin_china',
+        'origin_us': 'origin_us',
         'productweight': 'product_weight',
         'totalcost': 'total_cost',
         'totalrevenue': 'total_revenue',
@@ -1027,6 +1032,7 @@ export default function AdminValidationPage() {
   const confirmedCount = products.filter(p => p.admin_status === 'confirmed').length; // ✅ ADD THIS
   const indiaCount = products.filter((p) => p.origin_india && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
   const chinaCount = products.filter((p) => p.origin_china && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
+  const usCount = products.filter(p => p.origin_us && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
@@ -1044,6 +1050,7 @@ export default function AdminValidationPage() {
             { id: 'overview', label: 'Overview', count: products.length, color: 'text-indigo-400', activeBg: 'bg-indigo-500/10' },
             { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/10' },
             { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/10' },
+            { id: 'us', label: 'US', count: usCount, color: 'text-sky-400', activeBg: 'bg-sky-500/10' },
             { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/10' },
             { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/10' },
             { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/10' }

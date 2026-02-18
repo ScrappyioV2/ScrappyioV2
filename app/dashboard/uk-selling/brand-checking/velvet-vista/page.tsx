@@ -952,14 +952,7 @@ export default function VelvetVistaPage() {
                         {columnOrder.map((col) => {
                           if (col === 'reason' && activeTab !== 'reject') return null;
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
-                            if (col === 'remark') {
-    console.log('VV remark row:', {
-      asin: product.asin,
-      remark: product.remark,
-      hasRemark: !!product.remark,
-    });
-  }
-
+                            
                           return (
                             <td
                               key={col}

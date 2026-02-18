@@ -1,0 +1,6 @@
+cd C:\Users\Admin\Desktop\Project\scrappy-v2\supabase\docker
+docker compose down
+docker compose up -d
+
+
+curl http://100.123.37.125:54331/auth/v1/health

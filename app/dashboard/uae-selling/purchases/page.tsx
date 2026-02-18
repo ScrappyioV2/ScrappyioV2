@@ -14,6 +14,7 @@ type PassFileProduct = {
   funnel: string | null
   origin_india: boolean | null  // ✅ Underscore
   origin_china: boolean | null  // ✅ Underscore
+  origin_us: boolean | null
   usd_price: number | null  // ✅ Underscore
   inr_purchase: number | null  // ✅ Underscore
   uae_link: string | null  // ✅ Underscore
@@ -74,7 +75,7 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'pending' | 'not_found' | 'reject';
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
@@ -166,6 +167,7 @@ export default function PurchasesPage() {
           product_name: product.product_name ?? null,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
 
           // Validation Fields
           validation_funnel: validationData?.funnel ?? null,
@@ -237,6 +239,7 @@ export default function PurchasesPage() {
           product_name: product.product_name ?? null,
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
           validation_funnel: validationData?.funnel ?? null,
           validation_seller_tag: validationData?.seller_tag ?? null,
           product_weight: validationData?.product_weight ?? null,
@@ -300,16 +303,16 @@ export default function PurchasesPage() {
   }, [showAllJourneys]);
 
   // ✅✅ ADD THIS NEW useEffect - ESC key for remark modal
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && selectedRemark) {
-      setSelectedRemark(null)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedRemark) {
+        setSelectedRemark(null)
+      }
     }
-  }
 
-  window.addEventListener('keydown', handleKeyDown)
-  return () => window.removeEventListener('keydown', handleKeyDown)
-}, [selectedRemark])
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedRemark])
 
   // Column widths state for resizable columns
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
@@ -382,6 +385,7 @@ useEffect(() => {
       const originParts = []
       if (product.origin_india) originParts.push('India')
       if (product.origin_china) originParts.push('China')
+      if (product.origin_us) originParts.push('US')
       const originText = originParts.length > 0 ? originParts.join(', ') : 'India'
 
       // Insert into admin validation - ONLY fields that exist in schema
@@ -413,6 +417,7 @@ useEffect(() => {
           // Origin fields
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
           origin: originText,  // Text field for trigger
 
           // INR Purchase Link
@@ -821,6 +826,8 @@ useEffect(() => {
         return p.origin_china  // ✅ Underscore
       case 'india':
         return p.origin_india  // ✅ Underscore
+      case 'us':
+        return p.origin_us;
       case 'pending':
         return p.status === 'pending'
       case 'not_found':
@@ -867,6 +874,7 @@ useEffect(() => {
     { key: 'orderconfirmed', label: 'Order Confirmed', count: products.filter(p => p.admin_confirmed === true).length },
     { key: 'india', label: 'India', count: products.filter(p => p.origin_india).length },
     { key: 'china', label: 'China', count: products.filter(p => p.origin_china).length },
+    { key: 'us', label: 'US', count: products.filter(p => p.origin_us).length },
     { key: 'pending', label: 'Pending', count: products.filter(p => p.status === 'pending').length },
     { key: 'pricewait', label: 'Price Wait', count: products.filter(p => p.move_to === 'pricewait').length },
     { key: 'notfound', label: 'Not Found', count: products.filter(p => p.move_to === 'notfound').length },
@@ -936,6 +944,15 @@ useEffect(() => {
         >
           <span className="relative z-10">China ({products.filter(p => p.origin_china).length})</span>
           {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500" />}
+        </button>
+
+        {/* 5. US */}
+        <button onClick={() => setActiveTab('us')}
+          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'us'
+            ? 'text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 text-sky-400'
+            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'}`}>
+          <span className="relative z-10">US {products.filter(p => p.origin_us).length}</span>
+          {activeTab === 'us' && <div className="absolute inset-0 opacity-10 bg-sky-500" />}
         </button>
 
         {/* 5. Pending */}
@@ -1305,6 +1322,7 @@ useEffect(() => {
                         <div className="flex gap-1">
                           {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
                           {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
+                          {product.origin_us && <span className="px-2 py-0.5 bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded text-xs">US</span>}
                           {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
                         </div>
                       </td>}
@@ -1504,125 +1522,125 @@ useEffect(() => {
           </>
         )}
         {selectedRemark && (
-    <>
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={() => setSelectedRemark(null)}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      />
-
-      {/* Modal Box */}
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
-        >
-          {/* ========== HEADER ========== */}
-          <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center">
-                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white">Remark Details</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Product validation notes</p>
-              </div>
-            </div>
-            <button
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setSelectedRemark(null)}
-              className="p-2 hover:bg-slate-700 rounded-lg transition-colors group"
-              title="Close"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
             >
-              <X className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
-            </button>
-          </div>
-
-          {/* ========== BODY (Scrollable Content) ========== */}
-          <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-              {/* Remark Label */}
-              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
-                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
-              </div>
-
-              {/* Remark Content */}
-              <div className="prose prose-invert prose-sm max-w-none">
-                <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-                  {selectedRemark}
-                </p>
-              </div>
-
-              {/* Metadata Footer (Optional - shows character count) */}
-              <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
-                <span className="flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {selectedRemark.length} characters
-                </span>
-                <span className="flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {selectedRemark.split('\n').length} lines
-                </span>
-              </div>
-            </div>
-
-            {/* Info Box (Optional - can be removed if not needed) */}
-            <div className="mt-4 flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-              <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div className="text-xs text-blue-200">
-                <p className="font-semibold mb-1">About Remarks</p>
-                <p className="text-blue-300/80">This remark was added during the validation process to provide context or flags for this product.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* ========== FOOTER (Action Buttons) ========== */}
-          <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
-              Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(selectedRemark);
-                  // Optional: Add toast notification here
-                }}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy
-              </button>
-              <button
-                onClick={() => setSelectedRemark(null)}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-indigo-900/20"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </>
-  )}
+                {/* ========== HEADER ========== */}
+                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Remark Details</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Product validation notes</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedRemark(null)}
+                    className="p-2 hover:bg-slate-700 rounded-lg transition-colors group"
+                    title="Close"
+                  >
+                    <X className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
+                  </button>
+                </div>
+
+                {/* ========== BODY (Scrollable Content) ========== */}
+                <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                    {/* Remark Label */}
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+                    </div>
+
+                    {/* Remark Content */}
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedRemark}
+                      </p>
+                    </div>
+
+                    {/* Metadata Footer (Optional - shows character count) */}
+                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {selectedRemark.length} characters
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        {selectedRemark.split('\n').length} lines
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Info Box (Optional - can be removed if not needed) */}
+                  <div className="mt-4 flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                    <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-xs text-blue-200">
+                      <p className="font-semibold mb-1">About Remarks</p>
+                      <p className="text-blue-300/80">This remark was added during the validation process to provide context or flags for this product.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ========== FOOTER (Action Buttons) ========== */}
+                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
+                  <div className="text-xs text-slate-500">
+                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedRemark);
+                        // Optional: Add toast notification here
+                      }}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </button>
+                    <button
+                      onClick={() => setSelectedRemark(null)}
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-indigo-900/20"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
       </AnimatePresence>
     </div>
   );

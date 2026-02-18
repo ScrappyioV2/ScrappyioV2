@@ -75,8 +75,6 @@ type HistorySnapshot = {
     status?: string;
 };
 
-
-
 const formatUSD = (value: number | null) =>
     value !== null ? `$${value.toFixed(2)}` : ''
 
@@ -116,6 +114,7 @@ interface ValidationProduct {
     status: string | null
     origin_india: boolean | null
     origin_china: boolean | null
+    origin_us: boolean | null;
     check_brand: boolean | null
     check_item_expire: boolean | null
     check_small_size: boolean | null
@@ -124,13 +123,15 @@ interface ValidationProduct {
     sent_to_purchases_at?: string
     calculated_judgement?: string | null
     remark: string | null
+    reject_reason?: string | null
 }
 
 interface Stats {
-    total: number
-    passed: number
-    failed: number
-    pending: number
+    total: number;
+    passed: number;
+    failed: number;
+    pending: number;
+    rejected: number;
 }
 
 interface Filters {
@@ -139,8 +140,7 @@ interface Filters {
     funnel: string;
 }
 
-type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending'
-
+type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reject_file'
 
 const SELLER_STYLES: Record<string, string> = {
     GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',    // Golden Aura - YELLOW
@@ -238,20 +238,16 @@ export default function ValidationPage() {
     const [loading, setLoading] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
-    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0 })
+    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0 })
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
     const localEditCountRef = useRef(0);
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
-    const [tabPages, setTabPages] = useState<Record<FileTab, number>>({
-        main_file: 1,
-        pass_file: 1,
-        fail_file: 1,
-        pending: 1,
-    });
+    const [tabPages, setTabPages] = useState<Record<FileTab, number>>({ main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reject_file: 1, });
     const [rowsPerPage] = useState(100);
+    const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
 
     // ✅ Get current page for active tab
     const currentPage = tabPages[activeTab];
@@ -283,6 +279,12 @@ export default function ValidationPage() {
     const [constants, setConstants] = useState<CalculationConstants>(getDefaultConstants())
     const [isSavingConstants, setIsSavingConstants] = useState(false)
     const [selectedRemark, setSelectedRemark] = useState<string | null>(null)
+    const [openChecklistId, setOpenChecklistId] = useState<string | null>(null)
+    const [openOriginId, setOpenOriginId] = useState<string | null>(null)
+    const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+    const [rejectReason, setRejectReason] = useState('')
+    const [selectedRejectReason, setSelectedRejectReason] = useState<string | null>(null)
 
     // 5. UPDATE visibleColumns state (around line 100)
     const [visibleColumns, setVisibleColumns] = useState({
@@ -438,38 +440,6 @@ export default function ValidationPage() {
         }
     }
 
-    //     const applyFilters = () => {
-    //     // START with tab-filtered products
-    //     let filtered = getTabProducts();
-
-    //     // Apply search query (searches across ASIN, Product Name, Brand)
-    //     if (searchQuery.trim()) {
-    //         const query = searchQuery.toLowerCase();
-    //         filtered = filtered.filter(p =>
-    //             p.asin?.toLowerCase().includes(query) ||
-    //             p.product_name?.toLowerCase().includes(query) ||
-    //             p.brand?.toLowerCase().includes(query)
-    //         );
-    //     }
-
-    //     // ✅ OPTIMIZED: Combine all filter checks in single pass
-    //     if (filters.seller_tag || filters.brand || filters.funnel) {
-    //         filtered = filtered.filter(p => {
-    //             const sellerMatch = !filters.seller_tag || 
-    //                 p.seller_tag?.toLowerCase().includes(filters.seller_tag.toLowerCase());
-    //             const brandMatch = !filters.brand || 
-    //                 p.brand?.toLowerCase().includes(filters.brand.toLowerCase());
-    //             const funnelMatch = !filters.funnel || 
-    //                 p.funnel?.toLowerCase().includes(filters.funnel.toLowerCase());
-
-    //             return sellerMatch && brandMatch && funnelMatch;
-    //         });
-    //     }
-
-    //     setFilteredProducts(filtered);
-    // };
-
-
     const fetchStats = async () => {
         try {
             // Get all products from main file
@@ -479,18 +449,23 @@ export default function ValidationPage() {
             );
 
 
+
             const products = mainData || []
+
 
             // Count by judgement status
             const passed = products.filter(p => p.judgement === 'PASS').length
             const failed = products.filter(p => p.judgement === 'FAIL').length
             const pending = products.filter(p => !p.judgement || p.judgement === 'PENDING').length
+            const rejected = products.filter(p => p.judgement === 'REJECT').length
+
 
             setStats({
                 total: products.length, // Total in main file
                 passed: passed,
                 failed: failed,
-                pending: pending
+                pending: pending,
+                rejected: rejected
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
@@ -590,42 +565,12 @@ export default function ValidationPage() {
     };
 
     // ✅ Cache filtered products per tab
-    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({
-        main_file: [],
-        pass_file: [],
-        fail_file: [],
-        pending: []
-    });
+    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reject_file: [] });
 
-
-    // Get products for current tab (before search/filters)
-    // const getTabProducts = () => {
-    //     let tabProducts = [...products];
-
-    //     // Filter based on active tab
-    //     if (activeTab === 'pass_file') {
-    //         // ✅ FIX: Hide items already sent to purchases
-    //         tabProducts = tabProducts.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
-    //     } else if (activeTab === 'fail_file') {
-    //         tabProducts = tabProducts.filter((p) => p.judgement === 'FAIL');
-    //     } else if (activeTab === 'pending') {
-    //         tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
-    //     } else if (activeTab === 'main_file') {
-    //         // Main File now shows only PENDING items (same as Pending tab)
-    //         tabProducts = tabProducts.filter((p) => !p.judgement || p.judgement === 'PENDING');
-    //     }
-    //     tabProductsCache.current[activeTab] = tabProducts;
-    //     return tabProducts;
-    // };
     // ✅ Add this useEffect to clear cache when products change
     useEffect(() => {
         // Clear cache when products array updates
-        tabProductsCache.current = {
-            main_file: [],
-            pass_file: [],
-            fail_file: [],
-            pending: []
-        };
+        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reject_file: [] };
     }, [products]);
 
 
@@ -683,9 +628,11 @@ export default function ValidationPage() {
         if (activeTab === 'pass_file') {
             result = products.filter((p) => p.judgement === 'PASS' && !p.sent_to_purchases);
         } else if (activeTab === 'fail_file') {
-            result = products.filter((p) => p.judgement === 'FAIL');
+            result = products.filter(p => p.judgement === 'FAIL');
+        } else if (activeTab === 'reject_file') {
+            result = products.filter(p => p.judgement === 'REJECT');
         } else if (activeTab === 'pending' || activeTab === 'main_file') {
-            result = products.filter((p) => !p.judgement || p.judgement === 'PENDING');
+            result = products.filter(p => !p.judgement || p.judgement === 'PENDING');
         }
 
         // Search query
@@ -731,84 +678,36 @@ export default function ValidationPage() {
     // 2. UPDATE the autoCalculateAndUpdate function around line 180
     const autoCalculateAndUpdate = async (id: string, product: ValidationProduct) => {
         try {
-            // Track if judgement changed
-            const previousJudgement = product.judgement;
-
-            // Validate inputs before calculation
             if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
-                console.log('⚠️ Missing required fields for calculation:', {
-                    usdprice: product.usd_price,
-                    productweight: product.product_weight,
-                    inrpurchase: product.inr_purchase,
-                });
-                return; // Exit if required fields are missing
-            }
-
-            // Calculate values
-            const result = calculateProductValues(
-                {
+                console.log('Missing required fields for calculation', {
                     usd_price: product.usd_price,
                     product_weight: product.product_weight,
                     inr_purchase: product.inr_purchase,
-                },
+                });
+                return;
+            }
+
+            const result = calculateProductValues(
+                { usd_price: product.usd_price, product_weight: product.product_weight, inr_purchase: product.inr_purchase },
                 constants,
                 'INDIA'
             );
 
-            const newJudgement = result.judgement;
-
-            // 🛡️ Validate and sanitize calculated values
             const updateData: any = {};
+            updateData.total_cost = result.total_cost !== null && isFinite(result.total_cost) ? Number(result.total_cost) : null;
+            updateData.total_revenue = result.total_revenue !== null && isFinite(result.total_revenue) ? Number(result.total_revenue) : null;
+            updateData.profit = result.profit !== null && isFinite(result.profit) ? Number(result.profit) : null;
 
-            // Handle totalcost
-            if (result.total_cost !== null && result.total_cost !== undefined) {
-                updateData.total_cost = isFinite(result.total_cost) && !isNaN(result.total_cost)
-                    ? Number(result.total_cost)
-                    : null;
-            } else {
-                updateData.totalcost = null;
-            }
+            // ✅ Save real judgement in calculated_judgement (shown visually as badge)
+            // ✅ Keep judgement = PENDING (product stays in Main File until Enter on source link)
+            updateData.calculated_judgement = result.judgement || 'PENDING';
+            updateData.judgement = 'PENDING';
 
-            // Handle totalrevenue
-            if (result.total_revenue !== null && result.total_revenue !== undefined) {
-                updateData.total_revenue = isFinite(result.total_revenue) && !isNaN(result.total_revenue)
-                    ? Number(result.total_revenue)
-                    : null;
-            } else {
-                updateData.totalrevenue = null;
-            }
-
-            // Handle profit
-            if (result.profit !== null && result.profit !== undefined) {
-                updateData.profit = isFinite(result.profit) && !isNaN(result.profit)
-                    ? Number(result.profit)
-                    : null;
-            } else {
-                updateData.profit = null;
-            }
-
-            // Handle judgement - Calculate but don't finalize without INR Purchase Link
-            updateData.judgement = result.judgement || 'PENDING';
-
-            // 🔒 CRITICAL: Only save judgement to database if INR Purchase Link is filled
-            // Otherwise keep as PENDING even if calculations are done
-            const hasInrPurchaseLink = product.inr_purchase_link && product.inr_purchase_link.trim() !== '';
-
-            if (hasInrPurchaseLink) {
-                // INR Purchase Link is filled - save the calculated judgement
-                updateData.judgement = result.judgement || 'PENDING';
-            } else {
-                // INR Purchase Link NOT filled - keep as PENDING in database
-                updateData.judgement = 'PENDING';
-            }
-
-            console.log('📊 Updating product:', {
-                id,
+            console.log('Updating product', id, {
                 asin: product.asin,
-                hasInrPurchaseLink,
                 calculatedJudgement: result.judgement,
-                savedJudgement: updateData.judgement,
-                ...updateData
+                savedJudgement: 'PENDING',
+                ...updateData,
             });
 
             const { error: updateError } = await supabase
@@ -817,72 +716,36 @@ export default function ValidationPage() {
                 .eq('id', id);
 
             if (updateError) {
-                console.error('❌ Auto-calc error:', updateError);
-                setToast({
-                    message: 'Failed to update product calculation',
-                    type: 'error',
-                });
+                console.error('Auto-calc error', updateError);
+                setToast({ message: 'Failed to update product calculation', type: 'error' });
                 return;
             }
 
-            console.log('✅ Product updated successfully');
-
-            // ⚠️ DO NOT call fetchStats() here - it causes page refresh!
-            // Stats will update via Supabase realtime subscription
-
-            // Update local state
             setProducts((prev) =>
                 prev.map((p) =>
                     p.id === id
                         ? {
                             ...p,
-                            // Update calculated fields
                             total_cost: result.total_cost,
                             total_revenue: result.total_revenue,
                             profit: result.profit,
-
-                            // 🔒 CRITICAL LOGIC: 
-                            // 1. Keep 'judgement' as updateData.judgement (keeps it in current tab if PENDING)
-                            judgement: updateData.judgement,
-
-                            // 2. Store the math result visually so the user sees "PASS" immediately
+                            judgement: 'PENDING',
                             calculated_judgement: result.judgement,
                         }
                         : p
                 )
             );
 
-            // ✅ Show appropriate toast based on what was updated
-            if (hasInrPurchaseLink) {
-                // INR Purchase Link is filled - show "moved to file" toast
-                if (result.judgement === 'PASS') {
-                    setToast({
-                        message: `✅ Product ready for Pass File! (ASIN: ${product.asin})`,
-                        type: 'success',
-                    });
-                } else if (result.judgement === 'FAIL') {
-                    setToast({
-                        message: `❌ Product ready for Fail File! (ASIN: ${product.asin})`,
-                        type: 'error',
-                    });
-                }
+            if (result.judgement === 'PASS') {
+                setToast({ message: `✅ Judgement: PASS — Fill source link & press Enter to move`, type: 'success' });
+            } else if (result.judgement === 'FAIL') {
+                setToast({ message: `❌ Judgement: FAIL — Fill source link & press Enter to move`, type: 'error' });
             } else {
-                // Calculation done but INR Purchase Link still needed
-                if (result.judgement && result.judgement !== 'PENDING') {
-                    console.log(`ℹ️ Judgement calculated (${result.judgement}) - waiting for INR Purchase Link`);
-                }
-                // Show generic success toast
-                setToast({
-                    message: 'Updated successfully',
-                    type: 'success',
-                });
+                setToast({ message: '✅ Updated successfully', type: 'success' });
             }
         } catch (err) {
-            console.error('💥 Exception in autoCalculateAndUpdate:', err);
-            setToast({
-                message: 'Calculation error occurred',
-                type: 'error',
-            });
+            console.error('Exception in autoCalculateAndUpdate', err);
+            setToast({ message: 'Calculation error occurred', type: 'error' });
         }
     };
 
@@ -891,36 +754,238 @@ export default function ValidationPage() {
     }
 
     const processCSVFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (!file) return
+        const file = event.target.files?.[0];
+        if (!file) return;
 
         try {
-            const data = await file.arrayBuffer()
-            const workbook = XLSX.read(data)
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-            const jsonData = XLSX.utils.sheet_to_json(worksheet)
-            const tableName = `india_validation_${activeTab}`
-            const { error } = await supabase
-                .from(tableName)
-                .insert(jsonData)
+            // Detect file type and parse accordingly
+            let rows: Record<string, string>[] = [];
+            const fileName = file.name.toLowerCase();
 
-            if (error) {
-                setToast({ message: `Upload failed: ${error.message}`, type: 'error' })
-                return
+            if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                // Excel file → use XLSX
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                rows = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: '' });
+            } else {
+                // CSV file → use Papa.parse
+                const text = (await file.text()).replace(/^\uFEFF/, ''); // Strip BOM
+                rows = await new Promise((resolve) => {
+                    Papa.parse(text, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => resolve(results.data as Record<string, string>[]),
+                    });
+                });
             }
 
-            setToast({ message: `Successfully uploaded ${jsonData.length} products!`, type: 'success' })
-            fetchProducts()
-            fetchStats()
+            if (rows.length === 0) {
+                setToast({ message: 'File is empty', type: 'error' });
+                return;
+            }
+
+            const rawHeaders = Object.keys(rows[0]);
+            console.log('📋 File Headers:', rawHeaders);
+
+            // Normalize header mapping
+            const headerMap: Record<string, string> = {};
+            rawHeaders.forEach((h) => {
+                const lower = h.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (lower === 'asin') headerMap['asin'] = h;
+                else if (lower === 'productweight' || lower === 'weightg' || lower === 'weight') headerMap['product_weight'] = h;
+                else if (lower === 'usdprice' || lower === 'usd' || lower === 'usdprice') headerMap['usd_price'] = h;
+                else if (lower === 'inrpurchase' || lower === 'inr' || lower === 'inrpurchase' || lower === 'inr₹') headerMap['inr_purchase'] = h;
+                else if (lower === 'inrpurchaselink' || lower === 'sourcelink' || lower === 'sourcelink' || lower === 'inrpurchaselink') headerMap['inr_purchase_link'] = h;
+                else if (lower === 'remark' || lower === 'remarks') headerMap['remark'] = h;
+                else if (lower === 'indialink' || lower === 'india_link' || lower === 'indianlink' || lower === 'amazon_link' || lower === 'amazonlink' || lower === 'india_link') headerMap['indialink'] = h;
+            });
+
+            if (!headerMap['asin']) {
+                setToast({ message: 'File must have an ASIN column', type: 'error' });
+                return;
+            }
+
+            console.log('🔍 Mapped headers:', headerMap);
+
+            const updates: { asin: string; product_weight?: number | null; usd_price?: number | null; inr_purchase?: number | null; inr_purchase_link?: string | null; remark?: string | null; indialink?: string | null }[] = [];
+
+            for (const row of rows) {
+                const asin = row[headerMap['asin']]?.toString().trim();
+                if (!asin) continue;
+
+                const update: any = { asin };
+
+                if (headerMap['product_weight']) {
+                    const val = parseFloat(row[headerMap['product_weight']]);
+                    if (!isNaN(val)) update.product_weight = val;
+                }
+                if (headerMap['usd_price']) {
+                    const val = parseFloat(row[headerMap['usd_price']]);
+                    if (!isNaN(val)) update.usd_price = val;
+                }
+                if (headerMap['inr_purchase']) {
+                    const val = parseFloat(row[headerMap['inr_purchase']]);
+                    if (!isNaN(val)) update.inr_purchase = val;
+                }
+                if (headerMap['inr_purchase_link']) {
+                    const val = row[headerMap['inr_purchase_link']]?.toString().trim();
+                    if (val) update.inr_purchase_link = val;
+                }
+                if (headerMap['remark']) {
+                    const val = row[headerMap['remark']]?.toString().trim();
+                    if (val !== undefined) update.remark = val || null;
+                }
+
+                if (headerMap['indialink']) {
+                    const val = row[headerMap['indialink']]?.toString().trim();
+                    if (val) {
+                        update.indialink = val.startsWith('http') ? val : `https://${val}`;
+                    }
+                }
+
+                updates.push(update);
+            }
+
+            if (updates.length === 0) {
+                setToast({ message: 'No valid rows found in file', type: 'warning' });
+                return;
+            }
+
+            console.log(`📊 Processing ${updates.length} rows for override...`);
+
+            const productsByAsin = new Map<string, ValidationProduct>();
+            products.forEach((p) => productsByAsin.set(p.asin, p));
+
+            let updated = 0;
+            let skipped = 0;
+            let passCount = 0;
+            let failCount = 0;
+            const BATCH_SIZE = 50;
+
+            for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+                const batch = updates.slice(i, i + BATCH_SIZE);
+
+                const promises = batch.map(async (csvRow) => {
+                    const existingProduct = productsByAsin.get(csvRow.asin);
+                    if (!existingProduct) {
+                        skipped++;
+                        return;
+                    }
+
+                    const mergedProduct: ValidationProduct = {
+                        ...existingProduct,
+                        product_weight: csvRow.product_weight ?? existingProduct.product_weight,
+                        usd_price: csvRow.usd_price ?? existingProduct.usd_price,
+                        inr_purchase: csvRow.inr_purchase ?? existingProduct.inr_purchase,
+                        inr_purchase_link: csvRow.inr_purchase_link ?? existingProduct.inr_purchase_link,
+                        remark: csvRow.remark !== undefined ? csvRow.remark : existingProduct.remark,
+                        india_link: csvRow.indialink ?? existingProduct.india_link,
+                    };
+
+                    const dbUpdate: Record<string, any> = {};
+
+                    if (csvRow.product_weight !== undefined) dbUpdate.product_weight = csvRow.product_weight;
+                    if (csvRow.usd_price !== undefined) dbUpdate.usd_price = csvRow.usd_price;
+                    if (csvRow.inr_purchase !== undefined) dbUpdate.inr_purchase = csvRow.inr_purchase;
+                    if (csvRow.inr_purchase_link !== undefined) dbUpdate.inr_purchase_link = csvRow.inr_purchase_link;
+                    if (csvRow.remark !== undefined) dbUpdate.remark = csvRow.remark;
+                    if (csvRow.indialink !== undefined) dbUpdate.india_link = csvRow.indialink;
+
+                    const usdPrice = mergedProduct.usd_price;
+                    const weight = mergedProduct.product_weight;
+                    const inrPurchase = mergedProduct.inr_purchase;
+
+                    if (usdPrice && usdPrice > 0 && weight && weight > 0 && inrPurchase && inrPurchase > 0) {
+                        // ⚡ INDIA MODE — Buy USD, Sell INR
+                        const result = calculateProductValues(
+                            { usd_price: usdPrice, product_weight: weight, inr_purchase: inrPurchase },
+                            constants,
+                            'INDIA'
+                        );
+
+                        dbUpdate.total_cost = isFinite(result.total_cost) ? result.total_cost : null;
+                        dbUpdate.total_revenue = isFinite(result.total_revenue) ? result.total_revenue : null;
+                        dbUpdate.profit = isFinite(result.profit) ? result.profit : null;
+
+                        const hasLink = mergedProduct.inr_purchase_link && mergedProduct.inr_purchase_link.trim() !== '';
+                        if (hasLink) {
+                            dbUpdate.judgement = result.judgement || 'PENDING';
+                            dbUpdate.calculated_judgement = result.judgement || 'PENDING';
+                            if (result.judgement === 'PASS') passCount++;
+                            else if (result.judgement === 'FAIL') failCount++;
+                        } else {
+                            dbUpdate.judgement = 'PENDING';
+                            dbUpdate.calculated_judgement = result.judgement || 'PENDING';
+                        }
+                    }
+
+                    // ⚡ INDIA TABLE
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update(dbUpdate)
+                        .eq('asin', csvRow.asin);
+
+                    if (error) {
+                        console.error(`❌ Failed to update ${csvRow.asin}:`, error.message);
+                        skipped++;
+                    } else {
+                        updated++;
+                        productsByAsin.set(csvRow.asin, { ...mergedProduct, ...dbUpdate });
+                    }
+                });
+
+                await Promise.all(promises);
+
+                if (i % 200 === 0 && i > 0) {
+                    setToast({
+                        message: `Processing... ${Math.min(i + BATCH_SIZE, updates.length)}/${updates.length}`,
+                        type: 'info',
+                    });
+                }
+            }
+
+            setProducts((prev) =>
+                prev.map((p) => {
+                    const updatedProduct = productsByAsin.get(p.asin);
+                    return updatedProduct ? { ...p, ...updatedProduct } : p;
+                })
+            );
+
+            await fetchStats();
+
+            // ✅ DETAILED SUMMARY TOASTS
+            if (updated === 0) {
+                setToast({ message: `⚠️ No matching ASINs found. ${skipped} skipped.`, type: 'warning' });
+            } else {
+                setToast({
+                    message: `✅ ${updated} products updated from file`,
+                    type: 'success',
+                });
+
+                setTimeout(() => {
+                    const movements: string[] = [];
+                    if (passCount > 0) movements.push(`✅ ${passCount} moved to Pass File`);
+                    if (failCount > 0) movements.push(`❌ ${failCount} moved to Fail File`);
+                    const pendingCount = updated - passCount - failCount;
+                    if (pendingCount > 0) movements.push(`⏳ ${pendingCount} still Pending`);
+                    if (skipped > 0) movements.push(`⚠️ ${skipped} ASINs not found`);
+
+                    setToast({
+                        message: movements.join(' | '),
+                        type: passCount > 0 ? 'success' : failCount > 0 ? 'error' : 'info',
+                    });
+                }, 2000);
+            }
+
+            console.log(`✅ Upload complete: ${updated} updated, ${passCount} pass, ${failCount} fail, ${skipped} skipped`);
         } catch (err) {
-            console.error('CSV processing error:', err)
-            setToast({ message: 'Failed to process CSV file', type: 'error' })
+            console.error('File processing error:', err);
+            setToast({ message: 'Failed to process file', type: 'error' });
         }
 
-        if (fileInputRef.current) {
-            fileInputRef.current.value = ''
-        }
-    }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     const handleindiaPriceCSVUpload = async (
         e: React.ChangeEvent<HTMLInputElement>
@@ -994,11 +1059,7 @@ export default function ValidationPage() {
         setSelectedIds(newSelected)
     }
 
-    const handleOriginToggle = async (
-        id: string,
-        field: 'origin_india' | 'origin_china',
-        value: boolean
-    ) => {
+    const handleOriginToggle = async (id: string, field: 'origin_india' | 'origin_china' | 'origin_us', value: boolean) => {
         // optimistic UI
         setProducts(prev =>
             prev.map(p => (p.id === id ? { ...p, [field]: value } : p))
@@ -1053,12 +1114,24 @@ export default function ValidationPage() {
         const product = products.find(p => p.id === id)
         if (!product) return
 
-        const journeyId = product.current_journey_id || crypto.randomUUID()
-        const journeyNum = product.journey_number || 1
+        // ✅ Generate UUID with fallback for older browsers
+        const generateUUID = () => {
+            if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+                return crypto.randomUUID();
+            }
+            // Fallback: Generate UUID manually
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+            });
+        };
+
+        const journeyId = product.current_journey_id || generateUUID();
+        const journeyNum = product.journey_number || 1;
 
         try {
             // 1. Fetch fresh data from DB to get the correct links
-            // We need 'india_link' (Product Link) and 'inr_purchase_link' (Source Link)
             const { data: realData, error: fetchError } = await supabase
                 .from('india_validation_main_file')
                 .select('india_link, inr_purchase_link')
@@ -1084,22 +1157,29 @@ export default function ValidationPage() {
                 timestamp: new Date().toISOString()
             }
 
-            await supabase.from('india_asin_history').insert({
-                asin: product.asin,
-                journey_id: journeyId,
-                journey_number: journeyNum,
-                stage: 'validation_to_purchase',
-                snapshot_data: snapshotData,
-                profit: product.profit,
-                total_cost: product.total_cost,
-                status: 'passed'
-            })
+            const { error: historyError } = await supabase
+                .from('india_asin_history')
+                .insert({
+                    asin: product.asin,
+                    journey_id: journeyId,
+                    journey_number: journeyNum,
+                    stage: 'validation_to_purchase',
+                    snapshot_data: snapshotData,
+                    profit: product.profit,
+                    total_cost: product.total_cost,
+                    status: 'passed'
+                })
+
+            if (historyError) {
+                console.error('History snapshot failed:', historyError)
+            }
 
             // 3. Insert into Purchases
-            const originText =
-                (product.origin_india && product.origin_china) ? 'Both' :
-                    product.origin_china ? 'China' :
-                        product.origin_india ? 'India' : 'India';
+            const origins: string[] = [];
+            if (product.origin_india) origins.push('India');
+            if (product.origin_china) origins.push('China');
+            if (product.origin_us) origins.push('US');
+            const originText = origins.length > 0 ? origins.join(', ') : 'India';
 
             const { error: insertError } = await supabase
                 .from('india_purchases')
@@ -1112,21 +1192,14 @@ export default function ValidationPage() {
                     origin: originText,
                     origin_india: product.origin_india ?? false,
                     origin_china: product.origin_china ?? false,
-
-                    // ✅ FIXED: Product Link comes from 'india_link' (Amazon URL)
+                    origin_us: product.origin_us ?? false,
                     product_link: realData?.india_link || product.india_link,
-
-                    // ✅ FIXED: INR Purchase Link comes from 'inr_purchase_link' (Source Link input)
                     inr_purchase_link: realData?.inr_purchase_link || product.inr_purchase_link || '',
-
-                    // ✅ FIXED: Seller Link is left EMPTY for the purchase team to fill manually
                     seller_link: null,
-
                     target_price: product.inr_purchase,
                     target_quantity: 1,
                     funnel_quantity: 1,
                     funnel_seller: product.funnel,
-
                     buying_price: null,
                     buying_quantity: null,
                     seller_phone: '',
@@ -1191,24 +1264,18 @@ export default function ValidationPage() {
             const { error } = await supabase
                 .from('india_validation_main_file')
                 .update({
-                    // Clear judgement
                     judgement: 'PENDING',
-                    // Clear calculated values
-                    total_cost: null,
-                    total_revenue: null,
-                    profit: null,
-                    // Clear input fields
-                    usd_price: null,
-                    product_weight: null,
-                    inr_purchase: null,
-                    // Clear checklist - CORRECT NAMES with underscores
+                    calculated_judgement: null,
                     check_brand: false,
                     check_item_expire: false,
                     check_small_size: false,
                     check_multi_seller: false,
-                    // Clear origin
                     origin_india: false,
                     origin_china: false,
+                    origin_us: false,
+                    sent_to_purchases: false,
+                    sent_to_purchases_at: null,
+                    reject_reason: null,
                 })
                 .in('id', idsArray);
 
@@ -1220,7 +1287,25 @@ export default function ValidationPage() {
             console.log('✅ Successfully updated!');
 
             // Immediate UI update
-            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setProducts((prev) =>
+                prev.map((p) =>
+                    selectedIds.has(p.id)
+                        ? {
+                            ...p,
+                            judgement: 'PENDING',
+                            calculated_judgement: null,
+                            check_brand: false,
+                            check_item_expire: false,
+                            check_small_size: false,
+                            check_multi_seller: false,
+                            origin_india: false,
+                            origin_china: false,
+                            sent_to_purchases: false,
+                            sent_to_purchases_at: undefined,
+                        }
+                        : p
+                )
+            );
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
@@ -1341,34 +1426,94 @@ export default function ValidationPage() {
         }
     };
 
-
-    const downloadCSV = () => {
-        if (filteredProducts.length === 0) {
-            setToast({ message: 'No data to download', type: 'warning' })
+    // Move items to Reject
+    const handleMoveToRejectClick = async () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' })
             return
         }
+        // Open the reject reason modal instead of window.confirm
+        setRejectReason('')
+        setIsRejectModalOpen(true)
+    }
 
-        const headers = Object.keys(visibleColumns).filter(col => visibleColumns[col as keyof typeof visibleColumns])
+    const handleConfirmReject = async () => {
+        if (!rejectReason.trim()) {
+            setToast({ message: 'Please enter a reason for rejection', type: 'warning' })
+            return
+        }
+        setIsRejectModalOpen(false)
+        try {
+            const idsArray = Array.from(selectedIds)
+            const { error } = await supabase
+                .from('india_validation_main_file')
+                .update({ judgement: 'REJECT', reject_reason: rejectReason.trim() })
+                .in('id', idsArray)
+
+            if (error) throw error
+
+            setProducts(prev => prev.map(p =>
+                selectedIds.has(p.id) ? { ...p, judgement: 'REJECT' } : p
+            ))
+            setSelectedIds(new Set())
+            setRejectReason('')
+            setToast({ message: `Successfully moved ${idsArray.length} items to Rejected!`, type: 'success' })
+            await fetchProducts()
+            await fetchStats()
+        } catch (err) {
+            console.error('Move to reject error', err)
+            setToast({ message: 'Failed to move items', type: 'error' })
+        }
+    }
+
+    const downloadCSV = (mode: 'selected' | 'page' | 'all') => {
+        let dataToDownload: ValidationProduct[] = [];
+        let label = '';
+
+        if (mode === 'selected') {
+            dataToDownload = allFilteredProducts.filter(p => selectedIds.has(p.id));
+            label = `${dataToDownload.length} selected`;
+        } else if (mode === 'page') {
+            dataToDownload = filteredProducts; // paginated 100 rows
+            label = `page ${currentPage}`;
+        } else {
+            dataToDownload = allFilteredProducts; // all in current tab
+            label = `all ${dataToDownload.length}`;
+        }
+
+        if (dataToDownload.length === 0) {
+            setToast({ message: 'No data to download', type: 'warning' });
+            return;
+        }
+
+        const headers = Object.keys(visibleColumns).filter(
+            col => visibleColumns[col as keyof typeof visibleColumns]
+        );
+
         const csvContent = [
             headers.join(','),
-            ...filteredProducts.map(product =>
+            ...dataToDownload.map(product =>
                 headers.map(header => {
-                    const value = product[header as keyof ValidationProduct]
-                    return value ? `"${value}"` : ''
+                    const value = product[header as keyof ValidationProduct];
+                    return value != null ? `"${String(value).replace(/"/g, '""')}"` : '';
                 }).join(',')
             )
-        ].join('\n')
+        ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `validation_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`
-        a.click()
-        window.URL.revokeObjectURL(url)
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `validation_${activeTab}_${mode}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
 
-        setToast({ message: 'CSV downloaded successfully!', type: 'success' })
-    }
+        setToast({
+            message: `✅ Downloaded ${dataToDownload.length} products (${label})`,
+            type: 'success'
+        });
+        setIsDownloadDropdownOpen(false);
+    };
 
     const openConstantsModal = () => {
         setIsConstantsModalOpen(true)
@@ -1434,26 +1579,27 @@ export default function ValidationPage() {
                             <h1 className="text-3xl font-bold text-white">INDIA Selling - Validation</h1>
                             <p className="text-slate-400 mt-1">Manage validation files and product status</p>
                         </div>
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-slate-700/50">
-                                <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products</div>
-                                <div className="text-3xl font-bold mt-1">{stats.total}</div>
+                        {/* Stats Cards - Compact */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <div className="flex items-center gap-2.5 bg-slate-800/80 rounded-lg px-3.5 py-2 border border-slate-700/50">
+                                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
+                                <span className="text-lg font-bold text-white">{stats.total}</span>
                             </div>
-
-                            <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-900/20 rounded-xl px-5 py-4 text-emerald-100 shadow-lg border border-emerald-500/20">
-                                <div className="text-xs font-medium text-emerald-400 uppercase tracking-wider">✓ Passed</div>
-                                <div className="text-3xl font-bold mt-1 text-white">{stats.passed}</div>
+                            <div className="flex items-center gap-2.5 bg-emerald-900/30 rounded-lg px-3.5 py-2 border border-emerald-500/20">
+                                <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">✓ Pass</span>
+                                <span className="text-lg font-bold text-emerald-300">{stats.passed}</span>
                             </div>
-
-                            <div className="bg-gradient-to-br from-rose-900/50 to-rose-900/20 rounded-xl px-5 py-4 text-rose-100 shadow-lg border border-rose-500/20">
-                                <div className="text-xs font-medium text-rose-400 uppercase tracking-wider">✗ Failed</div>
-                                <div className="text-3xl font-bold mt-1 text-white">{stats.failed}</div>
+                            <div className="flex items-center gap-2.5 bg-rose-900/30 rounded-lg px-3.5 py-2 border border-rose-500/20">
+                                <span className="text-[11px] font-medium text-rose-400 uppercase tracking-wider">✗ Fail</span>
+                                <span className="text-lg font-bold text-rose-300">{stats.failed}</span>
                             </div>
-
-                            <div className="bg-gradient-to-br from-amber-900/50 to-amber-900/20 rounded-xl px-5 py-4 text-amber-100 shadow-lg border border-amber-500/20">
-                                <div className="text-xs font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</div>
-                                <div className="text-3xl font-bold mt-1 text-white">{stats.pending}</div>
+                            <div className="flex items-center gap-2.5 bg-amber-900/30 rounded-lg px-3.5 py-2 border border-amber-500/20">
+                                <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</span>
+                                <span className="text-lg font-bold text-amber-300">{stats.pending}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5 bg-violet-900/30 rounded-lg px-3.5 py-2 border border-violet-500/20">
+                                <span className="text-[11px] font-medium text-violet-400 uppercase tracking-wider">Rejected</span>
+                                <span className="text-lg font-bold text-violet-300">{stats.rejected}</span>
                             </div>
                         </div>
 
@@ -1463,6 +1609,7 @@ export default function ValidationPage() {
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
                                 { id: 'fail_file', label: 'Failed File' },
+                                { id: 'reject_file', label: 'Rejected' },
                                 { id: 'pending', label: 'Pending' }
                             ].map((tab) => (
                                 <button
@@ -1576,7 +1723,7 @@ export default function ValidationPage() {
                                 {/* RIGHT SIDE - Action Buttons */}
                                 <div className="flex gap-3 flex-wrap">
                                     {/* Move to Main */}
-                                    {(activeTab === 'pass_file' || activeTab === 'fail_file') && (
+                                    {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
                                         <button
                                             onClick={handleMoveToMainClick}
                                             disabled={selectedIds.size === 0}
@@ -1626,16 +1773,75 @@ export default function ValidationPage() {
                                             </button>
                                         )} */}
 
-                                    {/* Download CSV */}
-                                    <button
-                                        onClick={downloadCSV}
-                                        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                        Download CSV
-                                    </button>
+                                    {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                        <button
+                                            onClick={handleMoveToRejectClick}
+                                            disabled={selectedIds.size === 0}
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
+                                                }`}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                            </svg>
+                                            Move to Reject
+                                        </button>
+                                    )}
+
+                                    {/* Download CSV Dropdown */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
+                                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            Download CSV
+                                            <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        {isDownloadDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
+                                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+
+                                                    {/* Download Selected - only if items selected */}
+                                                    {selectedIds.size > 0 && (
+                                                        <button
+                                                            onClick={() => downloadCSV('selected')}
+                                                            className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                                                        >
+                                                            <span>📋 Download Selected</span>
+                                                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Download Current Page */}
+                                                    <button
+                                                        onClick={() => downloadCSV('page')}
+                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    >
+                                                        <span>📄 Download Page</span>
+                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                                                    </button>
+
+                                                    {/* Download All */}
+                                                    <button
+                                                        onClick={() => downloadCSV('all')}
+                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    >
+                                                        <span>📦 Download All</span>
+                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
+                                                    </button>
+
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
 
                                     {/* Upload CSV */}
                                     <button
@@ -1703,7 +1909,7 @@ export default function ValidationPage() {
                             </div>
                         ) : (
                             <>
-                                <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+                                <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50" style={{ overflow: 'auto visible' }}>
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
                                         <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1746,23 +1952,19 @@ export default function ValidationPage() {
                                                 {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
                                                 {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
                                                 {visibleColumns.india_link && <ResizableTH width={columnWidths.india_link} columnKey="india_link" label="INDIA Link" onResizeStart={startResize} />}
-
                                                 {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
-
                                                 {visibleColumns.product_weight && <ResizableTH width={columnWidths.product_weight} columnKey="product_weight" label="Weight (g)" onResizeStart={startResize} />}
                                                 {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD $" onResizeStart={startResize} />}
                                                 {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR ₹" onResizeStart={startResize} />}
-
                                                 {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="Source Link" onResizeStart={startResize} />}
-
                                                 {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
-
+                                                {activeTab === 'reject_file' && (<ResizableTH width={200} columnKey="rejectreason" label="Reject Reason" onResizeStart={startResize} />)}
                                                 {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Status" onResizeStart={startResize} />}
                                                 {visibleColumns.remark && <ResizableTH width={columnWidths.remark} columnKey="remark" label="Remark" align="center" onResizeStart={startResize} />}
                                             </tr>
                                         </thead>
 
-                                        <tbody className="divide-y divide-slate-800">
+                                        <tbody className="divide-y divide-slate-800 overflow-visible">
                                             {filteredProducts.map((product) => (
                                                 <tr key={product.id} className="hover:bg-slate-800/50 transition-colors">
                                                     <td className="p-3">
@@ -1854,12 +2056,9 @@ export default function ValidationPage() {
                                                                     <div className="flex items-center gap-2">
                                                                         {product.india_link ? (
                                                                             <>
-                                                                                <a
-                                                                                    href={product.india_link}
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs"
-                                                                                >
+                                                                                <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
+                                                                                    target="_blank" rel="noopener noreferrer"
+                                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs">
                                                                                     View Link
                                                                                 </a>
                                                                                 <button
@@ -1895,52 +2094,107 @@ export default function ValidationPage() {
                                                         </td>
                                                     )}
 
-                                                    {activeTab === 'pass_file' && (
-                                                        <td className="p-3">
-                                                            <div className="flex flex-col gap-1 text-sm text-slate-300">
-                                                                <label className="flex items-center gap-2">
-                                                                    <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                    India
-                                                                </label>
-                                                                <label className="flex items-center gap-2">
-                                                                    <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                    China
-                                                                </label>
-                                                            </div>
-                                                        </td>
-                                                    )}
+                                                    {activeTab === 'pass_file' && (() => {
+                                                        const origins = [
+                                                            { key: 'origin_india' as const, label: 'India', checked: !!product.origin_india },
+                                                            { key: 'origin_china' as const, label: 'China', checked: !!product.origin_china },
+                                                            { key: 'origin_us' as const, label: 'US', checked: !!product.origin_us },
+                                                        ];
+                                                        const selected = origins.filter(o => o.checked);
+                                                        const isOpen = openOriginId === product.id;
+
+                                                        return (
+                                                            <td className="p-3">
+                                                                <div className="relative">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            if (isOpen) {
+                                                                                setOpenOriginId(null);
+                                                                                setDropdownPos(null);
+                                                                            } else {
+                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                const spaceBelow = window.innerHeight - rect.bottom;
+                                                                                const dropdownHeight = 120; // 3 items ~40px each
+                                                                                const top = spaceBelow < dropdownHeight ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
+                                                                                setDropdownPos({ top, left: rect.left });
+                                                                                setOpenOriginId(product.id);
+                                                                                setOpenChecklistId(null);
+                                                                            }
+                                                                        }}
+                                                                        className={`w-full min-w-[100px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'
+                                                                            }`}
+                                                                    >
+                                                                        {selected.length > 0 ? (
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {selected.map(o => (
+                                                                                    <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] font-medium">
+                                                                                        {o.label}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-slate-500">Select...</span>
+                                                                        )}
+                                                                        <svg className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                    </button>
+
+                                                                    {isOpen && dropdownPos && (
+                                                                        <>
+                                                                            <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenOriginId(null); setDropdownPos(null); }} />
+                                                                            <div
+                                                                                className="fixed w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1"
+                                                                                style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                                                                            >
+                                                                                {origins.map(o => (
+                                                                                    <label
+                                                                                        key={o.key}
+                                                                                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors"
+                                                                                    >
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={o.checked}
+                                                                                            onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)}
+                                                                                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                                                        />
+                                                                                        <span className={o.checked ? 'text-emerald-400 font-medium' : ''}>{o.label}</span>
+                                                                                        {o.checked && (
+                                                                                            <svg className="w-3 h-3 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                            </svg>
+                                                                                        )}
+                                                                                    </label>
+                                                                                ))}
+                                                                            </div>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })()}
 
                                                     {visibleColumns.product_weight && (
-                                                        <td className="p-3 text-slate-300">
+                                                        <td className="p-3 text-slate-300 overflow-hidden">
                                                             {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="number"
-                                                                    key={product.id}
-                                                                    defaultValue={product.product_weight ?? ''}
-                                                                    onBlur={(e) =>
-                                                                        handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)
-                                                                    }
-                                                                    className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                <input type="number" key={product.id} defaultValue={product.product_weight ?? ''}
+                                                                    onBlur={(e) => handleCellEdit(product.id, 'productweight', Number(e.target.value) || null)}
+                                                                    className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+
                                                                 />
                                                             ) : (
                                                                 product.product_weight ?? '-'
                                                             )}
-
                                                         </td>
                                                     )}
 
                                                     {visibleColumns.usd_price && (
-                                                        <td className="p-3 text-slate-300">
+                                                        <td className="p-3 text-slate-300 overflow-hidden">
                                                             {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    key={product.id}
-                                                                    defaultValue={product.usd_price ?? ''}
-                                                                    onBlur={(e) => {
-                                                                        const parsed = parseCurrency(e.target.value);
-                                                                        handleCellEdit(product.id, 'usd_price', parsed);
-                                                                    }}
-                                                                    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                <input type="text" key={product.id} defaultValue={product.usd_price ?? ''}
+                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usdprice', parsed) }}
+                                                                    className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+
                                                                 />
                                                             ) : (
                                                                 formatUSD(product.usd_price)
@@ -1950,17 +2204,11 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {visibleColumns.inr_purchase && (
-                                                        <td className="p-3 text-slate-300">
+                                                        <td className="p-3 text-slate-300 overflow-hidden">
                                                             {activeTab === 'main_file' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    key={product.id}
-                                                                    defaultValue={product.inr_purchase ?? ''}
-                                                                    onBlur={(e) => {
-                                                                        const parsed = parseCurrency(e.target.value);
-                                                                        handleCellEdit(product.id, 'inr_purchase', parsed);
-                                                                    }}
-                                                                    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                <input type="text" key={product.id} defaultValue={product.inr_purchase ?? ''}
+                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inrpurchase', parsed) }}
+                                                                    className="w-full max-w-[90px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
                                                                 />
                                                             ) : (
                                                                 formatINR(product.inr_purchase)
@@ -1975,49 +2223,171 @@ export default function ValidationPage() {
                                                                 type="url"
                                                                 value={product.inr_purchase_link || ''}
                                                                 onChange={(e) => handleCellEdit(product.id, 'inr_purchase_link', e.target.value)}
-                                                                placeholder="Enter supplier link..."
-                                                                className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate"
+                                                                onKeyDown={async (e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        const link = (e.target as HTMLInputElement).value.trim();
+                                                                        if (!link) {
+                                                                            setToast({ message: '⚠️ Please enter a source link first', type: 'warning' });
+                                                                            return;
+                                                                        }
+                                                                        const currentProduct = products.find((p) => p.id === product.id);
+                                                                        if (!currentProduct) return;
+                                                                        if (!currentProduct.usd_price || !currentProduct.product_weight || !currentProduct.inr_purchase) {
+                                                                            setToast({ message: '⚠️ Fill Weight, USD & INR first', type: 'warning' });
+                                                                            return;
+                                                                        }
+                                                                        const result = calculateProductValues(
+                                                                            { usd_price: currentProduct.usd_price, product_weight: currentProduct.product_weight, inr_purchase: currentProduct.inr_purchase },
+                                                                            constants,
+                                                                            'INDIA'
+                                                                        );
+                                                                        const finalJudgement = result.judgement || 'PENDING';
+                                                                        const { error } = await supabase
+                                                                            .from('india_validation_main_file')
+                                                                            .update({
+                                                                                inr_purchase_link: link,
+                                                                                judgement: finalJudgement,
+                                                                                calculated_judgement: finalJudgement,
+                                                                                total_cost: isFinite(result.total_cost) ? result.total_cost : null,
+                                                                                total_revenue: isFinite(result.total_revenue) ? result.total_revenue : null,
+                                                                                profit: isFinite(result.profit) ? result.profit : null,
+                                                                            })
+                                                                            .eq('id', product.id);
+                                                                        if (error) {
+                                                                            setToast({ message: '❌ Failed to finalize', type: 'error' });
+                                                                            return;
+                                                                        }
+                                                                        setProducts((prev) =>
+                                                                            prev.map((p) =>
+                                                                                p.id === product.id
+                                                                                    ? {
+                                                                                        ...p, inr_purchase_link: link, judgement: finalJudgement, calculated_judgement: finalJudgement,
+                                                                                        total_cost: result.total_cost, total_revenue: result.total_revenue, profit: result.profit
+                                                                                    }
+                                                                                    : p
+                                                                            )
+                                                                        );
+                                                                        await fetchStats();
+                                                                        if (finalJudgement === 'PASS') {
+                                                                            setToast({ message: `✅ ${currentProduct.asin} → Pass File!`, type: 'success' });
+                                                                        } else if (finalJudgement === 'FAIL') {
+                                                                            setToast({ message: `❌ ${currentProduct.asin} → Fail File!`, type: 'error' });
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                placeholder="Enter link + press Enter ↵"
+                                                                className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate text-xs"
                                                             />
                                                         </td>
                                                     )}
 
-                                                    {activeTab === 'pass_file' && (
-                                                        <td className="p-3">
-                                                            {/* ✅ FIX: Require Checklist AND Origin to show OK button */}
-                                                            {product.check_brand &&
-                                                                product.check_item_expire &&
-                                                                product.check_small_size &&
-                                                                product.check_multi_seller &&
-                                                                (product.origin_india || product.origin_china) ? (
+                                                    {activeTab === 'reject_file' && (
+                                                        <td className="p-3 text-center">
+                                                            {product.reject_reason ? (
                                                                 <button
-                                                                    onClick={() => handleChecklistOk(product.id)}
-                                                                    className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all"
-                                                                >
-                                                                    OK
-                                                                </button>
+                                                                    onClick={() => {
+                                                                        setSelectedRejectReason(product.reject_reason || null)
+                                                                    }}
+                                                                    className="bg-violet-600 hover:bg-violet-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                                                >View</button>
                                                             ) : (
-                                                                <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                                                                    {/* ... existing checkboxes ... */}
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Brand Checking">
-                                                                        <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                        <span>Brand</span>
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Item Expire">
-                                                                        <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                        <span>Expire</span>
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Small Size">
-                                                                        <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                        <span>Size</span>
-                                                                    </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Multi Sellers">
-                                                                        <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
-                                                                        <span>Multi</span>
-                                                                    </label>
-                                                                </div>
+                                                                <span className="text-slate-600">-</span>
                                                             )}
                                                         </td>
                                                     )}
+
+                                                    {activeTab === 'pass_file' && (() => {
+                                                        const checks = [
+                                                            { key: 'check_brand' as const, label: 'Brand', checked: !!product.check_brand },
+                                                            { key: 'check_item_expire' as const, label: 'Expire', checked: !!product.check_item_expire },
+                                                            { key: 'check_small_size' as const, label: 'Size', checked: !!product.check_small_size },
+                                                            { key: 'check_multi_seller' as const, label: 'Multi', checked: !!product.check_multi_seller },
+                                                        ];
+                                                        const checkedItems = checks.filter(c => c.checked);
+                                                        const checkedCount = checkedItems.length;
+                                                        const isOpen = openChecklistId === product.id;
+                                                        const hasOrigin = product.origin_india || product.origin_china || product.origin_us;
+
+                                                        return (
+                                                            <td className="p-3">
+                                                                <div className="flex flex-col gap-2">
+                                                                    <div className="relative">
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                if (isOpen) {
+                                                                                    setOpenChecklistId(null);
+                                                                                    setDropdownPos(null);
+                                                                                } else {
+                                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                                    const spaceBelow = window.innerHeight - rect.bottom;
+                                                                                    const dropdownHeight = 170; // 4 items ~40px each + padding
+                                                                                    const top = spaceBelow < dropdownHeight ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
+                                                                                    setDropdownPos({ top, left: rect.left });
+                                                                                    setOpenChecklistId(product.id);
+                                                                                    setOpenOriginId(null);
+                                                                                }
+                                                                            }}
+                                                                            className={`w-full min-w-[130px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'
+                                                                                }`}
+                                                                        >
+                                                                            {checkedCount > 0 ? (
+                                                                                <div className="flex flex-wrap gap-1">
+                                                                                    {checkedItems.map(c => (
+                                                                                        <span key={c.key} className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-medium">
+                                                                                            {c.label}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-slate-500">Select...</span>
+                                                                            )}
+                                                                            <svg className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                            </svg>
+                                                                        </button>
+
+                                                                        {isOpen && dropdownPos && (
+                                                                            <>
+                                                                                <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenChecklistId(null); setDropdownPos(null); }} />
+                                                                                <div
+                                                                                    className="fixed w-44 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1"
+                                                                                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                                                                                >
+                                                                                    {checks.map(c => (
+                                                                                        <label
+                                                                                            key={c.key}
+                                                                                            className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors"
+                                                                                        >
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={c.checked}
+                                                                                                onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)}
+                                                                                                className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                                                            />
+                                                                                            <span className={c.checked ? 'text-indigo-400 font-medium' : ''}>{c.label}</span>
+                                                                                            {c.checked && (
+                                                                                                <svg className="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                                </svg>
+                                                                                            )}
+                                                                                        </label>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {checkedCount > 0 && hasOrigin && (
+                                                                        <button
+                                                                            onClick={() => handleChecklistOk(product.id)}
+                                                                            className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all w-fit text-xs"
+                                                                        >OK</button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })()}
 
                                                     {visibleColumns.judgement && (
                                                         <td className="p-3">
@@ -2327,22 +2697,67 @@ export default function ValidationPage() {
                     </>
                 )}
             </AnimatePresence>
-            {/* ✅ REMARK MODAL */}
-            {selectedRemark && (
+            {/* REJECT REASON MODAL */}
+            {isRejectModalOpen && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-white">Remark Details</h3>
+                            <h3 className="text-xl font-bold text-white">Reject {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''}</h3>
                             <button
-                                onClick={() => setSelectedRemark(null)}
+                                onClick={() => { setIsRejectModalOpen(false); setRejectReason(''); }}
                                 className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
                             >
                                 ×
                             </button>
                         </div>
-                        <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
-                            {selectedRemark}
+                        <p className="text-slate-400 text-sm mb-3">Please provide a reason for rejection:</p>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter rejection reason..."
+                            rows={4}
+                            autoFocus
+                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder-slate-600 transition-all resize-none"
+                        />
+                        <div className="flex items-center justify-end gap-3 mt-4">
+                            <button
+                                onClick={() => { setIsRejectModalOpen(false); setRejectReason(''); }}
+                                className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmReject}
+                                disabled={!rejectReason.trim()}
+                                className="px-5 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 font-medium transition-all shadow-lg shadow-violet-900/20 border border-violet-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Confirm Reject
+                            </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* REMARK VIEWER MODAL */}
+            {selectedRemark !== null && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedRemark(null)}>
+                    <div className="bg-slate-900 border border-indigo-700/50 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-indigo-300">Remark</h3>
+                            <button onClick={() => setSelectedRemark(null)} className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg">×</button>
+                        </div>
+                        <p className="text-slate-300 whitespace-pre-wrap">{selectedRemark || 'No remark'}</p>
+                    </div>
+                </div>
+            )}
+            {/* REJECT REASON VIEWER MODAL */}
+            {selectedRejectReason !== null && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedRejectReason(null)}>
+                    <div className="bg-slate-900 border border-violet-700/50 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-violet-300">Reject Reason</h3>
+                            <button onClick={() => setSelectedRejectReason(null)} className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg">×</button>
+                        </div>
+                        <p className="text-slate-300 whitespace-pre-wrap">{selectedRejectReason}</p>
                     </div>
                 </div>
             )}

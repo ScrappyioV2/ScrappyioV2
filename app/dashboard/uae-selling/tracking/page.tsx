@@ -28,6 +28,7 @@ type PassFileProduct = {
     funnel: string | null
     origin_india: boolean | null
     origin_china: boolean | null
+    origin_us: boolean | null
     usd_price: number | null
     inr_purchase: number | null
     uae_link: string | null
@@ -113,6 +114,7 @@ export default function TrackingPage() {
             origin: p.origin,
             origin_india: p.origin_india,  // ✅ ADD THIS LINE
             origin_china: p.origin_china,
+            origin_us: p.origin_us,
             product_weight: p.product_weight || 0,
             buying_price: p.buying_price,
             buying_quantity: p.buying_quantity,
@@ -221,6 +223,8 @@ export default function TrackingPage() {
                         // Origin handling
                         origin_india: product.origin?.toLowerCase().includes('india') || product.origin_india === true,
                         origin_china: product.origin?.toLowerCase().includes('china') || product.origin_china === true,
+                        origin_us: product.origin?.toLowerCase().includes('us') || product.origin_us === true,
+
                         // Validation data
                         validation_funnel: finalValidationData?.funnel ?? null,
                         validation_seller_tag: finalValidationData?.seller_tag ?? null,
@@ -330,6 +334,7 @@ export default function TrackingPage() {
                     product_name: product.product_name ?? null,
                     origin_india: product.origin?.toLowerCase().includes('india') || product.origin_india === true,
                     origin_china: product.origin?.toLowerCase().includes('china') || product.origin_china === true,
+                    origin_us: product.origin?.toLowerCase().includes('us') || product.origin_us === true,
                     validation_funnel: validationData?.funnel ?? null,
                     validation_seller_tag: validationData?.seller_tag ?? null,
                     product_weight: validationData?.product_weight ?? null,
@@ -498,6 +503,7 @@ export default function TrackingPage() {
                 delivery_date: product.delivery_date,
                 origin_india: product.origin_india,
                 origin_china: product.origin_china,
+                origin_us: product.origin_us,
                 brand: product.brand,
                 seller_tag: product.seller_tag,
                 funnel: product.funnel,
@@ -1085,37 +1091,17 @@ export default function TrackingPage() {
                                                         {visibleColumns.origin && (
                                                             <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: columnWidths.origin + 'px' }}>
                                                                 <div className="flex flex-col gap-1 items-center">
-                                                                    {/* First priority: Show origin text field */}
-                                                                    {product.origin && !['both', 'india, china'].includes(product.origin.toLowerCase()) ? (
-                                                                        <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${product.origin.toLowerCase() === 'india'
-                                                                            ? 'bg-orange-500 text-white'
-                                                                            : product.origin.toLowerCase() === 'china'
-                                                                                ? 'bg-red-500 text-white'
-                                                                                : 'bg-slate-700 text-white'
-                                                                            }`}>
-                                                                            {product.origin}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <>
-                                                                            {/* Show India if true */}
-                                                                            {product.origin_india && (
-                                                                                <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold whitespace-nowrap">
-                                                                                    India
-                                                                                </span>
-                                                                            )}
-
-                                                                            {/* Show China if true */}
-                                                                            {product.origin_china && (
-                                                                                <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold whitespace-nowrap">
-                                                                                    China
-                                                                                </span>
-                                                                            )}
-
-                                                                            {/* Show "-" only if BOTH are false */}
-                                                                            {!product.origin_india && !product.origin_china && (
-                                                                                <span className="text-xs text-slate-600 italic">-</span>
-                                                                            )}
-                                                                        </>
+                                                                    {product.origin_india && (
+                                                                        <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold whitespace-nowrap">India</span>
+                                                                    )}
+                                                                    {product.origin_china && (
+                                                                        <span className="px-2 py-1 bg-red-500 text-white rounded text-xs font-semibold whitespace-nowrap">China</span>
+                                                                    )}
+                                                                    {product.origin_us && (
+                                                                        <span className="px-2 py-1 bg-sky-500 text-white rounded text-xs font-semibold whitespace-nowrap">US</span>
+                                                                    )}
+                                                                    {!product.origin_india && !product.origin_china && !product.origin_us && (
+                                                                        <span className="text-xs text-slate-600 italic">-</span>
                                                                     )}
                                                                 </div>
                                                             </td>

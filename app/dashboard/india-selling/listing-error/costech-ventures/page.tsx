@@ -27,6 +27,18 @@ const SELLER_NAME = "Costech Ventures";
 const BASE_TABLE_PREFIX = `india_listing_error_seller_${SELLER_ID}`;
 const ITEMS_PER_PAGE = 100; // Matches your screenshot
 
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 interface ListingProduct {
   id: string;
   asin: string;
@@ -39,8 +51,8 @@ interface ListingProduct {
   listing_notes?: string | null;
   error_reason?: string | null;
   source_admin_validation_id?: string;
-  journey_id?: string | null;
-  journey_number?: number | null;
+  journey_id?: string | null;  // ✅ ADD THIS
+  journey_number?: number | null;  // ✅ ADD THIS
   remark: string | null;
 }
 
@@ -210,8 +222,7 @@ export default function CostechVenturesListingPage() {
     setProcessingId(product.id);
 
     // ✅ SELF-HEALING: If no journey_id exists (old data), start a fresh chain now.
-    // This ensures the item will work correctly when it reaches the Reorder page.
-    const journeyId = product.journey_id || crypto.randomUUID();
+    const journeyId = product.journey_id || generateUUID();
     const journeyNum = product.journey_number || 1;
 
     try {
@@ -244,7 +255,7 @@ export default function CostechVenturesListingPage() {
           journey_number: journeyNum,
           stage: 'listing_done',
           status: 'listed',
-          profit: null, // We don't verify profit at this stage, just listing
+          profit: null,
           snapshot_data: {
             final_price: product.selling_price,
             sku: product.sku,
@@ -265,7 +276,7 @@ export default function CostechVenturesListingPage() {
       // 4. Log Movement
       await logHistory(product, sourceTableName, targetTableName);
 
-      // 5. Clean Up Source (Delete from potential source tables)
+      // 5. Clean Up Source
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,

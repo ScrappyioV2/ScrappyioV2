@@ -100,7 +100,7 @@ function isPartialUpdateFile(headers: string[]) {
 //      .toLowerCase()
 //      .replace(/\s+/g, '_')
 //   );
-  
+
 //   const allowed = [
 //     "asin",
 //     "remark", 
@@ -125,7 +125,7 @@ function isPartialUpdateFile(headers: string[]) {
 //   const hasRemarkColumn = normalized.some(h => 
 //     h === "remark" || h === "remarks"
 //   );
-  
+
 //   const hasMonthlyUnitColumn = normalized.some(h => 
 //     h === "monthly_unit" || 
 //     h === "monthly_units" || 
@@ -179,6 +179,7 @@ export default function IndiaSellersPage() {
   // Upload progress state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
+  const [isDistributing, setIsDistributing] = useState(false);
 
   const ITEMS_PER_PAGE = 50;
 
@@ -263,7 +264,7 @@ export default function IndiaSellersPage() {
   };
 
   // FIXED: Handle multiple file uploads with batch insert
-    // Handle multiple file uploads with batch insert
+  // Handle multiple file uploads with batch insert
   const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
@@ -320,29 +321,61 @@ export default function IndiaSellersPage() {
           .filter(Boolean);
 
         // ✅ Check if this is a partial update file
+        // ✅ Check if this is a partial update file
         const rawHeaders = Object.keys(data[0] || {});
-        
+
         // ✅ DEBUG LOGGING
         console.log('🔍 [INDIA] Raw headers from CSV:', rawHeaders);
         console.log('🔍 [INDIA] Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
         console.log('🔍 [INDIA] First data row:', data[0]);
         console.log('🔍 [INDIA] Is partial update?', isPartialUpdateFile(rawHeaders));
         console.log('🔍 [INDIA] Total rows:', data.length);
-        
+
         if (isPartialUpdateFile(rawHeaders)) {
-          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
+          // ✅ Show initial toast with unique ID
+          const partialToastId = toast.loading(`Processing ${normalizedData.length.toLocaleString()} records...`);
 
-          const { updatedCount, skippedCount } =
-            await bulkUpdateAsinRemarkMonthlyUnit(
-              normalizedData,
-              TABLE_NAME
+          try {
+            // ✅ Call batched function with progress callback
+            const { updatedCount, skippedCount, message } =
+              await bulkUpdateAsinRemarkMonthlyUnit(
+                normalizedData,
+                TABLE_NAME, // 'india_master_sellers'
+                (current, total) => {
+                  // Update toast with progress
+                  const percentage = Math.round((current / total) * 100);
+                  toast.loading(
+                    `Updating: ${current.toLocaleString()}/${total.toLocaleString()} (${percentage}%)`,
+                    { id: partialToastId }
+                  );
+                }
+              );
+
+            totalUpdated += updatedCount;
+            hasPartialUpdate = true;
+
+            if (updatedCount > 0) {
+              toast.success(
+                message || `✅ ${updatedCount.toLocaleString()} products updated from ${file.name}`,
+                { id: partialToastId, duration: 5000 }
+              );
+            } else {
+              toast.error(
+                `⚠️ No products updated from ${file.name}. Check ASINs match master table.`,
+                { id: partialToastId, duration: 5000 }
+              );
+            }
+
+            console.log(`✅ [INDIA] Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+          } catch (err: any) {
+            console.error('[INDIA] Partial update failed:', err);
+            toast.error(
+              `❌ Partial update failed: ${err.message}`,
+              { id: partialToastId, duration: 5000 }
             );
+          }
 
-          totalUpdated += updatedCount;
-          hasPartialUpdate = true;
-
-          console.log(`✅ [INDIA] Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
-          continue;
+          continue; // ✅ Skip to next file
         }
 
         // For full files, filter duplicates
@@ -393,7 +426,7 @@ export default function IndiaSellersPage() {
 
       console.log(`✅ [INDIA] After deduplication: ${allNewProducts.length} unique products`);
 
-      const batchSize = 100;
+      const batchSize = 200;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
@@ -412,40 +445,52 @@ export default function IndiaSellersPage() {
       }
 
       const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
-  const maxRetries = 3;
-  let attempt = 0;
+        const maxRetries = 3;
+        let attempt = 0;
 
-  while (attempt < maxRetries) {
-    try {
-      const cleanBatch = batch.map((product) => {
-        const cleaned: any = {};
-        Object.keys(product).forEach((key) => {
-          if (product[key] !== undefined && product[key] !== null) {
-            cleaned[key] = product[key];
+        while (attempt < maxRetries) {
+          try {
+            const cleanBatch = batch.map((product) => {
+              const cleaned: any = {};
+              Object.keys(product).forEach((key) => {
+                if (product[key] !== undefined && product[key] !== null) {
+                  cleaned[key] = product[key];
+                }
+              });
+              return cleaned;
+            });
+
+            // ✅ Clean console log (like Flipkart)
+            console.log(`📤 Uploading batch ${batchIndex + 1}/${totalBatches} (${cleanBatch.length} records)`);
+
+            // ✅ Use RPC function directly
+            const { data, error } = await supabase
+              .rpc('bulk_insert_india_master_with_distribution', {
+                batch_data: cleanBatch
+              });
+
+            if (error) {
+              console.error(`❌ Batch ${batchIndex + 1} failed:`, error.message);
+              throw error;
+            }
+
+            // ✅ Success log
+            console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} completed (${data.inserted_count} inserted)`);
+
+            return { success: true, count: batch.length };
+          } catch (error: any) {
+            attempt++;
+            console.error(`⚠️ Batch ${batchIndex + 1} attempt ${attempt}/${maxRetries} failed:`, error.message);
+
+            if (attempt >= maxRetries) {
+              return { success: false, count: 0 };
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
-        });
-        return cleaned;
-      });
-
-      // ✅ NEW: Call bulk insert function instead of direct insert
-      const { data, error } = await supabase
-        .rpc('bulk_insert_india_master_with_distribution', {
-          batch_data: cleanBatch
-        });
-
-      if (error) throw error;
-
-      return { success: true, count: batch.length };
-    } catch (error: any) {
-      attempt++;
-      console.error(`Batch ${batchIndex + 1} failed (attempt ${attempt}/${maxRetries}):`, error);
-      if (attempt >= maxRetries) return { success: false, count: 0 };
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
-  return { success: false, count: 0 };
-};
-
+        }
+        return { success: false, count: 0 };
+      };
 
       for (let i = 0; i < batches.length; i++) {
         toast.loading(
@@ -484,6 +529,10 @@ export default function IndiaSellersPage() {
 
       if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
+
+        // ✅ Queue-based distribution (like Flipkart)
+        await triggerBackgroundDistribution(TABLE_NAME);
+
         setRefreshTrigger((prev) => prev + 1);
       } else {
         toast.error('Upload failed. Please try again.', { id: toastId, duration: 5000 });
@@ -499,6 +548,55 @@ export default function IndiaSellersPage() {
     }
   };
 
+  // ============================================
+  // AUTO-TRIGGER BACKGROUND DISTRIBUTION
+  // ============================================
+  const triggerBackgroundDistribution = async (tableName: string) => {
+    if (!supabase) return;
+
+    setIsDistributing(true);
+    const distToastId = toast.loading('Distributing to demand sorting tables...', {
+      style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' },
+    });
+
+    try {
+      const { data, error } = await supabase.rpc('india_distribute_all_batched');
+
+      if (error) {
+        console.error('Distribution error:', error);
+        toast.error(`Distribution error: ${error.message}`, {
+          id: distToastId,
+          duration: 5000,
+        });
+        return;
+      }
+
+      const processed = data?.processed || 0;
+      const timeTaken = data?.time_seconds?.toFixed(1) || '?';
+
+      if (processed > 0) {
+        toast.success(
+          `✅ Distributed ${processed.toLocaleString()} records to 6 demand sorting tables (${timeTaken}s)`,
+          { id: distToastId, duration: 5000 }
+        );
+      } else {
+        toast.success('Distribution complete — all records already synced', {
+          id: distToastId,
+          duration: 3000,
+        });
+      }
+
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err: any) {
+      console.error('Distribution failed:', err);
+      toast.error('Distribution failed. Check console.', {
+        id: distToastId,
+        duration: 5000,
+      });
+    } finally {
+      setIsDistributing(false);
+    }
+  };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return

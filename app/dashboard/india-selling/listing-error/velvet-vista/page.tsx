@@ -27,6 +27,18 @@ const SELLER_NAME = "Velvet Vista";
 const BASE_TABLE_PREFIX = `india_listing_error_seller_${SELLER_ID}`;
 const ITEMS_PER_PAGE = 100;
 
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 interface ListingProduct {
   id: string;
   asin: string;
@@ -39,8 +51,11 @@ interface ListingProduct {
   listing_notes?: string | null;
   error_reason?: string | null;
   source_admin_validation_id?: string;
+  journey_id?: string | null;  // ✅ ADD THIS
+  journey_number?: number | null;  // ✅ ADD THIS
   remark: string | null;
 }
+
 
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
 
@@ -218,10 +233,16 @@ export default function VelvetVistaListingPage() {
 
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
+
+    // ✅ SELF-HEALING: If no journey_id exists (old data), start a fresh chain now.
+    const journeyId = product.journey_id || generateUUID();
+    const journeyNum = product.journey_number || 1;
+
     try {
       const sourceTableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
       const targetTableName = `${BASE_TABLE_PREFIX}_${target}`;
 
+      // 1. Prepare Payload (With Journey Data)
       const payload = {
         source_admin_validation_id: product.source_admin_validation_id,
         asin: product.asin,
@@ -229,16 +250,46 @@ export default function VelvetVistaListingPage() {
         sku: product.sku,
         selling_price: product.selling_price,
         seller_link: product.seller_link,
+
+        // 🔗 THE CRITICAL LINK
+        journey_id: journeyId,
+        journey_number: journeyNum,
         remark: product.remark ?? null,
+
         ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
 
+      // 2. 📸 HISTORY SNAPSHOT (Only if Listed)
+      if (target === 'done') {
+        const { error: historyError } = await supabase.from('india_asin_history').insert({
+          asin: product.asin,
+          journey_id: journeyId,
+          journey_number: journeyNum,
+          stage: 'listing_done',
+          status: 'listed',
+          profit: null,
+          snapshot_data: {
+            final_price: product.selling_price,
+            sku: product.sku,
+            listed_at: new Date().toISOString()
+          }
+        });
+
+        if (historyError) {
+          console.error("⚠️ History snapshot failed:", historyError);
+          // We continue anyway, don't block the user
+        }
+      }
+
+      // 3. Move Data (Upsert to Target)
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
 
+      // 4. Log Movement
       await logHistory(product, sourceTableName, targetTableName);
 
+      // 5. Clean Up Source
       const sourceTablesToCheck = [
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
@@ -248,6 +299,7 @@ export default function VelvetVistaListingPage() {
 
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
+      // 6. Update Stats
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
@@ -255,14 +307,15 @@ export default function VelvetVistaListingPage() {
         if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
       }
 
+      // 7. UI Update
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
 
-      // Refetch if page becomes empty
+      // Handle empty page
       if (products.length === 1 && page > 1) {
         setPage(prev => prev - 1);
       } else {
-        fetchProducts(); // Refresh count
+        fetchProducts();
       }
 
     } catch (err: any) {

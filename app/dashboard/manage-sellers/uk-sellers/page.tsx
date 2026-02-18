@@ -6,7 +6,7 @@ import {
   normalizeDataForDB,
   // filterDuplicateASINs,
 } from '@/lib/utils/master-table/dataHelpers'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
 import UploadModal from '@/components/shared/master-table/UploadModal';
@@ -17,8 +17,8 @@ import {
 } from '@/lib/utils/master-table/uploadHelpers'
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
-import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
-import PageTransition from '@/components/layout/PageTransition';
+import { filterDuplicateASINs, bulkUpdateAsinRemarkMonthlyUnit } from '@/lib/utils/master-table/uploadHelpers';
+import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
 import {
   Search,
   Database,
@@ -28,12 +28,32 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2
-} from 'lucide-react';
-import {
-  bulkUpdateAsinRemarkMonthlyUnit
-} from "@/lib/utils/master-table/uploadHelpers";
+} from 'lucide-react'; // Added Lucide icons for modern look
 
 const TABLE_NAME = 'uk_master_sellers';
+
+// ✅ Helper function to detect partial update file
+function isPartialUpdateFile(headers: string[]) {
+  const normalized = headers.map(h =>
+    h.trim().toLowerCase().replace(/[\s_]+/g, '_')
+  );
+
+  const allowed = [
+    "asin", "remark", "remarks", "monthly_unit", "monthly_units",
+    "monthly_units_sold", "monthly_unit_sold"
+  ];
+
+  if (!normalized.includes("asin")) return false;
+  if (!normalized.every(h => allowed.includes(h))) return false;
+
+  const hasRemarkColumn = normalized.some(h => h === "remark" || h === "remarks");
+  const hasMonthlyUnitColumn = normalized.some(h =>
+    h === "monthly_unit" || h === "monthly_units" ||
+    h === "monthly_units_sold" || h === "monthly_unit_sold"
+  );
+
+  return hasRemarkColumn || hasMonthlyUnitColumn;
+}
 
 const ALL_COLUMNS = [
   's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
@@ -60,7 +80,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 };
 
 export default function UkSellersPage() {
-  // --- STATE & LOGIC (PRESERVED) ---
+  // --- EXISTING STATE & LOGIC (PRESERVED) ---
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -154,60 +174,20 @@ export default function UkSellersPage() {
     setCurrentPage(1);
   };
 
-  // Auto-generate Amazon link from ASIN (UK Logic Preserved)
-  const generateAmazonLink = (asin: string, country: 'uk' | 'india'): string => {
+  // Auto-generate Amazon link from ASIN
+  const generateAmazonLink = (asin: string, country: 'usa' | 'india' | 'uk' | 'uae'): string => {
     if (!asin) return '';
-    // UK specific domain logic
-    const domain = country === "uk" ? "amazon.co.uk" : "amazon.com";
-    return `https://www.${domain}/dp/${asin}`;
+    const domains: Record<string, string> = {
+      usa: 'amazon.com',
+      india: 'amazon.in',
+      uk: 'amazon.co.uk',
+      uae: 'amazon.ae'
+    };
+    return `https://www.${domains[country]}/dp/${asin}`;
   };
 
-function isPartialUpdateFile(headers: string[]) {
-  // ✅ Normalize: lowercase + spaces to underscores
-  const normalized = headers.map(h => 
-    h.trim()
-     .toLowerCase()
-     .replace(/\s+/g, '_')  // ← Convert spaces to underscores
-  );
-  
-  const allowed = [
-    "asin",
-    "remark", 
-    "remarks",
-    "monthly_unit",
-    "monthly_units",
-    "monthly_units_sold",
-    "monthly_unit_sold"
-  ];
-
-  // Must have ASIN
-  if (!normalized.includes("asin")) {
-    return false;
-  }
-
-  // All columns must be in allowed list
-  if (!normalized.every(h => allowed.includes(h))) {
-    return false;
-  }
-
-  // Must have at least one update column
-  const hasRemarkColumn = normalized.some(h => 
-    h === "remark" || h === "remarks"
-  );
-  
-  const hasMonthlyUnitColumn = normalized.some(h => 
-    h === "monthly_unit" || 
-    h === "monthly_units" || 
-    h === "monthly_units_sold" ||
-    h === "monthly_unit_sold"
-  );
-
-  return hasRemarkColumn || hasMonthlyUnitColumn;
-}
-
-
   // FIXED: Handle multiple file uploads with batch insert
-const handleUpload = async (files: File[]) => {
+  const handleUpload = async (files: File[]) => {
     if (!supabase) return;
     if (files.length === 0) return;
 
@@ -242,7 +222,7 @@ const handleUpload = async (files: File[]) => {
           .map((product) => {
             if (product && product.asin) {
               if (!product.amz_link) {
-                product.amz_link = generateAmazonLink(product.asin, 'uk');
+                product.amz_link = generateAmazonLink(product.asin, "uk");
               }
               if (!product.link) {
                 product.link = product.amz_link;
@@ -260,27 +240,47 @@ const handleUpload = async (files: File[]) => {
           })
           .filter(Boolean);
 
-        // Check if this is a partial update file
+        // ✅ Check if this is a partial update file
         const rawHeaders = Object.keys(data[0] || {});
-        // ✅ ADD THESE DEBUG LINES
-console.log('🔍 Raw headers from CSV:', rawHeaders);
-console.log('🔍 Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
-console.log('🔍 First data row:', data[0]);
-console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
-console.log('🔍 Total rows:', data.length);
+        console.log('🔍 Raw headers from CSV:', rawHeaders);
+        console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
+
         if (isPartialUpdateFile(rawHeaders)) {
-          toast.loading(`Updating products from ${file.name}...`, { id: toastId });
+          const partialToastId = toast.loading(`Processing ${normalizedData.length.toLocaleString()} records...`);
 
-          const { updatedCount, skippedCount } =
-            await bulkUpdateAsinRemarkMonthlyUnit(
-              normalizedData,
-              TABLE_NAME
-            );
+          try {
+            const { updatedCount, skippedCount, message } =
+              await bulkUpdateAsinRemarkMonthlyUnit(
+                normalizedData,
+                TABLE_NAME,
+                (current, total) => {
+                  const percentage = Math.round((current / total) * 100);
+                  toast.loading(
+                    `Updating: ${current.toLocaleString()}/${total.toLocaleString()} (${percentage}%)`,
+                    { id: partialToastId }
+                  );
+                }
+              );
 
-          totalUpdated += updatedCount;
-          hasPartialUpdate = true;
+            totalUpdated += updatedCount;
+            hasPartialUpdate = true;
 
-          console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
+            if (updatedCount > 0) {
+              toast.success(
+                message || `✅ ${updatedCount.toLocaleString()} products updated from ${file.name}`,
+                { id: partialToastId, duration: 5000 }
+              );
+            } else {
+              toast.error(
+                `⚠️ No products updated from ${file.name}. Check ASINs match master table.`,
+                { id: partialToastId, duration: 5000 }
+              );
+            }
+          } catch (err: any) {
+            console.error('Partial update failed:', err);
+            toast.error(`❌ Partial update failed: ${err.message}`, { id: partialToastId, duration: 5000 });
+          }
+
           continue;
         }
 
@@ -292,62 +292,40 @@ console.log('🔍 Total rows:', data.length);
         totalDuplicates += duplicateCount;
       }
 
-      // ============================================================
-      // DECISION LOGIC: What to do after processing all files
-      // ============================================================
-
-      // Case 1: Only partial updates (no new inserts)
+      // Case 1: Only partial updates
       if (hasPartialUpdate && allNewProducts.length === 0) {
-        toast.success(
-          `✅ ${totalUpdated} products updated successfully`,
-          { id: toastId, duration: 5000 }
-        );
+        toast.success(`✅ ${totalUpdated} products updated successfully`, { id: toastId, duration: 5000 });
         setRefreshTrigger(prev => prev + 1);
         setIsUploading(false);
         return;
       }
 
-      // Case 2: No updates and no new products (all duplicates)
+      // Case 2: All duplicates
       if (!hasPartialUpdate && allNewProducts.length === 0) {
-        toast.error(
-          `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
-          { id: toastId, duration: 5000 }
-        );
+        toast.error(`All ${totalDuplicates} products are duplicates. No new data uploaded.`, { id: toastId, duration: 5000 });
         setIsUploading(false);
         return;
       }
 
-      // ============================================================
-      // BATCH INSERT: Process new products
-      // ============================================================
-
-      // Remove duplicate ASINs within the batch
+      // Deduplicate within batch
       const uniqueProductsMap = new Map();
       allNewProducts.forEach(product => {
-        if (product.asin) {
-          uniqueProductsMap.set(product.asin, product);
-        }
+        if (product.asin) uniqueProductsMap.set(product.asin, product);
       });
       allNewProducts = Array.from(uniqueProductsMap.values());
-
       console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
-      const batchSize = 100;
+      // Step 2: Batch insert via RPC
+      const batchSize = 200;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
 
-      setUploadProgress({
-        current: 0,
-        total: allNewProducts.length,
-        batch: 0,
-        totalBatches,
-      });
+      setUploadProgress({ current: 0, total: allNewProducts.length, batch: 0, totalBatches });
 
       const batches: any[][] = [];
       for (let i = 0; i < allNewProducts.length; i += batchSize) {
-        const batch = allNewProducts.slice(i, i + batchSize);
-        batches.push(batch);
+        batches.push(allNewProducts.slice(i, i + batchSize));
       }
 
       const uploadBatch = async (batch: any[], batchIndex: number): Promise<{ success: boolean; count: number }> => {
@@ -366,15 +344,13 @@ console.log('🔍 Total rows:', data.length);
               return cleaned;
             });
 
-            const { error } = await supabase
-              .from(TABLE_NAME)
-              .upsert(cleanBatch, {
-                onConflict: 'asin',
-                ignoreDuplicates: false
+            // ✅ Use RPC instead of direct upsert
+            const { data, error } = await supabase
+              .rpc('bulk_insert_uk_master_with_distribution', {
+                batch_data: cleanBatch
               });
 
             if (error) throw error;
-
             return { success: true, count: batch.length };
           } catch (error: any) {
             attempt++;
@@ -393,28 +369,16 @@ console.log('🔍 Total rows:', data.length);
         );
 
         const result = await uploadBatch(batches[i], i);
-
         if (result.success) {
           successCount += result.count;
         } else {
           failedBatches++;
         }
 
-        setUploadProgress({
-          current: successCount,
-          total: allNewProducts.length,
-          batch: i + 1,
-          totalBatches,
-        });
-
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+        setUploadProgress({ current: successCount, total: allNewProducts.length, batch: i + 1, totalBatches });
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      // ============================================================
-      // FINAL SUMMARY
-      // ============================================================
       const summaryLines = [];
       if (totalUpdated > 0) summaryLines.push(`✅ Updated ${totalUpdated} products`);
       if (successCount > 0) summaryLines.push(`✅ Successfully inserted ${successCount.toLocaleString()} products`);
@@ -424,20 +388,80 @@ console.log('🔍 Total rows:', data.length);
       if (successCount > 0 || totalUpdated > 0) {
         toast.success(summaryLines.join('\n'), { id: toastId, duration: 6000 });
         setRefreshTrigger((prev) => prev + 1);
+
+        // ✅ AUTO-TRIGGER BACKGROUND DISTRIBUTION
+        triggerBackgroundDistribution();
       } else {
         toast.error('Upload failed. Please try again.', { id: toastId, duration: 5000 });
       }
 
     } catch (error: any) {
       console.error('Upload error:', error);
-      const errorMessage = error?.message || 'Failed to upload data. Please try again.';
-      toast.error(errorMessage, { id: toastId, duration: 5000 });
+      toast.error(error?.message || 'Failed to upload data. Please try again.', { id: toastId, duration: 5000 });
     } finally {
       setIsUploading(false);
       setUploadProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 });
     }
   };
 
+  // ✅ AUTO-TRIGGER BACKGROUND DISTRIBUTION (CHUNKED — 100K SAFE)
+  const triggerBackgroundDistribution = async () => {
+    if (!supabase) return;
+
+    const distToastId = toast.loading('Distributing to all 16 UK tables...', {
+      style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }
+    });
+
+    try {
+      const { count, error: countError } = await supabase
+        .from('uk_distribution_queue')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError || !count) {
+        toast.error('Failed to get record count', { id: distToastId });
+        return;
+      }
+
+      const DIST_CHUNK = 10000;
+      const totalChunks = Math.ceil(count / DIST_CHUNK);
+      let totalInserted = 0;
+
+      for (let chunk = 0; chunk < totalChunks; chunk++) {
+        const offset = chunk * DIST_CHUNK;
+
+        toast.loading(
+          `Distributing ${Math.min(offset + DIST_CHUNK, count).toLocaleString()}/${count.toLocaleString()} to 16 UK tables...`,
+          { id: distToastId }
+        );
+
+        const { data, error } = await supabase.rpc(
+          'distribute_uk_chunked',
+          { chunk_offset: offset, chunk_limit: DIST_CHUNK }
+        );
+
+        if (error) {
+          console.error(`UK distribution chunk ${chunk + 1}/${totalChunks} failed:`, error);
+          continue;
+        }
+
+        if (data?.inserted) totalInserted += data.inserted;
+
+        if (chunk < totalChunks - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      toast.success(
+        `✅ ${totalInserted.toLocaleString()} records distributed to all 16 UK tables!`,
+        { id: distToastId, duration: 4000 }
+      );
+      setRefreshTrigger((prev: number) => prev + 1);
+
+    } catch (err: any) {
+      console.error('UK distribution failed:', err);
+      toast.error(`Distribution failed: ${err.message}`, { id: distToastId, duration: 4000 });
+    }
+  };
 
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     if (!supabase) return
@@ -545,10 +569,10 @@ console.log('🔍 Total rows:', data.length);
         'Sellers': item.seller || '',
         'Category': item.category || '',
         'Dimensions': item.dimensions || '',
-        'Weight': `${item.weight || ''} ${item.weight_unit || ''}`.trim(),
+        'Weight': item.weight ? `${item.weight} ${item.weight_unit || 'kg'}` : '',
       }));
 
-      exportData(allData, TABLE_NAME, format);
+      exportData(formattedData, TABLE_NAME, format);
       alert(`Successfully exported ${allData.length} products!`);
     } catch (error) {
       console.error('Export error:', error);
@@ -562,7 +586,7 @@ console.log('🔍 Total rows:', data.length);
   const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1;
   const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalProducts);
 
-  // --- UPDATED DARK MODE UI ---
+  // --- UPDATED UI RETURN ---
   return (
     <PageTransition>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
@@ -572,7 +596,7 @@ console.log('🔍 Total rows:', data.length);
           }}
         />
 
-        {/* Upload Progress Modal - Dark */}
+        {/* Upload Progress Modal - Dark Mode */}
         {isUploading && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
@@ -596,7 +620,7 @@ console.log('🔍 Total rows:', data.length);
           </div>
         )}
 
-        {/* Export Loading Modal - Dark */}
+        {/* Export Loading Modal - Dark Mode */}
         {isExporting && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
@@ -629,7 +653,7 @@ console.log('🔍 Total rows:', data.length);
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white tracking-tight">UK Sellers Database</h1>
-                <p className="text-sm text-slate-400">Master inventory records (UK)</p>
+                <p className="text-sm text-slate-400">Master inventory records</p>
               </div>
             </div>
 
@@ -654,6 +678,7 @@ console.log('🔍 Total rows:', data.length);
               </button>
 
               <div onClick={() => handleExport('csv')} className="cursor-pointer">
+                {/* Re-using your Export Button logic but styling wrapper or passing styles if supported */}
                 <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
                   <Download className="w-4 h-4" /> Export
                 </button>
@@ -717,7 +742,7 @@ console.log('🔍 Total rows:', data.length);
           </div>
         </div>
 
-        {/* Modals */}
+        {/* Modals - Keeping Logic, wrapping them if necessary */}
         <ColumnToggle
           isOpen={isColumnToggleOpen}
           onClose={() => setIsColumnToggleOpen(false)}
@@ -734,4 +759,4 @@ console.log('🔍 Total rows:', data.length);
       </div>
     </PageTransition>
   );
-}//C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\app\dashboard\manage-sellers\uk-sellers\page.tsx
+}

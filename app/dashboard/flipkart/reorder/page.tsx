@@ -22,6 +22,17 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const generateUUID = (): string => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+};
+
 // --- Types ---
 type ReorderProduct = {
   id: string
@@ -767,7 +778,7 @@ export default function ReorderPage() {
       }
 
       // 3. Generate NEW Journey ID
-      const newJourneyId = crypto.randomUUID()
+      const newJourneyId = generateUUID()
 
       // 4. Insert into Validation Main File with RESTORED DATA
       const { error: insertError } = await supabase

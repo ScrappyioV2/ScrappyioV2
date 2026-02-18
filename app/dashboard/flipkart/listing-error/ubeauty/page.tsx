@@ -23,9 +23,21 @@ import {
 
 /* === CONFIGURATION === */
 const SELLER_ID = 3;
-const SELLER_NAME = "Rudra Retail";
+const SELLER_NAME = "UBeauty";
 const BASE_TABLE_PREFIX = `flipkart_listing_error_seller_${SELLER_ID}`;
 const ITEMS_PER_PAGE = 100; // Matches your screenshot
+
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 interface ListingProduct {
   id: string;
@@ -211,7 +223,7 @@ export default function RudraRetailListingPage() {
 
     // ✅ SELF-HEALING: If no journey_id exists (old data), start a fresh chain now.
     // This ensures the item will work correctly when it reaches the Reorder page.
-    const journeyId = product.journey_id || crypto.randomUUID();
+    const journeyId = product.journey_id || generateUUID();
     const journeyNum = product.journey_number || 1;
 
     try {

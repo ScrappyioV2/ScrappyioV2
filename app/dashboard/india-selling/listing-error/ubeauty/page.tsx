@@ -33,7 +33,7 @@ interface ListingProduct {
   product_name: string | null;
   sku: string | null;
   selling_price: number | null;
-  seller_link: string | null;
+  seller_link: string | null; 
   min_price?: number | null;
   max_price?: number | null;
   listing_notes?: string | null;

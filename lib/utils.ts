@@ -1,17 +1,21 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+
 // ========================================
 // EXISTING FUNCTION (Keep as is)
 // ========================================
+
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+
 // ============================================
 // NEW FUNCTIONS FOR BRAND CHECKING
 // ============================================
+
 
 /**
  * Generate Amazon Seller Central Link from ASIN
@@ -21,6 +25,7 @@ export const generateAmazonLink = (asin: string): string => {
   if (!asin) return '';
   return `https://sellercentral.amazon.com/hz/approvalrequest/restrictions/approve?asin=${asin}&itemcondition=new`;
 };
+
 
 /**
  * Determine category based on monthly_unit value
@@ -42,6 +47,24 @@ export const determineCategory = (monthlyUnit: number | null): {
   }
 };
 
+
+/**
+ * Determine demand sorting category based on monthly_unit value
+ * NEW Logic (RS/DP):
+ * - monthly_unit >= 5 → Restock (RS)
+ * - monthly_unit < 5 or null → Dropshipping (DP)
+ */
+export const determineDemandSortingCategory = (monthlyUnit: number | null): {
+  category: 'restock' | 'dropshipping';
+  funnel: 'RS' | 'DP';
+} => {
+  if (monthlyUnit != null && monthlyUnit >= 5) {
+    return { category: 'restock', funnel: 'RS' };
+  }
+  return { category: 'dropshipping', funnel: 'DP' };
+};
+
+
 /**
  * Format table name helper
  */
@@ -49,9 +72,19 @@ export const getTableName = (sellerId: number, category: string): string => {
   return `usa_seller_${sellerId}_${category.replace('-', '_')}`;
 };
 
+
+/**
+ * Helper for India demand sorting table names
+ */
+export const getIndiaDemandSortingTableName = (sellerId: number): string => {
+  return `india_demand_sorting_seller_${sellerId}`;
+};
+
+
 // ============================================
 // SELLER & TRACKING CONFIGURATION
 // ============================================
+
 
 export const SELLER_TAG_MAPPING = {
   'GR': 1, // Golden Aura
@@ -62,11 +95,14 @@ export const SELLER_TAG_MAPPING = {
   'CV': 6  // Costech Ventures
 } as const;
 
+
 export type SellerTag = keyof typeof SELLER_TAG_MAPPING;
+
 
 // ============================================
 // USA TRACKING CONFIGURATION
 // ============================================
+
 
 export const USA_TRACKING_STAGES = {
   MAIN: 'main_file',
@@ -77,7 +113,9 @@ export const USA_TRACKING_STAGES = {
   VYAPAR: 'usa_vyapar'
 } as const;
 
+
 export type USATrackingStage = keyof typeof USA_TRACKING_STAGES;
+
 
 export const getUSATrackingTableName = (stage: USATrackingStage, sellerId: number): string => {
   const prefix = USA_TRACKING_STAGES[stage];
@@ -87,9 +125,11 @@ export const getUSATrackingTableName = (stage: USATrackingStage, sellerId: numbe
   return `${prefix}_seller_${sellerId}`;
 };
 
+
 // ============================================
 // INDIA TRACKING CONFIGURATION
 // ============================================
+
 
 export const INDIA_TRACKING_STAGES = {
   MAIN: 'main_file',
@@ -100,7 +140,9 @@ export const INDIA_TRACKING_STAGES = {
   VYAPAR: 'india_vyapar'
 } as const;
 
+
 export type IndiaTrackingStage = keyof typeof INDIA_TRACKING_STAGES;
+
 
 export const getIndiaTrackingTableName = (stage: IndiaTrackingStage, sellerId: number): string => {
   const prefix = INDIA_TRACKING_STAGES[stage];
@@ -111,9 +153,11 @@ export const getIndiaTrackingTableName = (stage: IndiaTrackingStage, sellerId: n
 };
 
 
+
 // ============================================
 // UK TRACKING CONFIGURATION
 // ============================================
+
 
 export const UK_TRACKING_STAGES = {
   MAIN: 'main_file',
@@ -124,7 +168,9 @@ export const UK_TRACKING_STAGES = {
   VYAPAR: 'uk_vyapar'
 } as const;
 
+
 export type UKTrackingStage = keyof typeof UK_TRACKING_STAGES;
+
 
 /**
  * Helper to get UK table name for a specific tracking stage and seller
@@ -132,18 +178,20 @@ export type UKTrackingStage = keyof typeof UK_TRACKING_STAGES;
  */
 export const getUKTrackingTableName = (stage: UKTrackingStage, sellerId: number): string => {
   const prefix = UK_TRACKING_STAGES[stage];
-  
+
   if (stage === 'MAIN') {
     return `uk_tracking_seller_${sellerId}`;
   }
-  
+
   return `${prefix}_seller_${sellerId}`;
 };
+
 
 
 // ============================================
 // UAE TRACKING CONFIGURATION
 // ============================================
+
 
 export const UAE_TRACKING_STAGES = {
   MAIN: 'main_file',
@@ -154,7 +202,9 @@ export const UAE_TRACKING_STAGES = {
   VYAPAR: 'uae_vyapar'
 } as const;
 
+
 export type UAETrackingStage = keyof typeof UAE_TRACKING_STAGES;
+
 
 /**
  * Helper to get UAE table name for a specific tracking stage and seller
@@ -162,17 +212,19 @@ export type UAETrackingStage = keyof typeof UAE_TRACKING_STAGES;
  */
 export const getUAETrackingTableName = (stage: UAETrackingStage, sellerId: number): string => {
   const prefix = UAE_TRACKING_STAGES[stage];
-  
+
   if (stage === 'MAIN') {
     return `uae_tracking_seller_${sellerId}`;
   }
-  
+
   return `${prefix}_seller_${sellerId}`;
 };
+
 
 // ============================================
 // FLIPKART CONFIGURATION
 // ============================================
+
 
 export const FLIPKART_SELLER_MAPPING = {
   1: { name: 'Golden Aura', badge: 'GA', color: 'bg-amber-500' },
@@ -183,6 +235,7 @@ export const FLIPKART_SELLER_MAPPING = {
   6: { name: 'Costech Ventures', badge: 'CV', color: 'bg-indigo-500' },
 } as const;
 
+
 export const FLIPKART_SELLER_TAG_MAPPING = {
   'GA': 1,
   'RR': 2,
@@ -192,16 +245,20 @@ export const FLIPKART_SELLER_TAG_MAPPING = {
   'CV': 6,
 } as const;
 
+
 export type FlipkartSellerTag = keyof typeof FLIPKART_SELLER_TAG_MAPPING;
 export type FlipkartSellerId = 1 | 2 | 3 | 4 | 5 | 6;
+
 
 export function getFlipkartSellerInfo(sellerId: FlipkartSellerId) {
   return FLIPKART_SELLER_MAPPING[sellerId];
 }
 
+
 export function getFlipkartSellerIdFromTag(tag: FlipkartSellerTag): FlipkartSellerId {
   return FLIPKART_SELLER_TAG_MAPPING[tag];
 }
+
 
 export const FLIPKART_TRACKING_STAGES = {
   MAIN: 'main_file',
@@ -212,11 +269,13 @@ export const FLIPKART_TRACKING_STAGES = {
   VYAPAR: 'flipkart_vyapar'
 } as const;
 
+
 export type FlipkartTrackingStage = keyof typeof FLIPKART_TRACKING_STAGES;
+
 
 export const getFlipkartTrackingTableName = (
   stage: FlipkartTrackingStage,
-  sellerId: number  // ✅ Change from FlipkartSellerId to number
+  sellerId: number
 ): string => {
   const prefix = FLIPKART_TRACKING_STAGES[stage];
   if (stage === 'MAIN') {
@@ -225,9 +284,11 @@ export const getFlipkartTrackingTableName = (
   return `${prefix}_seller_${sellerId}`;
 };
 
+
 export function getFlipkartBrandCheckingTableName(sellerId: FlipkartSellerId): string {
   return `flipkart_brand_checking_seller_${sellerId}`;
 }
+
 
 export function getFlipkartCategoryTableName(
   sellerId: FlipkartSellerId,
@@ -236,6 +297,7 @@ export function getFlipkartCategoryTableName(
   return `flipkart_seller_${sellerId}_${category}`;
 }
 
+
 export function getFlipkartListingErrorTableName(
   sellerId: FlipkartSellerId,
   status: 'pending' | 'done' | 'error' | 'removed' | 'movement_history'
@@ -243,17 +305,21 @@ export function getFlipkartListingErrorTableName(
   return `flipkart_listing_error_seller_${sellerId}_${status}`;
 }
 
+
 // ============================================
 // LEGACY: Keep for backward compatibility
 // ============================================
 
+
 export const TRACKING_STAGES = USA_TRACKING_STAGES;
 export type TrackingStage = USATrackingStage;
+
 
 /**
  * @deprecated Use getUSATrackingTableName or getIndiaTrackingTableName instead
  */
 export const getTrackingTableName = getUSATrackingTableName;
+
 
 /**
  * Helper to resolve seller ID from a tag string

@@ -21,6 +21,21 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+// ✅ ADD THIS - Safe UUID generator (works in all browsers)
+const generateUUID = (): string => {
+  if (typeof window !== 'undefined' &&
+    window.crypto &&
+    typeof window.crypto.randomUUID === 'function') {
+    return window.crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 /* === CONFIGURATION === */
 const SELLER_ID = 1;
 const SELLER_NAME = "Golden Aura";
@@ -211,7 +226,7 @@ export default function GoldenAuraListingPage() {
 
     // ✅ SELF-HEALING: If no journey_id exists (old data), start a fresh chain now.
     // This ensures the item will work correctly when it reaches the Reorder page.
-    const journeyId = product.journey_id || crypto.randomUUID();
+    const journeyId = product.journey_id || generateUUID();
     const journeyNum = product.journey_number || 1;
 
     try {

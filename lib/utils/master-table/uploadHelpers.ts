@@ -121,93 +121,118 @@ export async function filterDuplicateASINs(
 }
 
 /* ============================================================================
- * UPDATE-ONLY FLOW (NEW — SAFE)
+ * UPDATE-ONLY FLOW (BATCHED VERSION)
  * ============================================================================
  */
 
+/**
+ * ✅ BATCHED VERSION - Handles 100k+ records safely
+ * Updates master + syncs to all 24 tables
+ * Progress tracking included
+ */
 export async function bulkUpdateAsinRemarkMonthlyUnit(
   rows: Array<{
     asin: string;
     remark?: string | null;
     monthly_unit?: number | null;
   }>,
-  tableName: string
+  tableName: string,
+  onProgress?: (current: number, total: number) => void
 ) {
-  let updatedCount = 0;
-  let skippedCount = 0;
+  if (!rows || rows.length === 0) {
+    return { updatedCount: 0, skippedCount: 0 };
+  }
 
-  // ✅ NEW: Helper function to retry on deadlock
-  const updateWithRetry = async (asin: string, payload: Record<string, any>, maxRetries = 3): Promise<boolean> => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const { error: updateError } = await supabase
-        .from(tableName)
-        .update(payload)
-        .eq('asin', asin);
+  // ✅ Determine RPC function based on table
+  let rpcFunctionName = '';
 
-      if (updateError) {
-        // Deadlock error code: 40P01
-        if (updateError.code === '40P01' && attempt < maxRetries) {
-          console.warn(`⚠️ Deadlock on ASIN ${asin}, retrying (${attempt}/${maxRetries})...`);
-          // Wait with exponential backoff before retry
-          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
-          continue;
-        }
-        
-        console.error(`Update failed for ASIN ${asin}:`, updateError);
-        return false;
+  if (tableName === 'flipkart_master_sellers') {
+    rpcFunctionName = 'bulkupdateflipkartasinremarkmonthlyunitbatched';
+  } else if (tableName === 'india_master_sellers') {
+    rpcFunctionName = 'bulk_update_india_asin_remark_monthly_unit_batched';
+  } else if (tableName === 'usa_master_sellers') {
+    rpcFunctionName = 'bulk_update_usa_asin_remark_monthly_unit_batched';
+  } else if (tableName === 'uk_master_sellers') {
+    rpcFunctionName = 'bulk_update_uk_asin_remark_monthly_unit_batched';
+  } else if (tableName === 'uae_master_sellers') {
+    rpcFunctionName = 'bulk_update_uae_asin_remark_monthly_unit_batched';
+  } else {
+    console.error('Unknown table name:', tableName);
+    return { updatedCount: 0, skippedCount: 0 };
+  }
+
+  // ✅ FRONTEND BATCHING: Split into chunks to avoid timeout
+  const FRONTEND_BATCH_SIZE = 5000; // Each RPC call handles max 5k records
+  const totalRecords = rows.length;
+  const numBatches = Math.ceil(totalRecords / FRONTEND_BATCH_SIZE);
+
+  let totalUpdated = 0;
+  let totalSkipped = 0;
+
+  console.log(`🔄 Frontend batching: ${totalRecords} records in ${numBatches} RPC call(s)`);
+  console.log('🔍 First normalized row:', JSON.stringify(rows[0]));
+  console.log('🔍 First batchData row:', JSON.stringify({
+    asin: rows[0].asin,
+    remark: rows[0].remark || null,
+    monthly_unit: rows[0].monthly_unit || null
+  }));
+  console.log('🔍 All keys in row[0]:', Object.keys(rows[0]));
+
+  // Process each frontend batch
+  for (let batchIndex = 0; batchIndex < numBatches; batchIndex++) {
+    const start = batchIndex * FRONTEND_BATCH_SIZE;
+    const end = Math.min(start + FRONTEND_BATCH_SIZE, totalRecords);
+    const batchRows = rows.slice(start, end);
+
+    // Format data for this batch
+    const batchData = batchRows.map(row => ({
+      asin: row.asin,
+      remark: row.remark || null,
+      monthly_unit: row.monthly_unit || null
+    }));
+
+    console.log(`🔄 RPC call ${batchIndex + 1}/${numBatches}: ${batchData.length} records`);
+
+    try {
+      // ✅ Call batched RPC for this chunk
+      const { data, error } = await supabase.rpc(rpcFunctionName, {
+        batchdata: batchData,
+        batchsize: 500
+      });
+
+      if (error) {
+        console.error(`❌ RPC call ${batchIndex + 1}/${numBatches} failed:`, error);
+        totalSkipped += batchRows.length;
+        continue;
       }
-      
-      return true; // Success
-    }
-    return false; // All retries failed
-  };
 
-  for (const row of rows) {
-    if (!row.asin) continue;
+      const batchUpdated = data?.updatedcount || 0;
+      totalUpdated += batchUpdated;
+      totalSkipped += (batchRows.length - batchUpdated);
 
-    // ✅ IMPORTANT: Fetch existing data to compare
-    const { data: existing, error: fetchError } = await supabase
-      .from(tableName)
-      .select('remark, monthly_unit')
-      .eq('asin', row.asin)
-      .maybeSingle();
+      console.log(`✅ RPC call ${batchIndex + 1}/${numBatches}: ${batchUpdated} updated`);
 
-    // Skip if ASIN doesn't exist
-    if (fetchError || !existing) {
-      skippedCount++;
-      continue;
-    }
+      // Report progress
+      if (onProgress) {
+        onProgress(end, totalRecords);
+      }
 
-    // Skip if both values unchanged
-    const remarkUnchanged = existing.remark === row.remark;
-    const monthlyUnitUnchanged = existing.monthly_unit === row.monthly_unit;
+      // Small delay between RPC calls
+      if (batchIndex < numBatches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
-    if (remarkUnchanged && monthlyUnitUnchanged) {
-      skippedCount++;
-      continue;
-    }
-
-    // Update only changed fields
-    const payload: Record<string, any> = {
-      updated_at: new Date().toISOString()
-    };
-
-    if (row.remark !== undefined) payload.remark = row.remark;
-    if (row.monthly_unit !== undefined) payload.monthly_unit = row.monthly_unit;
-
-    // ✅ CHANGED: Use retry logic instead of direct update
-    const success = await updateWithRetry(row.asin, payload);
-    
-    if (success) {
-      updatedCount++;
-    } else {
-      skippedCount++;
+    } catch (err: any) {
+      console.error(`❌ Exception in RPC call ${batchIndex + 1}/${numBatches}:`, err);
+      totalSkipped += batchRows.length;
     }
   }
 
-  return { 
-    updatedCount, 
-    skippedCount,
-    message: `✅ Updated: ${updatedCount} | ⏭️ Skipped: ${skippedCount}`
+  console.log(`✅ Complete: ${totalUpdated} updated, ${totalSkipped} skipped`);
+
+  return {
+    updatedCount: totalUpdated,
+    skippedCount: totalSkipped,
+    message: `✅ ${totalUpdated.toLocaleString()} records updated and synced to all 24 tables`
   };
 }
