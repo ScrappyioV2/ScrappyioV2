@@ -33,7 +33,7 @@ interface ProductRow {
   remark?: string | null;
 }
 
-type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject';
+type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject';
 
 // ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -69,9 +69,7 @@ export default function UBeautyPage() {
     remark: true,
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
-  // Move To dropdown state (for Reject tab)
   const [isMoveToDropdownOpen, setIsMoveToDropdownOpen] = useState(false);
-
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -104,10 +102,19 @@ export default function UBeautyPage() {
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ubeauty_column_order');
-      return saved ? JSON.parse(saved) : Object.keys(DEFAULT_WIDTHS);
+      if (saved) {
+        const parsedOrder = JSON.parse(saved);
+        // ✅ Add remark if it's missing from saved order
+        if (!parsedOrder.includes('remark')) {
+          parsedOrder.push('remark');
+        }
+        return parsedOrder;
+      }
+      return Object.keys(DEFAULT_WIDTHS);
     }
     return Object.keys(DEFAULT_WIDTHS);
   });
+
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
 
   // Roll back state
@@ -127,7 +134,10 @@ export default function UBeautyPage() {
     isOpen: false,
     product: null,
   });
+  // ✅ ADD THIS - Remark Modal State
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+
+
   const SELLER_ID = 3;
 
   const SELLER_CODE_MAP: Record<number, string> = {
@@ -135,7 +145,7 @@ export default function UBeautyPage() {
     2: 'RR',
     3: 'UB',
     4: 'VV',
-    5: "DE",  
+    5: "DE",
     6: "CV",
   };
 
@@ -309,7 +319,6 @@ export default function UBeautyPage() {
       console.error('Exception fetching movement history:', error);
     }
   };
-
 
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
@@ -515,7 +524,7 @@ export default function UBeautyPage() {
 
 
   // ✅ NEW FUNCTION: Move products from Reject to other tabs
-  const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
+  const handleMoveFromReject = async (targetTab: 'high_demand' | 'dropshipping' | 'not_approved') => {
     if (selectedIds.size === 0) {
       setToast({ message: 'Please select products to move', type: 'warning' });
       return;
@@ -665,7 +674,7 @@ export default function UBeautyPage() {
     newOrder.splice(draggedIndex, 1);
     newOrder.splice(targetIndex, 0, draggedColumn);
     setColumnOrder(newOrder);
-    localStorage.setItem('c_column_order', JSON.stringify(newOrder));
+    localStorage.setItem('ubeauty_column_order', JSON.stringify(newOrder));
     setDraggedColumn(null);
   };
 
@@ -769,8 +778,7 @@ export default function UBeautyPage() {
 
             {/* TABS */}
             <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit">
-              {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
-              {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
+              {tabStyles('high_demand', 'text-emerald-400', 'Restock')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
               {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
               {tabStyles('reject', 'text-slate-400', 'Reject')}
@@ -849,19 +857,9 @@ export default function UBeautyPage() {
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
                         <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
-                          <button
-                            onClick={() => handleMoveFromReject('high_demand')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2"
-                          >
+                          <button onClick={() => handleMoveFromReject('high_demand')} className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                            High Demand
-                          </button>
-                          <button
-                            onClick={() => handleMoveFromReject('low_demand')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-blue-500/10 hover:text-blue-400 rounded-lg transition-colors flex items-center gap-2"
-                          >
-                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                            Low Demand
+                            Restock
                           </button>
                           <button
                             onClick={() => handleMoveFromReject('dropshipping')}
@@ -956,40 +954,64 @@ export default function UBeautyPage() {
                           if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
 
                           return (
-                            <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                            <td
+                              key={col}
+                              className={`px-4 py-3 text-sm border-r border-slate-800/50 ${col === 'product_name' ? 'text-left' : 'text-center'
+                                } ${col === 'product_link' || col === 'amz_link' ? '' : 'truncate'}`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
-                              title={String(product[col as keyof ProductRow] || '-')}
                             >
-                              {col === 'funnel' ? <FunnelBadge funnel={product.funnel} /> :
-                                col === 'remark' ? (
-                                  product.remark ? (
-                                    <button
-                                      onClick={() => setSelectedRemark(product.remark || '')}
-                                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                    >
-                                      View
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-600">-</span>
-                                  )
-                                ) : col === 'product_link' || col === 'amz_link' ? (
-                                  product[col as keyof ProductRow] ? (
-                                    <a href={String(product[col as keyof ProductRow])} target="_blank" rel="noopener noreferrer"
+                              {/* ✅ ADD DEBUG LOG */}
+                              {col === 'product_link' || col === 'amz_link' ? (
+                                <>
+                                  {console.log('🔍 DEBUG:', {
+                                    column: col,
+                                    value: product[col as keyof ProductRow],
+                                    hasValue: !!product[col as keyof ProductRow],
+                                    type: typeof product[col as keyof ProductRow]
+                                  })}
+                                  {product[col as keyof ProductRow] ? (
+                                    <a
+                                      href={String(product[col as keyof ProductRow])}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
                                     >
                                       View Link
                                     </a>
-                                  ) : <span className="text-slate-600">-</span>
-                                ) : col === 'reason' ? (
-                                  <span className="text-rose-400">{product.reason || 'No reason'}</span>
-                                ) : col === 'product_name' ? (
-                                  <span className="text-slate-200 font-medium">{product.product_name}</span>
+                                  ) : (
+                                    <span className="text-slate-600">-</span>
+                                  )}
+                                </>
+                              ) : col === 'funnel' ? (
+                                <FunnelBadge funnel={product.funnel} />
+                              ) : col === 'remark' ? (
+                                product.remark ? (
+                                  <button
+                                    onClick={() => setSelectedRemark(product.remark || '')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                  >
+                                    View
+                                  </button>
                                 ) : (
-                                  <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
-                                )}
+                                  <span className="text-slate-600">-</span>
+                                )
+
+                              ) : col === 'reason' ? (
+                                <span className="text-rose-400" title={product.reason || 'No reason'}>
+                                  {product.reason || 'No reason'}
+                                </span>
+                              ) : col === 'product_name' ? (
+                                <span className="text-slate-200 font-medium" title={product.product_name || '-'}>
+                                  {product.product_name}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400" title={String(product[col as keyof ProductRow] || '-')}>
+                                  {String(product[col as keyof ProductRow] || '-')}
+                                </span>
+                              )}
                             </td>
                           );
+
                         })}
                         {activeTab !== 'reject' && (
                           <td className="p-4 text-center">
@@ -1040,6 +1062,7 @@ export default function UBeautyPage() {
         {toast && (
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
+        {/* ✅ ADD THIS - Remark Modal */}
         {selectedRemark && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
@@ -1062,3 +1085,5 @@ export default function UBeautyPage() {
     </PageTransition>
   );
 }
+
+//app\dashboard\india-selling\brand-checking\golden-aura\page.tsx

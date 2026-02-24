@@ -82,6 +82,20 @@ export default function PurchasesPage() {
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaPurchasesFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
+  });
+  const ensureURL = (url: string | null | undefined): string | undefined => {
+    if (!url || !url.trim()) return undefined;
+    const trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    return 'https://' + trimmed;
+  };
+
+  useEffect(() => {
+    localStorage.setItem('indiaPurchasesFunnelFilter', funnelFilter);
+  }, [funnelFilter]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [movementHistory, setMovementHistory] = useState<Record<string, {
     product: PassFileProduct
@@ -96,7 +110,21 @@ export default function PurchasesPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   // Remark Modal State
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+  const [dollarRate, setDollarRate] = useState<number>(1);
 
+  const fetchConstants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('india_validation_constants')
+        .select('dollarrate')
+        .limit(1)
+        .single();
+      if (error) throw error;
+      if (data?.dollarrate) setDollarRate(data.dollarrate);
+    } catch (err) {
+      console.error('Error fetching constants:', err);
+    }
+  };
 
   // Column visibility state - ALL columns visible by default
   const [visibleColumns, setVisibleColumns] = useState({
@@ -105,7 +133,7 @@ export default function PurchasesPage() {
     productlink: true,
     productname: true,
     targetprice: true,
-    targetquantity: true,
+    // targetquantity: true,
     funnelquantity: true,
     funnelseller: true,
     inrpurchaselink: true,
@@ -122,6 +150,7 @@ export default function PurchasesPage() {
     remark: true,
   });
 
+  const [sellerTagFilter, setSellerTagFilter] = useState<string>('ALL');
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
 
   const fetchProducts = async () => {
@@ -288,8 +317,8 @@ export default function PurchasesPage() {
 
   // ✅ FIXED: Proper async handling in useEffect
   useEffect(() => {
-    fetchProducts()
-
+    fetchProducts();
+    fetchConstants();
     const channel = supabase
       .channel('purchases-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'india_purchases' }, () => {
@@ -316,27 +345,27 @@ export default function PurchasesPage() {
 
   // Column widths state for resizable columns
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
-    checkbox: 50,
-    asin: 120,
-    history: 180,
-    remark: 150,
-    productlink: 80,
-    productname: 120,
-    targetprice: 100,
-    targetquantity: 100,
-    admintargetprice: 120,
-    funnelquantity: 70,
-    funnelseller: 70,
-    inrpurchaselink: 100,
-    origin: 70,  // ✅ ADD THIS LINE
-    buyingprice: 100,
-    buyingquantity: 120,
-    sellerlink: 100,
-    sellerphno: 120,
-    paymentmethod: 120,
-    trackingdetails: 150,
-    deliverydate: 150,
-    moveto: 100,
+    checkbox: 36,
+    asin: 100,
+    history: 45,
+    remark: 55,
+    productlink: 55,
+    productname: 100,
+    targetprice: 75,
+    // targetquantity: 55,
+    admintargetprice: 80,
+    funnelquantity: 45,
+    funnelseller: 55,
+    inrpurchaselink: 55,
+    origin: 60,
+    buyingprice: 75,
+    buyingquantity: 80,
+    sellerlink: 75,
+    sellerphno: 85,
+    paymentmethod: 85,
+    trackingdetails: 100,
+    deliverydate: 100,
+    moveto: 120,
   });
 
   const [resizing, setResizing] = useState<{ column: string, startX: number, startWidth: number } | null>(null);
@@ -400,7 +429,7 @@ export default function PurchasesPage() {
 
           // Target pricing from validation
           target_price: validationData?.inr_purchase || null,
-          target_quantity: 1,
+          // target_quantity: 1,
           target_price_validation: validationData?.inr_purchase || null,
           target_price_link_validation: product.inr_purchase_link || null,
 
@@ -418,6 +447,7 @@ export default function PurchasesPage() {
           // Origin fields
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
+          origin_us: product.origin_us ?? false,
           origin: originText,  // Text field for trigger
 
           // INR Purchase Link
@@ -666,7 +696,7 @@ export default function PurchasesPage() {
 
             // 3. PRICING FIELDS
             target_price: freshProduct.target_price,       // ✅ Fixed
-            target_quantity: freshProduct.target_quantity || 1, // ✅ Fixed
+            // target_quantity: freshProduct.target_quantity || 1, // ✅ Fixed
             admin_target_price: freshProduct.admin_target_price, // ✅ Fixed
             admin_target_quantity: freshProduct.admin_target_quantity, // ✅ Fixed
             target_price_validation: freshProduct.target_price_validation, // ✅ Fixed
@@ -793,28 +823,37 @@ export default function PurchasesPage() {
     const matchesSearch =
       !searchQuery ||
       p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||  // ✅ Underscore
+      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
 
     if (!matchesSearch) return false
 
+    // Quick funnel filter
+    if (funnelFilter !== 'ALL') {
+      if (p.validation_funnel !== funnelFilter) return false;
+    }
+    // Seller tag filter
+    if (sellerTagFilter !== 'ALL') {
+      if (!p.validation_seller_tag?.toUpperCase().includes(sellerTagFilter)) return false;
+    }
+
     switch (activeTab) {
-      case 'main_file':  // ✅ Underscore
-        return !p.sent_to_admin && !p.move_to  // ✅ Underscores
+      case 'main_file':
+        return !p.sent_to_admin && !p.move_to
       case 'price_wait':
-        return p.move_to === 'pricewait'  // ✅ Underscore
-      case 'order_confirmed':  // ✅ Underscore
-        return p.admin_confirmed === true  // ✅ Underscore
+        return p.move_to === 'pricewait'
+      case 'order_confirmed':
+        return p.admin_confirmed === true
       case 'china':
         return p.origin_china
       case 'us':
-        return p.origin_us; // ✅ Underscore
+        return p.origin_us;
       case 'india':
-        return p.origin_india  // ✅ Underscore
+        return p.origin_india
       case 'pending':
         return p.status === 'pending'
       case 'not_found':
-        return p.move_to === 'notfound'  // ✅ Underscore
+        return p.move_to === 'notfound'
       default:
         return true
     }
@@ -995,6 +1034,64 @@ export default function PurchasesPage() {
 
         {/* Buttons Group */}
         <div className="flex items-center gap-3">
+          {/* Funnel Quick Filters */}
+          <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
+            <button
+              onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
+                ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+            >
+              RS
+            </button>
+            <button
+              onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
+                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+            >
+              DP
+            </button>
+          </div>
+
+          {/* Seller Tag Filter */}
+          {/* Seller Tag Filter */}
+          <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
+            <button
+              onClick={() => setSellerTagFilter('ALL')}
+              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === 'ALL'
+                ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+            >
+              All
+            </button>
+            {['GR', 'RR', 'UB', 'VV', 'DE', 'CV'].map((tag) => {
+              const tagColors: Record<string, string> = {
+                GR: 'from-yellow-400 to-yellow-600 text-black',
+                RR: 'from-slate-400 to-slate-600 text-white',
+                UB: 'from-pink-400 to-pink-600 text-white',
+                VV: 'from-purple-400 to-purple-600 text-white',
+                DE: 'from-cyan-400 to-cyan-600 text-black',
+                CV: 'from-teal-400 to-teal-600 text-white',
+              };
+              return (
+                <button
+                  key={tag}
+                  onClick={() => setSellerTagFilter(sellerTagFilter === tag ? 'ALL' : tag)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === tag
+                    ? `bg-gradient-to-br ${tagColors[tag]} shadow-lg`
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             onClick={handleRollBack}
             disabled={!movementHistory[activeTab]}
@@ -1046,13 +1143,13 @@ export default function PurchasesPage() {
                         'productlink': 'Product Link',
                         'productname': 'Product Name',
                         'targetprice': 'Validation Target Price',
-                        'targetquantity': 'Target Quantity',
+                        // 'targetquantity': 'Target Quantity',
                         'admintargetprice': 'Admin Target Price',
                         'funnelquantity': 'Funnel',
                         'funnelseller': 'Seller Tag',
                         'inrpurchaselink': 'INR Purchase Link',
                         'origin': 'Origin',
-                        'buyingprice': 'Buying Price',
+                        'buyingprice': 'Actual Buying Price',
                         'buyingquantity': 'Buying Quantity',
                         'sellerlink': 'Seller Link',
                         'sellerphno': 'Seller Ph No.',
@@ -1099,7 +1196,7 @@ export default function PurchasesPage() {
       {/* Table Container */}
       <div className="bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-slate-800">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-          <table className="w-full divide-y divide-slate-800 table-fixed" style={{ minWidth: '2500px' }}>
+          <table className="w-full divide-y divide-slate-800 table-fixed" style={{ minWidth: '1600px' }}>
             <thead className="bg-slate-950 sticky top-0 z-10 shadow-md">
               <tr>
                 {visibleColumns.checkbox && (
@@ -1149,11 +1246,11 @@ export default function PurchasesPage() {
                 {visibleColumns.productlink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productlink}px` }}>PRODUCT LINK<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productlink', e)} /></th>}
                 {visibleColumns.productname && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productname}px` }}>PRODUCT NAME<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productname', e)} /></th>}
 
-                {visibleColumns.targetprice && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.targetprice}px` }}>Validation Target Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} /></th>}
+                {visibleColumns.targetprice && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.targetprice}px` }}>Buying Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} /></th>}
 
-                {visibleColumns.targetquantity && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.targetquantity}px` }}>Target Quantity<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} /></th>}
+                {/* {visibleColumns.targetquantity && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.targetquantity}px` }}>Target Quantity<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} /></th>} */}
 
-                {visibleColumns.admintargetprice && <th className="px-3 py-3 text-center text-xs font-bold text-purple-400 uppercase relative group bg-purple-900/10" style={{ width: `${columnWidths.admintargetprice}px` }}>Admin Target Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} /></th>}
+                {visibleColumns.admintargetprice && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <th className="px-3 py-3 text-center text-xs font-bold text-purple-400 uppercase relative group bg-purple-900/10" style={{ width: `${columnWidths.admintargetprice}px` }}>Admin Target Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} /></th>}
 
                 {visibleColumns.funnelquantity && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.funnelquantity}px` }}>Funnel<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('funnelquantity', e)} /></th>}
 
@@ -1163,7 +1260,7 @@ export default function PurchasesPage() {
 
                 {visibleColumns.origin && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.origin}px` }}>Origin<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('origin', e)} /></th>}
 
-                {visibleColumns.buyingprice && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.buyingprice}px` }}>Buying Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('buyingprice', e)} /></th>}
+                {visibleColumns.buyingprice && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.buyingprice}px` }}>Actual Buying Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('buyingprice', e)} /></th>}
 
                 {visibleColumns.buyingquantity && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.buyingquantity}px` }}>Buying Quantity<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('buyingquantity', e)} /></th>}
 
@@ -1173,9 +1270,9 @@ export default function PurchasesPage() {
 
                 {visibleColumns.paymentmethod && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.paymentmethod}px` }}>Payment Method<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('paymentmethod', e)} /></th>}
 
-                {visibleColumns.trackingdetails && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.trackingdetails}px` }}>Tracking Details<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('trackingdetails', e)} /></th>}
+                {visibleColumns.trackingdetails && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.trackingdetails}px` }}>Tracking Details<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('trackingdetails', e)} /></th>}
 
-                {visibleColumns.deliverydate && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.deliverydate}px` }}>Delivery Date<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('deliverydate', e)} /></th>}
+                {visibleColumns.deliverydate && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.deliverydate}px` }}>Delivery Date<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('deliverydate', e)} /></th>}
 
                 {visibleColumns.moveto && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.moveto}px` }}>Move TO<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('moveto', e)} /></th>}
               </tr>
@@ -1184,7 +1281,7 @@ export default function PurchasesPage() {
             <tbody className="divide-y divide-slate-800">
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-16 text-center text-slate-500">
+                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length - (['mainfile', 'india', 'china', 'us'].includes(activeTab) ? [visibleColumns.admintargetprice, visibleColumns.trackingdetails, visibleColumns.deliverydate].filter(Boolean).length : 0)} className="px-4 py-16 text-center text-slate-500">
                     <div className="flex flex-col items-center">
                       <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
                       <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace('_', ' ')}</span>
@@ -1239,7 +1336,7 @@ export default function PurchasesPage() {
                       {/* Product Link */}
                       {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
                         {(product.india_link || product.product_link) ? (
-                          <a href={(product.india_link || product.product_link) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
+                          <a href={ensureURL(product.india_link || product.product_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
                         ) : <span className="text-xs text-slate-600">-</span>}
                       </td>}
 
@@ -1249,19 +1346,12 @@ export default function PurchasesPage() {
                       {/* Target Price */}
                       {visibleColumns.targetprice && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
                         {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_price ?? product.usd_price ?? '-'}</div>
-                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-                      </td>}
-
-                      {/* Target Qty */}
-                      {visibleColumns.targetquantity && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetquantity}px` }}>
-                        {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_quantity ?? 1}</div>
+                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.usd_price ? (product.usd_price * dollarRate).toFixed(2) : '-'}</div>
                         ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
                       </td>}
 
                       {/* Admin Target Price */}
-                      {visibleColumns.admintargetprice && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                      {visibleColumns.admintargetprice && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
                         {activeTab === 'order_confirmed' ? (
                           <div className="px-2 py-1 text-sm font-medium text-purple-300">₹{product.admin_target_price ?? '-'}</div>
                         ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
@@ -1270,10 +1360,13 @@ export default function PurchasesPage() {
                       {/* Funnel Qty */}
                       {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
                         {product.validation_funnel ? (
-                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                              product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                'bg-slate-700 text-slate-300'
+                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' || product.validation_funnel === 'RS'
+                            ? 'bg-emerald-600 text-white' :
+                            product.validation_funnel === 'LD'
+                              ? 'bg-blue-600 text-white' :
+                              product.validation_funnel === 'DP'
+                                ? 'bg-amber-500 text-black' :
+                                'bg-slate-600 text-white'
                             }`}>{product.validation_funnel}</span>
                         ) : <span className="text-xs text-slate-600">-</span>}
                       </td>}
@@ -1281,15 +1374,15 @@ export default function PurchasesPage() {
                       {/* Seller Tag */}
                       {visibleColumns.funnelseller && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
                         {product.validation_seller_tag ? (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap items-center gap-0.5">
                             {product.validation_seller_tag.split(',').map(tag => {
                               const cleanTag = tag.trim();
                               let badgeColor = 'bg-slate-700 text-white';
-                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
-                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
-                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                              return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>{cleanTag}</span>
+                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black border border-yellow-600';
+                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-slate-600';
+                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white border border-pink-600';
+                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
+                              return <span key={cleanTag} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${badgeColor}`}>{cleanTag}</span>
                             })}
                           </div>
                         ) : <span className="text-xs text-slate-600">-</span>}
@@ -1298,17 +1391,17 @@ export default function PurchasesPage() {
                       {/* INR Link */}
                       {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                         {product.inr_purchase_link ? (
-                          <a href={product.inr_purchase_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
+                          <a href={ensureURL(product.inr_purchase_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
                         ) : <span className="text-xs text-slate-600">-</span>}
                       </td>}
 
                       {/* Origin */}
                       {visibleColumns.origin && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
-                        <div className="flex gap-1">
-                          {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
-                          {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
-                          {product.origin_us && <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-xs">US</span>}
-                          {!product.origin_india && !product.origin_china && <span className="text-xs text-slate-600">-</span>}
+                        <div className="flex flex-wrap gap-0.5">
+                          {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500 text-white border border-orange-600 rounded text-[10px] font-medium leading-none">IN</span>}
+                          {product.origin_china && <span className="px-1.5 py-0.5 bg-rose-500 text-white border border-rose-600 rounded text-[10px] font-medium leading-none">CN</span>}
+                          {product.origin_us && <span className="px-1.5 py-0.5 bg-sky-500 text-white border border-sky-600 rounded text-[10px] font-medium leading-none">US</span>}
+                          {!product.origin_india && !product.origin_china && !product.origin_us && <span className="text-xs text-slate-600">-</span>}
                         </div>
                       </td>}
 
@@ -1338,7 +1431,7 @@ export default function PurchasesPage() {
                       </td>}
 
                       {/* Tracking Details - Input */}
-                      {visibleColumns.trackingdetails && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
+                      {visibleColumns.trackingdetails && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
                         {activeTab === 'order_confirmed' ? (
                           <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
                         ) : (
@@ -1347,7 +1440,7 @@ export default function PurchasesPage() {
                       </td>}
 
                       {/* Delivery Date - Input */}
-                      {visibleColumns.deliverydate && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
+                      {visibleColumns.deliverydate && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
                         {activeTab === 'order_confirmed' ? (
                           <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                         ) : (
@@ -1367,7 +1460,7 @@ export default function PurchasesPage() {
                                 handleSendToAdmin(product);
                               }
                             }}
-                            className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded"
+                            className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded flex items-center justify-center flex-shrink-0"
                             title="Done"
                           >
                             D

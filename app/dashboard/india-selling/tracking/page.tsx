@@ -98,6 +98,36 @@ export default function TrackingPage() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    // Filter states
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+    const [originFilter, setOriginFilter] = useState<'ALL' | 'India' | 'China' | 'US'>(() => {
+        if (typeof window === 'undefined') return 'ALL';
+        return (localStorage.getItem('indiaTrackingOriginFilter') as 'ALL' | 'India' | 'China' | 'US') || 'ALL';
+    });
+
+    const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>(() => {
+        if (typeof window === 'undefined') return 'ALL';
+        return (localStorage.getItem('indiaTrackingFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
+    });
+
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'tracking' | 'pending'>(() => {
+        if (typeof window === 'undefined') return 'ALL';
+        return (localStorage.getItem('indiaTrackingStatusFilter') as 'ALL' | 'tracking' | 'pending') || 'ALL';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('indiaTrackingOriginFilter', originFilter);
+    }, [originFilter]);
+
+    useEffect(() => {
+        localStorage.setItem('indiaTrackingFunnelFilter', funnelFilter);
+    }, [funnelFilter]);
+
+    useEffect(() => {
+        localStorage.setItem('indiaTrackingStatusFilter', statusFilter);
+    }, [statusFilter]);
+
     const [invoiceOpen, setInvoiceOpen] = useState(false)
     const [rollbackOpen, setRollbackOpen] = useState(false)
     const selectedItems = products
@@ -434,25 +464,44 @@ export default function TrackingPage() {
         }
     }, [resizing, columnWidths]);
 
-    const filteredProducts = products.filter((p) => {
+    const filteredProducts = products.filter(p => {
         // 1. Search Filter
-        const matchesSearch =
-            !searchQuery ||
+        const matchesSearch = !searchQuery ||
             p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
+            p.funnel?.toLowerCase().includes(searchQuery.toLowerCase());
+        if (!matchesSearch) return false;
 
-        if (!matchesSearch) return false
-
-        // 2. ✅ SELLER FILTER: Must match Active Seller Tag
+        // 2. SELLER FILTER - Must match Active Seller Tag
         const tag = p.seller_tag || p.validation_seller_tag;
         const matchesSeller = tag?.includes(activeSeller);
-
         if (!matchesSeller) return false;
 
-        // 3. Status Filter
-        return !p.sent_to_admin && !p.move_to
-    })
+        // 3. Origin Filter
+        if (originFilter !== 'ALL') {
+            if (originFilter === 'India' && !p.origin_india) return false;
+            if (originFilter === 'China' && !p.origin_china) return false;
+            if (originFilter === 'US' && !p.origin_us) return false;
+        }
+
+        // 4. Funnel Filter
+        // 4. Funnel Filter (RS = HD+LD, DP = DP)
+        if (funnelFilter !== 'ALL') {
+            const productFunnel = p.validation_funnel || p.funnel;
+            if (funnelFilter === 'RS') {
+                if (productFunnel !== 'HD' && productFunnel !== 'LD') return false;
+            } else if (funnelFilter === 'DP') {
+                if (productFunnel !== 'DP') return false;
+            }
+        }
+
+        // 5. Status Filter
+        if (statusFilter !== 'ALL') {
+            if (p.status !== statusFilter) return false;
+        }
+
+        return !p.sent_to_admin && !p.move_to;
+    });
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -649,6 +698,103 @@ export default function TrackingPage() {
                             className="flex-1 max-w-md px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
                         />
 
+                        {/* Funnel Filter Pills - Outside */}
+                        <div className="flex items-center bg-slate-900/50 rounded-xl border border-slate-800 p-1">
+                            {(['ALL', 'RS', 'DP'] as const).map((opt) => (
+                                <button
+                                    key={opt}
+                                    onClick={() => setFunnelFilter(opt)}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
+                                        ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
+                                            : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
+                                                : 'bg-indigo-600 text-white shadow-lg'
+                                        : 'text-slate-500 hover:text-slate-300'
+                                        }`}
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Filter Button */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
+                                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+                                    }`}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                </svg>
+                                Filter
+                                {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                                    <span className="w-5 h-5 bg-white/20 rounded-full text-[10px] flex items-center justify-center font-bold">
+                                        {[originFilter !== 'ALL', statusFilter !== 'ALL'].filter(Boolean).length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {isFilterOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
+                                    <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-semibold text-slate-200 text-sm">Filters</h3>
+                                            {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                                                <button
+                                                    onClick={() => { setOriginFilter('ALL'); setStatusFilter('ALL'); }}
+                                                    className="text-xs text-red-400 hover:text-red-300 font-medium"
+                                                >
+                                                    Clear All
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="mb-4">
+                                            <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Origin</label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {(['ALL', 'India', 'China', 'US'] as const).map((opt) => (
+                                                    <button
+                                                        key={opt}
+                                                        onClick={() => setOriginFilter(opt)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
+                                                            ? opt === 'India' ? 'bg-orange-500 text-white'
+                                                                : opt === 'China' ? 'bg-rose-500 text-white'
+                                                                    : opt === 'US' ? 'bg-sky-500 text-white'
+                                                                        : 'bg-indigo-600 text-white'
+                                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                                                            }`}
+                                                    >
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Status</label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {(['ALL', 'tracking', 'pending'] as const).map((opt) => (
+                                                    <button
+                                                        key={opt}
+                                                        onClick={() => setStatusFilter(opt)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${statusFilter === opt
+                                                            ? 'bg-indigo-600 text-white'
+                                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                                                            }`}
+                                                    >
+                                                        {opt === 'ALL' ? 'All' : opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
                         <button
                             disabled={selectedIds.size === 0}
                             onClick={() => setInvoiceOpen(true)}
@@ -672,82 +818,39 @@ export default function TrackingPage() {
                                 Hide Columns
                             </button>
 
-                            {/* Dropdown Menu */}
                             {isColumnMenuOpen && (
                                 <>
-                                    <div
-                                        className="fixed inset-0 z-10"
-                                        onClick={() => setIsColumnMenuOpen(false)}
-                                    />
-
+                                    <div className="fixed inset-0 z-10" onClick={() => setIsColumnMenuOpen(false)} />
                                     <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64">
                                         <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
                                         <div className="space-y-2 max-h-96 overflow-y-auto">
                                             {Object.keys(visibleColumns).map((col) => {
                                                 const columnDisplayNames: { [key: string]: string } = {
-                                                    'checkbox': 'Checkbox',
-                                                    'asin': 'ASIN',
-                                                    'productlink': 'Product Link',
-                                                    'productname': 'Product Name',
-                                                    'targetprice': 'Validation Target Price',
-                                                    'targetquantity': 'Target Quantity',
-                                                    'admintargetprice': 'Admin Target Price',
-                                                    'funnelquantity': 'Funnel',
-                                                    'funnelseller': 'Seller Tag',
-                                                    'inrpurchaselink': 'INR Purchase Link',
-                                                    'origin': 'Origin',
-                                                    'buyingprice': 'Buying Price',
-                                                    'buyingquantity': 'Buying Quantity',
-                                                    'sellerlink': 'Seller Link',
-                                                    'sellerphno': 'Seller Ph No.',
-                                                    'paymentmethod': 'Payment Method',
-                                                    'trackingdetails': 'Tracking Details',
-                                                    'deliverydate': 'Delivery Date',
-                                                    'moveto': 'Move To',
+                                                    'checkbox': 'Checkbox', 'asin': 'ASIN', 'productlink': 'Product Link',
+                                                    'productname': 'Product Name', 'targetprice': 'Validation Target Price',
+                                                    'targetquantity': 'Target Quantity', 'admintargetprice': 'Admin Target Price',
+                                                    'funnelquantity': 'Funnel', 'funnelseller': 'Seller Tag',
+                                                    'inrpurchaselink': 'INR Purchase Link', 'origin': 'Origin',
+                                                    'buyingprice': 'Buying Price', 'buyingquantity': 'Buying Quantity',
+                                                    'sellerlink': 'Seller Link', 'sellerphno': 'Seller Ph No.',
+                                                    'paymentmethod': 'Payment Method', 'trackingdetails': 'Tracking Details',
+                                                    'deliverydate': 'Delivery Date', 'moveto': 'Move To',
                                                 };
-
                                                 return (
                                                     <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={visibleColumns[col as keyof typeof visibleColumns]}
-                                                            onChange={() => {
-                                                                setVisibleColumns(prev => ({
-                                                                    ...prev,
-                                                                    [col]: !prev[col as keyof typeof visibleColumns]
-                                                                }));
-                                                            }}
-                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500"
-                                                        />
-                                                        <span className="text-sm text-slate-300">
-                                                            {columnDisplayNames[col] || col}
-                                                        </span>
+                                                        <input type="checkbox" checked={visibleColumns[col as keyof typeof visibleColumns]}
+                                                            onChange={() => setVisibleColumns(prev => ({ ...prev, [col]: !prev[col as keyof typeof visibleColumns] }))}
+                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                        <span className="text-sm text-slate-300">{columnDisplayNames[col] || col}</span>
                                                     </label>
                                                 );
                                             })}
                                         </div>
-
                                         <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
-                                            <button
-                                                onClick={() =>
-                                                    setVisibleColumns(
-                                                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
-                                                    )
-                                                }
-                                                className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
-                                            >
-                                                Show All
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    setVisibleColumns(
-                                                        Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns)
-                                                    )
-                                                }
-                                                className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
-                                            >
-                                                Reset
-                                            </button>
+                                            <button onClick={() => setVisibleColumns(Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns))}
+                                                className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium">Show All</button>
+                                            <button onClick={() => setVisibleColumns(Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns))}
+                                                className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium">Reset</button>
                                         </div>
                                     </div>
                                 </>
@@ -1023,14 +1126,15 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.funnelquantity && (
-                                                            <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                                                            <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: columnWidths.funnelquantity + 'px' }}>
                                                                 {product.validation_funnel ? (
-                                                                    <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
-                                                                        product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
-                                                                            product.validation_funnel === 'DP' ? 'bg-yellow-400 text-black' :
-                                                                                'bg-gray-400 text-white'
+                                                                    <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${(product.validation_funnel === 'HD' || product.validation_funnel === 'LD')
+                                                                        ? 'bg-emerald-600 text-white'
+                                                                        : product.validation_funnel === 'DP'
+                                                                            ? 'bg-amber-500 text-black'
+                                                                            : 'bg-gray-400 text-white'
                                                                         }`}>
-                                                                        {product.validation_funnel}
+                                                                        {(product.validation_funnel === 'HD' || product.validation_funnel === 'LD') ? 'RS' : product.validation_funnel}
                                                                     </span>
                                                                 ) : (
                                                                     <span className="text-xs text-slate-600 italic">-</span>

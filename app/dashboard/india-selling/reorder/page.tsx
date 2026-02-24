@@ -36,21 +36,25 @@ const generateUUID = (): string => {
 
 // --- Types ---
 type ReorderProduct = {
-  id: string
-  asin: string
-  product_name: string | null
-  seller_link: string | null
-  admin_target_qty: number
-  current_qty: number
-  tracking_qty: number
-  final_reorder_qty: number
-  status: 'Safe' | 'Covered' | 'Reorder'
-  updated_at: string
-  journey_id?: string // ✅ The Bag Link
-  journey_number?: number
-  is_in_final_reorder?: boolean
+  id: string;
+  asin: string;
+  product_name: string | null;
+  seller_link: string | null;
+  admin_target_qty: number;
+  current_qty: number;
+  tracking_qty: number;
+  final_reorder_qty: number;
+  status: 'Safe' | 'Covered' | 'Reorder';
+  updated_at: string;
+  journey_id?: string;
+  journey_number?: number;
+  is_in_final_reorder?: boolean;
   remark: string | null;
-}
+  funnel?: string | null;
+  origin_india?: boolean | null;
+  origin_china?: boolean | null;
+  origin_us?: boolean | null;
+};
 
 type HistorySnapshot = {
   id: string
@@ -89,6 +93,35 @@ export default function ReorderPage() {
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  // Filter states (persisted)
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const [originFilter, setOriginFilter] = useState<'ALL' | 'India' | 'China' | 'US'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaReorderOriginFilter') as 'ALL' | 'India' | 'China' | 'US') || 'ALL';
+  });
+
+  const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaReorderFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
+  });
+
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'Safe' | 'Covered' | 'Reorder'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaReorderStatusFilter') as 'ALL' | 'Safe' | 'Covered' | 'Reorder') || 'ALL';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('indiaReorderOriginFilter', originFilter);
+  }, [originFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('indiaReorderFunnelFilter', funnelFilter);
+  }, [funnelFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('indiaReorderStatusFilter', statusFilter);
+  }, [statusFilter]);
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // History Sidebar State
@@ -830,17 +863,39 @@ export default function ReorderPage() {
   }
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.asin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch =
+      p.asin.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // Origin Filter
+    if (originFilter !== 'ALL') {
+      if (originFilter === 'India' && !p.origin_india) return false;
+      if (originFilter === 'China' && !p.origin_china) return false;
+      if (originFilter === 'US' && !p.origin_us) return false;
+    }
+
+    // Funnel Filter (RS = HD+LD, DP = DP)
+    if (funnelFilter !== 'ALL') {
+      const productFunnel = p.funnel;
+      if (funnelFilter === 'RS') {
+        if (productFunnel !== 'HD' && productFunnel !== 'LD') return false;
+      } else if (funnelFilter === 'DP') {
+        if (productFunnel !== 'DP') return false;
+      }
+    }
+
+    // Status Filter (Safe/Covered/Reorder)
+    if (statusFilter !== 'ALL') {
+      if (p.status !== statusFilter) return false;
+    }
 
     if (activeTab === 'final') {
-      // ✅ Final Reorder Tab: Show only Reorder status products
-      return matchesSearch && p.status === 'Reorder'
+      return p.status === 'Reorder';
     } else {
-      // ✅ Main Workspace: Show only products NOT in final reorder
-      return matchesSearch && (p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined)
+      return (p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined);
     }
-  })
+  });
 
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200 relative overflow-hidden">
@@ -897,6 +952,7 @@ export default function ReorderPage() {
       </div>
 
       {/* CONTROLS */}
+      {/* CONTROLS */}
       <div className="flex gap-3 items-center mb-6 px-6 pt-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -907,6 +963,108 @@ export default function ReorderPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
           />
+        </div>
+
+        {/* Funnel Filter Pills - RS / DP */}
+        <div className="flex items-center bg-slate-900/50 rounded-xl border border-slate-800 p-1">
+          {(['ALL', 'RS', 'DP'] as const).map((opt) => (
+            <button
+              key={opt}
+              onClick={() => setFunnelFilter(opt)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
+                  ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
+                    : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
+                      : 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-slate-500 hover:text-slate-300'
+                }`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter Button + Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+              }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filter
+            {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
+              <span className="w-5 h-5 bg-white/20 rounded-full text-[10px] flex items-center justify-center font-bold">
+                {[originFilter !== 'ALL', statusFilter !== 'ALL'].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+
+          {isFilterOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
+              <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-200 text-sm">Filters</h3>
+                  {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                    <button
+                      onClick={() => { setOriginFilter('ALL'); setStatusFilter('ALL'); }}
+                      className="text-xs text-red-400 hover:text-red-300 font-medium"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {/* Origin Filter */}
+                <div className="mb-4">
+                  <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Origin</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['ALL', 'India', 'China', 'US'] as const).map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setOriginFilter(opt)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
+                            ? opt === 'India' ? 'bg-orange-500 text-white'
+                              : opt === 'China' ? 'bg-rose-500 text-white'
+                                : opt === 'US' ? 'bg-sky-500 text-white'
+                                  : 'bg-indigo-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                          }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Status</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['ALL', 'Safe', 'Covered', 'Reorder'] as const).map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setStatusFilter(opt)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === opt
+                            ? opt === 'Safe' ? 'bg-emerald-500 text-white'
+                              : opt === 'Covered' ? 'bg-amber-500 text-black'
+                                : opt === 'Reorder' ? 'bg-rose-500 text-white'
+                                  : 'bg-indigo-600 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                          }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {activeTab === 'main' && (

@@ -11,6 +11,42 @@ import { calculateProductValues, getDefaultConstants, CalculationConstants } fro
 import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const toSnakeCase = (obj: Record<string, any>): Record<string, any> => {
+    const map: Record<string, string> = {
+        productname: 'product_name',
+        sellertag: 'seller_tag',
+        noofseller: 'no_of_seller',
+        indialink: 'india_link',
+        usalink: 'usa_link',
+        productweight: 'product_weight',
+        usdprice: 'usd_price',
+        inrpurchase: 'inr_purchase',
+        inrpurchaselink: 'inr_purchase_link',
+        calculatedjudgement: 'calculated_judgement',
+        totalcost: 'total_cost',
+        totalrevenue: 'total_revenue',
+        originindia: 'origin_india',
+        originchina: 'origin_china',
+        originus: 'origin_us',
+        checkbrand: 'check_brand',
+        checkitemexpire: 'check_item_expire',
+        checksmallsize: 'check_small_size',
+        checkmultiseller: 'check_multi_seller',
+        senttopurchases: 'sent_to_purchases',
+        senttopurchasesat: 'sent_to_purchases_at',
+        currentjourneyid: 'current_journey_id',
+        journeynumber: 'journey_number',
+        rejectreason: 'reject_reason',
+        amzlink: 'amz_link',
+        indiaprice: 'india_price',
+        inrsold: 'inr_sold',
+    };
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        result[map[key] || key] = value;
+    }
+    return result;
+};
 
 // ✅ ADD THIS DEBOUNCE UTILITY
 const debounce = <T extends (...args: any[]) => any>(
@@ -34,7 +70,8 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     seller_tag: 100,
     funnel: 80,
     no_of_seller: 80,
-    india_link: 160,        // Minimal width for "View"
+    india_link: 100,
+    usa_link: 80,        // Minimal width for "View"
     product_weight: 90,
     usd_price: 90,
     inr_purchase: 100,
@@ -96,6 +133,7 @@ interface ValidationProduct {
     funnel: string | null
     no_of_seller: number | null
     india_link: string | null
+    usa_link: string | null
     amz_link: string | null
     inr_purchase_link: string | null
     product_weight: number | null
@@ -169,11 +207,12 @@ const renderSellerTags = (sellerTag: string | null) => {
 };
 
 const FUNNEL_STYLES: Record<string, string> = {
-    HD: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
-    LD: 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg border border-blue-600/30',
-    DP: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'
+    'RS': 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
+    'DP': 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30',
+    // Legacy fallbacks (old data may still have these)
+    'HD': 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
+    'LD': 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg border border-blue-600/30',
 };
-
 
 const renderFunnelBadge = (funnel: string | null) => {
     if (!funnel) return '-';
@@ -193,48 +232,53 @@ const ResizableTH = ({
     columnKey,
     align = 'left',
     onResizeStart,
+    onDragStart,
+    onDragOver,
+    onDrop,
 }: {
     width: number
     label: React.ReactNode
     columnKey: string
     align?: 'left' | 'center'
     onResizeStart: (key: string, startX: number) => void
+    onDragStart?: () => void
+    onDragOver?: (e: React.DragEvent) => void
+    onDrop?: (e: React.DragEvent) => void
 }) => {
     const isFlex = COLUMN_FLEX[columnKey];
 
     return (
         <th
+            draggable
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
             style={{
                 minWidth: width,
                 width: isFlex ? 'auto' : width,
             }}
             className={`relative px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 ${align === 'center' ? 'text-center' : 'text-left'
-                } select-none`}
+                } select-none cursor-grab active:cursor-grabbing`}
         >
             <div className={isFlex ? 'truncate' : ''}>{label}</div>
 
             <span
-                onMouseDown={(e) => onResizeStart(columnKey, e.clientX)}
+                onMouseDown={(e) => { e.stopPropagation(); onResizeStart(columnKey, e.clientX); }}
                 className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
             />
         </th>
     );
 };
 
-
-
 export default function ValidationPage() {
     const { user, loading: authLoading } = useAuth();
-    // const [editingValue, setEditingValue] = useState<{
-    //     id: string
-    //     field: string
-    //     value: string
-    // } | null>(null)
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
     const [products, setProducts] = useState<ValidationProduct[]>([])
+    const productsRef = useRef<ValidationProduct[]>([]);
+    useEffect(() => { productsRef.current = products; }, [products]);
+    const movingIdsRef = useRef<Set<string>>(new Set());
     const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
     const [editingLinkValue, setEditingLinkValue] = useState<string>('');
-    // const [filteredProducts, setFilteredProducts] = useState<ValidationProduct[]>([])
     const [loading, setLoading] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
@@ -242,6 +286,17 @@ export default function ValidationPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
+    const [rollbackHistory, setRollbackHistory] = useState<
+        Record<string, { product: ValidationProduct; action: string } | undefined>
+    >({});
+    const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>(() => {
+        if (typeof window === 'undefined') return 'ALL';
+        return (localStorage.getItem('indiaValidationFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('indiaValidationFunnelFilter', funnelFilter);
+    }, [funnelFilter]);
     const localEditCountRef = useRef(0);
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
@@ -281,6 +336,7 @@ export default function ValidationPage() {
     const [selectedRemark, setSelectedRemark] = useState<string | null>(null)
     const [openChecklistId, setOpenChecklistId] = useState<string | null>(null)
     const [openOriginId, setOpenOriginId] = useState<string | null>(null)
+    const [openFunnelId, setOpenFunnelId] = useState<string | null>(null)
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
     const [rejectReason, setRejectReason] = useState('')
@@ -295,6 +351,7 @@ export default function ValidationPage() {
         funnel: true,
         no_of_seller: true,
         india_link: true,
+
         product_weight: true,
         usd_price: true,
         inr_purchase: true,
@@ -346,23 +403,108 @@ export default function ValidationPage() {
         document.addEventListener('mouseup', onMouseUp);
     };
 
+    // ========== COLUMN DRAG REORDER ==========
+    const DEFAULT_COLUMN_ORDER = [
+        'asin', 'history', 'product_name', 'brand', 'seller_tag', 'funnel',
+        'no_of_seller', 'india_link', 'usa_link', 'origin', 'product_weight', 'usd_price',
+        'inr_purchase', 'inr_purchase_link', 'checklist', 'reject_reason',
+        'judgement', 'remark'
+    ];
+
+    const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+        if (typeof window === 'undefined') return DEFAULT_COLUMN_ORDER;
+        try {
+            const saved = localStorage.getItem('indiaValidationColumnOrder');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                const merged = parsed.filter((k: string) => DEFAULT_COLUMN_ORDER.includes(k));
+                // This adds new columns that weren't in the saved order:
+                DEFAULT_COLUMN_ORDER.forEach(k => {
+                    if (!merged.includes(k)) merged.push(k);
+                });
+                return merged;
+            }
+        } catch { }
+        return DEFAULT_COLUMN_ORDER;
+    });
+
+    const dragColumnRef = useRef<string | null>(null);
+    const dragOverColumnRef = useRef<string | null>(null);
+
+    const handleColumnDragStart = (col_key: string) => {
+        dragColumnRef.current = col_key;
+    };
+
+    const handleColumnDragOver = (e: React.DragEvent, col_key: string) => {
+        e.preventDefault();
+        dragOverColumnRef.current = col_key;
+    };
+
+    const handleColumnDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (!dragColumnRef.current || !dragOverColumnRef.current) return;
+        if (dragColumnRef.current === dragOverColumnRef.current) return;
+
+        const newOrder = [...columnOrder];
+        const fromIdx = newOrder.indexOf(dragColumnRef.current);
+        const toIdx = newOrder.indexOf(dragOverColumnRef.current);
+        if (fromIdx === -1 || toIdx === -1) return;
+
+        newOrder.splice(fromIdx, 1);
+        newOrder.splice(toIdx, 0, dragColumnRef.current);
+
+        setColumnOrder(newOrder);
+        localStorage.setItem('indiaValidationColumnOrder', JSON.stringify(newOrder));
+        dragColumnRef.current = null;
+        dragOverColumnRef.current = null;
+    };
+    // ========== END COLUMN DRAG REORDER ==========
+
     const refreshProductsSilently = async () => {
         try {
-            // Note: No setLoading(true) here!
-            const validationData = await fetchAllRows<ValidationProduct>(
+            if (localEditCountRef.current > 0) return;
+
+            const validationData = (await fetchAllRows<ValidationProduct>(
                 'india_validation_main_file',
                 '*',
                 { column: 'created_at', ascending: false }
-            );
+            )).map(p => ({
+                ...p,
+                usalink: (p as any).usa_link || p.usa_link,
+            }));
 
+            // MERGE: only update fields for products that user hasn't touched locally
+            setProducts(prev => {
+                const dbMap = new Map(dedupeById(validationData).map(p => [p.id, p]));
+                const localIds = new Set(prev.map(p => p.id));
 
-            setProducts(dedupeById(validationData));
+                // Update existing products with DB data, but KEEP local calculated fields
+                const merged = prev.map(p => {
+                    const dbProduct = dbMap.get(p.id);
+                    if (!dbProduct) return p;
+                    dbMap.delete(p.id);
+                    // Keep local calculated_judgement if it exists (user just calculated)
+                    return {
+                        ...dbProduct,
+                        calculated_judgement: p.calculated_judgement || dbProduct.calculated_judgement,
+                        total_cost: p.total_cost ?? dbProduct.total_cost,
+                        total_revenue: p.total_revenue ?? dbProduct.total_revenue,
+                        profit: p.profit ?? dbProduct.profit,
+                    };
+                });
 
+                // Add any new products from DB that weren't in local state
+                for (const [, dbProduct] of dbMap) {
+                    merged.push(dbProduct);
+                }
 
+                return merged;
+            });
         } catch (err) {
             console.error('Silent refresh error:', err);
         }
     };
+
     // ✅ ADD THIS DEBOUNCED VERSION
     const debouncedRefresh = useRef(
         debounce(async () => {
@@ -392,8 +534,10 @@ export default function ValidationPage() {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('🔄 Tab visible: Refreshing...');
-                refreshProductsSilently(); // ✅ NEW: Silent update on tab focus
+                // Don't refresh if user has pending edits
+                if (localEditCountRef.current > 0) return;
+                console.log('Tab visible! Refreshing...');
+                refreshProductsSilently();
                 fetchStats();
             }
         };
@@ -448,10 +592,7 @@ export default function ValidationPage() {
                 'judgement'
             );
 
-
-
             const products = mainData || []
-
 
             // Count by judgement status
             const passed = products.filter(p => p.judgement === 'PASS').length
@@ -540,21 +681,48 @@ export default function ValidationPage() {
         return Array.from(map.values());
     };
 
+    const populateUsaLinks = async (products: ValidationProduct[]) => {
+        const BATCH = 100; // bigger batches = fewer round trips
+        for (let i = 0; i < products.length; i += BATCH) {
+            const batch = products.slice(i, i + BATCH);
+
+            // Fire all updates in parallel per batch
+            await Promise.all(batch.map(p =>
+                supabase
+                    .from('india_validation_main_file')
+                    .update({ usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` })
+                    .eq('id', p.id)
+            ));
+        }
+
+        // Update local state ONCE after all batches done
+        setProducts(prev => prev.map(p =>
+            !p.usa_link && p.asin
+                ? { ...p, usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` }
+                : p
+        ));
+
+        console.log(`✅ Populated usa_link for ${products.length} products`);
+    };
 
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            // Step 1: Fetch all validation products
             const validationData = await fetchAllRows<ValidationProduct>(
                 'india_validation_main_file',
                 '*',
                 { column: 'created_at', ascending: false }
             );
 
-            // Step 2: Get all unique ASINs
             const asins = validationData.map(p => p.asin).filter(Boolean);
-
             setProducts(dedupeById(validationData));
+
+            // ✅ Auto-populate usa_link IN BACKGROUND (non-blocking)
+            const missingUsaLink = validationData.filter(p => p.asin && !p.usa_link);
+            if (missingUsaLink.length > 0) {
+                // Don't await — let it run in background
+                populateUsaLinks(missingUsaLink);
+            }
 
         } catch (err) {
             console.error('Fetch error:', err);
@@ -577,27 +745,61 @@ export default function ValidationPage() {
     const handleCellEdit = async (id: string, field: string, value: any) => {
         localEditCountRef.current += 1;
         try {
-            const tableName = 'india_validation_main_file';
-            const { error } = await supabase.from(tableName).update({ [field]: value }).eq('id', id);
-            if (error) { setToast({ message: 'Failed to update', type: 'error' }); return; }
+            // Step 1: Optimistic update
+            setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
 
-            const existingProduct = products.find(p => p.id === id);
-
-            // ✅ Only auto-calculate for numeric fields that affect the formula
-            const CALC_FIELDS = ['usd_price', 'product_weight', 'inr_purchase'];
-            if (existingProduct && activeTab === 'main_file' && CALC_FIELDS.includes(field)) {
-                const latestProduct = { ...existingProduct, [field]: value } as ValidationProduct;
-                await autoCalculateAndUpdate(id, latestProduct);
+            // Step 2: Save to DB
+            const { error } = await supabase.from('india_validation_main_file').update(toSnakeCase({ [field]: value })).eq('id', id);
+            if (error) {
+                setToast({ message: 'Failed to update', type: 'error' });
+                return;
             }
 
-            setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+            // Step 3: Auto-calculate using LATEST state (from ref, not stale closure)
+            const CALC_FIELDS = ['usd_price', 'product_weight', 'inr_purchase'];
+            if ((activeTab === 'main_file' || activeTab === 'fail_file') && CALC_FIELDS.includes(field)) {
+                const freshProduct = productsRef.current.find(p => p.id === id);
+                if (freshProduct) {
+                    await autoCalculateAndUpdate(id, freshProduct);
+                }
+            }
         } catch (err) {
-            console.error('Update error', err);
+            console.error('Update error:', err);
             setToast({ message: 'Update failed', type: 'error' });
         } finally {
             await new Promise(resolve => setTimeout(resolve, 100));
             localEditCountRef.current -= 1;
         }
+    };
+
+    const handleInstantCalc = (id: string, field: string, inputValue: string) => {
+        const numVal = parseFloat(inputValue);
+        if (isNaN(numVal) || numVal <= 0) return;
+
+        setProducts(prev => prev.map(p => {
+            if (p.id !== id) return p;
+
+            // Merge the currently-typed value with latest state
+            const usd = field === 'usd_price' ? numVal : p.usd_price;
+            const weight = field === 'product_weight' ? numVal : p.product_weight;
+            const inr = field === 'inr_purchase' ? numVal : p.inr_purchase;
+
+            if (!usd || !weight || !inr) return p;
+
+            const result = calculateProductValues(
+                { usd_price: usd, product_weight: weight, inr_purchase: inr },
+                constants,
+                'INDIA'
+            );
+
+            return {
+                ...p,
+                total_cost: result.total_cost,
+                total_revenue: result.total_revenue,
+                profit: result.profit,
+                calculated_judgement: result.judgement || 'PENDING',
+            };
+        }));
     };
 
     // ✅ STEP 1: Filter products
@@ -639,8 +841,12 @@ export default function ValidationPage() {
             });
         }
 
+        if (funnelFilter !== 'ALL') {
+            result = result.filter(p => p.funnel === funnelFilter);
+        }
+
         return result;
-    }, [products, activeTab, searchQuery, filters]);
+    }, [products, activeTab, searchQuery, filters, funnelFilter]);
 
     // ✅ STEP 2: Paginate (only show 100 rows)
     const filteredProducts = useMemo(() => {
@@ -657,12 +863,14 @@ export default function ValidationPage() {
     // 2. UPDATE the autoCalculateAndUpdate function around line 180
     const autoCalculateAndUpdate = async (id: string, product: ValidationProduct) => {
         try {
+            // GUARD: If this product is being moved, DO NOT touch it
+            if (movingIdsRef.current.has(id)) {
+                console.log('⛔ Skipping calc — product is being moved:', product.asin);
+                return;
+            }
+
             if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
-                console.log('Missing required fields for calculation', {
-                    usd_price: product.usd_price,
-                    product_weight: product.product_weight,
-                    inr_purchase: product.inr_purchase,
-                });
+                console.log('Missing required fields for calculation');
                 return;
             }
 
@@ -672,26 +880,23 @@ export default function ValidationPage() {
                 'INDIA'
             );
 
-            const updateData: any = {};
-            updateData.total_cost = result.total_cost !== null && isFinite(result.total_cost) ? Number(result.total_cost) : null;
-            updateData.total_revenue = result.total_revenue !== null && isFinite(result.total_revenue) ? Number(result.total_revenue) : null;
-            updateData.profit = result.profit !== null && isFinite(result.profit) ? Number(result.profit) : null;
+            // ONLY save calculated values — NEVER touch judgement
+            const updateData: any = {
+                total_cost: result.total_cost !== null && isFinite(result.total_cost) ? Number(result.total_cost) : null,
+                total_revenue: result.total_revenue !== null && isFinite(result.total_revenue) ? Number(result.total_revenue) : null,
+                profit: result.profit !== null && isFinite(result.profit) ? Number(result.profit) : null,
+                calculated_judgement: result.judgement || 'PENDING',
+                // ❌ NO judgement field here — this was the bug
+            };
 
-            // ✅ Save real judgement in calculated_judgement (shown visually as badge)
-            // ✅ Keep judgement = PENDING (product stays in Main File until Enter on source link)
-            updateData.calculated_judgement = result.judgement || 'PENDING';
-            updateData.judgement = 'PENDING';
+            console.log('Updating product', id, 'asin', product.asin, 'calcJudgement', result.judgement, updateData);
 
-            console.log('Updating product', id, {
-                asin: product.asin,
-                calculatedJudgement: result.judgement,
-                savedJudgement: 'PENDING',
-                ...updateData,
-            });
+            // GUARD again before DB write (product may have been moved while we calculated)
+            if (movingIdsRef.current.has(id)) return;
 
             const { error: updateError } = await supabase
                 .from('india_validation_main_file')
-                .update(updateData)
+                .update(toSnakeCase(updateData))
                 .eq('id', id);
 
             if (updateError) {
@@ -700,27 +905,28 @@ export default function ValidationPage() {
                 return;
             }
 
-            setProducts((prev) =>
-                prev.map((p) =>
-                    p.id === id
-                        ? {
-                            ...p,
-                            total_cost: result.total_cost,
-                            total_revenue: result.total_revenue,
-                            profit: result.profit,
-                            judgement: 'PENDING',
-                            calculated_judgement: result.judgement,
-                        }
-                        : p
-                )
-            );
+            // GUARD again before state write
+            if (movingIdsRef.current.has(id)) return;
+
+            // Update local state — NEVER write judgement
+            setProducts(prev => prev.map(p => {
+                if (p.id !== id) return p;
+                return {
+                    ...p,
+                    total_cost: result.total_cost,
+                    total_revenue: result.total_revenue,
+                    profit: result.profit,
+                    calculated_judgement: result.judgement,
+                    // ❌ NO judgement here
+                };
+            }));
 
             if (result.judgement === 'PASS') {
-                setToast({ message: `✅ Judgement: PASS — Fill source link & press Enter to move`, type: 'success' });
+                setToast({ message: 'Judgement: PASS — Fill source link, then click Move', type: 'success' });
             } else if (result.judgement === 'FAIL') {
-                setToast({ message: `❌ Judgement: FAIL — Fill source link & press Enter to move`, type: 'error' });
+                setToast({ message: 'Judgement: FAIL — Fill source link, then click Move', type: 'error' });
             } else {
-                setToast({ message: '✅ Updated successfully', type: 'success' });
+                setToast({ message: 'Updated successfully', type: 'success' });
             }
         } catch (err) {
             console.error('Exception in autoCalculateAndUpdate', err);
@@ -902,8 +1108,7 @@ export default function ValidationPage() {
                     // ⚡ INDIA TABLE
                     const { error } = await supabase
                         .from('india_validation_main_file')
-                        .update(dbUpdate)
-                        .eq('asin', csvRow.asin);
+                        .update(toSnakeCase(dbUpdate)).eq('asin', csvRow.asin)
 
                     if (error) {
                         console.error(`❌ Failed to update ${csvRow.asin}:`, error.message);
@@ -1058,6 +1263,27 @@ export default function ValidationPage() {
         }
     }
 
+    const handleFunnelChange = async (id: string, newFunnel: string) => {
+        const oldFunnel = products.find(p => p.id === id)?.funnel;
+        // Optimistic UI
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: newFunnel } : p));
+        setOpenFunnelId(null);
+        setDropdownPos(null);
+
+        const { error } = await supabase
+            .from('india_validation_main_file')
+            .update({ funnel: newFunnel })
+            .eq('id', id);
+
+        if (error) {
+            // Rollback
+            setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel } : p));
+            setToast({ message: 'Failed to update funnel', type: 'error' });
+        } else {
+            setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
+        }
+    };
+
     const handleChecklistToggle = async (
         id: string,
         field:
@@ -1074,8 +1300,7 @@ export default function ValidationPage() {
 
         const { error } = await supabase
             .from('india_validation_main_file')
-            .update({ [field]: value })
-            .eq('id', id)
+            .update(toSnakeCase({ [field]: value })).eq('id', id)
 
         if (error) {
             // rollback
@@ -1176,7 +1401,7 @@ export default function ValidationPage() {
                     inr_purchase_link: realData?.inr_purchase_link || product.inr_purchase_link || '',
                     seller_link: null,
                     target_price: product.inr_purchase,
-                    target_quantity: 1,
+                    // target_quantity: 1,
                     funnel_quantity: 1,
                     funnel_seller: product.funnel,
                     buying_price: null,
@@ -1205,13 +1430,13 @@ export default function ValidationPage() {
             // 4. Mark as Sent
             await supabase
                 .from('india_validation_main_file')
-                .update({
-                    sent_to_purchases: true,
-                    sent_to_purchases_at: new Date().toISOString(),
-                    current_journey_id: journeyId,
-                    journey_number: journeyNum
-                })
+                .update(toSnakeCase({ senttopurchases: true, senttopurchasesat: new Date().toISOString(), currentjourneyid: journeyId, journeynumber: journeyNum }))
                 .eq('id', id)
+
+            setRollbackHistory(prev => ({
+                ...prev,
+                purchase_move: { product, action: 'sent_to_purchases' }
+            }));
 
             setProducts((prev) => prev.filter((p) => p.id !== id))
             setToast({ message: 'Sent to Purchases successfully!', type: 'success' })
@@ -1426,7 +1651,7 @@ export default function ValidationPage() {
             const idsArray = Array.from(selectedIds)
             const { error } = await supabase
                 .from('india_validation_main_file')
-                .update({ judgement: 'REJECT', reject_reason: rejectReason.trim() })
+                .update(toSnakeCase({ judgement: 'REJECT', rejectreason: rejectReason.trim }))
                 .in('id', idsArray)
 
             if (error) throw error
@@ -1555,6 +1780,631 @@ export default function ValidationPage() {
         fetchProducts()
         fetchStats()
     }
+
+    // Check if all required fields are filled for moving
+    const isReadyToMove = (product: ValidationProduct): boolean => {
+        return !!(
+            product.product_weight &&
+            product.usd_price &&
+            product.inr_purchase &&
+            product.inr_purchase_link?.trim() &&
+            product.calculated_judgement &&
+            product.calculated_judgement !== 'PENDING'
+        );
+    };
+
+    // Move ASIN to Pass/Fail based on calculated judgement
+    const handleMoveByJudgement = async (product: ValidationProduct) => {
+        const judgement = product.calculated_judgement;
+        if (!judgement || judgement === 'PENDING') return;
+
+        // LOCK this product — no autoCalc can touch it anymore
+        movingIdsRef.current.add(product.id);
+        localEditCountRef.current += 1;
+
+        try {
+            // Step 1: Save to DB
+            const { error } = await supabase
+                .from('india_validation_main_file')
+                .update({ judgement: judgement })
+                .eq('id', product.id);
+
+            if (error) {
+                setToast({ message: 'Failed to move: ' + error.message, type: 'error' });
+                return;
+            }
+
+            // Step 2: Update local state — product stays in array but filtered out of main view
+            setProducts(prev => prev.map(p =>
+                p.id === product.id ? { ...p, judgement } : p
+            ));
+
+            if (judgement === 'PASS') {
+                setRollbackHistory(prev => ({ ...prev, pass_move: { product, action: 'move_to_pass' } }));
+            }
+
+            setToast({
+                message: `Moved to ${judgement === 'PASS' ? 'Pass' : 'Fail'} File`,
+                type: judgement === 'PASS' ? 'success' : 'error',
+            });
+
+            await fetchStats();
+        } catch (err: any) {
+            console.error('Move by judgement error', err);
+            setToast({ message: err?.message || 'Unexpected error', type: 'error' });
+        } finally {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            localEditCountRef.current -= 1;
+            // Keep the lock for 3 more seconds to block any late-arriving autoCalc writes
+            setTimeout(() => {
+                movingIdsRef.current.delete(product.id);
+            }, 3000);
+        }
+    };
+
+    // ========== ROLLBACK LOGIC ==========
+    const handleRollBack = async () => {
+        // SCENARIO 1: On Main File tab → pull ASIN back from Pass File
+        if (activeTab === 'main_file') {
+            const last = rollbackHistory['pass_move'];
+            if (!last) {
+                setToast({ message: 'No recent Pass move to roll back', type: 'warning' });
+                return;
+            }
+
+            const confirmed = window.confirm(
+                `Roll back "${last.product.asin}" from Pass File back to Main File (Pending)?`
+            );
+            if (!confirmed) return;
+
+            try {
+                // Reset judgement to PENDING → moves it back to Main File view
+                const { error } = await supabase
+                    .from('india_validation_main_file')
+                    .update(toSnakeCase({
+                        judgement: 'PENDING',
+                        calculatedjudgement: last.product.calculated_judgement || null,
+                        // Reset pass-file-only fields
+                        checkbrand: false,
+                        checkitemexpire: false,
+                        checksmallsize: false,
+                        checkmultiseller: false,
+                        originindia: false,
+                        originchina: false,
+                        originus: false,
+                    }))
+                    .eq('id', last.product.id);
+
+                if (error) throw error;
+
+                // Clear rollback history for this action
+                setRollbackHistory(prev => {
+                    const next = { ...prev };
+                    delete next['pass_move'];
+                    return next;
+                });
+
+                setToast({ message: `Rolled back ${last.product.asin} to Main File`, type: 'success' });
+                await fetchProducts();
+                await fetchStats();
+            } catch (err: any) {
+                console.error('Rollback from pass error:', err);
+                setToast({ message: 'Rollback failed: ' + err.message, type: 'error' });
+            }
+        }
+
+        // SCENARIO 2: On Pass File tab → pull ASIN back from Purchases
+        else if (activeTab === 'pass_file') {
+            const last = rollbackHistory['purchase_move'];
+            if (!last) {
+                setToast({ message: 'No recent Purchase move to roll back', type: 'warning' });
+                return;
+            }
+
+            const confirmed = window.confirm(
+                `Roll back "${last.product.asin}" from Purchases back to Pass File?`
+            );
+            if (!confirmed) return;
+
+            try {
+                // 1. Delete from india_purchases
+                const { error: deleteError } = await supabase
+                    .from('india_purchases')
+                    .delete()
+                    .eq('asin', last.product.asin)
+                    .eq('journey_number', last.product.journey_number || 1);
+
+                if (deleteError) throw deleteError;
+
+                // 2. Reset sent_to_purchases flag in main_file → reappears in Pass File
+                const { error: updateError } = await supabase
+                    .from('india_validation_main_file')
+                    .update(toSnakeCase({
+                        senttopurchases: false,
+                        senttopurchasesat: null,
+                    }))
+                    .eq('id', last.product.id);
+
+                if (updateError) throw updateError;
+
+                // 3. Delete the history snapshot for this move
+                await supabase
+                    .from('india_asin_history')
+                    .delete()
+                    .eq('asin', last.product.asin)
+                    .eq('stage', 'validation_to_purchase')
+                    .eq('journey_number', last.product.journey_number || 1);
+
+                // Clear rollback history
+                setRollbackHistory(prev => {
+                    const next = { ...prev };
+                    delete next['purchase_move'];
+                    return next;
+                });
+
+                setToast({ message: `Rolled back ${last.product.asin} from Purchases to Pass File`, type: 'success' });
+                await fetchProducts();
+                await fetchStats();
+            } catch (err: any) {
+                console.error('Rollback from purchases error:', err);
+                setToast({ message: 'Rollback failed: ' + err.message, type: 'error' });
+            }
+        }
+
+        else {
+            setToast({ message: 'Rollback not available on this tab', type: 'warning' });
+        }
+    };
+    // ========== END ROLLBACK ==========
+
+    // ========== RENDER CELL BY COLUMN KEY ==========
+    const renderCell = (col_key: string, product: ValidationProduct) => {
+        switch (col_key) {
+
+            case 'asin':
+                if (!visibleColumns.asin) return null;
+                return (
+                    <td key={col_key} className="p-3 font-mono text-sm text-slate-300">
+                        {product.asin}
+                    </td>
+                );
+
+            case 'history':
+                return (
+                    <td key={col_key} className="px-6 py-4 text-center border-r border-slate-800/50">
+                        <button
+                            onClick={() => fetchHistory(product.asin)}
+                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                            title="View Journey History"
+                        >
+                            <History className="w-4 h-4" />
+                        </button>
+                    </td>
+                );
+
+            case 'product_name':
+                if (!visibleColumns.product_name) return null;
+                return (
+                    <td key={col_key} style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
+                        <div className="truncate max-w-full text-slate-300 text-xs" title={product.product_name || ''}>
+                            {product.product_name || '-'}
+                        </div>
+                    </td>
+                );
+
+            case 'brand':
+                if (!visibleColumns.brand) return null;
+                return <td key={col_key} className="p-3 text-slate-300">{product.brand || '-'}</td>;
+
+            case 'seller_tag':
+                if (!visibleColumns.seller_tag) return null;
+                return <td key={col_key} className="p-3">{renderSellerTags(product.seller_tag)}</td>;
+
+            case 'funnel':
+                if (!visibleColumns.funnel) return null;
+                return (
+                    <td key={col_key} className="p-3">
+                        {(activeTab === 'main_file' || activeTab === 'pending' || activeTab === 'pass_file') ? (
+                            <div className="relative">
+                                <button
+                                    onClick={(e) => {
+                                        if (openFunnelId === product.id) {
+                                            setOpenFunnelId(null);
+                                            setDropdownPos(null);
+                                        } else {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            const spaceBelow = window.innerHeight - rect.bottom;
+                                            const dropdownHeight = 140;
+                                            const top = spaceBelow < dropdownHeight
+                                                ? rect.top - dropdownHeight - 4
+                                                : rect.bottom + 4;
+                                            setDropdownPos({ top, left: rect.left });
+                                            setOpenFunnelId(product.id);
+                                            setOpenChecklistId(null);
+                                            setOpenOriginId(null);
+                                        }
+                                    }}
+                                    className={`group/funnel relative cursor-pointer transition-all hover:scale-110 ${openFunnelId === product.id ? 'ring-2 ring-indigo-500 rounded-lg' : ''}`}
+                                    title="Click to change funnel"
+                                >
+                                    {renderFunnelBadge(product.funnel)}
+                                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full flex items-center justify-center opacity-0 group-hover/funnel:opacity-100 transition-opacity shadow-lg">
+                                        <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </span>
+                                </button>
+
+                                {openFunnelId === product.id && dropdownPos && (
+                                    <div
+                                        style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+                                        className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150"
+                                    >
+                                        {['RS', 'DP'].map((f) => (
+                                            <button
+                                                key={f}
+                                                onClick={() => handleFunnelChange(product.id, f)}
+                                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${product.funnel === f
+                                                    ? 'bg-indigo-500/20 text-indigo-300'
+                                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                                    }`}
+                                            >
+                                                {renderFunnelBadge(f)}
+                                                <span>{f === 'RS' ? 'Restock' : 'Dropshipping'}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            renderFunnelBadge(product.funnel)
+                        )}
+                    </td>
+                );
+
+            case 'no_of_seller':
+                if (!visibleColumns.no_of_seller) return null;
+                return <td key={col_key} className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>;
+
+            case 'india_link':
+                if (!visibleColumns.india_link) return null;
+                return (
+                    <td key={col_key} className="px-4 py-3 text-sm">
+                        <div className="w-40">
+                            {editingLinkId === product.id ? (
+                                <div className="flex items-center gap-1">
+                                    <input
+                                        type="text"
+                                        value={editingLinkValue}
+                                        onChange={(e) => setEditingLinkValue(e.target.value)}
+                                        className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                        placeholder="URL..."
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleCellEdit(product.id, 'india_link', editingLinkValue);
+                                                setEditingLinkId(null);
+                                            } else if (e.key === 'Escape') {
+                                                setEditingLinkId(null);
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => { handleCellEdit(product.id, 'india_link', editingLinkValue); setEditingLinkId(null); }}
+                                        className="text-emerald-500 hover:text-emerald-400 flex-shrink-0" title="Save (Enter)"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                    <button onClick={() => setEditingLinkId(null)} className="text-rose-500 hover:text-rose-400 flex-shrink-0" title="Cancel (Esc)">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    {product.india_link ? (
+                                        <>
+                                            <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
+                                                target="_blank" rel="noopener noreferrer"
+                                                className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs">
+                                                View Link
+                                            </a>
+                                            <button
+                                                onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(product.india_link || ''); }}
+                                                className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(''); }}
+                                            className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Add Link
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </td>
+                );
+
+            case 'usa_link':
+                return (
+                    <td key={col_key} className="px-4 py-3 text-sm">
+                        {(product.usa_link || product.asin) ? (
+                            <a
+                                href={product.usa_link || `https://www.amazon.com/dp/${product.asin}?th=1&psc=1`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs"
+                            >
+                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                                .com
+                            </a>
+                        ) : (
+                            <span className="text-slate-600">-</span>
+                        )}
+                    </td>
+                );
+
+            case 'origin':
+                if (activeTab !== 'pass_file') return null;
+                // PASTE YOUR EXACT EXISTING origin <td> block here
+                // It starts with: {activeTab === 'pass_file' && (() => { const origins = [...]
+                // Copy everything between the outer <td> and </td> for origin
+                return (() => {
+                    const origins = [
+                        { key: 'origin_india' as const, label: 'India', checked: !!product.origin_india },
+                        { key: 'origin_china' as const, label: 'China', checked: !!product.origin_china },
+                        { key: 'origin_us' as const, label: 'US', checked: !!product.origin_us },
+                    ];
+                    const selected = origins.filter(o => o.checked);
+                    const isOpen = openOriginId === product.id;
+
+                    return (
+                        <td key={col_key} className="p-3">
+                            {/* YOUR EXISTING ORIGIN DROPDOWN JSX — copy the entire <div className="relative"> ... </div> from your current code */}
+                            <div className="relative">
+                                <button
+                                    onClick={(e) => {
+                                        if (isOpen) { setOpenOriginId(null); setOpenFunnelId(null); setDropdownPos(null); }
+                                        else {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            const spaceBelow = window.innerHeight - rect.bottom;
+                                            const dropdownHeight = 120;
+                                            const top = spaceBelow < dropdownHeight ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
+                                            setDropdownPos({ top, left: rect.left });
+                                            setOpenOriginId(product.id);
+                                            setOpenChecklistId(null);
+                                        }
+                                    }}
+                                    className={`w-full min-w-[100px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'}`}
+                                >
+                                    {selected.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {selected.map(o => (
+                                                <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] font-medium">{o.label}</span>
+                                            ))}
+                                        </div>
+                                    ) : (<span className="text-slate-500">Select...</span>)}
+                                    <svg className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                {isOpen && dropdownPos && (
+                                    <>
+                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenOriginId(null); setDropdownPos(null); }} />
+                                        <div className="fixed w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+                                            {origins.map(o => (
+                                                <label key={o.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors">
+                                                    <input type="checkbox" checked={o.checked} onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50" />
+                                                    <span className={o.checked ? 'text-emerald-400 font-medium' : ''}>{o.label}</span>
+                                                    {o.checked && (<svg className="w-3 h-3 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </td>
+                    );
+                })();
+
+            case 'product_weight':
+                if (!visibleColumns.product_weight) return null;
+                return (
+                    <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
+                        {activeTab === 'main_file' || activeTab === 'fail_file' ? (
+                            <input type="number" key={product.id} defaultValue={product.product_weight ?? ''}
+                                onChange={(e) => handleInstantCalc(product.id, 'product_weight', e.target.value)}
+                                onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
+                                className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+                            />
+                        ) : (product.product_weight ?? '-')}
+                    </td>
+                );
+
+            case 'usd_price':
+                if (!visibleColumns.usd_price) return null;
+                return (
+                    <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
+                        {activeTab === 'main_file' || activeTab === 'fail_file' ? (
+                            <input type="text" key={product.id} defaultValue={product.usd_price ?? ''}
+                                onChange={(e) => handleInstantCalc(product.id, 'usd_price', e.target.value)}
+                                onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
+                                className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+                            />
+                        ) : (formatUSD(product.usd_price))}
+                    </td>
+                );
+
+            case 'inr_purchase':
+                if (!visibleColumns.inr_purchase) return null;
+                return (
+                    <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
+                        {activeTab === 'main_file' || activeTab === 'fail_file' ? (
+                            <input type="text" key={product.id} defaultValue={product.inr_purchase ?? ''}
+                                onChange={(e) => handleInstantCalc(product.id, 'inr_purchase', e.target.value)}
+                                onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
+                                className="w-full max-w-[90px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+                            />
+                        ) : (formatINR(product.inr_purchase))}
+                    </td>
+                );
+
+            case 'inr_purchase_link':
+                if (activeTab !== 'main_file') return null;
+                if (!visibleColumns.inr_purchase_link) return null;
+                return (
+                    <td key={col_key} className="px-4 py-3 text-sm overflow-hidden">
+                        <input
+                            type="url"
+                            defaultValue={product.inr_purchase_link || ''}
+                            key={product.id}
+                            onBlur={(e) => { const val = e.target.value.trim(); if (val) { handleCellEdit(product.id, 'inr_purchase_link', val); } }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+                            placeholder="Paste source link"
+                            className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate text-xs"
+                        />
+                    </td>
+                );
+
+            case 'checklist':
+                if (activeTab !== 'pass_file') return null;
+                // PASTE YOUR EXACT EXISTING checklist IIFE block here
+                return (() => {
+                    const checks = [
+                        { key: 'check_brand' as const, label: 'Brand', checked: !!product.check_brand },
+                        { key: 'check_item_expire' as const, label: 'Expire', checked: !!product.check_item_expire },
+                        { key: 'check_small_size' as const, label: 'Size', checked: !!product.check_small_size },
+                        { key: 'check_multi_seller' as const, label: 'Multi', checked: !!product.check_multi_seller },
+                    ];
+                    const checkedItems = checks.filter(c => c.checked);
+                    const checkedCount = checkedItems.length;
+                    const isOpen = openChecklistId === product.id;
+                    const hasOrigin = product.origin_india || product.origin_china || product.origin_us;
+
+                    // Copy the ENTIRE return from your existing checklist block
+                    // starting with <td className="p-3"> ... </td>
+                    // This is the biggest block — just copy-paste it from your existing code
+                    return (
+                        <td key={col_key} className="p-3">
+                            {/* PASTE your existing checklist <div> here — the button + dropdown + OK button */}
+                            <div className="flex flex-col items-center gap-1.5">
+                                <button
+                                    onClick={(e) => {
+                                        if (isOpen) { setOpenChecklistId(null); setDropdownPos(null); }
+                                        else {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            const spaceBelow = window.innerHeight - rect.bottom;
+                                            const dropdownHeight = 170;
+                                            const top = spaceBelow < dropdownHeight ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
+                                            setDropdownPos({ top, left: rect.left });
+                                            setOpenChecklistId(product.id);
+                                            setOpenOriginId(null);
+                                        }
+                                    }}
+                                    className={`w-full min-w-[130px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'}`}
+                                >
+                                    {checkedCount > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {checkedItems.map(c => (
+                                                <span key={c.key} className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-medium">{c.label}</span>
+                                            ))}
+                                        </div>
+                                    ) : (<span className="text-slate-600">-</span>)}
+                                </button>
+                                {isOpen && dropdownPos && (
+                                    <>
+                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenChecklistId(null); setDropdownPos(null); }} />
+                                        <div className="fixed w-44 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+                                            {checks.map(c => (
+                                                <label key={c.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors">
+                                                    <input type="checkbox" checked={c.checked} onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50" />
+                                                    <span className={c.checked ? 'text-indigo-400 font-medium' : ''}>{c.label}</span>
+                                                    {c.checked && (<svg className="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                                {checkedCount > 0 && hasOrigin && (
+                                    <button onClick={() => handleChecklistOk(product.id)} className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all w-fit text-xs">
+                                        OK
+                                    </button>
+                                )}
+                            </div>
+                        </td>
+                    );
+                })();
+
+            case 'reject_reason':
+                if (activeTab !== 'reject_file') return null;
+                return (
+                    <td key={col_key} className="p-3 text-center">
+                        {product.reject_reason ? (
+                            <button onClick={() => setSelectedRejectReason(product.reject_reason || null)} className="bg-violet-600 hover:bg-violet-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
+                        ) : (<span className="text-slate-600">-</span>)}
+                    </td>
+                );
+
+            case 'judgement':
+                if (!visibleColumns.judgement) return null;
+                return (
+                    <td key={col_key} className="p-3 text-sm text-center">
+                        <div className="flex flex-col items-center gap-1.5">
+                            {product.calculated_judgement && product.calculated_judgement !== 'PENDING' ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${product.calculated_judgement === 'PASS'
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                    }`}>
+                                    {product.calculated_judgement}
+                                </span>
+                            ) : (<span className="text-slate-500 text-xs"></span>)}
+
+                            {(activeTab === 'main_file' || activeTab === 'fail_file') && isReadyToMove(product) && (
+                                <button
+                                    onClick={() => handleMoveByJudgement(product)}
+                                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${product.calculated_judgement === 'PASS'
+                                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/50'
+                                        : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/50'
+                                        }`}
+                                >
+                                    Move {product.calculated_judgement === 'PASS' ? 'Pass' : 'Fail'}
+                                </button>
+                            )}
+                        </div>
+                    </td>
+                );
+
+            case 'remark':
+                if (!visibleColumns.remark) return null;
+                return (
+                    <td key={col_key} className="p-3 text-center">
+                        {product.remark ? (
+                            <button onClick={() => setSelectedRemark(product.remark)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+                                View
+                            </button>
+                        ) : (<span className="text-slate-600">-</span>)}
+                    </td>
+                );
+
+            default:
+                return null;
+        }
+    };
+    // ========== END RENDER CELL ==========
+
     return (
         <PageTransition>
             <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
@@ -1566,6 +2416,7 @@ export default function ValidationPage() {
                             <h1 className="text-3xl font-bold text-white">INDIA Selling - Validation</h1>
                             <p className="text-slate-400 mt-1">Manage validation files and product status</p>
                         </div>
+
                         {/* Stats Cards - Compact */}
                         <div className="flex flex-wrap gap-2 mb-4">
                             <div className="flex items-center gap-2.5 bg-slate-800/80 rounded-lg px-3.5 py-2 border border-slate-700/50">
@@ -1760,6 +2611,28 @@ export default function ValidationPage() {
                                             </button>
                                         )} */}
 
+                                    {/* Funnel Quick Filters */}
+                                    <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
+                                        <button
+                                            onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
+                                                ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                                }`}
+                                        >
+                                            RS
+                                        </button>
+                                        <button
+                                            onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
+                                                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                                }`}
+                                        >
+                                            DP
+                                        </button>
+                                    </div>
+
                                     {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
                                         <button
                                             onClick={handleMoveToRejectClick}
@@ -1773,6 +2646,30 @@ export default function ValidationPage() {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                                             </svg>
                                             Move to Reject
+                                        </button>
+                                    )}
+
+                                    {(activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                        <button
+                                            onClick={handleRollBack}
+                                            disabled={
+                                                (activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                                (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
+                                            }
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                                (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
+                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                                : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
+                                                }`}
+                                            title={activeTab === 'main_file'
+                                                ? 'Roll back last ASIN from Pass File'
+                                                : 'Roll back last ASIN from Purchases'
+                                            }
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                            </svg>
+                                            Roll Back
                                         </button>
                                     )}
 
@@ -1911,10 +2808,9 @@ export default function ValidationPage() {
 
                                     <table className="w-full table-fixed max-w-full">
                                         <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
-
                                             <tr>
-                                                {/* ✅ Fixed width for checkbox to prevent overlap */}
-                                                <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
+                                                {/* Checkbox — always first, not draggable */}
+                                                <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: 50, minWidth: 50 }}>
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
@@ -1923,31 +2819,62 @@ export default function ValidationPage() {
                                                     />
                                                 </th>
 
-                                                {/* ✅ Resizable Columns */}
-                                                {visibleColumns.asin && <ResizableTH width={columnWidths.asin} columnKey="asin" label="ASIN" onResizeStart={startResize} />}
-                                                {/* ✅ HISTORY COLUMN */}
-                                                {/* HISTORY COLUMN */}
-                                                <ResizableTH
-                                                    width={columnWidths.history}
-                                                    columnKey="history"
-                                                    label="HISTORY"
-                                                    onResizeStart={startResize}
-                                                />
-                                                {visibleColumns.product_name && <ResizableTH width={columnWidths.product_name} columnKey="product_name" label="Product Name" onResizeStart={startResize} />}
-                                                {visibleColumns.brand && <ResizableTH width={columnWidths.brand} columnKey="brand" label="Brand" onResizeStart={startResize} />}
-                                                {visibleColumns.seller_tag && <ResizableTH width={columnWidths.seller_tag} columnKey="seller_tag" label="Seller Tag" onResizeStart={startResize} />}
-                                                {visibleColumns.funnel && <ResizableTH width={columnWidths.funnel} columnKey="funnel" label="Funnel" onResizeStart={startResize} />}
-                                                {visibleColumns.no_of_seller && <ResizableTH width={columnWidths.no_of_seller} columnKey="no_of_seller" label="Sellers" onResizeStart={startResize} />}
-                                                {visibleColumns.india_link && <ResizableTH width={columnWidths.india_link} columnKey="india_link" label="INDIA Link" onResizeStart={startResize} />}
-                                                {activeTab === 'pass_file' && <ResizableTH width={110} columnKey="origin" label="Origin" onResizeStart={startResize} />}
-                                                {visibleColumns.product_weight && <ResizableTH width={columnWidths.product_weight} columnKey="product_weight" label="Weight (g)" onResizeStart={startResize} />}
-                                                {visibleColumns.usd_price && <ResizableTH width={columnWidths.usd_price} columnKey="usd_price" label="USD $" onResizeStart={startResize} />}
-                                                {visibleColumns.inr_purchase && <ResizableTH width={columnWidths.inr_purchase} columnKey="inr_purchase" label="INR ₹" onResizeStart={startResize} />}
-                                                {visibleColumns.inr_purchase_link && activeTab === 'main_file' && <ResizableTH width={columnWidths.inr_purchase_link} columnKey="inr_purchase_link" label="Source Link" onResizeStart={startResize} />}
-                                                {activeTab === 'pass_file' && <ResizableTH width={160} columnKey="checklist" label="Checklist" onResizeStart={startResize} />}
-                                                {activeTab === 'reject_file' && (<ResizableTH width={200} columnKey="rejectreason" label="Reject Reason" onResizeStart={startResize} />)}
-                                                {visibleColumns.judgement && <ResizableTH width={columnWidths.judgement} columnKey="judgement" label="Status" onResizeStart={startResize} />}
-                                                {visibleColumns.remark && <ResizableTH width={columnWidths.remark} columnKey="remark" label="Remark" align="center" onResizeStart={startResize} />}
+                                                {columnOrder.map((col_key) => {
+                                                    // Tab-specific visibility
+                                                    if (col_key === 'origin' && activeTab !== 'pass_file') return null;
+                                                    if (col_key === 'checklist' && activeTab !== 'pass_file') return null;
+                                                    if (col_key === 'reject_reason' && activeTab !== 'reject_file') return null;
+                                                    if (col_key === 'inr_purchase_link' && activeTab !== 'main_file') return null;
+
+                                                    // visibleColumns check for standard columns
+                                                    const visKey = col_key as keyof typeof visibleColumns;
+                                                    if (visibleColumns[visKey] !== undefined && !visibleColumns[visKey]) return null;
+
+                                                    // Skip columns not in visibleColumns AND not special tab columns
+                                                    const specialCols = ['history', 'origin', 'checklist', 'reject_reason', 'usa_link'];
+                                                    if (!specialCols.includes(col_key) && visibleColumns[visKey] === undefined) return null;
+
+                                                    const labels: Record<string, string> = {
+                                                        asin: 'ASIN',
+                                                        history: 'HISTORY',
+                                                        product_name: 'Product Name',
+                                                        brand: 'Brand',
+                                                        seller_tag: 'Seller Tag',
+                                                        funnel: 'Funnel',
+                                                        no_of_seller: 'Sellers',
+                                                        india_link: 'INDIA Link',
+                                                        usa_link: 'USA Link',
+                                                        origin: 'Origin',
+                                                        product_weight: 'Weight (g)',
+                                                        usd_price: 'USD $',
+                                                        inr_purchase: 'INR ₹',
+                                                        inr_purchase_link: 'Source Link',
+                                                        checklist: 'Checklist',
+                                                        reject_reason: 'Reject Reason',
+                                                        judgement: 'Status',
+                                                        remark: 'Remark',
+                                                    };
+
+                                                    const widths: Record<string, number> = {
+                                                        origin: 110,
+                                                        checklist: 160,
+                                                        reject_reason: 200,
+                                                    };
+
+                                                    return (
+                                                        <ResizableTH
+                                                            key={col_key}
+                                                            width={widths[col_key] ?? columnWidths[col_key] ?? DEFAULT_COLUMN_WIDTHS[col_key] ?? 120}
+                                                            columnKey={col_key}
+                                                            label={labels[col_key] || col_key}
+                                                            align={col_key === 'remark' ? 'center' : 'left'}
+                                                            onResizeStart={startResize}
+                                                            onDragStart={() => handleColumnDragStart(col_key)}
+                                                            onDragOver={(e) => handleColumnDragOver(e, col_key)}
+                                                            onDrop={handleColumnDrop}
+                                                        />
+                                                    );
+                                                })}
                                             </tr>
                                         </thead>
 
@@ -1963,469 +2890,7 @@ export default function ValidationPage() {
                                                         />
                                                     </td>
 
-                                                    {/* Column 1: ASIN only (no icon) */}
-                                                    {visibleColumns.asin && (
-                                                        <td className="p-3 font-mono text-sm text-slate-300">
-                                                            {product.asin}
-                                                        </td>
-                                                    )}
-
-                                                    {/* Column 2: History icon only (no ASIN) */}
-                                                    <td className="px-6 py-4 text-center border-r border-slate-800/50">
-                                                        <button
-                                                            onClick={() => fetchHistory(product.asin)}
-                                                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
-                                                            title="View Journey History"
-                                                        >
-                                                            <History className="w-4 h-4" />
-                                                        </button>
-                                                    </td>
-
-                                                    {visibleColumns.product_name && (
-                                                        <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
-                                                            {/* ✅ Truncate long names */}
-                                                            <div className="truncate max-w-full text-slate-300 text-xs" title={product.product_name || ''}>
-                                                                {product.product_name || '-'}
-                                                            </div>
-                                                        </td>
-                                                    )}
-
-                                                    {visibleColumns.brand && <td className="p-3 text-slate-300">{product.brand || '-'}</td>}
-                                                    {visibleColumns.seller_tag && <td className="p-3">{renderSellerTags(product.seller_tag)}</td>}
-                                                    {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
-                                                    {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
-
-                                                    {/* REPLACE the existing india_link <td> block with this: */}
-                                                    {visibleColumns.india_link && (
-                                                        <td className="px-4 py-3 text-sm">
-                                                            <div className="w-40"> {/* Adjusted width to fit buttons better */}
-                                                                {editingLinkId === product.id ? (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <input
-                                                                            type="text"
-                                                                            value={editingLinkValue}
-                                                                            onChange={(e) => setEditingLinkValue(e.target.value)}
-                                                                            className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
-                                                                            placeholder="URL..."
-                                                                            autoFocus
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    handleCellEdit(product.id, 'india_link', editingLinkValue);
-                                                                                    setEditingLinkId(null);
-                                                                                } else if (e.key === 'Escape') {
-                                                                                    setEditingLinkId(null);
-                                                                                }
-                                                                            }}
-                                                                        />
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                handleCellEdit(product.id, 'india_link', editingLinkValue);
-                                                                                setEditingLinkId(null);
-                                                                            }}
-                                                                            className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
-                                                                            title="Save (Enter)"
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                            </svg>
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => setEditingLinkId(null)}
-                                                                            className="text-rose-500 hover:text-rose-400 flex-shrink-0"
-                                                                            title="Cancel (Esc)"
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                                            </svg>
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-2">
-                                                                        {product.india_link ? (
-                                                                            <>
-                                                                                <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
-                                                                                    target="_blank" rel="noopener noreferrer"
-                                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs">
-                                                                                    View Link
-                                                                                </a>
-                                                                                <button
-                                                                                    onClick={() => {
-                                                                                        setEditingLinkId(product.id);
-                                                                                        setEditingLinkValue(product.india_link || '');
-                                                                                    }}
-                                                                                    className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
-                                                                                    title="Edit link"
-                                                                                >
-                                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                                                    </svg>
-                                                                                </button>
-                                                                            </>
-                                                                        ) : (
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    setEditingLinkId(product.id);
-                                                                                    setEditingLinkValue('');
-                                                                                }}
-                                                                                className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
-                                                                            >
-                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                                                </svg>
-                                                                                Add Link
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    )}
-
-                                                    {activeTab === 'pass_file' && (() => {
-                                                        const origins = [
-                                                            { key: 'origin_india' as const, label: 'India', checked: !!product.origin_india },
-                                                            { key: 'origin_china' as const, label: 'China', checked: !!product.origin_china },
-                                                            { key: 'origin_us' as const, label: 'US', checked: !!product.origin_us },
-                                                        ];
-                                                        const selected = origins.filter(o => o.checked);
-                                                        const isOpen = openOriginId === product.id;
-
-                                                        return (
-                                                            <td className="p-3">
-                                                                <div className="relative">
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            if (isOpen) {
-                                                                                setOpenOriginId(null);
-                                                                                setDropdownPos(null);
-                                                                            } else {
-                                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                                const spaceBelow = window.innerHeight - rect.bottom;
-                                                                                const dropdownHeight = 120; // 3 items ~40px each
-                                                                                const top = spaceBelow < dropdownHeight ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
-                                                                                setDropdownPos({ top, left: rect.left });
-                                                                                setOpenOriginId(product.id);
-                                                                                setOpenChecklistId(null);
-                                                                            }
-                                                                        }}
-                                                                        className={`w-full min-w-[100px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'
-                                                                            }`}
-                                                                    >
-                                                                        {selected.length > 0 ? (
-                                                                            <div className="flex flex-wrap gap-1">
-                                                                                {selected.map(o => (
-                                                                                    <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] font-medium">
-                                                                                        {o.label}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        ) : (
-                                                                            <span className="text-slate-500">Select...</span>
-                                                                        )}
-                                                                        <svg className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                                        </svg>
-                                                                    </button>
-
-                                                                    {isOpen && dropdownPos && (
-                                                                        <>
-                                                                            <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenOriginId(null); setDropdownPos(null); }} />
-                                                                            <div
-                                                                                className="fixed w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1"
-                                                                                style={{ top: dropdownPos.top, left: dropdownPos.left }}
-                                                                            >
-                                                                                {origins.map(o => (
-                                                                                    <label
-                                                                                        key={o.key}
-                                                                                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors"
-                                                                                    >
-                                                                                        <input
-                                                                                            type="checkbox"
-                                                                                            checked={o.checked}
-                                                                                            onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)}
-                                                                                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
-                                                                                        />
-                                                                                        <span className={o.checked ? 'text-emerald-400 font-medium' : ''}>{o.label}</span>
-                                                                                        {o.checked && (
-                                                                                            <svg className="w-3 h-3 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                                            </svg>
-                                                                                        )}
-                                                                                    </label>
-                                                                                ))}
-                                                                            </div>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })()}
-
-                                                    {visibleColumns.product_weight && (
-                                                        <td className="p-3 text-slate-300 overflow-hidden">
-                                                            {activeTab === 'main_file' ? (
-                                                                <input type="number" key={product.id} defaultValue={product.product_weight ?? ''}
-                                                                    onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
-                                                                    className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
-
-                                                                />
-                                                            ) : (
-                                                                product.product_weight ?? '-'
-                                                            )}
-                                                        </td>
-                                                    )}
-
-                                                    {visibleColumns.usd_price && (
-                                                        <td className="p-3 text-slate-300 overflow-hidden">
-                                                            {activeTab === 'main_file' ? (
-                                                                <input type="text" key={product.id} defaultValue={product.usd_price ?? ''}
-                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
-                                                                    className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
-
-                                                                />
-                                                            ) : (
-                                                                formatUSD(product.usd_price)
-                                                            )}
-
-                                                        </td>
-                                                    )}
-
-                                                    {visibleColumns.inr_purchase && (
-                                                        <td className="p-3 text-slate-300 overflow-hidden">
-                                                            {activeTab === 'main_file' ? (
-                                                                <input type="text" key={product.id} defaultValue={product.inr_purchase ?? ''}
-                                                                    onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
-                                                                    className="w-full max-w-[90px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
-                                                                />
-                                                            ) : (
-                                                                formatINR(product.inr_purchase)
-                                                            )}
-
-                                                        </td>
-                                                    )}
-
-                                                    {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                        <td className="px-4 py-3 text-sm overflow-hidden">
-                                                            <input
-                                                                type="url"
-                                                                defaultValue={product.inr_purchase_link || ''}
-                                                                key={`${product.id}-${product.inr_purchase_link}`}
-                                                                onBlur={(e) => {
-                                                                    const val = e.target.value.trim();
-                                                                    if (val !== (product.inr_purchase_link || '')) {
-                                                                        handleCellEdit(product.id, 'inr_purchase_link', val);
-                                                                    }
-                                                                }}
-                                                                onKeyDown={async (e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        const link = (e.target as HTMLInputElement).value.trim();
-                                                                        if (!link) {
-                                                                            setToast({ message: 'Please enter a source link first', type: 'warning' });
-                                                                            return;
-                                                                        }
-
-                                                                        const currentProduct = products.find(p => p.id === product.id);
-                                                                        if (!currentProduct) return;
-
-                                                                        if (!currentProduct.usd_price || !currentProduct.product_weight || !currentProduct.inr_purchase) {
-                                                                            setToast({ message: 'Fill Weight, USD & INR first', type: 'warning' });
-                                                                            return;
-                                                                        }
-
-                                                                        const result = calculateProductValues(
-                                                                            { usd_price: currentProduct.usd_price, product_weight: currentProduct.product_weight, inr_purchase: currentProduct.inr_purchase },
-                                                                            constants, 'INDIA'
-                                                                        );
-
-                                                                        const finalJudgement = result.judgement || 'PENDING';
-
-                                                                        const { error } = await supabase
-                                                                            .from('india_validation_main_file')
-                                                                            .update({
-                                                                                inrpurchaselink: link,
-                                                                                judgement: finalJudgement,
-                                                                                calculated_judgement: finalJudgement,
-                                                                                totalcost: isFinite(result.total_cost) ? result.total_cost : null,
-                                                                                totalrevenue: isFinite(result.total_revenue) ? result.total_revenue : null,
-                                                                                profit: isFinite(result.profit) ? result.profit : null,
-                                                                            })
-                                                                            .eq('id', product.id);
-
-                                                                        if (error) {
-                                                                            setToast({ message: 'Failed to finalize', type: 'error' });
-                                                                            return;
-                                                                        }
-
-                                                                        setProducts(prev => prev.map(p =>
-                                                                            p.id === product.id ? {
-                                                                                ...p,
-                                                                                inrpurchaselink: link,
-                                                                                judgement: finalJudgement,
-                                                                                calculated_judgement: finalJudgement,
-                                                                                totalcost: result.total_cost,
-                                                                                totalrevenue: result.total_revenue,
-                                                                                profit: result.profit,
-                                                                            } : p
-                                                                        ));
-
-                                                                        await fetchStats();
-
-                                                                        if (finalJudgement === 'PASS') {
-                                                                            setToast({ message: `${currentProduct.asin} → Pass File!`, type: 'success' });
-                                                                        } else if (finalJudgement === 'FAIL') {
-                                                                            setToast({ message: `${currentProduct.asin} → Fail File!`, type: 'error' });
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                placeholder="Enter link → press Enter"
-                                                                className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate text-xs"
-                                                            />
-                                                        </td>
-                                                    )}
-
-                                                    {activeTab === 'reject_file' && (
-                                                        <td className="p-3 text-center">
-                                                            {product.reject_reason ? (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedRejectReason(product.reject_reason || null)
-                                                                    }}
-                                                                    className="bg-violet-600 hover:bg-violet-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                                                >View</button>
-                                                            ) : (
-                                                                <span className="text-slate-600">-</span>
-                                                            )}
-                                                        </td>
-                                                    )}
-
-                                                    {activeTab === 'pass_file' && (() => {
-                                                        const checks = [
-                                                            { key: 'check_brand' as const, label: 'Brand', checked: !!product.check_brand },
-                                                            { key: 'check_item_expire' as const, label: 'Expire', checked: !!product.check_item_expire },
-                                                            { key: 'check_small_size' as const, label: 'Size', checked: !!product.check_small_size },
-                                                            { key: 'check_multi_seller' as const, label: 'Multi', checked: !!product.check_multi_seller },
-                                                        ];
-                                                        const checkedItems = checks.filter(c => c.checked);
-                                                        const checkedCount = checkedItems.length;
-                                                        const isOpen = openChecklistId === product.id;
-                                                        const hasOrigin = product.origin_india || product.origin_china || product.origin_us;
-
-                                                        return (
-                                                            <td className="p-3">
-                                                                <div className="flex flex-col gap-2">
-                                                                    <div className="relative">
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                if (isOpen) {
-                                                                                    setOpenChecklistId(null);
-                                                                                    setDropdownPos(null);
-                                                                                } else {
-                                                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                                                    const spaceBelow = window.innerHeight - rect.bottom;
-                                                                                    const dropdownHeight = 170; // 4 items ~40px each + padding
-                                                                                    const top = spaceBelow < dropdownHeight ? rect.top - dropdownHeight - 4 : rect.bottom + 4;
-                                                                                    setDropdownPos({ top, left: rect.left });
-                                                                                    setOpenChecklistId(product.id);
-                                                                                    setOpenOriginId(null);
-                                                                                }
-                                                                            }}
-                                                                            className={`w-full min-w-[130px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'
-                                                                                }`}
-                                                                        >
-                                                                            {checkedCount > 0 ? (
-                                                                                <div className="flex flex-wrap gap-1">
-                                                                                    {checkedItems.map(c => (
-                                                                                        <span key={c.key} className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-medium">
-                                                                                            {c.label}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <span className="text-slate-500">Select...</span>
-                                                                            )}
-                                                                            <svg className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                                            </svg>
-                                                                        </button>
-
-                                                                        {isOpen && dropdownPos && (
-                                                                            <>
-                                                                                <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenChecklistId(null); setDropdownPos(null); }} />
-                                                                                <div
-                                                                                    className="fixed w-44 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1"
-                                                                                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
-                                                                                >
-                                                                                    {checks.map(c => (
-                                                                                        <label
-                                                                                            key={c.key}
-                                                                                            className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors"
-                                                                                        >
-                                                                                            <input
-                                                                                                type="checkbox"
-                                                                                                checked={c.checked}
-                                                                                                onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)}
-                                                                                                className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
-                                                                                            />
-                                                                                            <span className={c.checked ? 'text-indigo-400 font-medium' : ''}>{c.label}</span>
-                                                                                            {c.checked && (
-                                                                                                <svg className="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                                                </svg>
-                                                                                            )}
-                                                                                        </label>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {checkedCount > 0 && hasOrigin && (
-                                                                        <button
-                                                                            onClick={() => handleChecklistOk(product.id)}
-                                                                            className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all w-fit text-xs"
-                                                                        >OK</button>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })()}
-
-                                                    {visibleColumns.judgement && (
-                                                        <td className="p-3">
-                                                            {(() => {
-                                                                // Use calculated judgement for visual feedback, fallback to DB judgement
-                                                                const displayJudgement = product.calculated_judgement || product.judgement;
-
-                                                                return displayJudgement ? (
-                                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${displayJudgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                                                        displayJudgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                                                            displayJudgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                                                                                'bg-slate-700 text-slate-300'
-                                                                        }`}>
-                                                                        {displayJudgement}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
-                                                                );
-                                                            })()}
-                                                        </td>
-                                                    )}
-                                                    {/* ✅ REMARK COLUMN */}
-                                                    {visibleColumns.remark && (
-                                                        <td className="p-3 text-center">
-                                                            {product.remark ? (
-                                                                <button
-                                                                    onClick={() => setSelectedRemark(product.remark)}
-                                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                                                >
-                                                                    View
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-slate-600">-</span>
-                                                            )}
-                                                        </td>
-                                                    )}
+                                                    {columnOrder.map((col_key) => renderCell(col_key, product))}
                                                 </tr>
                                             ))}
                                         </tbody>

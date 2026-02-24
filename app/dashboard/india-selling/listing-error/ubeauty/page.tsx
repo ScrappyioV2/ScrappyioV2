@@ -26,6 +26,17 @@ const SELLER_ID = 3;
 const SELLER_NAME = "UBeauty";
 const BASE_TABLE_PREFIX = `india_listing_error_seller_${SELLER_ID}`;
 const ITEMS_PER_PAGE = 100; // Matches your screenshot
+const getTablesForTab = (tab: TabType): string[] => {
+  switch (tab) {
+    case 'high_demand': return [`${BASE_TABLE_PREFIX}_high_demand`, `${BASE_TABLE_PREFIX}_low_demand`];
+    case 'dropshipping': return [`${BASE_TABLE_PREFIX}_dropshipping`];
+    case 'done': return [`${BASE_TABLE_PREFIX}_done`];
+    case 'pending': return [`${BASE_TABLE_PREFIX}_pending`];
+    case 'error': return [`${BASE_TABLE_PREFIX}_error`];
+    case 'removed': return [`${BASE_TABLE_PREFIX}_removed`];
+    default: return [`${BASE_TABLE_PREFIX}_${tab}`];
+  }
+};
 
 interface ListingProduct {
   id: string;
@@ -33,7 +44,7 @@ interface ListingProduct {
   product_name: string | null;
   sku: string | null;
   selling_price: number | null;
-  seller_link: string | null; 
+  seller_link: string | null;
   min_price?: number | null;
   max_price?: number | null;
   listing_notes?: string | null;
@@ -45,8 +56,7 @@ interface ListingProduct {
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
 
 const TABS = [
-  { id: 'high_demand', label: 'High Demand', color: 'text-emerald-400', glow: 'shadow-[0_0_20px_-5px_rgba(52,211,153,0.5)]' },
-  { id: 'low_demand', label: 'Low Demand', color: 'text-blue-400', glow: 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.5)]' },
+  { id: 'high_demand', label: 'Restock', color: 'text-emerald-400', glow: 'shadow-[0_0_20px_-5px_rgba(52,211,153,0.5)]' },
   { id: 'dropshipping', label: 'Dropshipping', color: 'text-amber-400', glow: 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.5)]' },
   { id: 'done', label: 'Listed', color: 'text-slate-200', glow: '' },
   { id: 'pending', label: 'Pending', color: 'text-indigo-400', glow: '' },
@@ -118,27 +128,57 @@ export default function UBeautyListingPage() {
     setLoading(true);
 
     try {
-      const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-      let query = supabase.from(tableName).select('*', { count: 'exact' });
+      const tables = getTablesForTab(activeTab);
 
-      // Apply Search
-      if (debouncedSearch.trim()) {
-        const term = debouncedSearch.trim();
-        query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
+      if (tables.length === 1) {
+        let query = supabase.from(tables[0]).select('*', { count: 'exact' });
+
+        if (debouncedSearch.trim()) {
+          const term = debouncedSearch.trim();
+          query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
+        }
+
+        const from = (page - 1) * ITEMS_PER_PAGE;
+        const to = from + ITEMS_PER_PAGE - 1;
+
+        const { data, count, error } = await query
+          .order('id', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+        setProducts(data || []);
+        setTotalItems(count || 0);
+
+      } else {
+        const results = await Promise.all(
+          tables.map(table => {
+            let query = supabase.from(table).select('*', { count: 'exact' });
+            if (debouncedSearch.trim()) {
+              const term = debouncedSearch.trim();
+              query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
+            }
+            return query.order('id', { ascending: false });
+          })
+        );
+
+        let allData: (ListingProduct & { _sourceTable?: string })[] = [];
+        let totalCount = 0;
+
+        results.forEach((res, i) => {
+          if (res.error) console.error('Fetch error from', tables[i], res.error);
+          const tagged = (res.data || []).map((item: any) => ({ ...item, _sourceTable: tables[i] }));
+          allData = [...allData, ...tagged];
+          totalCount += (res.count || 0);
+        });
+
+        allData.sort((a, b) => (b.id > a.id ? 1 : -1));
+
+        const from = (page - 1) * ITEMS_PER_PAGE;
+        const sliced = allData.slice(from, from + ITEMS_PER_PAGE);
+
+        setProducts(sliced);
+        setTotalItems(totalCount);
       }
-
-      // Calculate Range for Pagination
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      const { data, count, error } = await query
-        .order('id', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-
-      setProducts(data || []);
-      setTotalItems(count || 0);
 
     } catch (err: any) {
       console.error('Fetch error:', err);
@@ -146,28 +186,27 @@ export default function UBeautyListingPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, user, page]); // Added 'page' dependency
+  }, [activeTab, debouncedSearch, user, page]);
 
   // Fetch on change
   useEffect(() => {
     fetchProducts();
 
-    const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-    const channelName = `realtime_${tableName}`;
-
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: tableName },
-        () => {
-          fetchProducts();
-        }
-      )
-      .subscribe();
+    const tables = getTablesForTab(activeTab);
+    const channels = tables.map(tableName => {
+      const channelName = `realtime_${tableName}`;
+      return supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: tableName },
+          () => { fetchProducts(); }
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      channels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [fetchProducts, activeTab]);
 
@@ -207,7 +246,9 @@ export default function UBeautyListingPage() {
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
     try {
-      const sourceTableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
+      const sourceTableName = activeTab === 'high_demand'
+        ? ((product as any)._sourceTable || `${BASE_TABLE_PREFIX}_high_demand`)
+        : `${BASE_TABLE_PREFIX}_${activeTab}`;
       const targetTableName = `${BASE_TABLE_PREFIX}_${target}`;
 
       const payload = {
@@ -416,7 +457,7 @@ export default function UBeautyListingPage() {
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">Price</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Source</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Remark</th>
-                      {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                      {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
                         <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Actions</th>
                       )}
                       {activeTab === 'error' && (
@@ -467,7 +508,7 @@ export default function UBeautyListingPage() {
                             )}
                           </td>
 
-                          {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                          {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
                             <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
                               <div className="flex items-center justify-center gap-3">
                                 <motion.button

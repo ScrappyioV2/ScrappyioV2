@@ -15,6 +15,8 @@ export default function FunnelBadge({ funnel }: FunnelBadgeProps) {
         return 'bg-blue-500 text-white';
       case 'DP':
         return 'bg-yellow-500 text-gray-900';
+      case 'RS':                              // ← ADD THIS
+        return 'bg-emerald-500 text-white';   // ← ADD THIS
       default:
         return 'bg-gray-400 text-white';
     }

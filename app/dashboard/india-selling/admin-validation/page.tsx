@@ -3,11 +3,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect, useRef } from 'react'
 import Toast from '@/components/Toast';
-import {
-  calculateProductValues,
-  getDefaultConstants,
-  type CalculationConstants
-} from '@/lib/blackboxCalculations';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -21,7 +16,7 @@ type AdminProduct = {
   origin_china: boolean | null;
   origin_us: boolean | null;
   target_price: number | null;
-  target_quantity: number | null;
+  // target_quantity: number | null;
   buying_price: number | null;
   buying_quantity: number | null;
   funnel: number | string | null;
@@ -60,6 +55,22 @@ type HistorySnapshot = {
 
 type TabType = 'overview' | 'india' | 'china' | 'us' | 'pending' | 'confirm' | 'reject';
 
+type CalculationConstants = {
+  dollar_rate: number;
+  bank_conversion_rate: number;
+  shipping_charge_per_kg: number;
+  commission_rate: number;
+  packing_cost: number;
+}
+
+const getDefaultConstants = (): CalculationConstants => ({
+  dollar_rate: 90,
+  bank_conversion_rate: 2,
+  shipping_charge_per_kg: 950,
+  commission_rate: 25,
+  packing_cost: 25,
+})
+
 // ✅ Seller Mapping Helper
 const getSellerNameFromTag = (tag: string | null) => {
   if (!tag) return null;
@@ -80,6 +91,41 @@ export default function AdminValidationPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  // Filter states (persisted)
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const [originFilter, setOriginFilter] = useState<'ALL' | 'India' | 'China' | 'US'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaAdminOriginFilter') as 'ALL' | 'India' | 'China' | 'US') || 'ALL';
+  });
+
+  const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaAdminFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
+  });
+
+  const [remarkFilter, setRemarkFilter] = useState<'ALL' | 'hasRemark' | 'noRemark'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaAdminRemarkFilter') as 'ALL' | 'hasRemark' | 'noRemark') || 'ALL';
+  });
+
+  const [adminStatusFilter, setAdminStatusFilter] = useState<'ALL' | 'pending' | 'confirmed' | 'rejected'>(() => {
+    if (typeof window === 'undefined') return 'ALL';
+    return (localStorage.getItem('indiaAdminStatusFilter') as 'ALL' | 'pending' | 'confirmed' | 'rejected') || 'ALL';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('indiaAdminOriginFilter', originFilter);
+  }, [originFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('indiaAdminFunnelFilter', funnelFilter);
+  }, [funnelFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('indiaAdminStatusFilter', adminStatusFilter);
+  }, [adminStatusFilter]);
+  useEffect(() => { localStorage.setItem('indiaAdminRemarkFilter', remarkFilter) }, [remarkFilter]);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
   const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
@@ -92,6 +138,11 @@ export default function AdminValidationPage() {
 
   const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false);
   const [isSavingConstants, setIsSavingConstants] = useState(false);
+  const [modalInputs, setModalInputs] = useState({
+    bankfee: '',
+    shipping: '',
+    commission: '',
+  });
   const [calculatingIds, setCalculatingIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
     message: string;
@@ -147,7 +198,7 @@ export default function AdminValidationPage() {
       // 3️⃣ Batch fetch from BOTH tables
       const [purchaseResult, validationResult] = await Promise.all([
         supabase.from('india_purchases')
-          .select('asin, journey_id, journey_number, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, target_quantity, product_weight, usd_price, inr_purchase, funnel, seller_tag')
+          .select('asin, journey_id, journey_number, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, product_weight, usd_price, inr_purchase, funnel, seller_tag')
           .in('asin', asins),
 
         supabase.from('india_validation_main_file')
@@ -209,18 +260,21 @@ export default function AdminValidationPage() {
           // ✅ FIXED: Use snake_case to match interface
           product_name: product.product_name,
           product_link: product.product_link,
-          origin_india: product.origin_india ?? false,
-          origin_china: product.origin_china ?? false,
-          origin_us: product.origin_us ?? false,
+          origin_india: product.origin_india === true ||
+            (typeof product.origin === 'string' && product.origin.includes('India')),
+          origin_china: product.origin_china === true ||
+            (typeof product.origin === 'string' && product.origin.includes('China')),
+          origin_us: product.origin_us === true ||
+            (typeof product.origin === 'string' && product.origin.includes('US')),
 
           // Pricing fields - respect confirmed status
           target_price: isConfirmed
             ? product.target_price
             : (product.target_price ?? purchase?.target_price ?? null),
 
-          target_quantity: isConfirmed
-            ? product.target_quantity
-            : (product.target_quantity ?? purchase?.target_quantity ?? null),
+          // target_quantity: isConfirmed
+          //   ? product.target_quantity
+          //   : (product.target_quantity ?? purchase?.target_quantity ?? null),
 
           admin_target_price: product.admin_target_price,
 
@@ -275,6 +329,15 @@ export default function AdminValidationPage() {
         };
       });
 
+      const usProducts = enrichedData.filter(p => p.origin_us === true);
+      console.log('Products with originus=true:', usProducts.length, usProducts.map(p => p.asin));
+      console.log('Sample product origins:', enrichedData.slice(0, 3).map(p => ({
+        asin: p.asin,
+        originindia: p.origin_india,
+        originchina: p.origin_china,
+        originus: p.origin_us,
+      })));
+
       setProducts(enrichedData)
     } catch (error: any) {
       console.error('❌ Error in fetchProducts:', error)
@@ -328,13 +391,13 @@ export default function AdminValidationPage() {
         product_name: 120,
         product_link: 100,
         target_price: 100,
-        target_qty: 80,
+        // target_qty: 80,
         admin_target_price: 120,
         funnel_seller: 100,
         funnel_qty: 80,
         buying_price: 100,
         buying_qty: 80,
-        profit: 100,
+        profit: 160,
         product_weight: 120,
         usd_price: 100,
         inr_purchase: 120,
@@ -342,7 +405,6 @@ export default function AdminValidationPage() {
         seller_link: 100,
         seller_phone: 120,
         payment_method: 120,
-        journey_number: 80,
       };
     }
     return {
@@ -351,13 +413,13 @@ export default function AdminValidationPage() {
       product_name: 200,
       product_link: 100,
       target_price: 100,
-      target_qty: 80,
+      // target_qty: 80,
       admin_target_price: 120,
       funnel_seller: 100,
       funnel_qty: 80,
       buying_price: 100,
       buying_qty: 80,
-      profit: 100,
+      profit: 160,
       product_weight: 120,
       usd_price: 100,
       inr_purchase: 120,
@@ -376,20 +438,36 @@ export default function AdminValidationPage() {
         .limit(1)
         .single();
 
+      // DEBUG — check browser console to verify
+      console.log('📊 RAW DB Constants:', data);
+      console.log('📊 DB Error:', error);
+
       if (!error && data) {
-        setAdminConstants({
-          dollar_rate: data.dollar_rate,
-          bank_conversion_rate: data.bank_conversion_rate,
-          shipping_charge_per_kg: data.shipping_charge_per_kg,
-          commission_rate: data.commission_rate,
-          packing_cost: data.packing_cost,
-        });
+        // Helper: if value was stored as decimal (0.25), convert to percentage (25)
+        const normalizePercent = (val: any, fallback: number): number => {
+          let num = Number(val);
+          if (!num || isNaN(num)) return fallback;
+          while (num > 0 && num < 1) {
+            num = num * 100;
+          }
+          return Math.round(num * 100) / 100;
+        };
+
+        const parsed: CalculationConstants = {
+          dollar_rate: Number(data.dollarrate) || 90,
+          bank_conversion_rate: normalizePercent(data.bankconversionrate, 2),
+          shipping_charge_per_kg: Number(data.shippingchargeperkg) || 950,
+          commission_rate: normalizePercent(data.commissionrate, 25),
+          packing_cost: Number(data.packingcost) || 25,
+        };
+
+        console.log('📊 PARSED Constants:', parsed);
+        setAdminConstants(parsed);
       }
     } catch (err) {
       console.error('Error fetching admin constants:', err);
     }
   };
-
 
   // Fetch History for Sidebar
   const fetchHistory = async (asin: string) => {
@@ -417,25 +495,50 @@ export default function AdminValidationPage() {
   const saveAdminConstants = async () => {
     setIsSavingConstants(true);
     try {
-      // Update constants in database
+      // Parse string inputs → numbers
+      const newConstants: CalculationConstants = {
+        ...adminConstants,
+        bank_conversion_rate: parseFloat(modalInputs.bankfee) || 0,
+        shipping_charge_per_kg: parseFloat(modalInputs.shipping) || 0,
+        commission_rate: parseFloat(modalInputs.commission) || 0,
+      };
+
+      // Update local state immediately
+      setAdminConstants(newConstants);
+
       const { data: existingData } = await supabase
         .from('india_admin_validation_constants')
         .select('id')
         .limit(1)
         .single();
 
+      const payload = {
+        dollar_rate: newConstants.dollar_rate,
+        bank_conversion_rate: newConstants.bank_conversion_rate,
+        shipping_charge_per_kg: newConstants.shipping_charge_per_kg,
+        commission_rate: newConstants.commission_rate,
+        packing_cost: newConstants.packing_cost,
+      };
+
+      console.log('📊 SAVING to DB:', payload);
+
       if (existingData) {
-        await supabase
+        const { error } = await supabase
           .from('india_admin_validation_constants')
-          .update(adminConstants)
+          .update(payload)
           .eq('id', existingData.id);
+        if (error) throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from('india_admin_validation_constants')
-          .insert(adminConstants);
+          .insert(payload);
+        if (error) throw error;
       }
 
-      setToast({ message: 'Admin constants saved successfully!', type: 'success' });
+      setToast({
+        message: `Saved! Commission: ${newConstants.commission_rate}%, Bank: ${newConstants.bank_conversion_rate}%, Shipping: ₹${newConstants.shipping_charge_per_kg}`,
+        type: 'success',
+      });
       setIsConstantsModalOpen(false);
     } catch (err) {
       console.error('Save constants error:', err);
@@ -445,67 +548,24 @@ export default function AdminValidationPage() {
     }
   };
 
-  const autoCalculateProfit = async (productId: string, product: any) => {
-    // Check if we have all required values
-    if (!product.usdprice || !product.productweight || !product.inrpurchase) {
-      return; // Skip calculation if any value is missing
-    }
+  const autoCalculateProfit = (product: any): number | null => {
+    if (!product.targetprice || !product.productweight || product.buyingprice === null || product.buyingprice === undefined) return null;
 
-    // Add to calculating set for spinner
-    setCalculatingIds((prev) => new Set(prev).add(productId));
+    const salesprice = Number(product.targetprice);
+    const weight = Number(product.productweight);
+    const purchaseprice = Number(product.buyingprice);
 
-    try {
-      // Calculate using admin constants
-      const result = calculateProductValues(
-        {
-          usd_price: product.usdprice,
-          product_weight: product.productweight,
-          inr_purchase: product.inrpurchase,
-        },
-        adminConstants,
-        'INDIA'
-      );
+    // State stores whole numbers: 25 = 25%, 2 = 2% → divide by 100 for calculation
+    const commission = salesprice * (adminConstants.commission_rate / 100);
+    const shipping = (weight / 1000) * adminConstants.shipping_charge_per_kg;
+    const bankfee = salesprice * (adminConstants.bank_conversion_rate / 100);
+    const totalcost = commission + shipping + bankfee + purchaseprice;
+    const profit = salesprice - totalcost;
 
-      console.log('Calculated profit:', result.profit);
-
-      // ✅ FIX: Update profit in CORRECT TABLE (india_admin_validation)
-      const { error } = await supabase
-        .from('india_admin_validation')  // ✅ CORRECT TABLE!
-        .update({ profit: result.profit })
-        .eq('id', productId);
-
-      if (error) {
-        console.error('Update profit error:', error);
-        return;
-      }
-
-      // ✅ FIX: Update local state to show new profit immediately
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, profit: result.profit } : p
-        )
-      );
-
-      setToast({
-        message: `Profit calculated: ₹${result.profit.toFixed(2)}`,
-        type: 'success',
-      });
-    } catch (err) {
-      console.error('Calculation error:', err);
-      setToast({
-        message: 'Profit calculation failed',
-        type: 'error',
-      });
-    } finally {
-      // Remove from calculating set
-      setCalculatingIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
-    }
+    console.log('📊 Profit calc:', { salesprice, weight, purchaseprice, commission, shipping, bankfee, totalcost, profit });
+    console.log('📊 Using constants:', adminConstants);
+    return profit;
   };
-
 
   // Resize tracking state
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -584,16 +644,102 @@ export default function AdminValidationPage() {
     }
   }, [resizingColumn, startX, startWidth, columnWidths]);
 
+  const DEFAULT_COLUMN_ORDER = [
+    'asin', 'history', 'remark', 'product_name', 'product_link',
+    'target_price', 'admin_target_price', 'funnel_seller',
+    'funnel_qty', 'product_weight', 'profit', 'buying_price', 'buying_qty',
+    'seller_link', 'seller_phone', 'payment_method', 'actions'
+  ];
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_COLUMN_ORDER;
+    try {
+      const saved = localStorage.getItem('adminValidationColumnOrder');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const merged = parsed.filter((k: string) => DEFAULT_COLUMN_ORDER.includes(k));
+        DEFAULT_COLUMN_ORDER.forEach(k => { if (!merged.includes(k)) merged.push(k); });
+        return merged;
+      }
+    } catch { }
+    return DEFAULT_COLUMN_ORDER;
+  });
+
+  const dragColumnRef = useRef<string | null>(null);
+  const dragOverColumnRef = useRef<string | null>(null);
+
+  const handleColumnDragStart = (col_key: string) => {
+    dragColumnRef.current = col_key;
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, col_key: string) => {
+    e.preventDefault();
+    dragOverColumnRef.current = col_key;
+  };
+
+  const handleColumnDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!dragColumnRef.current || !dragOverColumnRef.current) return;
+    if (dragColumnRef.current === dragOverColumnRef.current) return;
+
+    const newOrder = [...columnOrder];
+    const fromIdx = newOrder.indexOf(dragColumnRef.current);
+    const toIdx = newOrder.indexOf(dragOverColumnRef.current);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragColumnRef.current);
+
+    setColumnOrder(newOrder);
+    localStorage.setItem('adminValidationColumnOrder', JSON.stringify(newOrder));
+    dragColumnRef.current = null;
+    dragOverColumnRef.current = null;
+  };
+  // ========== END COLUMN DRAG REORDER ==========
+
   // Filter products based on active tab
   const filteredProducts = products.filter((product) => {
     // Search filter
-    const matchesSearch =
-      !searchQuery ||
+    const matchesSearch = !searchQuery ||
       product.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.seller_tag?.toLowerCase().includes(searchQuery.toLowerCase());
-
     if (!matchesSearch) return false;
+
+    // Origin Filter
+    if (originFilter !== 'ALL') {
+      if (originFilter === 'India' && !product.origin_india) return false;
+      if (originFilter === 'China' && !product.origin_china) return false;
+      if (originFilter === 'US' && !product.origin_us) return false;
+    }
+
+    // Funnel Filter (RS = HD+LD i.e. funnel 1 or 2, DP = funnel 3)
+    if (funnelFilter !== 'ALL') {
+      const f = product.funnel;
+      if (funnelFilter === 'RS') {
+        const fStr = String(f).toUpperCase();
+        if (fStr !== 'RS' && fStr !== 'HD' && fStr !== 'LD' &&
+          f !== 1 && f !== '1' && f !== 2 && f !== '2')
+          return false;
+      } else if (funnelFilter === 'DP') {
+        if (f !== 3 && f !== '3' && String(f).toUpperCase() !== 'DP') return false;
+      }
+    }
+
+    // Admin Status Filter
+    if (adminStatusFilter !== 'ALL') {
+      if (adminStatusFilter === 'pending') {
+        if (product.admin_status !== 'pending' && product.admin_status) return false;
+      } else {
+        if (product.admin_status !== adminStatusFilter) return false;
+      }
+    }
+
+    // Remark Filter
+    if (remarkFilter !== 'ALL') {
+      if (remarkFilter === 'hasRemark' && (!product.remark || !product.remark.trim())) return false;
+      if (remarkFilter === 'noRemark' && product.remark && product.remark.trim()) return false;
+    }
 
     // Tab filter
     switch (activeTab) {
@@ -677,7 +823,7 @@ export default function AdminValidationPage() {
         'productlink': 'product_link',
         'sellertag': 'seller_tag',
         'targetprice': 'target_price',
-        'targetquantity': 'target_quantity',
+        // 'targetquantity': 'target_quantity',
         'targetpricevalidation': 'target_price_validation',
         'targetpricelinkvalidation': 'target_price_link_validation',
         'buyingprice': 'buying_price',
@@ -706,46 +852,42 @@ export default function AdminValidationPage() {
       console.log('📊 Updating product:', { id, field, dbField, value })
 
       // UPDATE india_admin_validation table (not india_purchases)
-      const { error } = await supabase
-        .from('india_admin_validation')  // ✅ CORRECT TABLE
-        .update({ [dbField]: value })  // ✅ Use the correct database column name
-        .eq('id', id)
+      const updatePayload: Record<string, any> = { [dbField]: value };
+      let calculatedProfit: number | null = null;
 
-      if (error) {
-        console.error('❌ Update error:', error)
-        setToast({ message: 'Failed to update', type: 'error' })
-        return
-      }
-
-      console.log('✅ Product updated successfully')
-
-      // Update local state
-      setProducts((prev) =>
-        prev.map((p) => {
-          if (p.id !== id) return p;
-
-          // 🔴 FIX: admin target price must update correct key
-          if (field === 'admintargetprice') {
-            return { ...p, admin_target_price: value };
-          }
-
-          if (field === 'sellertag') {
-            return { ...p, seller_tag: value };
-          }
-
-          return { ...p, [field]: value };
-        })
-      );
-
-      // AUTO-CALCULATE IF IT'S ONE OF THE THREE KEY FIELDS
-      if (field === 'productweight' || field === 'usdprice' || field === 'inrpurchase') {
-        const updatedProduct = products.find((p) => p.id === id)
+      if (field === 'targetprice' || field === 'productweight' || field === 'buyingprice') {
+        const updatedProduct = products.find(p => p.id === id);
         if (updatedProduct) {
-          await autoCalculateProfit(id, { ...updatedProduct, [field]: value })
+          calculatedProfit = autoCalculateProfit({ ...updatedProduct, [field]: value });
+          if (calculatedProfit !== null) {
+            updatePayload.profit = calculatedProfit;
+          }
         }
       }
 
-      setToast({ message: 'Updated successfully', type: 'success' })
+      // SINGLE DB CALL — field + profit together
+      const { error } = await supabase
+        .from('india_admin_validation')
+        .update(updatePayload)
+        .eq('id', id);
+
+      if (error) { console.error('Update error:', error); setToast({ message: 'Failed to update', type: 'error' }); return; }
+
+      console.log('Product updated successfully', updatePayload);
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(p => {
+          if (p.id !== id) return p;
+          const updated = { ...p, [field]: value };
+          if (field === 'admintargetprice') updated.admin_target_price = value;
+          if (field === 'sellertag') updated.seller_tag = value;
+          if (calculatedProfit !== null) updated.profit = calculatedProfit;
+          return updated;
+        })
+      );
+
+      setToast({ message: calculatedProfit !== null ? `Profit: ₹${calculatedProfit.toFixed(2)}` : 'Updated successfully', type: 'success' });
     } catch (err: any) {
       console.error('Update error:', err)
       setToast({ message: 'Update failed', type: 'error' })
@@ -787,11 +929,10 @@ export default function AdminValidationPage() {
 
       // Handle number (1) or string ("1", "High Demand")
       if (rawFunnel !== null && rawFunnel !== undefined) {
-        if (!isNaN(Number(rawFunnel))) {
-          finalFunnelId = Number(rawFunnel);
-        } else {
+        if (!isNaN(Number(rawFunnel))) finalFunnelId = Number(rawFunnel);
+        else {
           const str = String(rawFunnel).toLowerCase();
-          if (str.includes('high') || str === 'hd') finalFunnelId = 1;
+          if (str.includes('high') || str === 'hd' || str === 'rs') finalFunnelId = 1;  // ← ADD rs HERE
           else if (str.includes('low') || str === 'ld') finalFunnelId = 2;
           else if (str.includes('drop') || str.includes('dp')) finalFunnelId = 3;
         }
@@ -1036,6 +1177,309 @@ export default function AdminValidationPage() {
   const chinaCount = products.filter((p) => p.origin_china && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
   const usCount = products.filter(p => p.origin_us && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
 
+  const renderAdminCell = (col_key: string, product: AdminProduct) => {
+    switch (col_key) {
+
+      case 'asin':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">
+            {product.asin}
+          </td>
+        );
+
+      case 'history':
+        return (
+          <td key={col_key} className="px-4 py-3 text-center bg-amber-900/10">
+            <button
+              onClick={() => fetchHistory(product.asin)}
+              className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-indigo-500/20 hover:text-indigo-300 hover:border-indigo-400/50 transition-all cursor-pointer"
+              title={`Journey ${product.journey_number || 1} — Click to view history`}
+            >
+              <span>{product.journey_number || 1}</span>
+              <History className="w-3 h-3 opacity-40 group-hover:opacity-100 transition-opacity" />
+            </button>
+          </td>
+        );
+
+      case 'remark':
+        return (
+          <td key={col_key} className="px-4 py-2" style={{ width: columnWidths.remark }}>
+            <div className="flex items-center gap-2">
+              {product.remark ? (
+                <button onClick={() => setSelectedRemark(product.remark)} className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
+                  View
+                </button>
+              ) : null}
+            </div>
+          </td>
+        );
+
+      case 'product_name':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm text-slate-200" style={{ maxWidth: columnWidths.productname, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={product.product_name || '-'}>
+            {product.product_name || '-'}
+          </td>
+        );
+
+      case 'product_link':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            <div className="w-32">
+              {editingLinkId === product.id ? (
+                <div className="flex items-center gap-1">
+                  <input type="text" value={editingLinkValue} onChange={(e) => setEditingLinkValue(e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                    placeholder="URL..." autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') { handleCellEdit(product.id, 'productlink', editingLinkValue); setEditingLinkId(null); } else if (e.key === 'Escape') { setEditingLinkId(null); } }}
+                  />
+                  <button onClick={() => { handleCellEdit(product.id, 'productlink', editingLinkValue); setEditingLinkId(null); }} className="text-emerald-500 hover:text-emerald-400 flex-shrink-0" title="Save (Enter)">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </button>
+                  <button onClick={() => setEditingLinkId(null)} className="text-rose-500 hover:text-rose-400 flex-shrink-0" title="Cancel (Esc)">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {product.product_link ? (
+                    <>
+                      <a href={product.product_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap">View Link</a>
+                      <button onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(product.product_link || ''); }} className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(''); }} className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      Add Link
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </td>
+        );
+
+      case 'target_price':
+        return (
+          <td key={col_key} className="px-4 py-3">
+            <input type="number" defaultValue={product.target_price}
+              onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
+              className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </td>
+        );
+
+      // case 'target_qty':
+      //   return (
+      //     <td key={col_key} className="px-4 py-3">
+      //       <input type="number" defaultValue={product.target_quantity}
+      //         onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
+      //         className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+      //       />
+      //     </td>
+      //   );
+
+      case 'admin_target_price':
+        return (
+          <td key={col_key} className="px-4 py-3 bg-purple-900/10">
+            <input type="number" step="0.01" value={product.admin_target_price ?? ''}
+              onChange={(e) => handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))}
+              className="w-24 px-2 py-1 bg-slate-950 border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
+              placeholder="₹"
+            />
+          </td>
+        );
+
+      case 'funnel_seller':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            {product.seller_tag ? (
+              <div className="flex flex-wrap gap-2">
+                {product.seller_tag.split(',').map((tag) => {
+                  const cleanTag = tag.trim();
+                  let badgeColor = 'bg-slate-600 text-white';
+                  if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black';
+                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white';
+                  else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white';
+                  else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white';
+                  else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black';
+                  else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white';
+                  return (
+                    <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>
+                      {cleanTag}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (<span className="text-xs text-slate-600 italic">-</span>)}
+          </td>
+        );
+
+      case 'funnel_qty':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            {product.funnel ? (
+              <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${(product.funnel == 1 || product.funnel == '1' || product.funnel == 2 || product.funnel == '2' || String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS')
+                ? 'bg-emerald-600 text-white'
+                : (product.funnel == 3 || product.funnel == '3' || String(product.funnel).toUpperCase() === 'DP')
+                  ? 'bg-amber-500 text-black'
+                  : 'bg-slate-600 text-white'
+                }`}>
+                {(product.funnel == 1 || product.funnel == '1' || product.funnel == 2 || product.funnel == '2' || String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS')
+                  ? 'RS'
+                  : (product.funnel == 3 || product.funnel == '3' || String(product.funnel).toUpperCase() === 'DP')
+                    ? 'DP'
+                    : product.funnel}
+              </span>
+            ) : (<span className="text-xs text-slate-600 italic">-</span>)}
+          </td>
+        );
+
+      case 'product_weight':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            <div className="relative">
+              <input type="number" step="0.01" defaultValue={product.product_weight}
+                onBlur={(e) => handleCellEdit(product.id, 'productweight', parseFloat(e.target.value) || null)}
+                className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                placeholder="g"
+              />
+              {calculatingIds.has(product.id) && (
+                <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
+                </div>
+              )}
+            </div>
+          </td>
+        );
+
+      case 'profit':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            <div className={`w-full min-w-[6rem] px-2 py-1 border rounded text-sm font-bold text-center truncate ${(product.profit ?? 0) >= 0
+              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+              : 'text-rose-400 bg-rose-500/10 border-rose-500/30'
+              }`} title={product.profit !== null && product.profit !== undefined ? `₹${product.profit.toFixed(2)}` : '-'}>
+              {product.profit !== null && product.profit !== undefined ? `₹${product.profit.toFixed(2)}` : '-'}
+            </div>
+          </td>
+        );
+
+      case 'buying_price':
+        return (
+          <td key={col_key} className="px-4 py-3">
+            <input type="number" defaultValue={product.buying_price}
+              onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+              className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </td>
+        );
+
+      case 'buying_qty':
+        return (
+          <td key={col_key} className="px-4 py-3">
+            <input type="number" defaultValue={product.buying_quantity}
+              onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
+              className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </td>
+        );
+
+      case 'seller_link':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            <div className="w-32">
+              {editingLinkId === `seller_${product.id}` ? (
+                <div className="flex items-center gap-1">
+                  <input type="text" value={editingLinkValue} onChange={(e) => setEditingLinkValue(e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Amazon URL..." autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') { handleCellEdit(product.id, 'sellerlink', editingLinkValue); setEditingLinkId(null); } else if (e.key === 'Escape') { setEditingLinkId(null); } }}
+                  />
+                  <button onClick={() => { handleCellEdit(product.id, 'sellerlink', editingLinkValue); setEditingLinkId(null); }} className="text-emerald-500 hover:text-emerald-400 flex-shrink-0">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </button>
+                  <button onClick={() => setEditingLinkId(null)} className="text-rose-500 hover:text-rose-400 flex-shrink-0">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {product.seller_link && product.seller_link.trim() !== '' ? (
+                    <>
+                      <a href={product.seller_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap">View Link</a>
+                      <button onClick={() => { setEditingLinkId(`seller_${product.id}`); setEditingLinkValue(product.seller_link || ''); }} className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => { setEditingLinkId(`seller_${product.id}`); setEditingLinkValue(''); }} className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
+                      Add Link
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </td>
+        );
+
+      case 'seller_phone':
+        return (
+          <td key={col_key} className="px-4 py-3">
+            <input type="text" defaultValue={product.seller_phone}
+              onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
+              className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Phone"
+            />
+          </td>
+        );
+
+      case 'payment_method':
+        return (
+          <td key={col_key} className="px-4 py-3">
+            <input type="text" defaultValue={product.payment_method}
+              onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
+              className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Method"
+            />
+          </td>
+        );
+
+      case 'actions':
+        if (activeTab === 'confirm' || activeTab === 'reject') return null;
+        return (
+          <td key={col_key} className="px-4 py-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleConfirmProduct(product.id)}
+                disabled={product.admin_status === 'confirmed'}
+                className={`p-2 rounded-lg transition-all ${product.admin_status === 'confirmed'
+                  ? 'bg-emerald-500/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
+                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20'}`}
+                title="Confirm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              </button>
+              <button
+                onClick={() => handleRejectProduct(product.id)}
+                disabled={product.admin_status === 'rejected'}
+                className={`p-2 rounded-lg transition-all ${product.admin_status === 'rejected'
+                  ? 'bg-rose-500/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
+                  : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20'}`}
+                title="Reject"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+          </td>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
       <div className="w-full flex flex-col flex-1 overflow-hidden">
@@ -1049,7 +1493,7 @@ export default function AdminValidationPage() {
         {/* Tabs - STICKY */}
         <div className="flex-none flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
           {[
-            { id: 'overview', label: 'Overview', count: products.length, color: 'text-indigo-400', activeBg: 'bg-indigo-500/10' },
+            { id: 'overview', label: 'Overview', count: products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length, color: 'text-indigo-400', activeBg: 'bg-indigo-500/10' },
             { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/10' },
             { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/10' },
             { id: 'us', label: 'US', count: usCount, color: 'text-sky-400', activeBg: 'bg-sky-500/10' },
@@ -1080,14 +1524,11 @@ export default function AdminValidationPage() {
           ))}
         </div>
 
-        {/* Search Bar + Buttons */}
+        {/* Search Bar & Buttons */}
         <div className="flex-none mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Left: Search Input */}
           <div className="relative flex-1 w-full md:max-w-md group">
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
+            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -1101,6 +1542,131 @@ export default function AdminValidationPage() {
 
           {/* Right: Buttons Group */}
           <div className="flex items-center gap-3">
+
+            {/* Funnel Filter Pills - RS / DP */}
+            <div className="flex items-center bg-slate-900/50 rounded-xl border border-slate-800 p-1">
+              {(['ALL', 'RS', 'DP'] as const).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setFunnelFilter(opt)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
+                    ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
+                      : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
+                        : 'bg-indigo-600 text-white shadow-lg'
+                    : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+
+            {/* Filter Button + Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || adminStatusFilter !== 'ALL'
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+                  }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filter
+                {(originFilter !== 'ALL' || adminStatusFilter !== 'ALL' || remarkFilter !== 'ALL') && (
+                  <span className="w-5 h-5 bg-white/20 rounded-full text-[10px] flex items-center justify-center font-bold">
+                    {[originFilter !== 'ALL', adminStatusFilter !== 'ALL', remarkFilter !== 'ALL'].filter(Boolean).length}
+                  </span>
+                )}
+              </button>
+
+              {isFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
+                  <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-slate-200 text-sm">Filters</h3>
+                      {(originFilter !== 'ALL' || adminStatusFilter !== 'ALL' || remarkFilter !== 'ALL') && (
+                        <button
+                          onClick={() => { setOriginFilter('ALL'); setAdminStatusFilter('ALL'); setRemarkFilter('ALL'); }}
+                          className="text-xs text-red-400 hover:text-red-300 font-medium"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Origin Filter */}
+                    <div className="mb-4">
+                      <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Origin</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(['ALL', 'India', 'China', 'US'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setOriginFilter(opt)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
+                              ? opt === 'India' ? 'bg-orange-500 text-white'
+                                : opt === 'China' ? 'bg-rose-500 text-white'
+                                  : opt === 'US' ? 'bg-sky-500 text-white'
+                                    : 'bg-indigo-600 text-white'
+                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                              }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Admin Status Filter */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Status</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(['ALL', 'pending', 'confirmed', 'rejected'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setAdminStatusFilter(opt)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${adminStatusFilter === opt
+                              ? opt === 'pending' ? 'bg-amber-500 text-black'
+                                : opt === 'confirmed' ? 'bg-emerald-500 text-white'
+                                  : opt === 'rejected' ? 'bg-rose-500 text-white'
+                                    : 'bg-indigo-600 text-white'
+                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                              }`}
+                          >
+                            {opt === 'ALL' ? 'All' : opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Remark Filter */}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Remark</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(['ALL', 'hasRemark', 'noRemark'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setRemarkFilter(opt)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${remarkFilter === opt
+                              ? opt === 'hasRemark'
+                                ? 'bg-teal-500 text-white'
+                                : opt === 'noRemark'
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-indigo-600 text-white'
+                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                              }`}
+                          >
+                            {opt === 'ALL' ? 'All' : opt === 'hasRemark' ? 'Has Remark' : 'No Remark'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Roll Back Button */}
             <button
               onClick={handleRollBack}
@@ -1160,7 +1726,7 @@ export default function AdminValidationPage() {
             <table className="w-full border-collapse" ref={tableRef}>
               <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
                 <tr>
-                  {/* Checkbox */}
+                  {/* Checkbox — always first, not draggable */}
                   <th className="px-4 py-3 bg-slate-950">
                     <input
                       type="checkbox"
@@ -1170,347 +1736,67 @@ export default function AdminValidationPage() {
                     />
                   </th>
 
-                  {/* 1. ASIN */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('asin')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.asin, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>ASIN</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'asin')}
-                        style={{
-                          backgroundColor: resizingColumn === 'asin' ? '#6366f1' : 'transparent',
-                          width: resizingColumn === 'asin' ? '2px' : '4px',
-                        }}
-                      />
-                    </div>
-                  </th>
+                  {columnOrder.map((col_key) => {
+                    // Hide actions on confirm/reject tabs
+                    if (col_key === 'actions' && (activeTab === 'confirm' || activeTab === 'reject')) return null;
 
-                  {/* ✅ HISTORY COLUMN */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('history')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.history, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>HISTORY</span>
-                    </div>
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                      onMouseDown={(e) => handleResizeStart(e, 'history')}
-                      style={{
-                        backgroundColor: resizingColumn === 'history' ? '#6366f1' : 'transparent',
-                        width: resizingColumn === 'history' ? '2px' : '4px',
-                      }}
-                    />
-                  </th>
+                    const colConfig: Record<string, { label: string; widthKey: string; minWidth: number; headerClass?: string }> = {
+                      asin: { label: 'ASIN', widthKey: 'asin', minWidth: 80 },
+                      history: { label: 'J #', widthKey: 'history', minWidth: 70, headerClass: 'text-amber-400 bg-amber-900/10' },
+                      remark: { label: 'REMARK', widthKey: 'remark', minWidth: 100 },
+                      product_name: { label: 'Product Name', widthKey: 'productname', minWidth: 150 },
+                      product_link: { label: 'Product Link', widthKey: 'productlink', minWidth: 80 },
+                      target_price: { label: 'Sales Price INR', widthKey: 'targetprice', minWidth: 80 },
+                      admin_target_price: { label: 'Admin Target Price', widthKey: 'admintargetprice', minWidth: 100, headerClass: 'text-purple-300 bg-purple-900/10' },
+                      funnel_seller: { label: 'Seller Tag', widthKey: 'funnelseller', minWidth: 80 },
+                      funnel_qty: { label: 'Funnel', widthKey: 'funnelqty', minWidth: 70 },
+                      product_weight: { label: 'Product Weight', widthKey: 'productweight', minWidth: 100 },
+                      profit: { label: 'Profit', widthKey: 'profit', minWidth: 80 },
+                      buying_price: { label: 'Purchase Price', widthKey: 'buyingprice', minWidth: 80 },
+                      buying_qty: { label: 'Buying Qty', widthKey: 'buyingqty', minWidth: 70 },
+                      seller_link: { label: 'Purchase Link', widthKey: 'sellerlink', minWidth: 80 },
+                      seller_phone: { label: 'Seller Ph No.', widthKey: 'sellerphone', minWidth: 100 },
+                      payment_method: { label: 'Payment Method', widthKey: 'paymentmethod', minWidth: 100 },
+                      actions: { label: 'Actions', widthKey: 'actions', minWidth: 80 },
+                    };
 
-                  {/* ✅✅ REMARK COLUMN */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('remark')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.remark, minWidth: 100 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>REMARK</span>
-                      <div />
-                    </div>
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                      onMouseDown={(e) => handleResizeStart(e, 'remark')}
-                      style={{
-                        backgroundColor: resizingColumn === 'remark' ? '#6366f1' : 'transparent',
-                        width: resizingColumn === 'remark' ? '2px' : '4px',
-                      }}
-                    />
-                  </th>
+                    const cfg = colConfig[col_key];
+                    if (!cfg) return null;
 
-                  {/* 🆕 2. Journey # Column */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('journey_number')}
-                    className="px-4 py-3 text-xs font-bold text-amber-400 uppercase tracking-wider hover:bg-slate-800 relative bg-amber-900/10 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.journey_number, minWidth: 70 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Journey #</span>
-                    </div>
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                      onMouseDown={(e) => handleResizeStart(e, 'journey_number')}
-                    />
-                  </th>
+                    const headerClass = cfg.headerClass || 'text-slate-400 bg-slate-950';
 
-                  {/* 2. Product Name */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('productname')}
-                    className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.productname, minWidth: 150 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Product Name</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'productname')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 3. Product Link */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('productlink')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.productlink, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Product Link</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'productlink')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 4. Target Price */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('targetprice')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.targetprice, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Target Price</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'targetprice')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 5. Target Qty */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('targetqty')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.targetqty, minWidth: 70 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Target Qty</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'targetqty')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 6. Admin Target Price */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('admintargetprice')}
-                    className="px-4 py-3 text-xs font-bold text-purple-300 uppercase tracking-wider hover:bg-purple-900/20 relative bg-purple-900/10 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.admintargetprice, minWidth: 100 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Admin Target Price</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'admintargetprice')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 7. Seller Tag */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('funnelseller')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.funnelseller, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Seller Tag</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'funnelseller')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 8. Funnel */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('funnelqty')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.funnelqty, minWidth: 70 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Funnel</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'funnelqty')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 9. Product Weight */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('productweight')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.productweight, minWidth: 100 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Product Weight</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'productweight')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 10. USD Price */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('usdprice')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.usdprice, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>USD Price</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'usdprice')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 11. INR Purchase */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('inrpurchase')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.inrpurchase, minWidth: 100 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>INR Purchase</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'inrpurchase')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 12. Profit */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('profit')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.profit, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Profit</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'profit')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 13. INR Purchase Link */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('inrpurchaselink')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.inrpurchaselink, minWidth: 150 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>INR Purchase Link</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'inrpurchaselink')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 14. Buying Price */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('buyingprice')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.buyingprice, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Buying Price</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'buyingprice')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 15. Buying Quantity */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('buyingqty')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.buyingqty, minWidth: 70 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Buying Qty</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'buyingqty')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 16. Seller Link */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('sellerlink')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.sellerlink, minWidth: 80 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Seller Link</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'sellerlink')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 17. Seller Ph No. */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('sellerphone')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.sellerphone, minWidth: 100 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Seller Ph No.</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'sellerphone')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 18. Payment Method */}
-                  <th
-                    onDoubleClick={() => handleColumnDoubleClick('paymentmethod')}
-                    className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hover:bg-slate-800 relative bg-slate-950 border-r border-slate-800 select-none"
-                    style={{ width: columnWidths.paymentmethod, minWidth: 100 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>Payment Method</span>
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                        onMouseDown={(e) => handleResizeStart(e, 'paymentmethod')}
-                      />
-                    </div>
-                  </th>
-
-                  {/* 19. Actions */}
-                  {(activeTab !== 'confirm' && activeTab !== 'reject') && (
-                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950">
-                      Actions
-                    </th>
-                  )}
+                    return (
+                      <th
+                        key={col_key}
+                        draggable
+                        onDragStart={() => handleColumnDragStart(col_key)}
+                        onDragOver={(e) => handleColumnDragOver(e, col_key)}
+                        onDrop={handleColumnDrop}
+                        onDoubleClick={() => handleColumnDoubleClick(cfg.widthKey)}
+                        className={`px-4 py-3 text-xs font-bold uppercase tracking-wider hover:bg-slate-800 relative border-r border-slate-800 select-none cursor-grab active:cursor-grabbing ${headerClass}`}
+                        style={{ width: columnWidths[cfg.widthKey], minWidth: cfg.minWidth }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{cfg.label}</span>
+                        </div>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                          onMouseDown={(e) => { e.stopPropagation(); handleResizeStart(e, cfg.widthKey); }}
+                          style={{
+                            backgroundColor: resizingColumn === cfg.widthKey ? '#6366f1' : 'transparent',
+                            width: resizingColumn === cfg.widthKey ? '2px' : '4px',
+                          }}
+                        />
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={19} className="px-4 py-16 text-center text-slate-500">
+                    <td colSpan={16} className="px-4 py-16 text-center text-slate-500">
                       <div className="flex flex-col items-center">
                         <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -1522,7 +1808,6 @@ export default function AdminValidationPage() {
                 ) : (
                   filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800">
-                      {/* Checkbox */}
                       <td className="px-4 py-3">
                         <input
                           type="checkbox"
@@ -1531,546 +1816,7 @@ export default function AdminValidationPage() {
                           className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
                         />
                       </td>
-
-                      {/* 1. ASIN */}
-                      {/* ✅ 1. ASIN COLUMN - Only ASIN */}
-                      <td className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">
-                        {product.asin}
-                      </td>
-
-                      {/* ✅ 2. HISTORY COLUMN - Only Clock Icon */}
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => fetchHistory(product.asin)}
-                          className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
-                          title="View Journey History"
-                        >
-                          <History className="w-4 h-4" />
-                        </button>
-                      </td>
-
-                      {/* ✅✅ REMARK COLUMN - Editable + View Button */}
-                      <td className="px-4 py-2" style={{ width: columnWidths.remark }}>
-                        <div className="flex items-center gap-2">
-                          {product.remark && (
-                            <button
-                              onClick={() => setSelectedRemark(product.remark)}
-                              className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
-                            >
-                              View
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 🆕 2. Journey # */}
-                      <td className="px-4 py-3 text-center bg-amber-900/10">
-                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          #{product.journey_number || 1}
-                        </span>
-                      </td>
-
-                      {/* 2. Product Name */}
-                      <td
-                        className="px-4 py-3 text-sm text-slate-200"
-                        style={{
-                          maxWidth: columnWidths.productname,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                        title={product.product_name || '-'}
-                      >
-                        {product.product_name || '-'}
-                      </td>
-
-                      {/* 3. Product Link */}
-                      <td className="px-4 py-3 text-sm">
-                        <div className="w-32">
-                          {editingLinkId === product.id ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="text"
-                                value={editingLinkValue}
-                                onChange={(e) => setEditingLinkValue(e.target.value)}
-                                className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
-                                placeholder="URL..."
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleCellEdit(product.id, 'productlink', editingLinkValue);
-                                    setEditingLinkId(null);
-                                  } else if (e.key === 'Escape') {
-                                    setEditingLinkId(null);
-                                  }
-                                }}
-                              />
-                              <button
-                                onClick={() => {
-                                  handleCellEdit(product.id, 'productlink', editingLinkValue);
-                                  setEditingLinkId(null);
-                                }}
-                                className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
-                                title="Save (Enter)"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => setEditingLinkId(null)}
-                                className="text-rose-500 hover:text-rose-400 flex-shrink-0"
-                                title="Cancel (Esc)"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {product.product_link ? (
-                                <>
-                                  <a
-                                    href={product.product_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
-                                  >
-                                    View Link
-                                  </a>
-                                  <button
-                                    onClick={() => {
-                                      setEditingLinkId(product.id);
-                                      setEditingLinkValue(product.product_link || '');
-                                    }}
-                                    className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
-                                    title="Edit link"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingLinkId(product.id);
-                                    setEditingLinkValue('');
-                                  }}
-                                  className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
-                                >
-                                  + Add Link
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 4. Target Price */}
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          defaultValue={product.target_price || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
-                          className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </td>
-
-                      {/* 5. Target Qty */}
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          defaultValue={product.target_quantity || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </td>
-
-                      {/* 6. Admin Target Price */}
-                      <td className="px-4 py-3 bg-purple-900/10">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={product.admin_target_price ?? ''}
-                          onChange={(e) =>
-                            handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))
-                          }
-                          className="w-24 px-2 py-1 bg-slate-950 border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
-                          placeholder="₹"
-                        />
-                      </td>
-
-                      {/* 7. Seller Tag */}
-                      <td className="px-4 py-3 text-sm">
-                        {product.seller_tag ? (
-                          <div className="flex flex-wrap gap-2">
-                            {product.seller_tag.split(',').map((tag) => {
-                              const cleanTag = tag.trim();
-                              let badgeColor = 'bg-slate-700 text-white';
-                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-slate-200 border border-slate-500';
-                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
-                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-
-                              return (
-                                <span
-                                  key={cleanTag}
-                                  className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}
-                                >
-                                  {cleanTag}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-600 italic">-</span>
-                        )}
-                      </td>
-
-                      {/* 8. Funnel */}
-                      <td className="px-4 py-3 text-sm">
-                        {product.funnel ? (
-                          <span
-                            className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.funnel === 1
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : product.funnel === 2
-                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                : product.funnel === 3
-                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                  : 'bg-slate-700 text-slate-300'
-                              }`}
-                          >
-                            {product.funnel === 1 ? 'HD' : product.funnel === 2 ? 'LD' : product.funnel === 3 ? 'DP' : product.funnel}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-600 italic">-</span>
-                        )}
-                      </td>
-
-                      {/* 9. Product Weight */}
-                      <td className="px-4 py-3 text-sm">
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.01"
-                            defaultValue={product.product_weight || ''}
-                            onBlur={(e) =>
-                              handleCellEdit(
-                                product.id,
-                                'productweight',
-                                parseFloat(e.target.value) || null
-                              )
-                            }
-                            className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                            placeholder="g"
-                          />
-                          {calculatingIds.has(product.id) && (
-                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 10. USD Price */}
-                      <td className="px-4 py-3 text-sm">
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.01"
-                            defaultValue={product.usd_price || ''}
-                            onBlur={(e) =>
-                              handleCellEdit(product.id, 'usdprice', parseFloat(e.target.value) || null)
-                            }
-                            className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                            placeholder="$"
-                          />
-                          {calculatingIds.has(product.id) && (
-                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 11. INR Purchase */}
-                      <td className="px-4 py-3 text-sm">
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.01"
-                            defaultValue={product.inr_purchase || ''}
-                            onBlur={(e) =>
-                              handleCellEdit(
-                                product.id,
-                                'inrpurchase',
-                                parseFloat(e.target.value) || null
-                              )
-                            }
-                            className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                            placeholder="₹"
-                          />
-                          {calculatingIds.has(product.id) && (
-                            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 12. Profit */}
-                      <td className="px-4 py-3 text-sm">
-                        <div
-                          className={`w-24 px-2 py-1 border rounded text-sm font-bold text-center ${(product.profit || 0) >= 0
-                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                            : 'text-rose-400 bg-rose-500/10 border-rose-500/30'
-                            }`}
-                        >
-                          {product.profit !== null && product.profit !== undefined
-                            ? `₹${product.profit.toFixed(2)}`
-                            : '-'}
-                        </div>
-                      </td>
-
-                      {/* 13. INR Purchase Link */}
-                      <td className="px-4 py-3 text-sm">
-                        <div className="w-32">
-                          {editingLinkId === `inr-${product.id}` ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="text"
-                                value={editingLinkValue}
-                                onChange={(e) => setEditingLinkValue(e.target.value)}
-                                className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Supplier URL..."
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleCellEdit(product.id, 'inrpurchaselink', editingLinkValue);
-                                    setEditingLinkId(null);
-                                  } else if (e.key === 'Escape') {
-                                    setEditingLinkId(null);
-                                  }
-                                }}
-                              />
-                              <button
-                                onClick={() => {
-                                  handleCellEdit(product.id, 'inrpurchaselink', editingLinkValue);
-                                  setEditingLinkId(null);
-                                }}
-                                className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => setEditingLinkId(null)}
-                                className="text-rose-500 hover:text-rose-400 flex-shrink-0"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {product.inr_purchase_link && product.inr_purchase_link.trim() !== '' ? (
-                                <>
-                                  <a
-                                    href={product.inr_purchase_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
-                                  >
-                                    View Link
-                                  </a>
-                                  <button
-                                    onClick={() => {
-                                      setEditingLinkId(`inr-${product.id}`);
-                                      setEditingLinkValue(product.inr_purchase_link || '');
-                                    }}
-                                    className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingLinkId(`inr-${product.id}`);
-                                    setEditingLinkValue('');
-                                  }}
-                                  className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
-                                >
-                                  + Add Link
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 14. Buying Price */}
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          defaultValue={product.buying_price || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-                          className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </td>
-
-                      {/* 15. Buying Quantity */}
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          defaultValue={product.buying_quantity || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </td>
-
-                      {/* 16. Seller Link */}
-                      <td className="px-4 py-3 text-sm">
-                        <div className="w-32">
-                          {editingLinkId === `seller_${product.id}` ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="text"
-                                value={editingLinkValue}
-                                onChange={(e) => setEditingLinkValue(e.target.value)}
-                                className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Amazon URL..."
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleCellEdit(product.id, 'sellerlink', editingLinkValue);
-                                    setEditingLinkId(null);
-                                  } else if (e.key === 'Escape') {
-                                    setEditingLinkId(null);
-                                  }
-                                }}
-                              />
-                              <button
-                                onClick={() => {
-                                  handleCellEdit(product.id, 'sellerlink', editingLinkValue);
-                                  setEditingLinkId(null);
-                                }}
-                                className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => setEditingLinkId(null)}
-                                className="text-rose-500 hover:text-rose-400 flex-shrink-0"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {product.seller_link && product.seller_link.trim() !== '' ? (
-                                <>
-                                  <a
-                                    href={product.seller_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
-                                  >
-                                    View Link
-                                  </a>
-                                  <button
-                                    onClick={() => {
-                                      setEditingLinkId(`seller_${product.id}`);
-                                      setEditingLinkValue(product.seller_link || '');
-                                    }}
-                                    className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingLinkId(`seller_${product.id}`);
-                                    setEditingLinkValue('');
-                                  }}
-                                  className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
-                                >
-                                  + Add Link
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 17. Seller Ph No. */}
-                      <td className="px-4 py-3">
-                        <input
-                          type="text"
-                          defaultValue={product.seller_phone || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-                          className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                          placeholder="Phone"
-                        />
-                      </td>
-
-                      {/* 18. Payment Method */}
-                      <td className="px-4 py-3">
-                        <input
-                          type="text"
-                          defaultValue={product.payment_method || ''}
-                          onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-                          className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                          placeholder="Method"
-                        />
-                      </td>
-
-                      {/* 19. Actions */}
-                      {activeTab !== 'confirm' && activeTab !== 'reject' && (
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleConfirmProduct(product.id)}
-                              disabled={product.admin_status === 'confirmed'}
-                              className={`p-2 rounded-lg transition-all ${product.admin_status === 'confirmed'
-                                ? 'bg-emerald-500/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
-                                : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20'
-                                }`}
-                              title="Confirm"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleRejectProduct(product.id)}
-                              disabled={product.admin_status === 'rejected'}
-                              className={`p-2 rounded-lg transition-all ${product.admin_status === 'rejected'
-                                ? 'bg-rose-500/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
-                                : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20'
-                                }`}
-                              title="Reject"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      )}
+                      {columnOrder.map((col_key) => renderAdminCell(col_key, product))}
                     </tr>
                   ))
                 )}
@@ -2088,11 +1834,7 @@ export default function AdminValidationPage() {
         {isConstantsModalOpen && (
           <>
             {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
-              onClick={() => setIsConstantsModalOpen(false)}
-            ></div>
-
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
             {/* Modal */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
               <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 animate-in zoom-in-95 duration-200">
@@ -2102,87 +1844,50 @@ export default function AdminValidationPage() {
                   <p className="text-purple-100 mt-1 opacity-90">Configure constants for profit calculation</p>
                 </div>
 
-                {/* Form */}
-                <div className="p-6 space-y-5">
+                {/* Body */}
+                <div className="grid grid-cols-2 gap-6 p-6">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">
-                      Dollar Rate (₹)
-                    </label>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">🏦 Bank Fee (%)</label>
                     <input
-                      type="number"
-                      value={adminConstants.dollar_rate}
-                      onChange={(e) => setAdminConstants({ ...adminConstants, dollar_rate: parseFloat(e.target.value) || 90 })}
+                      type="text"
+                      inputMode="decimal"
+                      value={modalInputs.bankfee}
+                      onChange={(e) => setModalInputs({ ...modalInputs, bankfee: e.target.value })}
+                      placeholder="e.g. 2"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                      step="0.01"
                     />
+                    <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.bank_conversion_rate}%</p>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">
-                      Bank Fee (%)
-                    </label>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">🚚 Shipping per 1000g (₹)</label>
                     <input
-                      type="number"
-                      value={adminConstants.bank_conversion_rate * 100}
-                      onChange={(e) => setAdminConstants({ ...adminConstants, bank_conversion_rate: (parseFloat(e.target.value) || 2) / 100 })}
+                      type="text"
+                      inputMode="decimal"
+                      value={modalInputs.shipping}
+                      onChange={(e) => setModalInputs({ ...modalInputs, shipping: e.target.value })}
+                      placeholder="e.g. 950"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                      step="0.01"
                     />
+                    <p className="text-xs text-slate-500 mt-1">Currently: ₹{adminConstants.shipping_charge_per_kg}</p>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">
-                      Shipping per 1000g (₹)
-                    </label>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">💰 Commission Rate (%)</label>
                     <input
-                      type="number"
-                      value={adminConstants.shipping_charge_per_kg}
-                      onChange={(e) => setAdminConstants({ ...adminConstants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
+                      type="text"
+                      inputMode="decimal"
+                      value={modalInputs.commission}
+                      onChange={(e) => setModalInputs({ ...modalInputs, commission: e.target.value })}
+                      placeholder="e.g. 25"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                      step="0.01"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">
-                      Commission Rate (%)
-                    </label>
-                    <input
-                      type="number"
-                      value={adminConstants.commission_rate * 100}
-                      onChange={(e) => setAdminConstants({ ...adminConstants, commission_rate: (parseFloat(e.target.value) || 25) / 100 })}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                      step="0.01"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">
-                      Packing Cost (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={adminConstants.packing_cost}
-                      onChange={(e) => setAdminConstants({ ...adminConstants, packing_cost: parseFloat(e.target.value) || 25 })}
-                      className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                      step="0.01"
-                    />
+                    <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.commission_rate}%</p>
                   </div>
                 </div>
 
                 {/* Footer */}
                 <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3 rounded-b-xl">
-                  <button
-                    onClick={() => setIsConstantsModalOpen(false)}
-                    className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 border border-slate-700 font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveAdminConstants}
-                    disabled={isSavingConstants}
-                    className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all"
-                  >
+                  <button onClick={() => setIsConstantsModalOpen(false)} className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 border border-slate-700 font-medium transition-colors">Cancel</button>
+                  <button onClick={saveAdminConstants} disabled={isSavingConstants} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all">
                     {isSavingConstants ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
@@ -2190,9 +1895,7 @@ export default function AdminValidationPage() {
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                         Save & Apply
                       </>
                     )}
@@ -2204,14 +1907,15 @@ export default function AdminValidationPage() {
         )}
       </div>
       {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
-
+      {
+        toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )
+      }
 
       <AnimatePresence>
         {selectedHistoryAsin && (
@@ -2366,6 +2070,6 @@ export default function AdminValidationPage() {
           </>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 }

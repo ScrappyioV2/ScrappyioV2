@@ -38,3 +38,6 @@ Thumbs.db
 
 .vercel
 "cloud-export/" 
+"cloud-export/full_backup.dump" 
+"cloud-export/clean_dump.sql" 
+"*.dump" 
