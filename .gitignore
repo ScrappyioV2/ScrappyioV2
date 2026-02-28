@@ -41,3 +41,4 @@ Thumbs.db
 "cloud-export/full_backup.dump" 
 "cloud-export/clean_dump.sql" 
 "*.dump" 
+"cloud-export/" 
