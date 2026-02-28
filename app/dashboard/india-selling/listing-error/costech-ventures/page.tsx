@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -408,7 +407,7 @@ export default function CostechVenturesListingPage() {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <PageTransition>
+    <>
       <div className="h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
         <div className="flex-1 flex flex-col w-full mx-auto p-3 overflow-hidden">
           {/* === HEADER & CONTROLS === */}
@@ -724,6 +723,6 @@ export default function CostechVenturesListingPage() {
           )}
         </div>
       </div>
-    </PageTransition>
-  );
+    </>
+  )
 }

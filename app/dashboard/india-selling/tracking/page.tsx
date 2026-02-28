@@ -48,6 +48,8 @@ type PassFileProduct = {
     payment_method: string | null
     tracking_details: string | null
     delivery_date: string | null
+    sku?: string | null
+    order_date: string | null
     status: string | null
     move_to: string | null
     sent_to_admin: boolean | null
@@ -165,6 +167,7 @@ export default function TrackingPage() {
     const [visibleColumns, setVisibleColumns] = useState({
         checkbox: true,
         asin: true,
+        sku: true,
         productlink: true,
         productname: true,
         targetprice: true,
@@ -180,6 +183,7 @@ export default function TrackingPage() {
         paymentmethod: true,
         trackingdetails: true,
         deliverydate: true,
+        orderdate: true,
         admintargetprice: true,
     });
 
@@ -222,7 +226,7 @@ export default function TrackingPage() {
 
             const { data: validationDataArray } = await supabase
                 .from('india_validation_main_file')
-                .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
                 .in('asin', allAsins);
 
             // Create maps for quick lookup
@@ -255,6 +259,7 @@ export default function TrackingPage() {
                     product_weight: validationData?.product_weight ?? null,
                     usd_price: validationData?.usd_price ?? null,
                     inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                    validation_sku: validationData?.sku ?? null,
                 };
             });
             console.log(`✅ Loaded ${enrichedData.length} products from ${mainFileTableName}`);
@@ -332,7 +337,7 @@ export default function TrackingPage() {
 
             const { data: validationDataArray } = await supabase
                 .from('india_validation_main_file')
-                .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+                .select('asin, current_journey_id, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
                 .in('asin', allAsins);
 
             // Create maps for quick lookup
@@ -362,6 +367,7 @@ export default function TrackingPage() {
                     product_weight: validationData?.product_weight ?? null,
                     usd_price: validationData?.usd_price ?? null,
                     inr_purchase_from_validation: validationData?.inr_purchase ?? null,
+                    validation_sku: validationData?.sku ?? null,
                 };
             });
 
@@ -409,6 +415,7 @@ export default function TrackingPage() {
     const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
         checkbox: 50,
         asin: 120,
+        sku: 120,
         productlink: 80,
         productname: 140,
         targetprice: 100,
@@ -425,6 +432,7 @@ export default function TrackingPage() {
         paymentmethod: 120,
         trackingdetails: 150,
         deliverydate: 150,
+        orderdate: 150,
         moveto: 100,
     });
 
@@ -469,7 +477,8 @@ export default function TrackingPage() {
         const matchesSearch = !searchQuery ||
             p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.funnel?.toLowerCase().includes(searchQuery.toLowerCase());
+            p.funnel?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p as any).validationsku?.toLowerCase().includes(searchQuery.toLowerCase());
         if (!matchesSearch) return false;
 
         // 2. SELLER FILTER - Must match Active Seller Tag
@@ -692,7 +701,7 @@ export default function TrackingPage() {
                     <div className="flex gap-3 items-center mb-6 px-6 pt-4">
                         <input
                             type="text"
-                            placeholder="Search by ASIN, Product Name, or Funnel..."
+                            placeholder="Search by ASIN, Product Name, SKU, or Funnel..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="flex-1 max-w-md px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
@@ -826,7 +835,7 @@ export default function TrackingPage() {
                                         <div className="space-y-2 max-h-96 overflow-y-auto">
                                             {Object.keys(visibleColumns).map((col) => {
                                                 const columnDisplayNames: { [key: string]: string } = {
-                                                    'checkbox': 'Checkbox', 'asin': 'ASIN', 'productlink': 'Product Link',
+                                                    'checkbox': 'Checkbox', 'asin': 'ASIN', 'sku': 'SKU', 'productlink': 'Product Link',
                                                     'productname': 'Product Name', 'targetprice': 'Validation Target Price',
                                                     'targetquantity': 'Target Quantity', 'admintargetprice': 'Admin Target Price',
                                                     'funnelquantity': 'Funnel', 'funnelseller': 'Seller Tag',
@@ -834,7 +843,7 @@ export default function TrackingPage() {
                                                     'buyingprice': 'Buying Price', 'buyingquantity': 'Buying Quantity',
                                                     'sellerlink': 'Seller Link', 'sellerphno': 'Seller Ph No.',
                                                     'paymentmethod': 'Payment Method', 'trackingdetails': 'Tracking Details',
-                                                    'deliverydate': 'Delivery Date', 'moveto': 'Move To',
+                                                    'deliverydate': 'Delivery Date', 'orderdate': 'Order Date', 'moveto': 'Move To',
                                                 };
                                                 return (
                                                     <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
@@ -896,6 +905,16 @@ export default function TrackingPage() {
                                                 <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800" style={{ width: `${columnWidths.asin}px` }}>
                                                     ASIN
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
+                                                </th>
+                                            )}
+
+                                            {/* ← ADD THIS BLOCK */}
+                                            {visibleColumns.sku && (
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase relative group border-r border-slate-800"
+                                                    style={{ width: columnWidths.sku + 'px' }}>
+                                                    SKU
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                                                        onMouseDown={(e) => handleMouseDown('sku', e)} />
                                                 </th>
                                             )}
 
@@ -1029,6 +1048,15 @@ export default function TrackingPage() {
                                                     Delivery Date
                                                 </th>
                                             )}
+
+                                            {visibleColumns.orderdate && (
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                                                    style={{ width: columnWidths.orderdate + 'px' }}>
+                                                    Order Date
+                                                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                                                        onMouseDown={(e) => handleMouseDown('orderdate', e)} />
+                                                </th>
+                                            )}
                                         </tr>
                                     </thead>
 
@@ -1058,6 +1086,17 @@ export default function TrackingPage() {
                                                                 <div className="truncate">{product.asin}</div>
                                                             </td>
                                                         )}
+
+                                                        {/* ← ADD THIS BLOCK */}
+                                                        {visibleColumns.sku && (
+                                                            <td className="px-3 py-2 font-mono text-sm text-slate-400 overflow-hidden border-r border-slate-800/50"
+                                                                style={{ width: columnWidths.sku + 'px' }}>
+                                                                <div className="truncate" title={product.sku || (product as any).validationsku || '-'}>
+                                                                    {product.sku || (product as any).validationsku || '-'}
+                                                                </div>
+                                                            </td>
+                                                        )}
+
                                                         {visibleColumns.productlink && (
                                                             <td
                                                                 className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50"
@@ -1250,6 +1289,12 @@ export default function TrackingPage() {
                                                                 style={{ width: `${columnWidths.deliverydate}px` }}
                                                             >
                                                                 {product.delivery_date ?? '-'}
+                                                            </td>
+                                                        )}
+                                                        {visibleColumns.orderdate && (
+                                                            <td className="px-3 py-2 overflow-hidden text-sm text-slate-300 text-center border-r border-slate-800/50"
+                                                                style={{ width: columnWidths.orderdate + 'px' }}>
+                                                                {product.order_date ?? '-'}
                                                             </td>
                                                         )}
                                                     </tr>

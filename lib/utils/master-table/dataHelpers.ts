@@ -20,6 +20,7 @@ const DB_COLUMNS = new Set([
   'dimensions',
   'weight',
   'weight_unit',
+  'sku',
 ]);
 
 const BLOCKED_COLUMNS = new Set([
@@ -65,7 +66,7 @@ const parseWeight = (value: any): { weight: number | null; unit: string } => {
   }
 
   const text = value.trim();
-  
+
   // Extract number
   const numMatch = text.match(/[\d.]+/);
   if (!numMatch) {
@@ -73,7 +74,7 @@ const parseWeight = (value: any): { weight: number | null; unit: string } => {
   }
 
   const weight = parseFloat(numMatch[0]);
-  
+
   // Extract unit (everything after the number, trimmed)
   const unitMatch = text.replace(/[\d.\s]+/, '').trim();
   const unit = unitMatch || 'kg'; // Use extracted unit or default to 'kg'
@@ -102,32 +103,33 @@ export const normalizeDataForDB = (rows: any[]) => {
 
         // ---- ALIASES FROM JUNGLE SCOUT ----
 
-// Monthly Units
-if (dbKey === 'monthly_units') dbKey = 'monthly_unit';
-if (dbKey === 'monthly_units_sold') dbKey = 'monthly_unit';
+        // Monthly Units
+        if (dbKey === 'monthly_units') dbKey = 'monthly_unit';
+        if (dbKey === 'monthly_units_sold') dbKey = 'monthly_unit';
 
-// Monthly Sales / Revenue
-if (dbKey === 'monthly_revenue') dbKey = 'monthly_sales';
-if (dbKey === 'monthly_sales') dbKey = 'monthly_sales';
+        // Monthly Sales / Revenue
+        if (dbKey === 'monthly_revenue') dbKey = 'monthly_sales';
+        if (dbKey === 'monthly_sales') dbKey = 'monthly_sales';
 
-// Sellers count
-if (dbKey === 'seller_count') dbKey = 'seller';
-if (dbKey === 'sellers') dbKey = 'seller';
-if (dbKey === 'no_of_sellers') dbKey = 'seller';
-if (dbKey === 'no_of_seller') dbKey = 'seller';
+        // Sellers count
+        if (dbKey === 'seller_count') dbKey = 'seller';
+        if (dbKey === 'sellers') dbKey = 'seller';
+        if (dbKey === 'no_of_sellers') dbKey = 'seller';
+        if (dbKey === 'no_of_seller') dbKey = 'seller';
 
-// Dimensions (keep as-is, just normalize)
-if (dbKey === 'dimension') dbKey = 'dimensions';
-if (dbKey === 'dimensions') dbKey = 'dimensions';
+        // Dimensions (keep as-is, just normalize)
+        if (dbKey === 'dimension') dbKey = 'dimensions';
+        if (dbKey === 'dimensions') dbKey = 'dimensions';
+        if (dbKey === 'skus') dbKey = 'sku';
 
-// Amazon link – single source of truth
-if (
-  dbKey === 'link' ||
-  dbKey === 'amazon_link' ||
-  dbKey === 'product_url'
-) {
-  dbKey = 'amz_link';
-}
+        // Amazon link – single source of truth
+        if (
+          dbKey === 'link' ||
+          dbKey === 'amazon_link' ||
+          dbKey === 'product_url'
+        ) {
+          dbKey = 'amz_link';
+        }
 
         if (BLOCKED_COLUMNS.has(dbKey)) return;
         if (!DB_COLUMNS.has(dbKey)) return;
@@ -168,12 +170,12 @@ if (
 
       // AUTO-GENERATE LINK IF EMPTY
       if (!normalizedRow.amz_link || normalizedRow.amz_link.trim() === '') {
-  normalizedRow.amz_link = `www.amazon.com/dp/${normalizedRow.asin}`;
-}
+        normalizedRow.amz_link = `www.amazon.com/dp/${normalizedRow.asin}`;
+      }
 
-// if (!normalizedRow.link || normalizedRow.link.trim() === '') {
-//   normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
-// }
+      // if (!normalizedRow.link || normalizedRow.link.trim() === '') {
+      //   normalizedRow.link = `www.amazon.com/dp/${normalizedRow.asin}`;
+      // }
 
       // ✅ EXPLICIT RETURN - Only allowed DB columns
       const safeRow: any = {};

@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react';
-import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
@@ -31,27 +30,29 @@ interface ProductRow {
   working?: boolean;
   reason?: string | null;
   remark?: string | null;
+  sku?: string | null;
 }
 
 type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject';
 
 // ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
-  asin: 140,
-  product_name: 350,
-  brand: 160,
-  funnel: 110,
-  monthly_unit: 120,
-  product_link: 100,
-  amz_link: 100,
-  reason: 250,
-  remark: 200,
+  asin: 120,
+  product_name: 200,
+  sku: 80,
+  brand: 100,
+  funnel: 90,
+  monthly_unit: 90,
+  product_link: 85,
+  amz_link: 85,
+  reason: 150,
+  remark: 120,
 };
 
 export default function UBeautyPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [processingId, setProcessingId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -60,6 +61,7 @@ export default function UBeautyPage() {
   const [visibleColumns, setVisibleColumns] = useState({
     asin: true,
     product_name: true,
+    sku: true,
     brand: true,
     funnel: true,
     monthly_unit: true,
@@ -90,11 +92,12 @@ export default function UBeautyPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ubeauty_column_widths');
-      return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
+      if (saved) {
+        return { ...DEFAULT_WIDTHS, ...JSON.parse(saved) };
+      }
     }
     return DEFAULT_WIDTHS;
   });
-
   // ✅ 3. ADD: Resize Logic Ref
   const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
@@ -107,6 +110,9 @@ export default function UBeautyPage() {
         // ✅ Add remark if it's missing from saved order
         if (!parsedOrder.includes('remark')) {
           parsedOrder.push('remark');
+        }
+        if (!parsedOrder.includes('sku')) {
+          parsedOrder.splice(parsedOrder.indexOf('product_name') + 1, 0, 'sku');
         }
         return parsedOrder;
       }
@@ -235,10 +241,9 @@ export default function UBeautyPage() {
         }
 
         query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%`
         );
       }
-
 
       const { data, error, count } = await query
         .range(start, end)
@@ -333,6 +338,7 @@ export default function UBeautyPage() {
           product_link: product.product_link,
           amz_link: product.amz_link,
           remark: product.remark,
+          sku: product.sku,
           from_table: fromTable,
           to_table: toTable,
         });
@@ -385,6 +391,7 @@ export default function UBeautyPage() {
             product_weight: null,
             judgement: null,
             remark: product.remark,
+            sku: product.sku,
           });
         } else {
           const existingTags = existingRow.seller_tag?.split(',') ?? [];
@@ -492,6 +499,7 @@ export default function UBeautyPage() {
         product_link: product.product_link,
         amz_link: product.amz_link,
         remark: product.remark,
+        sku: product.sku,
       });
 
       if (insertError) throw insertError;
@@ -709,7 +717,7 @@ export default function UBeautyPage() {
         onDrop={() => handleDrop(columnKey)}
         // Added 'relative' and 'text-center'
         className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none group"
-        style={{ width: columnWidths[columnKey], minWidth: 80 }}
+        style={{ width: columnWidths[columnKey], minWidth: 60, maxWidth: columnWidths[columnKey] }}
       >
         <div className="flex items-center justify-center gap-2">
           {displayName}
@@ -749,10 +757,8 @@ export default function UBeautyPage() {
   // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
   // ------------------------------------------------------------------
   return (
-    <PageTransition>
-      {/* Ensure requiredPage matches your Sidebar/DB key exactly */}
+    <>
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
-
         {/* HEADER */}
         <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
           <div className="max-w-[1920px] mx-auto">
@@ -820,7 +826,7 @@ export default function UBeautyPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
                     type="text"
-                    placeholder="Search by ASIN, Name, Brand..."
+                    placeholder="Search by ASIN, Name, Brand, SKU..."
                     value={searchQuery}
                     onChange={(e) => {                              // ← CHANGED THIS
                       const value = e.target.value;                 // ← Get the typed text
@@ -913,7 +919,7 @@ export default function UBeautyPage() {
               </div>
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
+                <table className="w-full border-collapse text-left" ref={tableRef}>
                   <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
                     <tr>
                       <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
@@ -926,7 +932,7 @@ export default function UBeautyPage() {
                       </th>
                       {columnOrder.map((col) => {
                         const columnNames: Record<string, string> = {
-                          asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
+                          asin: 'ASIN', product_name: 'Product Name', sku: 'SKU', brand: 'Brand', funnel: 'Funnel',
                           monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
                         };
                         if (col === 'reason' && activeTab !== 'reject') return null;
@@ -963,12 +969,6 @@ export default function UBeautyPage() {
                               {/* ✅ ADD DEBUG LOG */}
                               {col === 'product_link' || col === 'amz_link' ? (
                                 <>
-                                  {console.log('🔍 DEBUG:', {
-                                    column: col,
-                                    value: product[col as keyof ProductRow],
-                                    hasValue: !!product[col as keyof ProductRow],
-                                    type: typeof product[col as keyof ProductRow]
-                                  })}
                                   {product[col as keyof ProductRow] ? (
                                     <a
                                       href={String(product[col as keyof ProductRow])}
@@ -984,6 +984,10 @@ export default function UBeautyPage() {
                                 </>
                               ) : col === 'funnel' ? (
                                 <FunnelBadge funnel={product.funnel} />
+                              ) : col === 'sku' ? (
+                                <span className="font-mono text-slate-400 text-[10px]">
+                                  {product.sku || '-'}
+                                </span>
                               ) : col === 'remark' ? (
                                 product.remark ? (
                                   <button
@@ -1082,8 +1086,8 @@ export default function UBeautyPage() {
           </div>
         )}
       </div>
-    </PageTransition>
-  );
+    </>
+  )
 }
 
 //app\dashboard\india-selling\brand-checking\golden-aura\page.tsx

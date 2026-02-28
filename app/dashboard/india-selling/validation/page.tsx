@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/hooks/useAuth';
-import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
@@ -14,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const toSnakeCase = (obj: Record<string, any>): Record<string, any> => {
     const map: Record<string, string> = {
         productname: 'product_name',
+        sku: 'sku',
         sellertag: 'seller_tag',
         noofseller: 'no_of_seller',
         indialink: 'india_link',
@@ -64,6 +64,7 @@ const debounce = <T extends (...args: any[]) => any>(
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     asin: 120,
+    sku: 100,
     history: 120,           // Reduced
     product_name: 220,   // Reduced from 320
     brand: 110,
@@ -127,6 +128,7 @@ const parseCurrency = (value: string) =>
 interface ValidationProduct {
     id: string
     asin: string
+    sku?: string | null
     product_name: string | null
     brand: string | null
     seller_tag: string | null
@@ -279,7 +281,9 @@ export default function ValidationPage() {
     const movingIdsRef = useRef<Set<string>>(new Set());
     const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
     const [editingLinkValue, setEditingLinkValue] = useState<string>('');
-    const [loading, setLoading] = useState(false)
+    const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
+    const [editingSkuValue, setEditingSkuValue] = useState<string>('');
+    const [loading, setLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
     const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0 })
@@ -345,6 +349,7 @@ export default function ValidationPage() {
     // 5. UPDATE visibleColumns state (around line 100)
     const [visibleColumns, setVisibleColumns] = useState({
         asin: true,
+        sku: true,
         product_name: true,
         brand: true,
         seller_tag: true,
@@ -405,7 +410,7 @@ export default function ValidationPage() {
 
     // ========== COLUMN DRAG REORDER ==========
     const DEFAULT_COLUMN_ORDER = [
-        'asin', 'history', 'product_name', 'brand', 'seller_tag', 'funnel',
+        'asin', 'sku', 'history', 'product_name', 'brand', 'seller_tag', 'funnel',
         'no_of_seller', 'india_link', 'usa_link', 'origin', 'product_weight', 'usd_price',
         'inr_purchase', 'inr_purchase_link', 'checklist', 'reject_reason',
         'judgement', 'remark'
@@ -822,6 +827,7 @@ export default function ValidationPage() {
             result = result.filter(
                 (p) =>
                     p.asin?.toLowerCase().includes(query) ||
+                    p.sku?.toLowerCase().includes(query) ||
                     p.product_name?.toLowerCase().includes(query) ||
                     p.brand?.toLowerCase().includes(query)
             );
@@ -984,6 +990,7 @@ export default function ValidationPage() {
                 else if (lower === 'inrpurchaselink' || lower === 'sourcelink' || lower === 'sourcelink' || lower === 'inrpurchaselink') headerMap['inr_purchase_link'] = h;
                 else if (lower === 'remark' || lower === 'remarks') headerMap['remark'] = h;
                 else if (lower === 'indialink' || lower === 'india_link' || lower === 'indianlink' || lower === 'amazon_link' || lower === 'amazonlink' || lower === 'india_link') headerMap['indialink'] = h;
+                else if (lower === 'sku') headerMap['sku'] = h;
             });
 
             if (!headerMap['asin']) {
@@ -993,7 +1000,7 @@ export default function ValidationPage() {
 
             console.log('🔍 Mapped headers:', headerMap);
 
-            const updates: { asin: string; product_weight?: number | null; usd_price?: number | null; inr_purchase?: number | null; inr_purchase_link?: string | null; remark?: string | null; indialink?: string | null }[] = [];
+            const updates: { asin: string; product_weight?: number | null; usd_price?: number | null; inr_purchase?: number | null; inr_purchase_link?: string | null; remark?: string | null; indialink?: string | null; sku?: string | null }[] = [];
 
             for (const row of rows) {
                 const asin = row[headerMap['asin']]?.toString().trim();
@@ -1029,6 +1036,10 @@ export default function ValidationPage() {
                     }
                 }
 
+                if (headerMap['sku']) {
+                    const val = row[headerMap['sku']]?.toString().trim();
+                    if (val !== undefined) update.sku = val || null;
+                }
                 updates.push(update);
             }
 
@@ -1066,6 +1077,7 @@ export default function ValidationPage() {
                         inr_purchase_link: csvRow.inr_purchase_link ?? existingProduct.inr_purchase_link,
                         remark: csvRow.remark !== undefined ? csvRow.remark : existingProduct.remark,
                         india_link: csvRow.indialink ?? existingProduct.india_link,
+                        sku: csvRow.sku ?? existingProduct.sku,
                     };
 
                     const dbUpdate: Record<string, any> = {};
@@ -1076,6 +1088,7 @@ export default function ValidationPage() {
                     if (csvRow.inr_purchase_link !== undefined) dbUpdate.inr_purchase_link = csvRow.inr_purchase_link;
                     if (csvRow.remark !== undefined) dbUpdate.remark = csvRow.remark;
                     if (csvRow.indialink !== undefined) dbUpdate.india_link = csvRow.indialink;
+                    if (csvRow.sku !== undefined) dbUpdate.sku = csvRow.sku;
 
                     const usdPrice = mergedProduct.usd_price;
                     const weight = mergedProduct.product_weight;
@@ -1418,7 +1431,8 @@ export default function ValidationPage() {
                     profit: product.profit ?? null,
                     remark: product.remark ?? null,
                     journey_id: journeyId,
-                    journey_number: journeyNum
+                    journey_number: journeyNum,
+                    sku: product.sku || null
                 })
 
             if (insertError) {
@@ -1969,6 +1983,79 @@ export default function ValidationPage() {
                     </td>
                 );
 
+            case 'sku':
+                if (!visibleColumns.sku) return null;
+                return (
+                    <td key={col_key} className="px-4 py-3 text-sm" style={{ maxWidth: columnWidths.sku || 150 }}>
+                        <div className="w-40">
+                            {editingSkuId === product.id ? (
+                                <div className="flex items-center gap-1">
+                                    <input
+                                        type="text"
+                                        value={editingSkuValue}
+                                        onChange={(e) => setEditingSkuValue(e.target.value)}
+                                        className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                        placeholder="Enter SKU..."
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleCellEdit(product.id, 'sku', editingSkuValue.trim() || null);
+                                                setEditingSkuId(null);
+                                            } else if (e.key === 'Escape') {
+                                                setEditingSkuId(null);
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            handleCellEdit(product.id, 'sku', editingSkuValue.trim() || null);
+                                            setEditingSkuId(null);
+                                        }}
+                                        className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
+                                        title="Save (Enter)"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingSkuId(null)}
+                                        className="text-rose-500 hover:text-rose-400 flex-shrink-0"
+                                        title="Cancel (Esc)"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : product.sku ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-200 text-xs truncate" title={product.sku}>{product.sku}</span>
+                                    <button
+                                        onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(product.sku || ''); }}
+                                        className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
+                                        title="Edit SKU"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(''); }}
+                                    className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
+                                >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Add SKU
+                                </button>
+                            )}
+                        </div>
+                    </td>
+                );
+
             case 'history':
                 return (
                     <td key={col_key} className="px-6 py-4 text-center border-r border-slate-800/50">
@@ -2004,7 +2091,7 @@ export default function ValidationPage() {
                 if (!visibleColumns.funnel) return null;
                 return (
                     <td key={col_key} className="p-3">
-                        {(activeTab === 'main_file' || activeTab === 'pending' || activeTab === 'pass_file') ? (
+                        {(activeTab === 'main_file' || activeTab === 'pending' || activeTab === 'pass_file' || activeTab === 'fail_file') ? (
                             <div className="relative">
                                 <button
                                     onClick={(e) => {
@@ -2158,7 +2245,7 @@ export default function ValidationPage() {
                 );
 
             case 'origin':
-                if (activeTab !== 'pass_file') return null;
+                if (activeTab !== 'pass_file' && activeTab !== 'fail_file') return null;
                 // PASTE YOUR EXACT EXISTING origin <td> block here
                 // It starts with: {activeTab === 'pass_file' && (() => { const origins = [...]
                 // Copy everything between the outer <td> and </td> for origin
@@ -2406,7 +2493,7 @@ export default function ValidationPage() {
     // ========== END RENDER CELL ==========
 
     return (
-        <PageTransition>
+        <>
             <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
                 <div className="w-full flex flex-col flex-1 overflow-hidden">
                     {/* Fixed Header Section */}
@@ -2464,10 +2551,12 @@ export default function ValidationPage() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="mb-4">
-                            <div className="flex items-center justify-between gap-3">
+                        {/* Action Buttons */}
+                        <div className="mb-4 space-y-3">
+                            {/* ROW 1: Search + Filter + Funnel + Action Buttons */}
+                            <div className="flex items-center gap-3">
                                 {/* LEFT SIDE - Search + Filter */}
-                                <div className="flex gap-3 flex-1 min-w-[300px]">
+                                <div className="flex gap-3 min-w-[300px]">
                                     {/* Search Bar */}
                                     <div className="relative flex-1 max-w-md group">
                                         <svg
@@ -2480,7 +2569,7 @@ export default function ValidationPage() {
                                         </svg>
                                         <input
                                             type="text"
-                                            placeholder="Search by ASIN, Product Name, or Brand..."
+                                            placeholder="Search by ASIN, SKU, Product Name, or Brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             className="w-full pl-9 pr-10 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
@@ -2558,208 +2647,214 @@ export default function ValidationPage() {
                                     </div>
                                 </div>
 
-                                {/* RIGHT SIDE - Action Buttons */}
-                                <div className="flex gap-3 flex-wrap">
-                                    {/* Move to Main */}
-                                    {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
-                                        <button
-                                            onClick={handleMoveToMainClick}
-                                            disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
-                                                }`}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                            Move to Main
-                                        </button>
-                                    )}
+                                {/* Spacer */}
+                                <div className="flex-1" />
 
-                                    {/* Move to Pass */}
-                                    {/* {activeTab === 'pending' && (
-                                            <button
-                                                onClick={handleMoveToPassClick}
-                                                disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
-                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                    : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
-                                                    }`}
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                                Move to Pass
-                                            </button>
-                                        )} */}
-
-                                    {/* Move to Fail */}
-                                    {/* {activeTab === 'pending' && (
-                                            <button
-                                                onClick={handleMoveToFailClick}
-                                                disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
-                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                    : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
-                                                    }`}
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                                Move to Fail
-                                            </button>
-                                        )} */}
-
-                                    {/* Funnel Quick Filters */}
-                                    <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
-                                        <button
-                                            onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
-                                                ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
-                                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                                }`}
-                                        >
-                                            RS
-                                        </button>
-                                        <button
-                                            onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
-                                                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
-                                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                                }`}
-                                        >
-                                            DP
-                                        </button>
-                                    </div>
-
-                                    {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
-                                        <button
-                                            onClick={handleMoveToRejectClick}
-                                            disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
-                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
-                                                }`}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                            </svg>
-                                            Move to Reject
-                                        </button>
-                                    )}
-
-                                    {(activeTab === 'main_file' || activeTab === 'pass_file') && (
-                                        <button
-                                            onClick={handleRollBack}
-                                            disabled={
-                                                (activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
-                                                (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
-                                            }
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
-                                                (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
-                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
-                                                }`}
-                                            title={activeTab === 'main_file'
-                                                ? 'Roll back last ASIN from Pass File'
-                                                : 'Roll back last ASIN from Purchases'
-                                            }
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                            </svg>
-                                            Roll Back
-                                        </button>
-                                    )}
-
-                                    {/* Download CSV Dropdown */}
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                            </svg>
-                                            Download CSV
-                                            <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </button>
-
-                                        {isDownloadDropdownOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
-
-                                                    {/* Download Selected - only if items selected */}
-                                                    {selectedIds.size > 0 && (
-                                                        <button
-                                                            onClick={() => downloadCSV('selected')}
-                                                            className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
-                                                        >
-                                                            <span>📋 Download Selected</span>
-                                                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
-                                                        </button>
-                                                    )}
-
-                                                    {/* Download Current Page */}
-                                                    <button
-                                                        onClick={() => downloadCSV('page')}
-                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
-                                                    >
-                                                        <span>📄 Download Page</span>
-                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
-                                                    </button>
-
-                                                    {/* Download All */}
-                                                    <button
-                                                        onClick={() => downloadCSV('all')}
-                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
-                                                    >
-                                                        <span>📦 Download All</span>
-                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
-                                                    </button>
-
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Upload CSV */}
+                                {/* Move to Main */}
+                                {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
                                     <button
-                                        onClick={handleUploadCSV}
-                                        className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                        onClick={handleMoveToMainClick}
+                                        disabled={selectedIds.size === 0}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                            : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
+                                            }`}
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>
-                                        Upload CSV
+                                        Move to Main
                                     </button>
-                                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
+                                )}
 
-                                    {/* Bulk india Price Update */}
+                                {/* Move to Pass */}
+                                {/* {activeTab === 'pending' && (
+      <button
+        onClick={handleMoveToPassClick}
+        disabled={selectedIds.size === 0}
+        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
+          ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+          : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
+          }`}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+        Move to Pass
+      </button>
+    )} */}
+
+                                {/* Move to Fail */}
+                                {/* {activeTab === 'pending' && (
+      <button
+        onClick={handleMoveToFailClick}
+        disabled={selectedIds.size === 0}
+        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
+          ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+          : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
+          }`}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        Move to Fail
+      </button>
+    )} */}
+
+                                {/* Funnel Quick Filters */}
+                                <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
                                     <button
-                                        onClick={() => indiaPriceCSVInputRef.current?.click()}
-                                        className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
+                                        onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
+                                            ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            }`}
                                     >
-                                        Bulk INDIA Price Update
+                                        RS
                                     </button>
-                                    <input type="file" accept=".csv" ref={indiaPriceCSVInputRef} onChange={handleindiaPriceCSVUpload} className="hidden" />
-
-                                    {/* Configure Constants */}
                                     <button
-                                        onClick={openConstantsModal}
-                                        className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                        onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
+                                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            }`}
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        Configure Constants
+                                        DP
                                     </button>
                                 </div>
+
+                                {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                    <button
+                                        onClick={handleMoveToRejectClick}
+                                        disabled={selectedIds.size === 0}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                            : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                        </svg>
+                                        Move to Reject
+                                    </button>
+                                )}
+
+                                {(activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                    <button
+                                        onClick={handleRollBack}
+                                        disabled={
+                                            (activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
+                                        }
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
+                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                            : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
+                                            }`}
+                                        title={activeTab === 'main_file'
+                                            ? 'Roll back last ASIN from Pass File'
+                                            : 'Roll back last ASIN from Purchases'
+                                        }
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                        </svg>
+                                        Roll Back
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* ROW 2: Download + Upload + Bulk Update + Constants */}
+                            <div className="flex items-center gap-3">
+                                {/* Spacer to push everything right */}
+                                <div className="flex-1" />
+
+                                {/* Download CSV Dropdown */}
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
+                                        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download CSV
+                                        <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    {isDownloadDropdownOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
+                                            <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+
+                                                {/* Download Selected - only if items selected */}
+                                                {selectedIds.size > 0 && (
+                                                    <button
+                                                        onClick={() => downloadCSV('selected')}
+                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    >
+                                                        <span>📋 Download Selected</span>
+                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                                                    </button>
+                                                )}
+
+                                                {/* Download Current Page */}
+                                                <button
+                                                    onClick={() => downloadCSV('page')}
+                                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                                                >
+                                                    <span>📄 Download Page</span>
+                                                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                                                </button>
+
+                                                {/* Download All */}
+                                                <button
+                                                    onClick={() => downloadCSV('all')}
+                                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                                                >
+                                                    <span>📦 Download All</span>
+                                                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
+                                                </button>
+
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Upload CSV */}
+                                <button
+                                    onClick={handleUploadCSV}
+                                    className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    Upload CSV
+                                </button>
+                                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
+
+                                {/* Bulk india Price Update */}
+                                <button
+                                    onClick={() => indiaPriceCSVInputRef.current?.click()}
+                                    className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
+                                >
+                                    Bulk INDIA Price Update
+                                </button>
+                                <input type="file" accept=".csv" ref={indiaPriceCSVInputRef} onChange={handleindiaPriceCSVUpload} className="hidden" />
+
+                                {/* Configure Constants */}
+                                <button
+                                    onClick={openConstantsModal}
+                                    className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    Configure Constants
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -2821,7 +2916,7 @@ export default function ValidationPage() {
 
                                                 {columnOrder.map((col_key) => {
                                                     // Tab-specific visibility
-                                                    if (col_key === 'origin' && activeTab !== 'pass_file') return null;
+                                                    if (col_key === 'origin' && activeTab !== 'pass_file' && activeTab !== 'fail_file') return null;
                                                     if (col_key === 'checklist' && activeTab !== 'pass_file') return null;
                                                     if (col_key === 'reject_reason' && activeTab !== 'reject_file') return null;
                                                     if (col_key === 'inr_purchase_link' && activeTab !== 'main_file') return null;
@@ -3251,6 +3346,6 @@ export default function ValidationPage() {
                     </div>
                 </div>
             )}
-        </PageTransition>
+        </>
     )
 }

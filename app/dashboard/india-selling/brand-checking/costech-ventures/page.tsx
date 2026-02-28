@@ -31,27 +31,29 @@ interface ProductRow {
   working?: boolean;
   reason?: string | null;
   remark?: string | null;
+  sku?: string | null;
 }
 
 type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject';
 
 // ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
-  asin: 140,
-  product_name: 350,
-  brand: 160,
-  funnel: 110,
-  monthly_unit: 120,
-  product_link: 100,
-  amz_link: 100,
-  reason: 250,
-  remark: 200,
+  asin: 120,
+  sku: 80,
+  product_name: 200,
+  brand: 100,
+  funnel: 90,
+  monthly_unit: 90,
+  product_link: 85,
+  amz_link: 85,
+  reason: 150,
+  remark: 120,
 };
 
 export default function CostechVenturesPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [processingId, setProcessingId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -59,6 +61,7 @@ export default function CostechVenturesPage() {
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState({
     asin: true,
+    sku: true,
     product_name: true,
     brand: true,
     funnel: true,
@@ -90,7 +93,9 @@ export default function CostechVenturesPage() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('costech_ventures_column_widths');
-      return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
+      if (saved) {
+        return { ...DEFAULT_WIDTHS, ...JSON.parse(saved) };
+      }
     }
     return DEFAULT_WIDTHS;
   });
@@ -107,6 +112,9 @@ export default function CostechVenturesPage() {
         // ✅ Add remark if it's missing from saved order
         if (!parsedOrder.includes('remark')) {
           parsedOrder.push('remark');
+        }
+        if (!parsedOrder.includes('sku')) {
+          parsedOrder.splice(parsedOrder.indexOf('product_name') + 1, 0, 'sku');
         }
         return parsedOrder;
       }
@@ -235,10 +243,9 @@ export default function CostechVenturesPage() {
         }
 
         query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%`
         );
       }
-
 
       const { data, error, count } = await query
         .range(start, end)
@@ -333,6 +340,7 @@ export default function CostechVenturesPage() {
           product_link: product.product_link,
           amz_link: product.amz_link,
           remark: product.remark,
+          sku: product.sku,
           from_table: fromTable,
           to_table: toTable,
         });
@@ -385,6 +393,7 @@ export default function CostechVenturesPage() {
             product_weight: null,
             judgement: null,
             remark: product.remark,
+            sku: product.sku,
           });
         } else {
           const existingTags = existingRow.seller_tag?.split(',') ?? [];
@@ -492,6 +501,7 @@ export default function CostechVenturesPage() {
         product_link: product.product_link,
         amz_link: product.amz_link,
         remark: product.remark,
+        sku: product.sku,
       });
 
       if (insertError) throw insertError;
@@ -749,10 +759,8 @@ export default function CostechVenturesPage() {
   // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
   // ------------------------------------------------------------------
   return (
-    <PageTransition>
-      {/* Ensure requiredPage matches your Sidebar/DB key exactly */}
+    <>
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
-
         {/* HEADER */}
         <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
           <div className="max-w-[1920px] mx-auto">
@@ -820,7 +828,7 @@ export default function CostechVenturesPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
                     type="text"
-                    placeholder="Search by ASIN, Name, Brand..."
+                    placeholder="Search by ASIN, Name, Brand, SKU..."
                     value={searchQuery}
                     onChange={(e) => {                              // ← CHANGED THIS
                       const value = e.target.value;                 // ← Get the typed text
@@ -913,7 +921,7 @@ export default function CostechVenturesPage() {
               </div>
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
+                <table className="w-full border-collapse text-left" ref={tableRef}>
                   <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
                     <tr>
                       <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
@@ -926,8 +934,16 @@ export default function CostechVenturesPage() {
                       </th>
                       {columnOrder.map((col) => {
                         const columnNames: Record<string, string> = {
-                          asin: 'ASIN', product_name: 'Product Name', brand: 'Brand', funnel: 'Funnel',
-                          monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
+                          asin: 'ASIN',
+                          product_name: 'Product Name',
+                          sku: 'SKU',
+                          brand: 'Brand',
+                          funnel: 'Funnel',
+                          monthly_unit: 'Monthly Unit',
+                          product_link: 'Product Link',
+                          amz_link: 'AMZ Link',
+                          reason: 'Reason',
+                          remark: 'Remark',
                         };
                         if (col === 'reason' && activeTab !== 'reject') return null;
 
@@ -963,12 +979,6 @@ export default function CostechVenturesPage() {
                               {/* ✅ ADD DEBUG LOG */}
                               {col === 'product_link' || col === 'amz_link' ? (
                                 <>
-                                  {console.log('🔍 DEBUG:', {
-                                    column: col,
-                                    value: product[col as keyof ProductRow],
-                                    hasValue: !!product[col as keyof ProductRow],
-                                    type: typeof product[col as keyof ProductRow]
-                                  })}
                                   {product[col as keyof ProductRow] ? (
                                     <a
                                       href={String(product[col as keyof ProductRow])}
@@ -984,6 +994,10 @@ export default function CostechVenturesPage() {
                                 </>
                               ) : col === 'funnel' ? (
                                 <FunnelBadge funnel={product.funnel} />
+                              ) : col === 'sku' ? (
+                                <span className="font-mono text-slate-400 text-[10px]">
+                                  {product.sku || '-'}
+                                </span>
                               ) : col === 'remark' ? (
                                 product.remark ? (
                                   <button
@@ -1082,8 +1096,8 @@ export default function CostechVenturesPage() {
           </div>
         )}
       </div>
-    </PageTransition>
-  );
+    </>
+  )
 }
 
 //app\dashboard\india-selling\brand-checking\golden-aura\page.tsx

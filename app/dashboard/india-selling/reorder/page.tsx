@@ -38,6 +38,7 @@ const generateUUID = (): string => {
 type ReorderProduct = {
   id: string;
   asin: string;
+  sku?: string | null;
   product_name: string | null;
   seller_link: string | null;
   admin_target_qty: number;
@@ -163,7 +164,7 @@ export default function ReorderPage() {
       // ✅ Fetch journey_id from source
       const { data: listedItems, error: listError } = await supabase
         .from(listingTable)
-        .select('asin, product_name, seller_link, journey_id, journey_number,remark')
+        .select('asin, product_name, seller_link, journey_id, journey_number, remark, sku')
 
       if (listError) throw listError
       if (!listedItems || listedItems.length === 0) {
@@ -191,6 +192,7 @@ export default function ReorderPage() {
           journey_number: p.journey_number,
           is_in_final_reorder: false,
           remark: p.remark ?? null,
+          sku: p.sku ?? null,
         }))
 
       if (newItems.length > 0) {
@@ -834,6 +836,7 @@ export default function ReorderPage() {
           origin: masterData?.origin || 'India', // Default to India if unknown
           india_link: masterData?.india_link || product.seller_link,
           remark: product.remark ?? null,
+          sku: product.sku ?? null,
           // Reset operational fields
           no_of_seller: 1,
           sent_to_purchases: false,
@@ -865,7 +868,8 @@ export default function ReorderPage() {
   const filteredProducts = products.filter(p => {
     const matchesSearch =
       p.asin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
 
     // Origin Filter
@@ -950,15 +954,14 @@ export default function ReorderPage() {
           </button>
         </div>
       </div>
-
-      {/* CONTROLS */}
+      
       {/* CONTROLS */}
       <div className="flex gap-3 items-center mb-6 px-6 pt-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            placeholder="Search by ASIN or Name..."
+            placeholder="Search by ASIN, Name, or SKU..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
@@ -972,10 +975,10 @@ export default function ReorderPage() {
               key={opt}
               onClick={() => setFunnelFilter(opt)}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
-                  ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
-                    : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
-                      : 'bg-indigo-600 text-white shadow-lg'
-                  : 'text-slate-500 hover:text-slate-300'
+                ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
+                  : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
+                    : 'bg-indigo-600 text-white shadow-lg'
+                : 'text-slate-500 hover:text-slate-300'
                 }`}
             >
               {opt}
@@ -988,8 +991,8 @@ export default function ReorderPage() {
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+              ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
+              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
               }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1028,11 +1031,11 @@ export default function ReorderPage() {
                         key={opt}
                         onClick={() => setOriginFilter(opt)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
-                            ? opt === 'India' ? 'bg-orange-500 text-white'
-                              : opt === 'China' ? 'bg-rose-500 text-white'
-                                : opt === 'US' ? 'bg-sky-500 text-white'
-                                  : 'bg-indigo-600 text-white'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                          ? opt === 'India' ? 'bg-orange-500 text-white'
+                            : opt === 'China' ? 'bg-rose-500 text-white'
+                              : opt === 'US' ? 'bg-sky-500 text-white'
+                                : 'bg-indigo-600 text-white'
+                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
                           }`}
                       >
                         {opt}
@@ -1050,11 +1053,11 @@ export default function ReorderPage() {
                         key={opt}
                         onClick={() => setStatusFilter(opt)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === opt
-                            ? opt === 'Safe' ? 'bg-emerald-500 text-white'
-                              : opt === 'Covered' ? 'bg-amber-500 text-black'
-                                : opt === 'Reorder' ? 'bg-rose-500 text-white'
-                                  : 'bg-indigo-600 text-white'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                          ? opt === 'Safe' ? 'bg-emerald-500 text-white'
+                            : opt === 'Covered' ? 'bg-amber-500 text-black'
+                              : opt === 'Reorder' ? 'bg-rose-500 text-white'
+                                : 'bg-indigo-600 text-white'
+                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
                           }`}
                       >
                         {opt}
@@ -1096,6 +1099,7 @@ export default function ReorderPage() {
               <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">SKU</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 w-1/4">Product Name</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">History</th>
                   <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Remark</th>
@@ -1110,15 +1114,16 @@ export default function ReorderPage() {
               </thead>
               <tbody className="divide-y divide-slate-800/50">
                 {loading ? (
-                  <tr><td colSpan={9} className="p-12 text-center text-slate-500"><Loader2 className="animate-spin w-8 h-8 mx-auto mb-2 text-indigo-500" />Loading data...</td></tr>
+                  <tr><td colSpan={10} className="p-12 text-center text-slate-500"><Loader2 className="animate-spin w-8 h-8 mx-auto mb-2 text-indigo-500" />Loading data...</td></tr>
                 ) : filteredProducts.length === 0 ? (
-                  <tr><td colSpan={9} className="p-12 text-center text-slate-500">No products found.</td></tr>
+                  <tr><td colSpan={10} className="p-12 text-center text-slate-500">No products found.</td></tr>
                 ) : (
                   filteredProducts.map(product => {
                     const deficit = product.admin_target_qty - product.current_qty
                     return (
                       <tr key={product.id} className="hover:bg-slate-800/40 transition-colors group">
                         <td className="px-6 py-4 text-sm font-mono text-slate-300 font-medium border-r border-slate-800/50">{product.asin}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-slate-500 border-r border-slate-800/50">{product.sku || '-'}</td>
                         <td className="px-6 py-4 border-r border-slate-800/50">
                           <span className="text-sm text-slate-200 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
                           {product.seller_link && <a href={product.seller_link} target="_blank" className="text-xs text-indigo-400 hover:text-indigo-300 mt-1 inline-block">View Link</a>}

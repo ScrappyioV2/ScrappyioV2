@@ -39,6 +39,7 @@ type AdminProduct = {
   journey_id?: string | null;
   journey_number?: number | null;
   remark: string | null;
+  sku?: string | null;
 };
 
 // ADD THIS TYPE
@@ -128,6 +129,8 @@ export default function AdminValidationPage() {
   useEffect(() => { localStorage.setItem('indiaAdminRemarkFilter', remarkFilter) }, [remarkFilter]);
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
+  const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
+  const [editingSkuValue, setEditingSkuValue] = useState<string>('');
   const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
 
   // History Sidebar State
@@ -139,9 +142,11 @@ export default function AdminValidationPage() {
   const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false);
   const [isSavingConstants, setIsSavingConstants] = useState(false);
   const [modalInputs, setModalInputs] = useState({
+    dollarrate: '',
     bankfee: '',
     shipping: '',
     commission: '',
+    packingcost: '',
   });
   const [calculatingIds, setCalculatingIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
@@ -202,7 +207,7 @@ export default function AdminValidationPage() {
           .in('asin', asins),
 
         supabase.from('india_validation_main_file')
-          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
           .in('asin', asins)
       ]);
 
@@ -326,6 +331,7 @@ export default function AdminValidationPage() {
           total_revenue: product.total_revenue,
           inr_purchase_link: product.inr_purchase_link,
           remark: product.remark ?? null,
+          sku: product.sku ?? null,
         };
       });
 
@@ -388,6 +394,7 @@ export default function AdminValidationPage() {
       const saved = localStorage.getItem('admin_validation_column_widths');
       return saved ? JSON.parse(saved) : {
         asin: 120,
+        sku: 100,
         product_name: 120,
         product_link: 100,
         target_price: 100,
@@ -409,6 +416,7 @@ export default function AdminValidationPage() {
     }
     return {
       asin: 120,
+      sku: 120,
       history: 180,
       product_name: 200,
       product_link: 100,
@@ -498,9 +506,11 @@ export default function AdminValidationPage() {
       // Parse string inputs → numbers
       const newConstants: CalculationConstants = {
         ...adminConstants,
-        bank_conversion_rate: parseFloat(modalInputs.bankfee) || 0,
-        shipping_charge_per_kg: parseFloat(modalInputs.shipping) || 0,
-        commission_rate: parseFloat(modalInputs.commission) || 0,
+        dollar_rate: parseFloat(modalInputs.dollarrate) || adminConstants.dollar_rate,
+        bank_conversion_rate: parseFloat(modalInputs.bankfee) || adminConstants.bank_conversion_rate,
+        shipping_charge_per_kg: parseFloat(modalInputs.shipping) || adminConstants.shipping_charge_per_kg,
+        commission_rate: parseFloat(modalInputs.commission) || adminConstants.commission_rate,
+        packing_cost: parseFloat(modalInputs.packingcost) || adminConstants.packing_cost,
       };
 
       // Update local state immediately
@@ -548,23 +558,28 @@ export default function AdminValidationPage() {
     }
   };
 
-  const autoCalculateProfit = (product: any): number | null => {
-    if (!product.targetprice || !product.productweight || product.buyingprice === null || product.buyingprice === undefined) return null;
+  const autoCalculateAdmin = (product: any): { total_cost: number | null; total_revenue: number | null; profit: number | null } => {
+    const salesPrice = Number(product.targetprice ?? product.target_price);
+    const weight = Number(product.productweight ?? product.product_weight);
+    const purchasePrice = Number(product.buyingprice ?? product.buying_price);
 
-    const salesprice = Number(product.targetprice);
-    const weight = Number(product.productweight);
-    const purchaseprice = Number(product.buyingprice);
+    if (!salesPrice || !weight || purchasePrice === null || purchasePrice === undefined || isNaN(purchasePrice)) {
+      return { total_cost: null, total_revenue: null, profit: null };
+    }
 
-    // State stores whole numbers: 25 = 25%, 2 = 2% → divide by 100 for calculation
-    const commission = salesprice * (adminConstants.commission_rate / 100);
+    const commission = salesPrice * (adminConstants.commission_rate / 100);
     const shipping = (weight / 1000) * adminConstants.shipping_charge_per_kg;
-    const bankfee = salesprice * (adminConstants.bank_conversion_rate / 100);
-    const totalcost = commission + shipping + bankfee + purchaseprice;
-    const profit = salesprice - totalcost;
+    const bankfee = salesPrice * (adminConstants.bank_conversion_rate / 100);
+    const packingCost = adminConstants.packing_cost || 0;
+    const total_cost = commission + shipping + bankfee + packingCost + purchasePrice;
+    const total_revenue = salesPrice;
+    const profit = total_revenue - total_cost;
 
-    console.log('📊 Profit calc:', { salesprice, weight, purchaseprice, commission, shipping, bankfee, totalcost, profit });
-    console.log('📊 Using constants:', adminConstants);
-    return profit;
+    return {
+      total_cost: isFinite(total_cost) ? total_cost : null,
+      total_revenue: isFinite(total_revenue) ? total_revenue : null,
+      profit: isFinite(profit) ? profit : null,
+    };
   };
 
   // Resize tracking state
@@ -645,7 +660,7 @@ export default function AdminValidationPage() {
   }, [resizingColumn, startX, startWidth, columnWidths]);
 
   const DEFAULT_COLUMN_ORDER = [
-    'asin', 'history', 'remark', 'product_name', 'product_link',
+    'asin', 'sku', 'history', 'remark', 'product_name', 'product_link',
     'target_price', 'admin_target_price', 'funnel_seller',
     'funnel_qty', 'product_weight', 'profit', 'buying_price', 'buying_qty',
     'seller_link', 'seller_phone', 'payment_method', 'actions'
@@ -703,7 +718,8 @@ export default function AdminValidationPage() {
     const matchesSearch = !searchQuery ||
       product.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.seller_tag?.toLowerCase().includes(searchQuery.toLowerCase());
+      product.seller_tag?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
 
     // Origin Filter
@@ -816,14 +832,12 @@ export default function AdminValidationPage() {
   // UPDATE handleCellEdit TO TRIGGER AUTO-CALCULATION
   const handleCellEdit = async (id: string, field: string, value: any) => {
     try {
-      // ✅ Map frontend field names to database column names with underscores
       const fieldMapping: Record<string, string> = {
         'inrpurchaselink': 'inr_purchase_link',
         'productname': 'product_name',
         'productlink': 'product_link',
         'sellertag': 'seller_tag',
         'targetprice': 'target_price',
-        // 'targetquantity': 'target_quantity',
         'targetpricevalidation': 'target_price_validation',
         'targetpricelinkvalidation': 'target_price_link_validation',
         'buyingprice': 'buying_price',
@@ -839,60 +853,78 @@ export default function AdminValidationPage() {
         'totalrevenue': 'total_revenue',
         'adminstatus': 'admin_status',
         'adminnotes': 'admin_notes',
-        remark: 'remark',
+        'remark': 'remark',
+        'sku': 'sku',
         'admintargetprice': 'admin_target_price',
         'usdprice': 'usd_price',
         'inrpurchase': 'inr_purchase',
-        'created_at': 'created_at',
-      }
+        'createdat': 'created_at',
+      };
 
-      // Use mapped field name, or original if not in mapping
-      const dbField = fieldMapping[field] || field
+      const dbField = fieldMapping[field] || field;
+      console.log('📊 Updating product:', { id, field, dbField, value });
 
-      console.log('📊 Updating product:', { id, field, dbField, value })
-
-      // UPDATE india_admin_validation table (not india_purchases)
       const updatePayload: Record<string, any> = { [dbField]: value };
-      let calculatedProfit: number | null = null;
+
+      let calcResult: { total_cost: number | null; total_revenue: number | null; profit: number | null } =
+        { total_cost: null, total_revenue: null, profit: null };
 
       if (field === 'targetprice' || field === 'productweight' || field === 'buyingprice') {
-        const updatedProduct = products.find(p => p.id === id);
+        const updatedProduct = products.find((p) => p.id === id);
         if (updatedProduct) {
-          calculatedProfit = autoCalculateProfit({ ...updatedProduct, [field]: value });
-          if (calculatedProfit !== null) {
-            updatePayload.profit = calculatedProfit;
+          calcResult = autoCalculateAdmin({ ...updatedProduct, [field]: value });
+          if (calcResult.profit !== null) {
+            updatePayload.profit = calcResult.profit;
+            updatePayload.total_cost = calcResult.total_cost;
+            updatePayload.total_revenue = calcResult.total_revenue;
           }
         }
       }
 
-      // SINGLE DB CALL — field + profit together
+      // UPDATE LOCAL STATE FIRST (before DB call to prevent realtime race condition)
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          const updated = { ...p, [field]: value };
+          if (field === 'admintargetprice') updated.admin_target_price = value;
+          if (field === 'sellertag') updated.seller_tag = value;
+          if (calcResult.profit !== null) {
+            updated.profit = calcResult.profit;
+            updated.total_cost = calcResult.total_cost;
+            updated.total_revenue = calcResult.total_revenue;
+          }
+          return updated;
+        })
+      );
+
+      // THEN save to DB
       const { error } = await supabase
         .from('india_admin_validation')
         .update(updatePayload)
         .eq('id', id);
 
-      if (error) { console.error('Update error:', error); setToast({ message: 'Failed to update', type: 'error' }); return; }
+      if (error) {
+        console.error('Update error:', error);
+        setToast({ message: 'Failed to update', type: 'error' });
+        return;
+      }
 
       console.log('Product updated successfully', updatePayload);
 
-      // Update local state
-      setProducts(prev =>
-        prev.map(p => {
-          if (p.id !== id) return p;
-          const updated = { ...p, [field]: value };
-          if (field === 'admintargetprice') updated.admin_target_price = value;
-          if (field === 'sellertag') updated.seller_tag = value;
-          if (calculatedProfit !== null) updated.profit = calculatedProfit;
-          return updated;
-        })
-      );
-
-      setToast({ message: calculatedProfit !== null ? `Profit: ₹${calculatedProfit.toFixed(2)}` : 'Updated successfully', type: 'success' });
+      const wasCalcTriggered = ['targetprice', 'productweight', 'buyingprice'].includes(field);
+      const profitVal = updatePayload.profit;
+      setToast({
+        message: wasCalcTriggered && profitVal !== undefined
+          ? `Profit: ₹${Number(profitVal).toFixed(2)} | Cost: ₹${Number(updatePayload.total_cost).toFixed(2)} | Revenue: ₹${Number(updatePayload.total_revenue).toFixed(2)}`
+          : 'Updated successfully',
+        type: wasCalcTriggered && profitVal !== undefined ? (profitVal >= 0 ? 'success' : 'warning') : 'success',
+      });
     } catch (err: any) {
-      console.error('Update error:', err)
-      setToast({ message: 'Update failed', type: 'error' })
+      console.error('Update error:', err);
+      setToast({ message: 'Update failed', type: 'error' });
     }
-  }
+  };
+
 
   // =========================================================
   // ✅ ROBUST AUTO-DISTRIBUTE (Handles Typos & MULTIPLE TAGS)
@@ -969,7 +1001,7 @@ export default function AdminValidationPage() {
           source_admin_validation_id: product.id,
           asin: cleanAsin,
           product_name: product.product_name,
-          sku: cleanAsin,
+          sku: product.sku || cleanAsin,
           selling_price: product.buying_price || product.admin_target_price || 0,
           seller_link: product.seller_link,
           min_price: null,
@@ -1018,6 +1050,7 @@ export default function AdminValidationPage() {
         seller_link: product.seller_link,
         seller_phone: product.seller_phone,
         payment_method: product.payment_method,
+        sku: product.sku || null,
       }).eq('asin', cleanAsin);
 
       await supabase.from('india_admin_validation').update({
@@ -1184,6 +1217,78 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-4 py-3 text-sm text-slate-300 font-mono tracking-tight">
             {product.asin}
+          </td>
+        );
+
+      case 'sku':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm overflow-hidden" style={{ maxWidth: columnWidths.sku || 100, width: columnWidths.sku || 100 }}>
+            <div className="w-full overflow-hidden">
+              {editingSkuId === product.id ? (
+                <div className="flex items-center gap-1 max-w-full">
+                  <input
+                    type="text"
+                    value={editingSkuValue}
+                    onChange={(e) => setEditingSkuValue(e.target.value)}
+                    className="min-w-0 flex-1 px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Enter SKU..."
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCellEdit(product.id, 'sku', editingSkuValue.trim() || null);
+                        setEditingSkuId(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingSkuId(null);
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      handleCellEdit(product.id, 'sku', editingSkuValue.trim() || null);
+                      setEditingSkuId(null);
+                    }}
+                    className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
+                    title="Save (Enter)"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setEditingSkuId(null)}
+                    className="text-rose-500 hover:text-rose-400 flex-shrink-0"
+                    title="Cancel (Esc)"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : product.sku ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-200 text-xs truncate" title={product.sku}>{product.sku}</span>
+                  <button
+                    onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(product.sku || ''); }}
+                    className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
+                    title="Edit SKU"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(''); }}
+                  className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add SKU
+                </button>
+              )}
+            </div>
           </td>
         );
 
@@ -1357,11 +1462,17 @@ export default function AdminValidationPage() {
       case 'profit':
         return (
           <td key={col_key} className="px-4 py-3 text-sm">
-            <div className={`w-full min-w-[6rem] px-2 py-1 border rounded text-sm font-bold text-center truncate ${(product.profit ?? 0) >= 0
-              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-              : 'text-rose-400 bg-rose-500/10 border-rose-500/30'
-              }`} title={product.profit !== null && product.profit !== undefined ? `₹${product.profit.toFixed(2)}` : '-'}>
-              {product.profit !== null && product.profit !== undefined ? `₹${product.profit.toFixed(2)}` : '-'}
+            <div className="flex flex-col gap-1">
+              <div className={`w-full min-w-[6rem] px-2 py-1 border rounded text-sm font-bold text-center truncate ${(product.profit ?? 0) >= 0
+                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                : 'text-rose-400 bg-rose-500/10 border-rose-500/30'
+                }`}>
+                {product.profit != null ? `₹${product.profit.toFixed(2)}` : '-'}
+              </div>
+              <div className="flex gap-2 text-[10px] text-slate-500 justify-center">
+                <span title="Total Cost">C: {product.total_cost != null ? `₹${product.total_cost.toFixed(0)}` : '-'}</span>
+                <span title="Total Revenue">R: {product.total_revenue != null ? `₹${product.total_revenue.toFixed(0)}` : '-'}</span>
+              </div>
             </div>
           </td>
         );
@@ -1533,7 +1644,7 @@ export default function AdminValidationPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search by ASIN, Product Name, or Funnel Seller..."
+              placeholder="Search by ASIN, Product Name, SKU, or Funnel Seller..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm text-sm"
@@ -1697,7 +1808,16 @@ export default function AdminValidationPage() {
 
             {/* Configure Constants Button */}
             <button
-              onClick={() => setIsConstantsModalOpen(true)}
+              onClick={() => {
+                setModalInputs({
+                  dollarrate: String(adminConstants.dollar_rate),
+                  bankfee: String(adminConstants.bank_conversion_rate),
+                  shipping: String(adminConstants.shipping_charge_per_kg),
+                  commission: String(adminConstants.commission_rate),
+                  packingcost: String(adminConstants.packing_cost),
+                });
+                setIsConstantsModalOpen(true);
+              }}
               className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1742,6 +1862,7 @@ export default function AdminValidationPage() {
 
                     const colConfig: Record<string, { label: string; widthKey: string; minWidth: number; headerClass?: string }> = {
                       asin: { label: 'ASIN', widthKey: 'asin', minWidth: 80 },
+                      sku: { label: 'SKU', widthKey: 'sku', minWidth: 80 },
                       history: { label: 'J #', widthKey: 'history', minWidth: 70, headerClass: 'text-amber-400 bg-amber-900/10' },
                       remark: { label: 'REMARK', widthKey: 'remark', minWidth: 100 },
                       product_name: { label: 'Product Name', widthKey: 'productname', minWidth: 150 },
@@ -1846,41 +1967,59 @@ export default function AdminValidationPage() {
 
                 {/* Body */}
                 <div className="grid grid-cols-2 gap-6 p-6">
+                  {/* Dollar Rate */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">💵 Dollar Rate (₹)</label>
+                    <input type="text" inputMode="decimal" value={modalInputs.dollarrate}
+                      onChange={(e) => setModalInputs({ ...modalInputs, dollarrate: e.target.value })}
+                      placeholder="e.g. 90"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Currently: ₹{adminConstants.dollar_rate}</p>
+                  </div>
+
+                  {/* Bank Fee */}
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-2">🏦 Bank Fee (%)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={modalInputs.bankfee}
+                    <input type="text" inputMode="decimal" value={modalInputs.bankfee}
                       onChange={(e) => setModalInputs({ ...modalInputs, bankfee: e.target.value })}
                       placeholder="e.g. 2"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.bank_conversion_rate}%</p>
                   </div>
+
+                  {/* Shipping */}
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-2">🚚 Shipping per 1000g (₹)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={modalInputs.shipping}
+                    <input type="text" inputMode="decimal" value={modalInputs.shipping}
                       onChange={(e) => setModalInputs({ ...modalInputs, shipping: e.target.value })}
                       placeholder="e.g. 950"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-slate-500 mt-1">Currently: ₹{adminConstants.shipping_charge_per_kg}</p>
                   </div>
+
+                  {/* Commission Rate */}
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-2">💰 Commission Rate (%)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={modalInputs.commission}
+                    <input type="text" inputMode="decimal" value={modalInputs.commission}
                       onChange={(e) => setModalInputs({ ...modalInputs, commission: e.target.value })}
                       placeholder="e.g. 25"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.commission_rate}%</p>
+                  </div>
+
+                  {/* Packing Cost - Full Width */}
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-slate-400 mb-2">📦 Packing Cost (₹)</label>
+                    <input type="text" inputMode="decimal" value={modalInputs.packingcost}
+                      onChange={(e) => setModalInputs({ ...modalInputs, packingcost: e.target.value })}
+                      placeholder="e.g. 25"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Currently: ₹{adminConstants.packing_cost}</p>
                   </div>
                 </div>
 

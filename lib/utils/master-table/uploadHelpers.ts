@@ -131,11 +131,7 @@ export async function filterDuplicateASINs(
  * Progress tracking included
  */
 export async function bulkUpdateAsinRemarkMonthlyUnit(
-  rows: Array<{
-    asin: string;
-    remark?: string | null;
-    monthly_unit?: number | null;
-  }>,
+  rows: Array<{ asin: string; remark?: string | null; monthly_unit?: number | null; sku?: string | null }>,
   tableName: string,
   onProgress?: (current: number, total: number) => void
 ) {
@@ -188,7 +184,8 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
     const batchData = batchRows.map(row => ({
       asin: row.asin,
       remark: row.remark || null,
-      monthly_unit: row.monthly_unit || null
+      monthly_unit: row.monthly_unit || null,
+      sku: row.sku || null,
     }));
 
     console.log(`🔄 RPC call ${batchIndex + 1}/${numBatches}: ${batchData.length} records`);

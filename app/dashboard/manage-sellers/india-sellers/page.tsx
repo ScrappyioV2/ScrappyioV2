@@ -52,7 +52,8 @@ function isPartialUpdateFile(headers: string[]) {
     'monthly_unit',
     'monthly_units',
     'monthly_units_sold',
-    'monthly_unit_sold'
+    'monthly_unit_sold',
+    'sku'
   ];
 
   console.log('🔍 [DETECTION] Filtered headers:', normalized);
@@ -64,7 +65,7 @@ function isPartialUpdateFile(headers: string[]) {
   }
 
   // 4️⃣ Must have ONLY 2-3 columns (ASIN + remark/monthly_unit)
-  if (normalized.length > 3) {
+  if (normalized.length > 4) {
     console.log(`❌ [DETECTION] Too many columns (${normalized.length}) - not a partial update`);
     return false;
   }
@@ -137,7 +138,7 @@ function isPartialUpdateFile(headers: string[]) {
 // }
 
 const ALL_COLUMNS = [
-  's_no', 'asin', 'link', 'amz_link', 'product_name', 'remark', 'brand', 'price',
+  's_no', 'asin', 'link', 'amz_link', 'product_name', 'sku', 'remark', 'brand', 'price',
   'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category',
   'dimensions', 'weight', 'weight_unit'
 ];
@@ -148,6 +149,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   'link': 80,
   'amz_link': 120,
   'product_name': 300,
+  'sku': 130,
   'remark': 120,
   'brand': 120,
   'price': 100,
@@ -730,6 +732,7 @@ export default function IndiaSellersPage() {
         'Link': item.amz_link || '',
         'Product Name': item.product_name || '',
         'Remark': item.remark || '',
+        'SKU': item.sku || '',
         'Brand': item.brand || '',
         'Price': item.price || '',
         'Monthly Units': item.monthly_unit || '',

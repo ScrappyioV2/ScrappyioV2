@@ -1,9 +1,10 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import * as XLSX from 'xlsx';
 
 type PassFileProduct = {
   id: string
@@ -32,6 +33,7 @@ type PassFileProduct = {
   payment_method: string | null  // ✅ Underscore
   tracking_details: string | null  // ✅ Underscore
   delivery_date: string | null  // ✅ Underscore
+  order_date: string | null
   status: string | null
   move_to: string | null  // ✅ Underscore
   sent_to_admin: boolean | null  // ✅ Underscore
@@ -59,7 +61,8 @@ type PassFileProduct = {
   total_cost?: number | null
   total_revenue?: number | null
   inr_purchase_from_validation?: number | null
-  remark: string | null;
+  remark: string | null
+  sku?: string | null
 }
 
 // ADD THIS TYPE
@@ -77,6 +80,13 @@ type HistorySnapshot = {
 
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
+const FUNNEL_STYLES: Record<string, string> = {
+  'RS': 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
+  'DP': 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30',
+  'HD': 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
+  'LD': 'bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg border border-blue-600/30',
+};
+
 export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
@@ -92,6 +102,9 @@ export default function PurchasesPage() {
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
     return 'https://' + trimmed;
   };
+  const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 100;
 
   useEffect(() => {
     localStorage.setItem('indiaPurchasesFunnelFilter', funnelFilter);
@@ -110,7 +123,11 @@ export default function PurchasesPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   // Remark Modal State
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+  const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
+  const [editingSkuValue, setEditingSkuValue] = useState<string>('');
   const [dollarRate, setDollarRate] = useState<number>(1);
+  const [openFunnelId, setOpenFunnelId] = useState<string | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
 
   const fetchConstants = async () => {
     try {
@@ -145,6 +162,7 @@ export default function PurchasesPage() {
     paymentmethod: true,
     trackingdetails: true,
     deliverydate: true,
+    orderdate: true,
     moveto: true,
     admintargetprice: true,
     remark: true,
@@ -152,6 +170,440 @@ export default function PurchasesPage() {
 
   const [sellerTagFilter, setSellerTagFilter] = useState<string>('ALL');
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+
+  // === DRAGGABLE COLUMN ORDER ===
+  const DEFAULT_PURCHASE_COLUMN_ORDER = [
+    'asin', 'sku', 'history', 'remark', 'productlink', 'productname',
+    'targetprice', 'targetquantity', 'admintargetprice',
+    'funnelquantity', 'funnelseller', 'inrpurchaselink', 'origin',
+    'buyingprice', 'buyingquantity', 'sellerlink', 'sellerphno',
+    'paymentmethod', 'trackingdetails', 'deliverydate', 'orderdate', 'moveto',
+  ];
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_PURCHASE_COLUMN_ORDER;
+    try {
+      const saved = localStorage.getItem('indiaPurchasesColumnOrder');
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        const merged = parsed.filter((k) => DEFAULT_PURCHASE_COLUMN_ORDER.includes(k));
+        DEFAULT_PURCHASE_COLUMN_ORDER.forEach((k) => {
+          if (!merged.includes(k)) merged.push(k);
+        });
+        return merged;
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_PURCHASE_COLUMN_ORDER;
+  });
+
+  const dragColumnRef = useRef<string | null>(null);
+  const dragOverColumnRef = useRef<string | null>(null);
+
+  const handleColumnDragStart = (colkey: string) => {
+    dragColumnRef.current = colkey;
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, colkey: string) => {
+    e.preventDefault();
+    dragOverColumnRef.current = colkey;
+  };
+
+  const handleColumnDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!dragColumnRef.current || !dragOverColumnRef.current) return;
+    if (dragColumnRef.current === dragOverColumnRef.current) return;
+    const newOrder = [...columnOrder];
+    const fromIdx = newOrder.indexOf(dragColumnRef.current);
+    const toIdx = newOrder.indexOf(dragOverColumnRef.current);
+    if (fromIdx === -1 || toIdx === -1) return;
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragColumnRef.current);
+    setColumnOrder(newOrder);
+    localStorage.setItem('indiaPurchasesColumnOrder', JSON.stringify(newOrder));
+    dragColumnRef.current = null;
+    dragOverColumnRef.current = null;
+  };
+  // === END COLUMN DRAG REORDER ===
+
+  // === RENDER CELL BY COLUMN KEY ===
+  const renderPurchaseCell = (colkey: string, product: PassFileProduct) => {
+    switch (colkey) {
+
+      case 'asin':
+        if (!visibleColumns.asin) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 font-mono text-sm text-slate-300" style={{ width: columnWidths.asin }}>
+            <div className="truncate">{product.asin}</div>
+          </td>
+        );
+
+      case 'sku':
+        return (
+          <td key={colkey} className="px-3 py-3 text-sm overflow-hidden" style={{ maxWidth: 150, width: 150 }}>
+            <div className="w-full overflow-hidden">
+              {editingSkuId === product.id ? (
+                <div className="flex items-center gap-1 max-w-full">
+                  <input
+                    type="text"
+                    value={editingSkuValue}
+                    onChange={(e) => setEditingSkuValue(e.target.value)}
+                    className="min-w-0 flex-1 px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Enter SKU..."
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCellEdit(product.id, 'sku', editingSkuValue.trim() || null);
+                        setEditingSkuId(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingSkuId(null);
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => { handleCellEdit(product.id, 'sku', editingSkuValue.trim() || null); setEditingSkuId(null); }}
+                    className="text-emerald-500 hover:text-emerald-400 flex-shrink-0" title="Save (Enter)"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </button>
+                  <button onClick={() => setEditingSkuId(null)} className="text-rose-500 hover:text-rose-400 flex-shrink-0" title="Cancel (Esc)">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ) : product.sku ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-200 text-xs break-all leading-tight" title={product.sku}>{product.sku}</span>
+                  <button onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(product.sku!); }} className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit SKU">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(''); }} className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  + Add SKU
+                </button>
+              )}
+            </div>
+          </td>
+        );
+
+      case 'history':
+        return (
+          <td key={colkey} className="px-3 py-2 text-center" style={{ width: columnWidths.history }}>
+            <button onClick={() => fetchHistory(product.asin)} className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors" title="View Journey History">
+              <History className="w-4 h-4" />
+            </button>
+          </td>
+        );
+
+      case 'remark':
+        if (!visibleColumns.remark) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 text-center" style={{ width: columnWidths.remark }}>
+            {product.remark ? (
+              <button onClick={() => setSelectedRemark(product.remark)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
+            ) : <span className="text-slate-600">-</span>}
+          </td>
+        );
+
+      case 'productlink':
+        if (!visibleColumns.productlink) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 text-center overflow-hidden" style={{ width: columnWidths.productlink }}>
+            {(product.india_link || product.product_link) ? (
+              <a href={ensureURL(product.india_link || product.product_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>
+        );
+
+      case 'productname':
+        if (!visibleColumns.productname) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 text-sm text-slate-200 overflow-hidden" style={{ width: columnWidths.productname }}>
+            <div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div>
+          </td>
+        );
+
+      case 'targetprice':
+        if (!visibleColumns.targetprice) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.targetprice }}>
+            {(activeTab === 'main_file' || activeTab === 'order_confirmed') ? (
+              <div className="px-2 py-1 text-sm font-medium text-emerald-300">
+                {product.usd_price ? (product.usd_price * dollarRate).toFixed(2) : '-'}
+              </div>
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>
+        );
+
+      // case 'targetquantity':
+      //   if (!visibleColumns.target_quantity) return null;
+      //   return (
+      //     <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.targetquantity }}>
+      //       {(activeTab === 'main_file' || activeTab === 'order_confirmed') ? (
+      //         <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.target_quantity ?? '-'}</div>
+      //       ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+      //     </td>
+      //   );
+
+      case 'admintargetprice':
+        if (!visibleColumns.admintargetprice) return null;
+        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: columnWidths.admintargetprice }}>
+            {activeTab === 'order_confirmed' ? (
+              <div className="px-2 py-1 text-sm font-medium text-purple-300">{product.admin_target_price ?? '-'}</div>
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>
+        );
+
+      case 'funnelquantity':
+        if (!visibleColumns.funnelquantity) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden relative" style={{ width: columnWidths.funnelquantity }}>
+            {product.validation_funnel ? (
+              <button
+                onClick={(e) => {
+                  const rect = (e.target as HTMLElement).getBoundingClientRect();
+                  setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                  setOpenFunnelId(openFunnelId === product.id ? null : product.id);
+                }}
+                className={`w-8 h-8 inline-flex items-center justify-center rounded-lg font-bold text-xs cursor-pointer hover:ring-2 hover:ring-indigo-400 transition-all ${FUNNEL_STYLES[product.validation_funnel.trim()] ?? 'bg-slate-600 text-white'}`}
+                title="Click to change funnel"
+              >
+                {product.validation_funnel}
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  const rect = (e.target as HTMLElement).getBoundingClientRect();
+                  setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                  setOpenFunnelId(openFunnelId === product.id ? null : product.id);
+                }}
+                className="text-xs text-slate-500 hover:text-indigo-400 cursor-pointer"
+                title="Click to set funnel"
+              >-</button>
+            )}
+            {openFunnelId === product.id && dropdownPos && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => { setOpenFunnelId(null); setDropdownPos(null); }} />
+                <div
+                  className="fixed z-40 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[100px] animate-in fade-in zoom-in-95 duration-150"
+                  style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                >
+                  <p className="text-[10px] text-slate-500 px-2 py-1 font-semibold uppercase tracking-wider">Change Funnel</p>
+                  {['RS', 'DP'].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => handleFunnelChange(product.id, f)}
+                      className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors flex items-center gap-2 ${product.validation_funnel === f ? 'bg-indigo-600/20 text-indigo-300' : 'text-slate-200 hover:bg-slate-800'}`}
+                    >
+                      <span className={`w-6 h-6 inline-flex items-center justify-center rounded-md font-bold text-xs ${FUNNEL_STYLES[f] ?? 'bg-slate-600 text-white'}`}>{f}</span>
+                      <span>{f === 'RS' ? 'Restock' : 'Dropshipping'}</span>
+                      {product.validation_funnel === f && (
+                        <svg className="w-4 h-4 ml-auto text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </td>
+        );
+
+      case 'funnelseller':
+        if (!visibleColumns.funnelseller) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.funnelseller }}>
+            {product.validation_seller_tag ? (
+              <div className="flex flex-wrap items-center gap-0.5">
+                {product.validation_seller_tag.split(',').map((tag: string) => {
+                  const cleanTag = tag.trim();
+                  let badgeColor = 'bg-slate-700 text-white';
+                  if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black border border-yellow-600';
+                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-slate-600';
+                  else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white border border-pink-600';
+                  else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
+                  return <span key={cleanTag} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${badgeColor}`}>{cleanTag}</span>;
+                })}
+              </div>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>
+        );
+
+      case 'inrpurchaselink':
+        if (!visibleColumns.inrpurchaselink) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.inrpurchaselink }}>
+            {product.inr_purchase_link ? (
+              <a href={ensureURL(product.inr_purchase_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
+            ) : <span className="text-xs text-slate-600">-</span>}
+          </td>
+        );
+
+      case 'origin':
+        if (!visibleColumns.origin) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.origin }}>
+            <div className="flex flex-wrap gap-0.5">
+              {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500 text-white border border-orange-600 rounded text-[10px] font-medium leading-none">IN</span>}
+              {product.origin_china && <span className="px-1.5 py-0.5 bg-rose-500 text-white border border-rose-600 rounded text-[10px] font-medium leading-none">CN</span>}
+              {product.origin_us && <span className="px-1.5 py-0.5 bg-sky-500 text-white border border-sky-600 rounded text-[10px] font-medium leading-none">US</span>}
+              {!product.origin_india && !product.origin_china && !product.origin_us && <span className="text-xs text-slate-600">-</span>}
+            </div>
+          </td>
+        );
+
+      case 'buyingprice':
+        if (!visibleColumns.buyingprice) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.buyingprice }}>
+            <input
+              type="number"
+              defaultValue={product.buying_price ?? ''}
+              onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Price"
+            />
+          </td>
+        );
+
+      case 'buyingquantity':
+        if (!visibleColumns.buyingquantity) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.buyingquantity }}>
+            <input
+              type="number"
+              defaultValue={product.buying_quantity ?? ''}
+              onBlur={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
+              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Qty"
+            />
+          </td>
+        );
+
+      case 'sellerlink':
+        if (!visibleColumns.sellerlink) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.sellerlink }}>
+            <input
+              type="text"
+              defaultValue={product.seller_link ?? ''}
+              onBlur={(e) => handleCellEdit(product.id, 'sellerlink', e.target.value)}
+              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Link"
+            />
+          </td>
+        );
+
+      case 'sellerphno':
+        if (!visibleColumns.sellerphno) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.sellerphno }}>
+            <input
+              type="text"
+              defaultValue={product.seller_phone ?? ''}
+              onBlur={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
+              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Phone"
+            />
+          </td>
+        );
+
+      case 'paymentmethod':
+        if (!visibleColumns.paymentmethod) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.paymentmethod }}>
+            <input
+              type="text"
+              defaultValue={product.payment_method ?? ''}
+              onBlur={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
+              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Method"
+            />
+          </td>
+        );
+
+      case 'trackingdetails':
+        if (!visibleColumns.trackingdetails) return null;
+        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.trackingdetails }}>
+            {activeTab === 'order_confirmed' ? (
+              <input
+                type="text"
+                defaultValue={product.tracking_details ?? ''}
+                onBlur={(e) => handleCellEdit(product.id, 'trackingdetails', e.target.value)}
+                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="Tracking"
+              />
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>
+        );
+
+      case 'deliverydate':
+        if (!visibleColumns.deliverydate) return null;
+        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.deliverydate }}>
+            {activeTab === 'order_confirmed' ? (
+              <input
+                type="date"
+                defaultValue={product.delivery_date ?? ''}
+                onBlur={(e) => handleCellEdit(product.id, 'deliverydate', e.target.value)}
+                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>
+        );
+
+      case 'orderdate':
+        if (!visibleColumns.orderdate) return null;
+        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.orderdate }}>
+            {activeTab === 'order_confirmed' ? (
+              <input
+                type="date"
+                defaultValue={product.order_date ?? ''}
+                onBlur={(e) => handleCellEdit(product.id, 'orderdate', e.target.value)}
+                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
+          </td>
+        );
+
+      case 'moveto':
+        if (!visibleColumns.moveto) return null;
+        return (
+          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.moveto }}>
+            <div className="flex gap-1 justify-center">
+              <button
+                type="button"
+                onClick={() => { if (activeTab === 'order_confirmed') handleMoveToTracking(product); else handleSendToAdmin(product); }}
+                className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded flex items-center justify-center flex-shrink-0"
+                title="Done"
+              >D</button>
+              <button
+                type="button"
+                onClick={() => handlePriceWait(product)}
+                className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                title="Price Wait"
+              >PW</button>
+              <button
+                type="button"
+                onClick={() => handleNotFound(product)}
+                className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                title="Not Found"
+              >NF</button>
+            </div>
+          </td>
+        );
+
+      default:
+        return null;
+    }
+  };
+
 
   const fetchProducts = async () => {
     try {
@@ -177,7 +629,7 @@ export default function PurchasesPage() {
       // This replaces the loop that was causing the lag
       const { data: validationDataArray, error: valError } = await supabase
         .from('india_validation_main_file')
-        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue')
+        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue, sku')
         .in('asin', allAsins)
 
       if (valError) console.error('Validation fetch error:', valError)
@@ -209,6 +661,7 @@ export default function PurchasesPage() {
 
           // Ensure these are passed for other calculations
           profit: validationData?.profit ?? null,
+          sku: product.sku ?? validationData?.sku ?? null,
         }
       })
 
@@ -251,7 +704,7 @@ export default function PurchasesPage() {
       const allAsins = purchasesData.map((p: any) => p.asin)
       const { data: validationDataArray } = await supabase
         .from('india_validation_main_file')
-        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
         .in('asin', allAsins)
 
       // Create lookup map for fast access
@@ -275,6 +728,7 @@ export default function PurchasesPage() {
           usd_price: validationData?.usd_price ?? null,
           inr_purchase_from_validation: validationData?.inr_purchase ?? null,
           profit: validationData?.profit ?? null,
+          sku: product.sku ?? validationData?.sku ?? null,
           total_cost: validationData?.total_cost ?? null,        // <--- Added
           total_revenue: validationData?.total_revenue ?? null,
         }
@@ -331,17 +785,16 @@ export default function PurchasesPage() {
     }
   }, [showAllJourneys]);
 
-  // ✅✅ ADD THIS NEW useEffect - ESC key for remark modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedRemark) {
-        setSelectedRemark(null)
+      if (e.key === 'Escape') {
+        if (selectedRemark) setSelectedRemark(null);
+        if (openFunnelId) { setOpenFunnelId(null); setDropdownPos(null); }
       }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedRemark])
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedRemark, openFunnelId]);
 
   // Column widths state for resizable columns
   const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({
@@ -365,6 +818,7 @@ export default function PurchasesPage() {
     paymentmethod: 85,
     trackingdetails: 100,
     deliverydate: 100,
+    orderdate: 100,
     moveto: 120,
   });
 
@@ -461,6 +915,7 @@ export default function PurchasesPage() {
           usd_price: validationData?.usd_price ?? null,
           inr_purchase: validationData?.inr_purchase ?? null,
           remark: validationData?.remark ?? null,
+          sku: product.sku || null,
 
           // Admin fields
           admin_status: 'pending',
@@ -485,7 +940,11 @@ export default function PurchasesPage() {
       if (updateError) throw updateError
 
       alert('Sent to Admin Validation successfully!')
-      await refreshProductsSilently() // ✅ Updates without loading screen
+      // Optimistic: immediately hide from all tabs
+      setProducts(prev => prev.map(p =>
+        p.id === product.id ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() } : p
+      ));
+      await refreshProductsSilently()
     } catch (error: any) {
       alert(`Error: ${error.message}`)
     }
@@ -727,13 +1186,15 @@ export default function PurchasesPage() {
             // 8. TRACKING & DELIVERY (USER EDITABLE)
             tracking_details: freshProduct.tracking_details, // ✅ Fixed
             delivery_date: freshProduct.delivery_date,     // ✅ Fixed
+            order_date: freshProduct.order_date,
             remark: freshProduct.remark,
 
             // 9. FINANCIAL DATA
             profit: freshProduct.profit,
             product_weight: freshProduct.product_weight,   // ✅ Fixed
             usd_price: freshProduct.usd_price,             // ✅ Fixed
-            inr_purchase: freshProduct.inr_purchase,       // ✅ Fixed
+            inr_purchase: freshProduct.inr_purchase,      // ✅ Fixed
+            sku: freshProduct.sku || null,
 
             // 10. STATUS FIELDS
             admin_status: 'confirmed',                     // ✅ Fixed
@@ -819,14 +1280,15 @@ export default function PurchasesPage() {
     }
   }, [resizing, columnWidths]);
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      !searchQuery ||
+  // ─── STEP 1: Full filtered list ───
+  const allFilteredProducts = products.filter((p) => {
+    const matchesSearch = !searchQuery ||
       p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
+      p.funnel?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (!matchesSearch) return false
+    if (!matchesSearch) return false;
 
     // Quick funnel filter
     if (funnelFilter !== 'ALL') {
@@ -839,25 +1301,38 @@ export default function PurchasesPage() {
 
     switch (activeTab) {
       case 'main_file':
-        return !p.sent_to_admin && !p.move_to
+        return !p.sent_to_admin && !p.move_to;
       case 'price_wait':
-        return p.move_to === 'pricewait'
+        return p.move_to === 'pricewait';
       case 'order_confirmed':
-        return p.admin_confirmed === true
+        return p.admin_confirmed === true;
       case 'china':
-        return p.origin_china
+        return p.origin_china && !p.sent_to_admin && !p.move_to;
       case 'us':
-        return p.origin_us;
+        return p.origin_us && !p.sent_to_admin && !p.move_to;
       case 'india':
-        return p.origin_india
+        return p.origin_india && !p.sent_to_admin && !p.move_to;
       case 'pending':
-        return p.status === 'pending'
+        return p.status === 'pending' && !p.sent_to_admin && !p.move_to;
       case 'not_found':
-        return p.move_to === 'notfound'
+        return p.move_to === 'notfound';
       default:
-        return true
+        return true;
     }
-  })
+  }); // ← filter ends here
+
+  // ─── STEP 2: Pagination (OUTSIDE the filter, after it) ───
+  const totalPages = Math.ceil(allFilteredProducts.length / rowsPerPage) || 1;
+  const filteredProducts = allFilteredProducts.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // ─── STEP 3: Reset page on filter change ───
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, funnelFilter, sellerTagFilter, showAllJourneys]);
+
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -878,17 +1353,205 @@ export default function PurchasesPage() {
   };
 
   const handleCellEdit = async (id: string, field: string, value: any) => {
+    // Map internal field names → actual DB column names (snake_case)
+    const fieldMap: Record<string, string> = {
+      sku: 'sku',
+      buyingprice: 'buying_price',
+      buyingquantity: 'buying_quantity',
+      sellerlink: 'seller_link',
+      sellerphone: 'seller_phone',
+      paymentmethod: 'payment_method',
+      trackingdetails: 'tracking_details',
+      deliverydate: 'delivery_date',
+      orderdate: 'order_date',
+      funnel: 'funnel',
+    };
+    const dbField = fieldMap[field] || field;
+
     try {
       const { error } = await supabase
-        .from("india_purchases")  // CORRECT!
-        .update({ [field]: value })
-        .eq("id", id);
-
+        .from('india_purchases')
+        .update({ [dbField]: value })
+        .eq('id', id);
       if (error) throw error;
-      await refreshProductsSilently() // ✅ Updates without loading screen
+      await refreshProductsSilently();
     } catch (error: any) {
-      alert('Error updating: ' + error.message);
+      alert(`Error updating: ${error.message}`);
     }
+  };
+
+  const handleFunnelChange = async (id: string, newFunnel: string) => {
+    const product = products.find((p) => p.id === id);
+    if (!product) return;
+
+    const oldFunnel = product.validation_funnel;  // ← FIX 1: was validation_funnel
+
+    // Optimistic UI update
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, validation_funnel: newFunnel } : p  // ← FIX 2: was validation_funnel
+      )
+    );
+
+    setOpenFunnelId(null);
+    setDropdownPos(null);
+
+    try {
+      // 1. Update funnel in indiapurchases
+      const { error: purchaseError } = await supabase
+        .from('india_purchases')
+        .update({ funnel: newFunnel })
+        .eq('id', id);
+
+      if (purchaseError) throw purchaseError;
+
+      // 2. Also sync to indiavalidationmainfile
+      if (product.asin) {
+        const { error: valError } = await supabase
+          .from('india_validation_main_file')
+          .update({ funnel: newFunnel })
+          .eq('asin', product.asin);
+
+        if (valError) console.error('Validation sync error (non-fatal)', valError);
+      }
+
+      alert(`Funnel changed to ${newFunnel}`);
+    } catch (error: any) {
+      // Rollback on failure
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, validation_funnel: oldFunnel } : p  // ← FIX 3: was validation_funnel
+        )
+      );
+      alert(`Failed to update funnel: ${error.message}`);
+    }
+  };
+
+  const downloadCSV = (mode: 'selected' | 'page' | 'all') => {
+    let dataToDownload: PassFileProduct[];
+    let label: string;
+
+    if (mode === 'selected') {
+      dataToDownload = filteredProducts.filter((p) => selectedIds.has(p.id));
+      label = `${dataToDownload.length} selected`;
+    } else if (mode === 'page') {
+      dataToDownload = filteredProducts;
+      label = `page`;
+    } else {
+      dataToDownload = allFilteredProducts;
+      label = `all-${dataToDownload.length}`;
+    }
+
+    if (dataToDownload.length === 0) {
+      alert('No data to download');
+      return;
+    }
+
+    const csvHeaders = [
+      'ASIN', 'SKU', 'Product Name', 'Product Link', 'Funnel', 'Seller Tag',
+      'Origin', 'Buying Price', 'Target Quantity', 'Admin Target Price',
+      'INR Purchase Link', 'Actual Buying Price', 'Buying Quantity',
+      'Seller Link', 'Seller Phone', 'Payment Method',
+      'Tracking Details', 'Delivery Date', 'Order Date',
+      'USD Price', 'INR Purchase', 'Product Weight', 'Profit',
+      'Remark', 'Status', 'Admin Confirmed'
+    ];
+
+    const csvRows = dataToDownload.map((p) => [
+      p.asin,
+      p.sku ?? '',
+      p.product_name ?? '',
+      p.india_link || p.product_link || '',
+      p.validation_funnel ?? '',
+      p.validation_seller_tag ?? '',
+      [p.origin_india ? 'India' : '', p.origin_china ? 'China' : '', p.origin_us ? 'US' : ''].filter(Boolean).join(', '),
+      p.buying_price ?? '',
+      p.target_quantity ?? '',
+      p.admin_target_price ?? '',
+      p.inr_purchase_link ?? '',
+      p.buying_price ?? '',
+      p.buying_quantity ?? '',
+      p.seller_link ?? '',
+      p.seller_phone ?? '',
+      p.payment_method ?? '',
+      p.tracking_details ?? '',
+      p.delivery_date ?? '',
+      p.order_date ?? '',
+      p.usd_price ?? '',
+      p.inr_purchase ?? '',
+      p.product_weight ?? '',
+      p.profit ?? '',
+      p.remark ?? '',
+      p.status ?? '',
+      p.admin_confirmed ? 'Yes' : 'No',
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map((row) =>
+        row.map((val) => {
+          const str = String(val ?? '');
+          return str.includes(',') || str.includes('"') || str.includes('\n')
+            ? `"${str.replace(/"/g, '""')}"`
+            : str;
+        }).join(',')
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `purchases_${activeTab}_${mode}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    setIsDownloadDropdownOpen(false);
+  };
+
+
+  const downloadExcel = (mode: 'selected' | 'page' | 'all') => {
+    let dataToDownload: PassFileProduct[];
+
+    if (mode === 'selected') {
+      dataToDownload = filteredProducts.filter((p) => selectedIds.has(p.id));
+    } else if (mode === 'page') {
+      dataToDownload = filteredProducts;
+    } else {
+      dataToDownload = allFilteredProducts;
+    }
+
+    if (dataToDownload.length === 0) {
+      alert('No data to download');
+      return;
+    }
+
+    const sheetData = dataToDownload.map((p) => ({
+      'ASIN': p.asin,
+      'SKU': p.sku ?? '',
+      'Product Name': p.product_name ?? '',
+      'Funnel': p.validation_funnel ?? '',
+      'Seller Tag': p.validation_seller_tag ?? '',
+      'Origin': [p.origin_india ? 'India' : '', p.origin_china ? 'China' : '', p.origin_us ? 'US' : ''].filter(Boolean).join(', '),
+      'Buying Price': p.buying_price ?? '',
+      'Admin Target Price': p.admin_target_price ?? '',
+      'Buying Quantity': p.buying_quantity ?? '',
+      'Seller Link': p.seller_link ?? '',
+      'Seller Phone': p.seller_phone ?? '',
+      'Payment Method': p.payment_method ?? '',
+      'USD Price': p.usd_price ?? '',
+      'INR Purchase': p.inr_purchase ?? '',
+      'Product Weight': p.product_weight ?? '',
+      'Profit': p.profit ?? '',
+      'Remark': p.remark ?? '',
+      'Status': p.status ?? '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, activeTab);
+    XLSX.writeFile(wb, `purchases_${activeTab}_${mode}_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    setIsDownloadDropdownOpen(false);
   };
 
   const tabs = [
@@ -951,7 +1614,7 @@ export default function PurchasesPage() {
             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
             }`}
         >
-          <span className="relative z-10">India ({products.filter(p => p.origin_india).length})</span>
+          <span className="relative z-10">India ({products.filter(p => p.origin_india && !p.sent_to_admin && !p.move_to).length})</span>
           {activeTab === 'india' && <div className="absolute inset-0 opacity-10 bg-orange-500" />}
         </button>
 
@@ -963,7 +1626,7 @@ export default function PurchasesPage() {
             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
             }`}
         >
-          <span className="relative z-10">China ({products.filter(p => p.origin_china).length})</span>
+          <span className="relative z-10">China ({products.filter(p => p.origin_china && !p.sent_to_admin && !p.move_to).length})</span>
           {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500" />}
         </button>
 
@@ -975,7 +1638,7 @@ export default function PurchasesPage() {
             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
             }`}
         >
-          <span className="relative z-10">US ({products.filter(p => p.origin_us).length})</span>
+          <span className="relative z-10">US ({products.filter(p => p.origin_us && !p.sent_to_admin && !p.move_to).length})</span>
           {activeTab === 'us' && <div className="absolute inset-0 opacity-10 bg-sky-500" />}
         </button>
 
@@ -987,7 +1650,7 @@ export default function PurchasesPage() {
             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
             }`}
         >
-          <span className="relative z-10">Pending ({products.filter(p => p.status === 'pending').length})</span>
+          <span className="relative z-10">Pending ({products.filter(p => p.status === 'pending' && !p.sent_to_admin && !p.move_to).length})</span>
           {activeTab === 'pending' && <div className="absolute inset-0 opacity-10 bg-purple-500" />}
         </button>
 
@@ -1025,7 +1688,7 @@ export default function PurchasesPage() {
           </svg>
           <input
             type="text"
-            placeholder="Search by ASIN, Product Name, or Funnel..."
+            placeholder="Search by ASIN, Product Name, SKU, or Funnel..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm text-sm"
@@ -1056,7 +1719,6 @@ export default function PurchasesPage() {
             </button>
           </div>
 
-          {/* Seller Tag Filter */}
           {/* Seller Tag Filter */}
           <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
             <button
@@ -1090,6 +1752,92 @@ export default function PurchasesPage() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Download Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
+              className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download
+              <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {isDownloadDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
+                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
+                  <p className="text-xs text-slate-500 px-3 py-1.5 font-semibold uppercase tracking-wider">CSV</p>
+
+                  {/* Download Selected */}
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={() => downloadCSV('selected')}
+                      className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                    >
+                      <span>Download Selected</span>
+                      <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                    </button>
+                  )}
+
+                  {/* Download Page */}
+                  <button
+                    onClick={() => downloadCSV('page')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span>Download Page</span>
+                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                  </button>
+
+                  {/* Download All */}
+                  <button
+                    onClick={() => downloadCSV('all')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span>Download All</span>
+                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{products.length}</span>
+                  </button>
+
+                  <div className="border-t border-slate-700 my-1.5" />
+                  <p className="text-xs text-slate-500 px-3 py-1.5 font-semibold uppercase tracking-wider">Excel</p>
+
+                  {/* Excel Selected */}
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={() => downloadExcel('selected')}
+                      className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                    >
+                      <span>Download Selected</span>
+                      <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                    </button>
+                  )}
+
+                  {/* Excel Page */}
+                  <button
+                    onClick={() => downloadExcel('page')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span>Download Page</span>
+                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                  </button>
+
+                  {/* Excel All */}
+                  <button
+                    onClick={() => downloadExcel('all')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span>Download All</span>
+                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{products.length}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <button
@@ -1156,6 +1904,7 @@ export default function PurchasesPage() {
                         'paymentmethod': 'Payment Method',
                         'trackingdetails': 'Tracking Details',
                         'deliverydate': 'Delivery Date',
+                        'orderdate': 'Order Date',
                         'moveto': 'Move To',
                         remark: 'Remark',
                       };
@@ -1199,8 +1948,9 @@ export default function PurchasesPage() {
           <table className="w-full divide-y divide-slate-800 table-fixed" style={{ minWidth: '1600px' }}>
             <thead className="bg-slate-950 sticky top-0 z-10 shadow-md">
               <tr>
+                {/* Checkbox - always first, NOT draggable */}
                 {visibleColumns.checkbox && (
-                  <th className="px-4 py-3 text-center bg-slate-950" style={{ width: `${columnWidths.checkbox}px` }}>
+                  <th className="px-4 py-3 text-center bg-slate-950 relative" style={{ width: columnWidths.checkbox }}>
                     <input
                       type="checkbox"
                       checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
@@ -1210,280 +1960,192 @@ export default function PurchasesPage() {
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('checkbox', e)} />
                   </th>
                 )}
+                {/* Draggable columns */}
+                {columnOrder.map((colkey) => {
+                  // Tab-conditional columns
+                  if (colkey === 'admintargetprice' && (!visibleColumns.admintargetprice || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'trackingdetails' && (!visibleColumns.trackingdetails || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'deliverydate' && (!visibleColumns.deliverydate || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'orderdate' && (!visibleColumns.orderdate || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
 
-                {visibleColumns.asin && (
-                  <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.asin}px` }}>
-                    ASIN
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('asin', e)} />
-                  </th>
-                )}
+                  // visibleColumns check for standard toggle columns
+                  const visKey = colkey as keyof typeof visibleColumns;
+                  if (visibleColumns[visKey] !== undefined && !visibleColumns[visKey]) return null;
 
-                {/* ✅ HISTORY COLUMN */}
-                <th
-                  className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950"
-                  style={{ width: `${columnWidths.history}px` }}
-                >
-                  HISTORY
-                  <div
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                    onMouseDown={(e) => handleMouseDown('history', e)}
-                  />
-                </th>
-                {/* ✅✅ ADD THIS NEW REMARK COLUMN HEADER RIGHT AFTER HISTORY */}
-                {visibleColumns.remark && (
-                  <th
-                    className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950"
-                    style={{ width: `${columnWidths.remark}px` }}
-                  >
-                    REMARK
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
-                      onMouseDown={(e) => handleMouseDown('remark', e)}
-                    />
-                  </th>
-                )}
+                  // Skip columns not in visibleColumns AND not special (sku, history have no toggle)
+                  const specialCols = ['sku', 'history'];
+                  if (!specialCols.includes(colkey) && visibleColumns[visKey] === undefined) return null;
 
-                {visibleColumns.productlink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productlink}px` }}>PRODUCT LINK<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productlink', e)} /></th>}
-                {visibleColumns.productname && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.productname}px` }}>PRODUCT NAME<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('productname', e)} /></th>}
+                  const labels: Record<string, string> = {
+                    asin: 'ASIN', sku: 'SKU', history: 'HISTORY', remark: 'REMARK',
+                    productlink: 'PRODUCT LINK', productname: 'PRODUCT NAME',
+                    targetprice: 'Buying Price', targetquantity: 'Target Quantity',
+                    admintargetprice: 'Admin Target Price',
+                    funnelquantity: 'Funnel', funnelseller: 'Seller Tag',
+                    inrpurchaselink: 'INR Purchase Link', origin: 'Origin',
+                    buyingprice: 'Actual Buying Price', buyingquantity: 'Buying Quantity',
+                    sellerlink: 'Seller Link', sellerphno: 'Seller Ph No.',
+                    paymentmethod: 'Payment Method', trackingdetails: 'Tracking Details',
+                    deliverydate: 'Delivery Date', orderdate: 'Order Date', moveto: 'MOVE TO',
+                  };
 
-                {visibleColumns.targetprice && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.targetprice}px` }}>Buying Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetprice', e)} /></th>}
+                  const emeraldCols = ['targetprice', 'targetquantity', 'trackingdetails', 'deliverydate', 'orderdate'];
+                  const purpleCols = ['admintargetprice'];
+                  const textColor = emeraldCols.includes(colkey) ? 'text-emerald-400' : purpleCols.includes(colkey) ? 'text-purple-400' : 'text-slate-400';
+                  const bgColor = emeraldCols.includes(colkey) ? 'bg-emerald-900/10' : purpleCols.includes(colkey) ? 'bg-purple-900/10' : 'bg-slate-950';
+                  const w = colkey === 'sku' ? 150 : (columnWidths[colkey] ?? 100);
 
-                {/* {visibleColumns.targetquantity && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.targetquantity}px` }}>Target Quantity<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('targetquantity', e)} /></th>} */}
-
-                {visibleColumns.admintargetprice && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <th className="px-3 py-3 text-center text-xs font-bold text-purple-400 uppercase relative group bg-purple-900/10" style={{ width: `${columnWidths.admintargetprice}px` }}>Admin Target Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} /></th>}
-
-                {visibleColumns.funnelquantity && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.funnelquantity}px` }}>Funnel<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('funnelquantity', e)} /></th>}
-
-                {visibleColumns.funnelseller && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.funnelseller}px` }}>Seller Tag<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('funnelseller', e)} /></th>}
-
-                {visibleColumns.inrpurchaselink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.inrpurchaselink}px` }}>INR Purchase Link<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('inrpurchaselink', e)} /></th>}
-
-                {visibleColumns.origin && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.origin}px` }}>Origin<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('origin', e)} /></th>}
-
-                {visibleColumns.buyingprice && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.buyingprice}px` }}>Actual Buying Price<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('buyingprice', e)} /></th>}
-
-                {visibleColumns.buyingquantity && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.buyingquantity}px` }}>Buying Quantity<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('buyingquantity', e)} /></th>}
-
-                {visibleColumns.sellerlink && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.sellerlink}px` }}>Seller Link<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('sellerlink', e)} /></th>}
-
-                {visibleColumns.sellerphno && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.sellerphno}px` }}>Seller Ph No.<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('sellerphno', e)} /></th>}
-
-                {visibleColumns.paymentmethod && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.paymentmethod}px` }}>Payment Method<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('paymentmethod', e)} /></th>}
-
-                {visibleColumns.trackingdetails && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.trackingdetails}px` }}>Tracking Details<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('trackingdetails', e)} /></th>}
-
-                {visibleColumns.deliverydate && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <th className="px-3 py-3 text-center text-xs font-bold text-emerald-400 uppercase relative group bg-emerald-900/10" style={{ width: `${columnWidths.deliverydate}px` }}>Delivery Date<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('deliverydate', e)} /></th>}
-
-                {visibleColumns.moveto && <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase relative group bg-slate-950" style={{ width: `${columnWidths.moveto}px` }}>Move TO<div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500" onMouseDown={(e) => handleMouseDown('moveto', e)} /></th>}
+                  return (
+                    <th
+                      key={colkey}
+                      draggable
+                      onDragStart={() => handleColumnDragStart(colkey)}
+                      onDragOver={(e) => handleColumnDragOver(e, colkey)}
+                      onDrop={handleColumnDrop}
+                      className={`px-3 py-3 text-center text-xs font-bold ${textColor} uppercase relative group ${bgColor} cursor-grab active:cursor-grabbing select-none`}
+                      style={{ width: w }}
+                    >
+                      {labels[colkey] || colkey}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                        onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(colkey, e); }}
+                      />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-800">
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length - (['mainfile', 'india', 'china', 'us'].includes(activeTab) ? [visibleColumns.admintargetprice, visibleColumns.trackingdetails, visibleColumns.deliverydate].filter(Boolean).length : 0)} className="px-4 py-16 text-center text-slate-500">
+                  <td colSpan={99} className="px-4 py-16 text-center text-slate-500">
                     <div className="flex flex-col items-center">
-                      <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                      <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace('_', ' ')}</span>
+                      <svg className="w-12 h-12 mb-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      </svg>
+                      <span className="text-lg font-semibold text-slate-400">No products available in {activeTab.replace(/_/g, ' ')}</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((product) => {
-                  return (
-                    <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 group">
-
-                      {/* ✅ Checkbox */}
-                      {visibleColumns.checkbox && (
-                        <td className="px-4 py-2 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
-                          <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer" />
-                        </td>
-                      )}
-
-                      {/* ✅ ASIN COLUMN - Only ASIN text */}
-                      {visibleColumns.asin && (
-                        <td className="px-3 py-2 font-mono text-sm text-slate-300" style={{ width: `${columnWidths.asin}px` }}>
-                          <div className="truncate">{product.asin}</div>
-                        </td>
-                      )}
-
-                      {/* ✅ HISTORY COLUMN - Only Clock Icon (Working) */}
-                      <td className="px-3 py-2 text-center" style={{ width: `${columnWidths.history}px` }}>
-                        <button
-                          onClick={() => fetchHistory(product.asin)}
-                          className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
-                          title="View Journey History"
-                        >
-                          <History className="w-4 h-4" />
-                        </button>
+                filteredProducts.map((product) => (
+                  <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 group">
+                    {/* Checkbox */}
+                    {visibleColumns.checkbox && (
+                      <td className="px-4 py-2 text-center" style={{ width: columnWidths.checkbox }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(product.id)}
+                          onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                          className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
+                        />
                       </td>
-
-                      {visibleColumns.remark && (
-                        <td className="px-3 py-2 text-center" style={{ width: `${columnWidths.remark}px` }}>
-                          {product.remark ? (
-                            <button
-                              onClick={() => setSelectedRemark(product.remark)}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                            >
-                              View
-                            </button>
-                          ) : (
-                            <span className="text-slate-600">-</span>
-                          )}
-                        </td>
-                      )}
-
-                      {/* Product Link */}
-                      {visibleColumns.productlink && <td className="px-3 py-2 text-center overflow-hidden" style={{ width: `${columnWidths.productlink}px` }}>
-                        {(product.india_link || product.product_link) ? (
-                          <a href={ensureURL(product.india_link || product.product_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium">View</a>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
-
-                      {/* Product Name */}
-                      {visibleColumns.productname && <td className="px-3 py-2 text-sm text-slate-200 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
-
-                      {/* Target Price */}
-                      {visibleColumns.targetprice && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
-                        {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-emerald-300">{product.usd_price ? (product.usd_price * dollarRate).toFixed(2) : '-'}</div>
-                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-                      </td>}
-
-                      {/* Admin Target Price */}
-                      {visibleColumns.admintargetprice && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <td className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: `${columnWidths.admintargetprice}px` }}>
-                        {activeTab === 'order_confirmed' ? (
-                          <div className="px-2 py-1 text-sm font-medium text-purple-300">₹{product.admin_target_price ?? '-'}</div>
-                        ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
-                      </td>}
-
-                      {/* Funnel Qty */}
-                      {visibleColumns.funnelquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
-                        {product.validation_funnel ? (
-                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' || product.validation_funnel === 'RS'
-                            ? 'bg-emerald-600 text-white' :
-                            product.validation_funnel === 'LD'
-                              ? 'bg-blue-600 text-white' :
-                              product.validation_funnel === 'DP'
-                                ? 'bg-amber-500 text-black' :
-                                'bg-slate-600 text-white'
-                            }`}>{product.validation_funnel}</span>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
-
-                      {/* Seller Tag */}
-                      {visibleColumns.funnelseller && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.funnelseller}px` }}>
-                        {product.validation_seller_tag ? (
-                          <div className="flex flex-wrap items-center gap-0.5">
-                            {product.validation_seller_tag.split(',').map(tag => {
-                              const cleanTag = tag.trim();
-                              let badgeColor = 'bg-slate-700 text-white';
-                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black border border-yellow-600';
-                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-slate-600';
-                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white border border-pink-600';
-                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
-                              return <span key={cleanTag} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${badgeColor}`}>{cleanTag}</span>
-                            })}
-                          </div>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
-
-                      {/* INR Link */}
-                      {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
-                        {product.inr_purchase_link ? (
-                          <a href={ensureURL(product.inr_purchase_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
-                        ) : <span className="text-xs text-slate-600">-</span>}
-                      </td>}
-
-                      {/* Origin */}
-                      {visibleColumns.origin && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
-                        <div className="flex flex-wrap gap-0.5">
-                          {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500 text-white border border-orange-600 rounded text-[10px] font-medium leading-none">IN</span>}
-                          {product.origin_china && <span className="px-1.5 py-0.5 bg-rose-500 text-white border border-rose-600 rounded text-[10px] font-medium leading-none">CN</span>}
-                          {product.origin_us && <span className="px-1.5 py-0.5 bg-sky-500 text-white border border-sky-600 rounded text-[10px] font-medium leading-none">US</span>}
-                          {!product.origin_india && !product.origin_china && !product.origin_us && <span className="text-xs text-slate-600">-</span>}
-                        </div>
-                      </td>}
-
-                      {/* Buying Price - Input */}
-                      {visibleColumns.buyingprice && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
-                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Price" />
-                      </td>}
-
-                      {/* Buying Qty - Input */}
-                      {visibleColumns.buyingquantity && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
-                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Qty" />
-                      </td>}
-
-                      {/* Seller Link - Input */}
-                      {visibleColumns.sellerlink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
-                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Link" />
-                      </td>}
-
-                      {/* Seller Phone - Input */}
-                      {visibleColumns.sellerphno && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
-                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Phone" />
-                      </td>}
-
-                      {/* Payment Method - Input */}
-                      {visibleColumns.paymentmethod && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
-                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Method" />
-                      </td>}
-
-                      {/* Tracking Details - Input */}
-                      {visibleColumns.trackingdetails && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
-                        {activeTab === 'order_confirmed' ? (
-                          <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
-                        ) : (
-                          <span className="text-xs text-slate-500 italic">After confirmation</span>
-                        )}
-                      </td>}
-
-                      {/* Delivery Date - Input */}
-                      {visibleColumns.deliverydate && !['main_file', 'india', 'china', 'us'].includes(activeTab) && <td className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
-                        {activeTab === 'order_confirmed' ? (
-                          <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                        ) : (
-                          <span className="text-xs text-slate-500 italic">After confirmation</span>
-                        )}
-                      </td>}
-
-                      {/* Move To Actions */}
-                      {visibleColumns.moveto && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.moveto}px` }}>
-                        <div className="flex gap-1 justify-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (activeTab === 'order_confirmed') {
-                                handleMoveToTracking(product);
-                              } else {
-                                handleSendToAdmin(product);
-                              }
-                            }}
-                            className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded flex items-center justify-center flex-shrink-0"
-                            title="Done"
-                          >
-                            D
-                          </button>
-                          <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
-                          <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
-                        </div>
-                      </td>}
-                    </tr>
-                  );
-                })
+                    )}
+                    {/* Draggable columns - in user-chosen order */}
+                    {columnOrder.map((colkey) => renderPurchaseCell(colkey, product))}
+                  </tr>
+                ))
               )}
             </tbody>
-
           </table>
         </div>
-        {/* Footer Stats */}
+        {/* Footer Stats + Pagination */}
         <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
-          <div className="text-sm text-slate-400">
-            Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
-            {selectedIds.size > 0 && <span className="ml-2 text-indigo-400 font-semibold">| {selectedIds.size} selected</span>}
+          <div className="flex items-center justify-between">
+            {/* Left: Showing info */}
+            <div className="text-sm text-slate-400">
+              Showing{' '}
+              <span className="font-bold text-white">
+                {allFilteredProducts.length === 0
+                  ? 0 : (currentPage - 1) * rowsPerPage + 1}
+              </span>
+              –
+              <span className="font-bold text-white">
+                {Math.min(currentPage * rowsPerPage, allFilteredProducts.length)}
+              </span>{' '}
+              of <span className="font-bold text-white">
+                {allFilteredProducts.length}
+              </span> products
+              {selectedIds.size > 0 && (
+                <span className="ml-2 text-indigo-400 font-semibold">
+                  ({selectedIds.size} selected)
+                </span>
+              )}
+            </div>
+
+            {/* Right: Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg
+            transition-all disabled:opacity-30 disabled:cursor-not-allowed
+            text-slate-400 hover:text-white hover:bg-slate-800">
+                  ««
+                </button>
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg
+            transition-all disabled:opacity-30 disabled:cursor-not-allowed
+            text-slate-400 hover:text-white hover:bg-slate-800">
+                  ‹ Prev
+                </button>
+
+                {/* Page Numbers (max 5 visible) */}
+                {(() => {
+                  const pages: number[] = [];
+                  const maxVisible = 5;
+                  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                  let end = Math.min(totalPages, start + maxVisible - 1);
+                  if (end - start + 1 < maxVisible)
+                    start = Math.max(1, end - maxVisible + 1);
+                  for (let i = start; i <= end; i++) pages.push(i);
+
+                  return (<>
+                    {start > 1 && (<>
+                      <button onClick={() => setCurrentPage(1)}
+                        className="w-8 h-8 text-xs rounded-lg text-slate-400
+                  hover:text-white hover:bg-slate-800">1</button>
+                      {start > 2 && <span className="text-slate-600 px-1">…</span>}
+                    </>)}
+                    {pages.map(page => (
+                      <button key={page} onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 text-xs font-medium rounded-lg
+                  transition-all ${currentPage === page
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                          }`}>{page}</button>
+                    ))}
+                    {end < totalPages && (<>
+                      {end < totalPages - 1 &&
+                        <span className="text-slate-600 px-1">…</span>}
+                      <button onClick={() => setCurrentPage(totalPages)}
+                        className="w-8 h-8 text-xs rounded-lg text-slate-400
+                  hover:text-white hover:bg-slate-800">{totalPages}</button>
+                    </>)}
+                  </>);
+                })()}
+
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg
+            transition-all disabled:opacity-30 disabled:cursor-not-allowed
+            text-slate-400 hover:text-white hover:bg-slate-800">
+                  Next ›
+                </button>
+                <button onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg
+            transition-all disabled:opacity-30 disabled:cursor-not-allowed
+            text-slate-400 hover:text-white hover:bg-slate-800">
+                  »»
+                </button>
+              </div>
+            )}
           </div>
         </div>
+
       </div>
       {/* ✅ HISTORY SIDEBAR SLIDE-OVER */}
       <AnimatePresence>

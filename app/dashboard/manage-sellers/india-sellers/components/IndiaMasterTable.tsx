@@ -16,6 +16,7 @@ interface MasterData {
   amz_link: string;
   product_name: string;
   remark: string | null;
+  sku: string | null;
   brand: string;
   price: number;
   monthly_unit: number;
@@ -49,6 +50,7 @@ const ALL_COLUMNS = [
   'asin',
   'amz_link',
   'product_name',
+  'sku',
   'remark',
   'brand',
   'price',
@@ -68,6 +70,7 @@ const COLUMN_LABELS: Record<string, string> = {
   asin: 'ASIN',
   'amz_link': 'Link',
   product_name: 'Product Name',
+  sku: 'SKU',
   brand: 'Brand',
   price: 'Price',
   monthly_unit: 'Monthly Units',
@@ -79,7 +82,7 @@ const COLUMN_LABELS: Record<string, string> = {
   weight: 'Weight',
 };
 
-const SORTABLE_COLUMNS = ['s_no', 'asin', 'product_name', 'brand', 'price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'weight'];
+const SORTABLE_COLUMNS = ['s_no', 'asin', 'product_name', 'sku', 'brand', 'price', 'monthly_unit', 'monthly_sales', 'bsr', 'seller', 'category', 'weight'];
 
 export default function IndiaMasterTable({
   searchTerm,
@@ -659,7 +662,11 @@ export default function IndiaMasterTable({
                         <div className="truncate" title={String(row[column as keyof MasterData] || '')}>
                           {column === 's_no' ? (
                             <span className="font-mono text-slate-500">{row.display_number}</span>
-                          ) : column === 'remark' ? ( // ✅ Add this block
+                          ) : column === 'sku' ? (
+                            <span className="font-mono text-slate-400 text-[10px]">
+                              {row.sku || '-'}
+                            </span>
+                          ) : column === 'remark' ? (
                             row.remark ? (
                               <button
                                 onClick={() => setSelectedRemark(row.remark)}
