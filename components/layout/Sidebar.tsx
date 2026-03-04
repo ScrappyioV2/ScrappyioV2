@@ -153,7 +153,10 @@ function SidebarItem({
   const handleMainClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (hasSubRoutes) {
-      toggleMenu(item.path)
+      router.push(item.path)
+      if (!isOpen) {
+        toggleMenu(item.path)
+      }
     } else {
       router.push(item.path)
     }
@@ -161,6 +164,7 @@ function SidebarItem({
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     toggleMenu(item.path)
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 const SELLERS = [
@@ -8,11 +8,36 @@ const SELLERS = [
   { id: 4, name: 'Velvet Vista', code: 'VV' },
 ];
 
-export function useIndiaDashboardStats(options = { enabled: true }) {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(options.enabled);
+const CACHE_KEY = 'india_dashboard_stats_cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-  const fetchStats = useCallback(async () => {
+function loadCache() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - (parsed._ts || 0) < CACHE_TTL) return parsed.data;
+  } catch { }
+  return null;
+}
+
+function saveCache(data: any) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, _ts: Date.now() }));
+  } catch { }
+}
+
+export function useIndiaDashboardStats(options = { enabled: true }) {
+  const [stats, setStats] = useState<any>(() => loadCache());
+  const [loading, setLoading] = useState(!loadCache() && options.enabled);
+  const isFetching = useRef(false);
+
+  const fetchStats = useCallback(async (silent = false) => {
+    if (isFetching.current) return;
+    isFetching.current = true;
+    if (!silent) setLoading(true);
+
     try {
       const newStats = {
         brandChecking: { sellers: [] as any[] },
@@ -22,7 +47,6 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
       };
 
       const promises = SELLERS.map(async (seller) => {
-        // 1. BRAND CHECKING - Count from High Demand, Low Demand, Dropshipping
         const tabs = ['high_demand', 'low_demand', 'dropshipping'];
         let bcPending = 0;
         for (const tab of tabs) {
@@ -32,7 +56,6 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
           bcPending += count || 0;
         }
 
-        // 2. VALIDATION - Uses seller_tag and judgement (not validation_status)
         const { count: valPending } = await supabase
           .from('india_validation_main_file')
           .select('*', { count: 'exact', head: true })
@@ -44,19 +67,17 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
           .select('*', { count: 'exact', head: true })
           .eq('seller_tag', seller.code)
           .eq('judgement', 'PASS');
-        
+
         const { count: valFailed } = await supabase
           .from('india_validation_main_file')
           .select('*', { count: 'exact', head: true })
           .eq('seller_tag', seller.code)
-          .eq('judgement', 'FAIL'); 
+          .eq('judgement', 'FAIL');
 
-        // 3. LISTING ERRORS
         const { count: listErrors } = await supabase
           .from(`india_listing_error_seller_${seller.id}_error`)
           .select('*', { count: 'exact', head: true });
 
-        // 4. PURCHASING - Uses seller_tag (not seller_id)
         const { count: purchPending } = await supabase
           .from('india_purchases')
           .select('*', { count: 'exact', head: true })
@@ -87,44 +108,39 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
       newStats.purchasing.sellers = results.map(r => ({ id: r.id, approved: r.purchasing.completed, pending: r.purchasing.pending }));
 
       setStats(newStats);
+      saveCache(newStats);
     } catch (error) {
       console.error("India Stats Error:", error);
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
   }, []);
 
   useEffect(() => {
     if (!options.enabled) return;
 
-    // 1. Initial Load
-    fetchStats();
+    // If we have cache, fetch silently in background
+    // If no cache, fetch with loading spinner
+    fetchStats(!!stats);
 
-    // 2. Realtime Subscription
     const channel = supabase
       .channel('india-dashboard-stats-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'india_validation_main_file' },
-        (payload) => {
-          console.log('🔄 India Validation update detected:', payload.eventType);
-          fetchStats();
-        }
+        () => fetchStats(true)  // Always silent on realtime
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'india_purchases' },
-        (payload) => {
-          console.log('🔄 India Purchases update detected:', payload.eventType);
-          fetchStats();
-        }
+        () => fetchStats(true)  // Always silent on realtime
       )
       .subscribe();
 
-    // 3. Visibility Refresh
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchStats();
+        fetchStats(true);  // Silent on tab return
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);

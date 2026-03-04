@@ -10,7 +10,7 @@ export type UserRole = {
   user_id: string;
   email: string;
   full_name: string | null;
-  role: "admin" | "validation" | "purchase" | "viewer" | string;
+  role: 'admin' | 'validation' | 'purchase' | 'viewer' | string;
   allowed_pages: string[];
   is_active: boolean;
 };
@@ -37,69 +37,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ✅ FIX: Load role from localStorage first, then database as fallback
   const fetchUserRole = async (userId: string): Promise<boolean> => {
-    if (loadedUserId.current === userId && userRole) {
-      console.log("✅ Role already loaded, skipping fetch");
-      return true;
-    }
-
-    if (fetchInProgress.current) {
-      console.log("⏭️ Role fetch already in progress, skipping");
-      return false;
-    }
-
-    try {
-      fetchInProgress.current = true;
-      
-      // ✅ STEP 1: Try localStorage first (instant)
-      if (typeof window !== 'undefined') {
-        const cachedRole = localStorage.getItem('scrappy_user_role');
-        if (cachedRole) {
-          const roleData = JSON.parse(cachedRole);
-          if (roleData.user_id === userId) {
-            console.log("✅ Role loaded from cache:", roleData.role);
-            setUserRole(roleData as UserRole);
-            loadedUserId.current = userId;
-            return true;
-          }
+  // STEP 1: Check cache for instant display
+  let cacheHit = false;
+  if (typeof window !== 'undefined') {
+    const cachedRole = localStorage.getItem('scrappy_user_role');
+    if (cachedRole) {
+      try {
+        const roleData = JSON.parse(cachedRole);
+        if (roleData.user_id === userId) {
+          console.log('✅ Role loaded from cache:', roleData.role);
+          setUserRole(roleData as UserRole);
+          loadedUserId.current = userId;
+          cacheHit = true;
         }
-      }
+      } catch {}
+    }
+  }
 
-      // ✅ STEP 2: Fallback to database (slow)
-      console.log("🔍 Fetching role from database for user:", userId);
-      
+  // STEP 2: Fetch fresh from DB
+  const dbFetch = async () => {
+    try {
+      console.log('🔄 Fetching fresh role from database...');
       const { data, error } = await supabase
-        .from("user_roles")
-        .select("*")
-        .eq("user_id", userId)
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', userId)
         .single();
 
       if (error) {
-        console.error("❌ Role fetch error:", error.message);
+        console.error('❌ Role fetch error:', error.message);
         return false;
       }
-
       if (data) {
-        console.log("✅ Role loaded from database:", data.role);
+        console.log('✅ Role loaded from DB:', data.role);
         setUserRole(data as UserRole);
         loadedUserId.current = userId;
-        
-        // Cache for future use
         if (typeof window !== 'undefined') {
           localStorage.setItem('scrappy_user_role', JSON.stringify(data));
         }
-        
         return true;
       }
-
-      console.warn("⚠️ No role data found");
       return false;
     } catch (err: any) {
-      console.error("❌ Role fetch exception:", err.message || err);
+      console.error('❌ DB fetch exception:', err.message);
       return false;
-    } finally {
-      fetchInProgress.current = false;
     }
   };
+
+  if (cacheHit) {
+    // Cache exists — don't block, fetch DB in background
+    dbFetch();
+    return true;
+  } else {
+    // No cache — must wait for DB
+    return await dbFetch();
+  }
+};
 
   // Initialize authentication on mount
   useEffect(() => {
@@ -216,19 +209,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const hasPageAccess = (permissionKey: string): boolean => {
-    if (!userRole) return false;
-    if (userRole.role === "admin") return true;
-    if (permissionKey === "public") return true;
-    if (permissionKey === "admin-access") return false;
-
-    const pages = Array.isArray(userRole.allowed_pages) ? userRole.allowed_pages : [];
-
-    return (
-      pages.includes(permissionKey) ||
-      pages.includes("all") ||
-      pages.includes("*")
-    );
-  };
+  if (!userRole) return false;
+  if (userRole.role === 'admin') return true;
+  if (permissionKey === 'public') return true;
+  if (permissionKey === 'admin-access') return false;
+  const pages = Array.isArray(userRole.allowed_pages) ? userRole.allowed_pages : [];
+  return pages.includes(permissionKey) || pages.includes('all') || pages.includes('*');
+};
 
   return (
     <AuthContext.Provider
