@@ -18,7 +18,6 @@ import {
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs } from '@/lib/utils/master-table/uploadHelpers';
-import PageTransition from '@/components/layout/PageTransition';
 import {
   Search,
   Database,
@@ -72,6 +71,7 @@ export default function DropySellersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
@@ -447,7 +447,7 @@ export default function DropySellersPage() {
   const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalProducts);
 
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
         <Toaster position="top-right"
           toastOptions={{
@@ -607,6 +607,6 @@ export default function DropySellersPage() {
           multiple={true}
         />
       </div>
-    </PageTransition>
+    </>
   );
 }

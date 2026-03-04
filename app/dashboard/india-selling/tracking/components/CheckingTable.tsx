@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getIndiaTrackingTableName } from '@/lib/utils';
@@ -76,6 +77,7 @@ export default function CheckingTable({
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const { logActivity, logBatchActivity } = useActivityLogger();
   // 🔴 ADD THIS NEW STATE
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
@@ -330,7 +332,12 @@ export default function CheckingTable({
         onCountsChange();
       }
 
-      alert(`✅ ${itemsToMove.length} item(s) moved to Shipment + Vyapar!`);
+      alert(`${itemsToMove.length} items moved to Shipment & Vyapar!`);
+      // ✅ ADD THIS:
+      logBatchActivity(
+        itemsToMove.map((item: any) => ({ asin: item.asin, details: { invoice: item.invoicenumber } })),
+        { action: 'submit', marketplace: 'india', page: 'tracking', table_name: `india_shipment_seller_${sellerId}` }
+      );
     } catch (error: any) {
       console.error('❌ Error moving items:', error);
       alert(`Failed to move items: ${error.message}`);
@@ -491,7 +498,12 @@ export default function CheckingTable({
         onCountsChange();
       }
 
-      alert(`✅ ${itemsToMove.length} item(s) moved to Shipment & Vyapar!`);
+      alert(`${itemsToMove.length} items moved to Shipment & Vyapar!`);
+      // ✅ ADD THIS:
+      logBatchActivity(
+        itemsToMove.map((item: any) => ({ asin: item.asin, details: { invoice: item.invoicenumber } })),
+        { action: 'submit', marketplace: 'india', page: 'tracking', table_name: `india_shipment_seller_${sellerId}` }
+      );
     } catch (error: any) {
       console.error('❌ Error moving items:', error);
       alert('Failed to move items: ' + error.message);

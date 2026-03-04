@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSX from 'xlsx';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type PassFileProduct = {
   id: string
@@ -92,6 +93,7 @@ export default function PurchasesPage() {
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const { logActivity } = useActivityLogger();
   const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>(() => {
     if (typeof window === 'undefined') return 'ALL';
     return (localStorage.getItem('indiaPurchasesFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
@@ -114,7 +116,18 @@ export default function PurchasesPage() {
     product: PassFileProduct
     fromStatus: string | null
     toStatus: string
+    wasAdminConfirmed?: boolean
   } | null>>({})
+
+  // ─── Toast notification ───
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const toastIdRef = useRef(0);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  };
+
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
   // History Sidebar State
@@ -347,7 +360,7 @@ export default function PurchasesPage() {
 
       case 'admintargetprice':
         if (!visibleColumns.admintargetprice) return null;
-        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        if (['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab)) return null;
         return (
           <td key={colkey} className="px-3 py-2 bg-purple-900/10 overflow-hidden" style={{ width: columnWidths.admintargetprice }}>
             {activeTab === 'order_confirmed' ? (
@@ -432,6 +445,7 @@ export default function PurchasesPage() {
 
       case 'inrpurchaselink':
         if (!visibleColumns.inrpurchaselink) return null;
+        if (activeTab === 'order_confirmed') return null;
         return (
           <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.inrpurchaselink }}>
             {product.inr_purchase_link ? (
@@ -485,13 +499,44 @@ export default function PurchasesPage() {
         if (!visibleColumns.sellerlink) return null;
         return (
           <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.sellerlink }}>
-            <input
-              type="text"
-              defaultValue={product.seller_link ?? ''}
-              onBlur={(e) => handleCellEdit(product.id, 'sellerlink', e.target.value)}
-              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-              placeholder="Link"
-            />
+            {activeTab === 'order_confirmed' ? (
+              product.seller_link ? (
+                <a
+                  href={ensureURL(product.seller_link)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs font-medium"
+                >
+                  View
+                </a>
+              ) : (
+                <span className="text-xs text-slate-600">-</span>
+              )
+            ) : (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  defaultValue={product.seller_link ?? ''}
+                  onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value || null)}
+                  onKeyDown={handleCellKeyDown}
+                  className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  placeholder="Paste link"
+                />
+                {product.seller_link && (
+                  <a
+                    href={ensureURL(product.seller_link)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-400 hover:text-indigo-300 flex-shrink-0"
+                    title="Open seller link"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
+              </div>
+            )}
           </td>
         );
 
@@ -525,7 +570,7 @@ export default function PurchasesPage() {
 
       case 'trackingdetails':
         if (!visibleColumns.trackingdetails) return null;
-        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        if (['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab)) return null;
         return (
           <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.trackingdetails }}>
             {activeTab === 'order_confirmed' ? (
@@ -542,7 +587,7 @@ export default function PurchasesPage() {
 
       case 'deliverydate':
         if (!visibleColumns.deliverydate) return null;
-        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        if (['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab)) return null;
         return (
           <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.deliverydate }}>
             {activeTab === 'order_confirmed' ? (
@@ -550,7 +595,7 @@ export default function PurchasesPage() {
                 type="date"
                 defaultValue={product.delivery_date ?? ''}
                 onBlur={(e) => handleCellEdit(product.id, 'deliverydate', e.target.value)}
-                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
           </td>
@@ -558,7 +603,7 @@ export default function PurchasesPage() {
 
       case 'orderdate':
         if (!visibleColumns.orderdate) return null;
-        if (['mainfile', 'india', 'china', 'us'].includes(activeTab)) return null;
+        if (['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab)) return null;
         return (
           <td key={colkey} className="px-3 py-2 bg-emerald-900/10 overflow-hidden" style={{ width: columnWidths.orderdate }}>
             {activeTab === 'order_confirmed' ? (
@@ -566,7 +611,7 @@ export default function PurchasesPage() {
                 type="date"
                 defaultValue={product.order_date ?? ''}
                 onBlur={(e) => handleCellEdit(product.id, 'orderdate', e.target.value)}
-                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
           </td>
@@ -583,18 +628,22 @@ export default function PurchasesPage() {
                 className="w-8 h-8 bg-blue-600 text-white text-xs font-bold rounded flex items-center justify-center flex-shrink-0"
                 title="Done"
               >D</button>
-              <button
-                type="button"
-                onClick={() => handlePriceWait(product)}
-                className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
-                title="Price Wait"
-              >PW</button>
-              <button
-                type="button"
-                onClick={() => handleNotFound(product)}
-                className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
-                title="Not Found"
-              >NF</button>
+              {activeTab !== 'price_wait' && (
+                <button
+                  type="button"
+                  onClick={() => handlePriceWait(product)}
+                  className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                  title="Price Wait"
+                >PW</button>
+              )}
+              {activeTab !== 'not_found' && (
+                <button
+                  type="button"
+                  onClick={() => handleNotFound(product)}
+                  className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                  title="Not Found"
+                >NF</button>
+              )}
             </div>
           </td>
         );
@@ -817,8 +866,8 @@ export default function PurchasesPage() {
     sellerphno: 85,
     paymentmethod: 85,
     trackingdetails: 100,
-    deliverydate: 100,
-    orderdate: 100,
+    deliverydate: 140,
+    orderdate: 140,
     moveto: 120,
   });
 
@@ -833,8 +882,9 @@ export default function PurchasesPage() {
         ...prev,
         [activeTab]: {
           product,
-          fromStatus: product.move_to,
-          toStatus: 'sent_to_admin',
+          fromStatus: product.move_to ?? null,
+          toStatus: 'not_found',
+          wasAdminConfirmed: product.admin_confirmed === true,
         },
       }))
 
@@ -895,8 +945,8 @@ export default function PurchasesPage() {
           buying_price: null,
           buying_quantity: null,
           seller_link: null,
-          seller_phone: '',
-          payment_method: '',
+          seller_phone: product.seller_phone || '',
+          payment_method: product.payment_method || '',
 
           // Origin fields
           origin_india: product.origin_india ?? false,
@@ -916,6 +966,8 @@ export default function PurchasesPage() {
           inr_purchase: validationData?.inr_purchase ?? null,
           remark: validationData?.remark ?? null,
           sku: product.sku || null,
+          journey_id: product.journey_id || null,
+          journey_number: product.journey_number || 1,
 
           // Admin fields
           admin_status: 'pending',
@@ -939,14 +991,23 @@ export default function PurchasesPage() {
 
       if (updateError) throw updateError
 
-      alert('Sent to Admin Validation successfully!')
+      showToast('Sent to Admin Validation', 'success');
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'submit',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_admin_validation',
+        asin: product.asin,
+        details: { from: activeTab, to: 'admin_validation', funnel: product.validation_funnel }
+      });
       // Optimistic: immediately hide from all tabs
       setProducts(prev => prev.map(p =>
         p.id === product.id ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() } : p
       ));
       await refreshProductsSilently()
     } catch (error: any) {
-      alert(`Error: ${error.message}`)
+      showToast(`Error: ${error.message}`, 'error')
     }
   }
 
@@ -966,7 +1027,7 @@ export default function PurchasesPage() {
       setHistoryData(data || [])
     } catch (err) {
       console.error(err)
-      alert('Failed to load history')
+      showToast('Failed to load history', 'error')
     } finally {
       setHistoryLoading(false)
     }
@@ -984,20 +1045,30 @@ export default function PurchasesPage() {
           product,
           fromStatus: product.move_to,
           toStatus: 'price_wait',
+          wasAdminConfirmed: product.admin_confirmed === true,
         },
       }))
 
       const { error } = await supabase
         .from('india_purchases')  // ✅ Underscore
-        .update({ move_to: 'pricewait' })  // ✅ Underscore
+        .update({ move_to: 'pricewait', admin_confirmed: false })   // ✅ Clear admin_confirmed so it leaves the confirmed tab
         .eq('id', product.id)
 
       if (error) throw error
 
-      alert('Moved to Price Wait successfully!')
+      showToast('Moved to Price Wait', 'success');
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'move',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_purchases',
+        asin: product.asin,
+        details: { from: activeTab, to: 'pricewait' }
+      });
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      alert('Error: ' + error.message)
+      showToast(`Error: ${error.message}`, 'error')
     }
   }
 
@@ -1012,20 +1083,30 @@ export default function PurchasesPage() {
           product,
           fromStatus: product.move_to ?? null,
           toStatus: 'not_found',
+          wasAdminConfirmed: product.admin_confirmed === true,
         },
       }))
 
       const { error } = await supabase
         .from('india_purchases')  // ✅ Underscore
-        .update({ move_to: 'notfound' })  // ✅ Underscore
+        .update({ move_to: 'notfound', admin_confirmed: false })  // ✅ Underscore
         .eq('id', product.id)
 
       if (error) throw error
 
-      alert('Marked as Not Found successfully!')
+      showToast('Marked as Not Found', 'success');
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'reject',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_purchases',
+        asin: product.asin,
+        details: { from: activeTab, to: 'notfound' }
+      });
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      alert('Error: ' + error.message)
+      showToast(`Error: ${error.message}`, 'error')
     }
   }
 
@@ -1034,13 +1115,12 @@ export default function PurchasesPage() {
     const lastMovement = movementHistory[activeTab]
 
     if (!lastMovement) {
-      alert('No recent movement to roll back from this tab')
+      showToast('No recent movement to roll back', 'info')
       return
     }
 
-    // ✅ REMOVED setLoading(true) - no loading screen
     try {
-      const { product, fromStatus, toStatus } = lastMovement
+      const { product, fromStatus, toStatus, wasAdminConfirmed } = lastMovement
       const updateData: any = {}
 
       if (toStatus === 'sent_to_admin') {
@@ -1057,33 +1137,44 @@ export default function PurchasesPage() {
         }
       } else if (toStatus === 'price_wait' || toStatus === 'not_found') {
         updateData['move_to'] = fromStatus
+        if (wasAdminConfirmed) {
+          updateData['admin_confirmed'] = true
+        }
       }
 
       const { error: updateError } = await supabase
         .from('india_purchases')
         .update(updateData)
-        .eq('asin', product.asin)
+        .eq('id', product.id)
 
       if (updateError) throw updateError
 
-      // ✅ Clear history
+      // Clear history
       setMovementHistory(prev => {
         const newHistory = { ...prev }
         delete newHistory[activeTab]
         return newHistory
       })
 
-      alert(`Rolled back ${product.product_name}`)
-      await refreshProductsSilently() // ✅ Updates without loading screen
+      showToast(`Rolled back ${product.product_name}`, 'success');
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'rollback',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_purchases',
+        asin: product.asin,
+        details: { from: toStatus, to: fromStatus }
+      });
+      await refreshProductsSilently()
     } catch (error) {
       console.error('Error rolling back:', error)
-      alert('Rollback failed')
+      showToast('Rollback failed', 'error')
     }
-    // ✅ NO finally block - no setLoading(false)
   }
   const handleMoveToTracking = async (product: PassFileProduct) => {
     if (!product.admin_confirmed) {
-      alert('Only Order Confirmed items can be moved');
+      showToast('Only confirmed items can be moved', 'info');
       return;
     }
 
@@ -1235,11 +1326,20 @@ export default function PurchasesPage() {
       }
 
       console.log('✅ Delete successful');
-      alert(`✅ Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
+      showToast(`Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`, 'success');
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'submit',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_tracking',
+        asin: product.asin,
+        details: { from: 'orderconfirmed', to: 'tracking', seller_tags: sellerTags }
+      });
       await refreshProductsSilently();
     } catch (error: any) {
       console.error('❌ Move error:', error);
-      alert(`Failed to move: ${error.message}`);
+      showToast(`Failed to move: ${error.message}`, 'error');
     }
   };
 
@@ -1353,7 +1453,6 @@ export default function PurchasesPage() {
   };
 
   const handleCellEdit = async (id: string, field: string, value: any) => {
-    // Map internal field names → actual DB column names (snake_case)
     const fieldMap: Record<string, string> = {
       sku: 'sku',
       buyingprice: 'buying_price',
@@ -1368,15 +1467,39 @@ export default function PurchasesPage() {
     };
     const dbField = fieldMap[field] || field;
 
+    // Send null instead of empty string for date columns
+    const dateFields = ['deliverydate', 'orderdate'];
+    const finalValue = dateFields.includes(field) && (value === '' || value == null) ? null : value;
+
     try {
       const { error } = await supabase
         .from('india_purchases')
-        .update({ [dbField]: value })
+        .update({ [dbField]: finalValue })
         .eq('id', id);
       if (error) throw error;
       await refreshProductsSilently();
     } catch (error: any) {
-      alert(`Error updating: ${error.message}`);
+      console.error(`Error updating ${dbField}:`, error.message);
+    }
+  };
+
+  // ─── Keyboard navigation between cells ───
+  const handleCellKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault();
+      const allInputs = Array.from(
+        (e.currentTarget.closest('tr') as HTMLElement)?.querySelectorAll('input') ?? []
+      ) as HTMLInputElement[];
+      const idx = allInputs.indexOf(e.currentTarget);
+      if (idx < allInputs.length - 1) allInputs[idx + 1].focus();
+    }
+    if (e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault();
+      const allInputs = Array.from(
+        (e.currentTarget.closest('tr') as HTMLElement)?.querySelectorAll('input') ?? []
+      ) as HTMLInputElement[];
+      const idx = allInputs.indexOf(e.currentTarget);
+      if (idx > 0) allInputs[idx - 1].focus();
     }
   };
 
@@ -1415,7 +1538,7 @@ export default function PurchasesPage() {
         if (valError) console.error('Validation sync error (non-fatal)', valError);
       }
 
-      alert(`Funnel changed to ${newFunnel}`);
+      showToast(`Funnel changed to ${newFunnel}`, 'success');
     } catch (error: any) {
       // Rollback on failure
       setProducts((prev) =>
@@ -1423,7 +1546,7 @@ export default function PurchasesPage() {
           p.id === id ? { ...p, validation_funnel: oldFunnel } : p  // ← FIX 3: was validation_funnel
         )
       );
-      alert(`Failed to update funnel: ${error.message}`);
+      showToast(`Funnel update failed: ${error.message}`, 'error');
     }
   };
 
@@ -1443,7 +1566,7 @@ export default function PurchasesPage() {
     }
 
     if (dataToDownload.length === 0) {
-      alert('No data to download');
+      showToast('No data to download', 'info');
       return;
     }
 
@@ -1521,7 +1644,7 @@ export default function PurchasesPage() {
     }
 
     if (dataToDownload.length === 0) {
-      alert('No data to download');
+      showToast('No data to download', 'info');
       return;
     }
 
@@ -1963,10 +2086,11 @@ export default function PurchasesPage() {
                 {/* Draggable columns */}
                 {columnOrder.map((colkey) => {
                   // Tab-conditional columns
-                  if (colkey === 'admintargetprice' && (!visibleColumns.admintargetprice || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
-                  if (colkey === 'trackingdetails' && (!visibleColumns.trackingdetails || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
-                  if (colkey === 'deliverydate' && (!visibleColumns.deliverydate || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
-                  if (colkey === 'orderdate' && (!visibleColumns.orderdate || ['mainfile', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'admintargetprice' && (!visibleColumns.admintargetprice || ['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'trackingdetails' && (!visibleColumns.trackingdetails || ['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'deliverydate' && (!visibleColumns.deliverydate || ['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'orderdate' && (!visibleColumns.orderdate || ['main_file', 'pending', 'india', 'china', 'us'].includes(activeTab))) return null;
+                  if (colkey === 'inrpurchaselink' && activeTab === 'order_confirmed') return null;
 
                   // visibleColumns check for standard toggle columns
                   const visKey = colkey as keyof typeof visibleColumns;
@@ -2382,6 +2506,30 @@ export default function PurchasesPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className={`pointer-events-auto px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-sm text-sm font-medium flex items-center gap-2 min-w-[280px] ${toast.type === 'success'
+                ? 'bg-emerald-900/90 border-emerald-500/40 text-emerald-100'
+                : toast.type === 'error'
+                  ? 'bg-red-900/90 border-red-500/40 text-red-100'
+                  : 'bg-slate-800/90 border-slate-600/40 text-slate-100'
+                }`}
+            >
+              <span>{toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}</span>
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

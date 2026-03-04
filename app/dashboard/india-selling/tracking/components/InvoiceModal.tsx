@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { X, Upload } from 'lucide-react';
 import { getIndiaTrackingTableName } from '@/lib/utils';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type InvoiceItem = {
   id?: string;
@@ -72,6 +73,7 @@ export default function InvoiceModal({
 
 
   const [authorizedSignature, setAuthorizedSignature] = useState('');
+  const { logActivity, logBatchActivity } = useActivityLogger();
 
   // Editable Tax Fields
   const [cgst, setCgst] = useState<number | ''>('');
@@ -317,6 +319,11 @@ export default function InvoiceModal({
         message: 'Invoice saved successfully!',
         type: 'success',
       });
+      // ✅ ADD THIS:
+      logBatchActivity(
+        editableItems.map((item: any) => ({ asin: item.asin, details: { invoice_number: invoiceNo } })),
+        { action: 'submit', marketplace: 'india', page: 'tracking', table_name: `india_invoice_seller_${sellerId}` }
+      );
 
       // Close modal and refresh after short delay
       setTimeout(() => {

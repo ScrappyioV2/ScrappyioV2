@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getIndiaTrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type InvoiceItem = {
   id: string;
@@ -62,6 +63,7 @@ export default function CompanyInvoiceTable({
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const { logActivity, logBatchActivity } = useActivityLogger();
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
   const [visibleColumns, setVisibleColumns] = useState({  // ✅ ADDED
     expand: true,
@@ -298,6 +300,11 @@ export default function CompanyInvoiceTable({
         }
 
         alert(`✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`);
+        // ✅ ADD THIS:
+        logBatchActivity(
+          itemsToMove.map((item: any) => ({ asin: item.asin, details: { invoice_number: invoiceNumber } })),
+          { action: 'approved', marketplace: 'india', page: 'tracking', table_name: `india_checking_seller_${sellerId}` }
+        );
       } catch (error: any) {
         console.error('❌ Error moving invoice to checking:', error);
         alert(`Failed to move invoice: ${error.message}`);

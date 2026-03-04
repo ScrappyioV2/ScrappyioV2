@@ -18,7 +18,6 @@ import {
 import { exportData } from '@/lib/utils/exportHelpers'
 import { supabase } from '@/lib/supabaseClient'
 import { filterDuplicateASINs, bulkUpdateAsinRemarkMonthlyUnit } from '@/lib/utils/master-table/uploadHelpers';
-import PageTransition from '@/components/layout/PageTransition'; // Added for consistent layout transition
 import {
   Search,
   Database,
@@ -94,6 +93,7 @@ export default function UkSellersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Upload progress state
   const [isUploading, setIsUploading] = useState(false);
@@ -588,7 +588,7 @@ export default function UkSellersPage() {
 
   // --- UPDATED UI RETURN ---
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
         <Toaster position="top-right"
           toastOptions={{
@@ -757,6 +757,6 @@ export default function UkSellersPage() {
           multiple={true}
         />
       </div>
-    </PageTransition>
+    </>
   );
 }

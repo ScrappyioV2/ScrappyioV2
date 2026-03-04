@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getIndiaTrackingTableName } from '@/lib/utils';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type ShipmentItem = {
     id: string;
@@ -39,6 +40,7 @@ export default function ShipmentTable({
     const [items, setItems] = useState<ShipmentItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const { logActivity, logBatchActivity } = useActivityLogger();
 
     const fetchShipmentData = async () => {
         try {
@@ -119,6 +121,11 @@ export default function ShipmentTable({
             }
 
             alert(`✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Restock!`);
+            // ✅ ADD THIS:
+            logBatchActivity(
+                itemsToMove.map((item: any) => ({ asin: item.asin, details: { invoice_number: invoiceNumber } })),
+                { action: 'move', marketplace: 'india', page: 'tracking', table_name: `india_restock_seller_${sellerId}` }
+            );
         } catch (error: any) {
             console.error('Error moving to Restock:', error);
             alert('Failed: ' + error.message);

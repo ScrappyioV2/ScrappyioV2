@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
@@ -84,6 +85,7 @@ export default function VelvetVistaListingPage() {
   const [products, setProducts] = useState<ListingProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const { logActivity } = useActivityLogger();
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -351,6 +353,21 @@ export default function VelvetVistaListingPage() {
       // 7. UI Update
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
+      // ✅ ADD THIS:
+      logActivity({
+        action: target === 'done' ? 'listed' : target === 'error' ? 'error' : 'removed',
+        marketplace: 'india',
+        page: 'listing-error',
+        table_name: `${BASE_TABLE_PREFIX}_${target}`,
+        asin: product.asin,
+        details: {
+          from: activeTab,
+          to: target,
+          seller_id: SELLER_ID,
+          seller_name: 'velvet-vista',
+          ...(reason ? { error_reason: reason } : {})
+        }
+      });
 
       // Handle empty page
       if (products.length === 1 && page > 1) {
@@ -406,6 +423,15 @@ export default function VelvetVistaListingPage() {
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts();
       setToast({ message: `Restored ${product.asin} to ${activeTab} and Pending`, type: 'success' });
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'rollback',
+        marketplace: 'india',
+        page: 'listing-error',
+        table_name: fromTable,
+        asin: product.asin,
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'velvet-vista' }
+      });
     } catch (err: any) {
       console.error("Rollback error:", err);
       setToast({ message: "Rollback failed", type: 'error' });

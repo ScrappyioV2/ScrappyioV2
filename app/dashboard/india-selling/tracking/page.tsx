@@ -478,7 +478,7 @@ export default function TrackingPage() {
             p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.funnel?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (p as any).validationsku?.toLowerCase().includes(searchQuery.toLowerCase());
+            (p as any).validation_sku?.toLowerCase().includes(searchQuery.toLowerCase());
         if (!matchesSearch) return false;
 
         // 2. SELLER FILTER - Must match Active Seller Tag
@@ -885,7 +885,7 @@ export default function TrackingPage() {
                         {/* Table Wrapper with Scroll */}
                         <div className="flex-1 overflow-y-auto">
                             {activeTab === 'main_file' && (
-                                <table className="w-full divide-y divide-slate-800" style={{ minWidth: '2500px' }}>
+                                <table className="w-full divide-y divide-slate-800" style={{ minWidth: '100%' }}>
                                     <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
                                         <tr>
                                             {visibleColumns.checkbox && (
@@ -1091,8 +1091,8 @@ export default function TrackingPage() {
                                                         {visibleColumns.sku && (
                                                             <td className="px-3 py-2 font-mono text-sm text-slate-400 overflow-hidden border-r border-slate-800/50"
                                                                 style={{ width: columnWidths.sku + 'px' }}>
-                                                                <div className="truncate" title={product.sku || (product as any).validationsku || '-'}>
-                                                                    {product.sku || (product as any).validationsku || '-'}
+                                                                <div className="truncate" title={product.sku || (product as any).validation_sku || '-'}>
+                                                                    {product.sku || (product as any).validation_sku || '-'}
                                                                 </div>
                                                             </td>
                                                         )}
@@ -1167,11 +1167,11 @@ export default function TrackingPage() {
                                                         {visibleColumns.funnelquantity && (
                                                             <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: columnWidths.funnelquantity + 'px' }}>
                                                                 {product.validation_funnel ? (
-                                                                    <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${(product.validation_funnel === 'HD' || product.validation_funnel === 'LD')
-                                                                        ? 'bg-emerald-600 text-white'
+                                                                    <span className={`w-9 h-9 inline-flex items-center justify-center rounded-lg font-bold text-sm ${(product.validation_funnel === 'HD' || product.validation_funnel === 'LD' || product.validation_funnel === 'RS')
+                                                                        ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30'
                                                                         : product.validation_funnel === 'DP'
-                                                                            ? 'bg-amber-500 text-black'
-                                                                            : 'bg-gray-400 text-white'
+                                                                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'
+                                                                            : 'bg-slate-600 text-white'
                                                                         }`}>
                                                                         {(product.validation_funnel === 'HD' || product.validation_funnel === 'LD') ? 'RS' : product.validation_funnel}
                                                                     </span>
@@ -1183,13 +1183,13 @@ export default function TrackingPage() {
                                                         {visibleColumns.funnelseller && (
                                                             <td className="px-3 py-2 overflow-hidden border-r border-slate-800/50" style={{ width: `${columnWidths.funnelseller}px` }}>
                                                                 {product.validation_seller_tag ? (
-                                                                    <div className="flex flex-wrap gap-2 justify-center">
+                                                                    <div className="flex flex-wrap gap-1 justify-center">
                                                                         {product.validation_seller_tag.split(',').map((tag) => {
                                                                             const cleanTag = tag.trim();
                                                                             return (
                                                                                 <span
                                                                                     key={cleanTag}
-                                                                                    className={`w-9 h-9 flex items-center justify-center rounded-full font-bold text-sm ${cleanTag === 'GR' ? 'bg-yellow-400 text-black' :
+                                                                                    className={`px-1.5 py-0.5 inline-flex items-center justify-center rounded text-[10px] font-bold leading-none ${cleanTag === 'GR' ? 'bg-yellow-400 text-black' :
                                                                                         cleanTag === 'RR' ? 'bg-gray-400 text-black' :
                                                                                             cleanTag === 'UB' ? 'bg-pink-500 text-white' :
                                                                                                 cleanTag === 'VV' ? 'bg-purple-600 text-white' :

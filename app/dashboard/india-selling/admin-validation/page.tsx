@@ -5,7 +5,8 @@ import { useState, useEffect, useRef } from 'react'
 import Toast from '@/components/Toast';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-
+import { calculateProductValues, type CalculationConstants } from '@/lib/blackboxCalculations'
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type AdminProduct = {
   id: string;
@@ -39,6 +40,7 @@ type AdminProduct = {
   journey_id?: string | null;
   journey_number?: number | null;
   remark: string | null;
+  purchase_currency?: string | null;
   sku?: string | null;
 };
 
@@ -56,20 +58,12 @@ type HistorySnapshot = {
 
 type TabType = 'overview' | 'india' | 'china' | 'us' | 'pending' | 'confirm' | 'reject';
 
-type CalculationConstants = {
-  dollar_rate: number;
-  bank_conversion_rate: number;
-  shipping_charge_per_kg: number;
-  commission_rate: number;
-  packing_cost: number;
-}
-
 const getDefaultConstants = (): CalculationConstants => ({
-  dollar_rate: 90,
-  bank_conversion_rate: 2,
-  shipping_charge_per_kg: 950,
-  commission_rate: 25,
-  packing_cost: 25,
+  dollar_rate: 96,
+  bank_conversion_rate: 0.02,
+  shipping_charge_per_kg: 1100,
+  commission_rate: 0.25,
+  packing_cost: 15,
 })
 
 // ✅ Seller Mapping Helper
@@ -87,11 +81,18 @@ const getSellerNameFromTag = (tag: string | null) => {
 };
 
 export default function AdminValidationPage() {
+  const ensureURL = (url: string | null | undefined): string | undefined => {
+    if (!url || !url.trim()) return undefined;
+    const trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    return 'https://' + trimmed;
+  };
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const { logActivity } = useActivityLogger();
   // Filter states (persisted)
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -131,6 +132,8 @@ export default function AdminValidationPage() {
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
   const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
   const [editingSkuValue, setEditingSkuValue] = useState<string>('');
+  const [openFunnelId, setOpenFunnelId] = useState<string | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
 
   // History Sidebar State
@@ -284,25 +287,11 @@ export default function AdminValidationPage() {
           admin_target_price: product.admin_target_price,
 
           // FROM PURCHASE TEAM
-          buying_price: isConfirmed
-            ? product.buying_price
-            : (purchase?.buying_price ?? product.buying_price ?? null),
-
-          buying_quantity: isConfirmed
-            ? product.buying_quantity
-            : (purchase?.buying_quantity ?? product.buying_quantity ?? null),
-
-          seller_link: isConfirmed
-            ? product.seller_link
-            : (purchase?.seller_link ?? product.seller_link ?? null),
-
-          seller_phone: isConfirmed
-            ? product.seller_phone
-            : (purchase?.seller_phone ?? product.seller_phone ?? null),
-
-          payment_method: isConfirmed
-            ? product.payment_method
-            : (purchase?.payment_method ?? product.payment_method ?? null),
+          buying_price: product.buying_price ?? purchase?.buying_price ?? null,
+          buying_quantity: product.buying_quantity ?? purchase?.buying_quantity ?? null,
+          seller_link: product.seller_link ?? purchase?.seller_link ?? null,
+          seller_phone: product.seller_phone ?? purchase?.seller_phone ?? null,
+          payment_method: product.payment_method ?? purchase?.payment_method ?? null,
 
           // IDENTITY FIELDS - Always prioritize freshest
           funnel: purchase?.funnel ?? validation?.funnel ?? product.funnel ?? null,
@@ -384,6 +373,18 @@ export default function AdminValidationPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
+  // Close funnel dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (openFunnelId) {
+        setOpenFunnelId(null);
+        setDropdownPos(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openFunnelId]);
+
   useEffect(() => {
     fetchAdminConstants();
   }, []);
@@ -451,22 +452,12 @@ export default function AdminValidationPage() {
       console.log('📊 DB Error:', error);
 
       if (!error && data) {
-        // Helper: if value was stored as decimal (0.25), convert to percentage (25)
-        const normalizePercent = (val: any, fallback: number): number => {
-          let num = Number(val);
-          if (!num || isNaN(num)) return fallback;
-          while (num > 0 && num < 1) {
-            num = num * 100;
-          }
-          return Math.round(num * 100) / 100;
-        };
-
         const parsed: CalculationConstants = {
-          dollar_rate: Number(data.dollarrate) || 90,
-          bank_conversion_rate: normalizePercent(data.bankconversionrate, 2),
-          shipping_charge_per_kg: Number(data.shippingchargeperkg) || 950,
-          commission_rate: normalizePercent(data.commissionrate, 25),
-          packing_cost: Number(data.packingcost) || 25,
+          dollar_rate: Number(data.dollar_rate) || 96,
+          bank_conversion_rate: Number(data.bank_conversion_rate) / 100 || 0.02,
+          shipping_charge_per_kg: Number(data.shipping_charge_per_kg) || 1100,
+          commission_rate: Number(data.commission_rate) / 100 || 0.25,
+          packing_cost: Number(data.packing_cost) || 15,
         };
 
         console.log('📊 PARSED Constants:', parsed);
@@ -503,13 +494,14 @@ export default function AdminValidationPage() {
   const saveAdminConstants = async () => {
     setIsSavingConstants(true);
     try {
-      // Parse string inputs → numbers
+      // Modal inputs are user-friendly (2 for 2%, 25 for 25%)
+      // Convert to blackbox format (decimals) for local state
       const newConstants: CalculationConstants = {
         ...adminConstants,
         dollar_rate: parseFloat(modalInputs.dollarrate) || adminConstants.dollar_rate,
-        bank_conversion_rate: parseFloat(modalInputs.bankfee) || adminConstants.bank_conversion_rate,
+        bank_conversion_rate: (parseFloat(modalInputs.bankfee) || adminConstants.bank_conversion_rate * 100) / 100,
         shipping_charge_per_kg: parseFloat(modalInputs.shipping) || adminConstants.shipping_charge_per_kg,
-        commission_rate: parseFloat(modalInputs.commission) || adminConstants.commission_rate,
+        commission_rate: (parseFloat(modalInputs.commission) || adminConstants.commission_rate * 100) / 100,
         packing_cost: parseFloat(modalInputs.packingcost) || adminConstants.packing_cost,
       };
 
@@ -522,11 +514,12 @@ export default function AdminValidationPage() {
         .limit(1)
         .single();
 
+      // DB stores whole numbers (2, 25), so convert back
       const payload = {
         dollar_rate: newConstants.dollar_rate,
-        bank_conversion_rate: newConstants.bank_conversion_rate,
+        bank_conversion_rate: Math.round(newConstants.bank_conversion_rate * 100),
         shipping_charge_per_kg: newConstants.shipping_charge_per_kg,
-        commission_rate: newConstants.commission_rate,
+        commission_rate: Math.round(newConstants.commission_rate * 100),
         packing_cost: newConstants.packing_cost,
       };
 
@@ -546,7 +539,7 @@ export default function AdminValidationPage() {
       }
 
       setToast({
-        message: `Saved! Commission: ${newConstants.commission_rate}%, Bank: ${newConstants.bank_conversion_rate}%, Shipping: ₹${newConstants.shipping_charge_per_kg}`,
+        message: `Saved! Commission: ${newConstants.commission_rate * 100}%, Bank: ${newConstants.bank_conversion_rate * 100}%, Shipping: ₹${newConstants.shipping_charge_per_kg}`,
         type: 'success',
       });
       setIsConstantsModalOpen(false);
@@ -559,26 +552,47 @@ export default function AdminValidationPage() {
   };
 
   const autoCalculateAdmin = (product: any): { total_cost: number | null; total_revenue: number | null; profit: number | null } => {
-    const salesPrice = Number(product.targetprice ?? product.target_price);
+    const buyingPrice = Number(product.buyingprice ?? product.buying_price);
     const weight = Number(product.productweight ?? product.product_weight);
-    const purchasePrice = Number(product.buyingprice ?? product.buying_price);
+    const sellingPriceINR = Number(product.targetprice ?? product.target_price);
+    const currency = product.purchase_currency || 'USD';
 
-    if (!salesPrice || !weight || purchasePrice === null || purchasePrice === undefined || isNaN(purchasePrice)) {
+    if (!buyingPrice || !weight || !sellingPriceINR) {
       return { total_cost: null, total_revenue: null, profit: null };
     }
 
-    const commission = salesPrice * (adminConstants.commission_rate / 100);
-    const shipping = (weight / 1000) * adminConstants.shipping_charge_per_kg;
-    const bankfee = salesPrice * (adminConstants.bank_conversion_rate / 100);
-    const packingCost = adminConstants.packing_cost || 0;
-    const total_cost = commission + shipping + bankfee + packingCost + purchasePrice;
-    const total_revenue = salesPrice;
-    const profit = total_revenue - total_cost;
+    let result;
+    if (currency === 'INR') {
+      // Buying in INR, selling in INR — direct INR calculation
+      const shippingCost = (weight * (adminConstants.shipping_charge_per_kg || 950)) / 1000;
+      const packingCost = adminConstants.packing_cost || 25;
+      const commissionCost = sellingPriceINR * (adminConstants.commission_rate || 0.25);
+      const totalCost = buyingPrice + shippingCost + packingCost + commissionCost;
+      const totalRevenue = sellingPriceINR;
+      const profit = totalRevenue - totalCost;
+      result = {
+        total_cost: parseFloat(totalCost.toFixed(2)),
+        total_revenue: parseFloat(totalRevenue.toFixed(2)),
+        profit: parseFloat(profit.toFixed(2)),
+        judgement: profit > 0 ? 'PASS' as const : 'FAIL' as const,
+      };
+    } else {
+      // Buying in USD, selling in INR — existing INDIA mode
+      result = calculateProductValues(
+        { usd_price: buyingPrice, product_weight: weight, inr_purchase: sellingPriceINR },
+        adminConstants,
+        'INDIA'
+      );
+    }
+
+    if (result.judgement === 'PENDING') {
+      return { total_cost: null, total_revenue: null, profit: null };
+    }
 
     return {
-      total_cost: isFinite(total_cost) ? total_cost : null,
-      total_revenue: isFinite(total_revenue) ? total_revenue : null,
-      profit: isFinite(profit) ? profit : null,
+      total_cost: isFinite(result.total_cost) ? result.total_cost : null,
+      total_revenue: isFinite(result.total_revenue) ? result.total_revenue : null,
+      profit: isFinite(result.profit) ? result.profit : null,
     };
   };
 
@@ -793,19 +807,26 @@ export default function AdminValidationPage() {
 
       for (const product of selectedProducts) {
         // ✅ STEP 1: UPDATE india_purchases (existing workflow preserved)
-        const { error: updatePurchaseError } = await supabase
+        let confirmSelected = supabase
           .from('india_purchases')
           .update({
             admin_confirmed: true,
             admin_confirmed_at: new Date().toISOString(),
             admin_target_price: product.admin_target_price,
-            buying_price: product.buying_price,           // ✅ ADD
-            buying_quantity: product.buying_quantity,     // ✅ ADD
-            seller_link: product.seller_link,             // ✅ ADD
-            seller_phone: product.seller_phone,           // ✅ ADD
+            buying_price: product.buying_price,
+            buying_quantity: product.buying_quantity,
+            seller_link: product.seller_link,
+            seller_phone: product.seller_phone,
             payment_method: product.payment_method,
           })
           .eq('asin', product.asin);
+
+        // Use journey_id for precise matching when available
+        if (product.journey_id) {
+          confirmSelected = confirmSelected.eq('journey_id', product.journey_id);
+        }
+
+        const { error: updatePurchaseError } = await confirmSelected;
 
         if (updatePurchaseError) throw updatePurchaseError;
 
@@ -822,6 +843,17 @@ export default function AdminValidationPage() {
       }
 
       alert(`Successfully confirmed ${selectedIds.size} products!`);
+      // ✅ ADD THIS:
+      selectedProducts.forEach((product) => {
+        logActivity({
+          action: 'approved',
+          marketplace: 'india',
+          page: 'admin-validation',
+          table_name: 'india_admin_validation',
+          asin: product.asin,
+          details: { type: 'bulk_confirm', journey: product.journey_number }
+        });
+      });
       setSelectedIds(new Set());
       fetchProducts();
     } catch (error: any) {
@@ -856,6 +888,7 @@ export default function AdminValidationPage() {
         'remark': 'remark',
         'sku': 'sku',
         'admintargetprice': 'admin_target_price',
+        'purchase_currency': 'purchase_currency',
         'usdprice': 'usd_price',
         'inrpurchase': 'inr_purchase',
         'createdat': 'created_at',
@@ -869,7 +902,7 @@ export default function AdminValidationPage() {
       let calcResult: { total_cost: number | null; total_revenue: number | null; profit: number | null } =
         { total_cost: null, total_revenue: null, profit: null };
 
-      if (field === 'targetprice' || field === 'productweight' || field === 'buyingprice') {
+      if (field === 'targetprice' || field === 'productweight' || field === 'buyingprice' || field === 'purchase_currency') {
         const updatedProduct = products.find((p) => p.id === id);
         if (updatedProduct) {
           calcResult = autoCalculateAdmin({ ...updatedProduct, [field]: value });
@@ -925,6 +958,43 @@ export default function AdminValidationPage() {
     }
   };
 
+  const handleFunnelChange = async (id: string, newFunnel: string) => {
+    const oldFunnel = products.find(p => p.id === id)?.funnel;
+
+    // 1. Optimistic UI update
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: newFunnel } : p));
+    setOpenFunnelId(null);
+    setDropdownPos(null);
+
+    try {
+      // 2. Update india_purchases (funnel lives here, NOT in india_admin_validation)
+      const product = products.find(p => p.id === id);
+      if (!product) return;
+
+      const { error: purchaseError } = await supabase
+        .from('india_purchases')
+        .update({ funnel: newFunnel })
+        .eq('asin', product.asin);
+
+      if (purchaseError) {
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel } : p));
+        setToast({ message: 'Failed to update funnel', type: 'error' });
+        return;
+      }
+
+      // 3. Also update india_validation_main_file
+      await supabase
+        .from('india_validation_main_file')
+        .update({ funnel: newFunnel })
+        .eq('asin', product.asin);
+
+      setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
+    } catch (err) {
+      console.error('Funnel update error:', err);
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel } : p));
+      setToast({ message: 'Funnel update failed', type: 'error' });
+    }
+  };
 
   // =========================================================
   // ✅ ROBUST AUTO-DISTRIBUTE (Handles Typos & MULTIPLE TAGS)
@@ -1041,7 +1111,7 @@ export default function AdminValidationPage() {
       }
 
       // 6. Update FINAL Statuses (Once per product)
-      await supabase.from('india_purchases').update({
+      const confirmQuery = supabase.from('india_purchases').update({
         admin_confirmed: true,
         admin_confirmed_at: new Date().toISOString(),
         admin_target_price: product.admin_target_price,
@@ -1053,6 +1123,13 @@ export default function AdminValidationPage() {
         sku: product.sku || null,
       }).eq('asin', cleanAsin);
 
+      // Use journey_id for precise matching when available (legacy data may not have it)
+      if (product.journey_id) {
+        await confirmQuery.eq('journey_id', product.journey_id);
+      } else {
+        await confirmQuery;
+      }
+
       await supabase.from('india_admin_validation').update({
         admin_status: 'confirmed',
         confirmed_at: new Date().toISOString(),
@@ -1062,9 +1139,15 @@ export default function AdminValidationPage() {
 
       const dest = finalFunnelId === 1 ? "High Demand" : finalFunnelId === 2 ? "Low Demand" : finalFunnelId === 3 ? "Dropshipping" : "Pending Only";
 
-      setToast({
-        message: `Success! Distributed to ${validSellerIds.length} Seller(s) (${dest})`,
-        type: "success"
+      setToast({ message: `Success! Distributed to ${validSellerIds.length} Sellers → ${dest}`, type: 'success' });
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'approved',
+        marketplace: 'india',
+        page: 'admin-validation',
+        table_name: 'india_admin_validation',
+        asin: cleanAsin,
+        details: { sellers: validSellerIds, funnel: finalFunnelId, distributed_to: dest }
       });
 
     } catch (error: any) {
@@ -1108,6 +1191,15 @@ export default function AdminValidationPage() {
       );
 
       setToast({ message: 'Product rejected', type: 'info' });
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'rejected',
+        marketplace: 'india',
+        page: 'admin-validation',
+        table_name: 'india_admin_validation',
+        asin: product.asin,
+        details: { journey: product.journey_number }
+      });
 
     } catch (error: any) {
       alert(`Error rejecting product: ${error.message}`);
@@ -1174,7 +1266,16 @@ export default function AdminValidationPage() {
         return newHistory;
       });
 
-      alert(`Rolled back: ${product.product_name}`);
+      alert(`Rolled back ${product.product_name}`);
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'rollback',
+        marketplace: 'india',
+        page: 'admin-validation',
+        table_name: 'india_admin_validation',
+        asin: product.asin,
+        details: { from_status: toStatus, restored_to: fromStatus || 'pending' }
+      });
       fetchProducts();
     } catch (error) {
       console.error('Error rolling back:', error);
@@ -1212,6 +1313,77 @@ export default function AdminValidationPage() {
 
   const renderAdminCell = (col_key: string, product: AdminProduct) => {
     switch (col_key) {
+
+      case 'funnel_qty':
+        return (
+          <td key={col_key} className="px-4 py-3 text-sm">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  if (openFunnelId === product.id) {
+                    setOpenFunnelId(null);
+                    setDropdownPos(null);
+                  } else {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const dropdownHeight = 140;
+                    const top = spaceBelow < dropdownHeight
+                      ? rect.top - dropdownHeight - 4
+                      : rect.bottom + 4;
+                    setDropdownPos({ top, left: rect.left });
+                    setOpenFunnelId(product.id);
+                  }
+                }}
+                className="group/funnel relative cursor-pointer transition-all hover:scale-110"
+                title="Click to change funnel"
+              >
+                {/* Funnel badge */}
+                <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.funnel === 1 || product.funnel === '1' || product.funnel === 2 || product.funnel === '2' ||
+                  String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS'
+                  ? 'bg-emerald-600 text-white'
+                  : product.funnel === 3 || product.funnel === '3' || String(product.funnel).toUpperCase() === 'DP'
+                    ? 'bg-amber-500 text-black'
+                    : 'bg-slate-600 text-white'
+                  }`}>
+                  {product.funnel === 1 || product.funnel === '1' || product.funnel === 2 || product.funnel === '2' ||
+                    String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS'
+                    ? 'RS'
+                    : product.funnel === 3 || product.funnel === '3' || String(product.funnel).toUpperCase() === 'DP'
+                      ? 'DP'
+                      : product.funnel ?? '-'}
+                </span>
+
+                {/* Edit indicator on hover */}
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full flex items-center justify-center opacity-0 group-hover/funnel:opacity-100 transition-opacity shadow-lg">
+                  <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </span>
+              </button>
+
+              {/* Dropdown */}
+              {openFunnelId === product.id && dropdownPos && (
+                <div style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+                  className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150">
+                  {['RS', 'DP'].map(f => (
+                    <button
+                      key={f}
+                      onClick={() => handleFunnelChange(product.id, f)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${(product.funnel === f || String(product.funnel).toUpperCase() === f)
+                        ? 'bg-indigo-500/20 text-indigo-300'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                    >
+                      <span className={`w-6 h-6 inline-flex items-center justify-center rounded-lg font-bold text-xs ${f === 'RS' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-black'
+                        }`}>{f}</span>
+                      <span>{f === 'RS' ? 'Restock' : 'Dropshipping'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </td>
+        );
 
       case 'asin':
         return (
@@ -1348,7 +1520,7 @@ export default function AdminValidationPage() {
                 <div className="flex items-center gap-2">
                   {product.product_link ? (
                     <>
-                      <a href={product.product_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap">View Link</a>
+                      <a href={ensureURL(product.product_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap">View Link</a>
                       <button onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(product.product_link || ''); }} className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
@@ -1421,26 +1593,6 @@ export default function AdminValidationPage() {
           </td>
         );
 
-      case 'funnel_qty':
-        return (
-          <td key={col_key} className="px-4 py-3 text-sm">
-            {product.funnel ? (
-              <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${(product.funnel == 1 || product.funnel == '1' || product.funnel == 2 || product.funnel == '2' || String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS')
-                ? 'bg-emerald-600 text-white'
-                : (product.funnel == 3 || product.funnel == '3' || String(product.funnel).toUpperCase() === 'DP')
-                  ? 'bg-amber-500 text-black'
-                  : 'bg-slate-600 text-white'
-                }`}>
-                {(product.funnel == 1 || product.funnel == '1' || product.funnel == 2 || product.funnel == '2' || String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS')
-                  ? 'RS'
-                  : (product.funnel == 3 || product.funnel == '3' || String(product.funnel).toUpperCase() === 'DP')
-                    ? 'DP'
-                    : product.funnel}
-              </span>
-            ) : (<span className="text-xs text-slate-600 italic">-</span>)}
-          </td>
-        );
-
       case 'product_weight':
         return (
           <td key={col_key} className="px-4 py-3 text-sm">
@@ -1480,10 +1632,20 @@ export default function AdminValidationPage() {
       case 'buying_price':
         return (
           <td key={col_key} className="px-4 py-3">
-            <input type="number" defaultValue={product.buying_price}
-              onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-              className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
+            <div className="flex items-center gap-1">
+              <select
+                value={product.purchase_currency || 'INR'}
+                onChange={(e) => handleCellEdit(product.id, 'purchase_currency', e.target.value)}
+                className="w-12 px-1 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              >
+                <option value="INR">₹</option>
+                <option value="USD">$</option>
+              </select>
+              <input type="number" defaultValue={product.buying_price}
+                onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+                className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
           </td>
         );
 
@@ -1519,7 +1681,7 @@ export default function AdminValidationPage() {
                 <div className="flex items-center gap-2">
                   {product.seller_link && product.seller_link.trim() !== '' ? (
                     <>
-                      <a href={product.seller_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap">View Link</a>
+                      <a href={ensureURL(product.seller_link)} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap">View Link</a>
                       <button onClick={() => { setEditingLinkId(`seller_${product.id}`); setEditingLinkValue(product.seller_link || ''); }} className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
@@ -1811,9 +1973,9 @@ export default function AdminValidationPage() {
               onClick={() => {
                 setModalInputs({
                   dollarrate: String(adminConstants.dollar_rate),
-                  bankfee: String(adminConstants.bank_conversion_rate),
+                  bankfee: String(adminConstants.bank_conversion_rate * 100),
                   shipping: String(adminConstants.shipping_charge_per_kg),
-                  commission: String(adminConstants.commission_rate),
+                  commission: String(adminConstants.commission_rate * 100),
                   packingcost: String(adminConstants.packing_cost),
                 });
                 setIsConstantsModalOpen(true);
@@ -1986,7 +2148,7 @@ export default function AdminValidationPage() {
                       placeholder="e.g. 2"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
-                    <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.bank_conversion_rate}%</p>
+                    <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.bank_conversion_rate * 100}%</p>
                   </div>
 
                   {/* Shipping */}
@@ -2008,7 +2170,7 @@ export default function AdminValidationPage() {
                       placeholder="e.g. 25"
                       className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
-                    <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.commission_rate}%</p>
+                    <p className="text-xs text-slate-500 mt-1">Currently: {adminConstants.commission_rate * 100}%</p>
                   </div>
 
                   {/* Packing Cost - Full Width */}

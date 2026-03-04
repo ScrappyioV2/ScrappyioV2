@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
@@ -57,6 +58,7 @@ export default function CostechVenturesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [processingId, setProcessingId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  const { logActivity } = useActivityLogger();
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState({
@@ -411,7 +413,16 @@ export default function CostechVenturesPage() {
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
         await fetchProducts(true);
-        setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
+        setToast({ message: 'Product moved to Validation Main File!', type: 'success' });
+        // ✅ ADD THIS:
+        logActivity({
+          action: 'approve',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: currentTable,
+          asin: product.asin,
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'costech-ventures', target: 'india_validation_main_file' }
+        });
 
       } else if (action === 'not_approved') {
         targetTable = `india_seller_${SELLER_ID}_not_approved`;
@@ -423,7 +434,16 @@ export default function CostechVenturesPage() {
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
         await fetchProducts(true);
-        setToast({ message: `Product moved to Not Approved!`, type: 'success' });
+        setToast({ message: 'Product moved to Not Approved!', type: 'success' });
+        // ✅ ADD THIS:
+        logActivity({
+          action: 'not_approve',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: currentTable,
+          asin: product.asin,
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'costech-ventures', target: targetTable }
+        });
 
       } else if (action === 'reject') {
         targetTable = `india_seller_${SELLER_ID}_reject`;
@@ -435,7 +455,16 @@ export default function CostechVenturesPage() {
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
         await fetchProducts(true);
-        setToast({ message: `Product rejected!`, type: 'success' });
+        setToast({ message: 'Product rejected!', type: 'success' });
+        // ✅ ADD THIS:
+        logActivity({
+          action: 'reject',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: currentTable,
+          asin: product.asin,
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'costech-ventures', reason: reason, target: targetTable }
+        });
       }
     } catch (err: any) {
       console.error('Move product error:', err);
@@ -518,7 +547,16 @@ export default function CostechVenturesPage() {
         .order('moved_at', { ascending: false })
         .limit(1);
 
-      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+      setToast({ message: `Rolled back ${product.product_name}`, type: 'success' });
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'rollback',
+        marketplace: 'india',
+        page: 'brand-checking',
+        table_name: fromTable,
+        asin: product.asin,
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'costech-ventures' }
+      });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts(true);
     } catch (error: any) {
@@ -595,6 +633,15 @@ export default function CostechVenturesPage() {
         }
 
         movedCount++;
+        // ✅ ADD THIS:
+        logActivity({
+          action: 'move',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: `india_seller_${SELLER_ID}_reject`,
+          asin: product.asin,
+          details: { from: 'reject', to: targetTab, seller_id: SELLER_ID, seller_name: 'costech-ventures' }
+        });
       }
 
       // Show result

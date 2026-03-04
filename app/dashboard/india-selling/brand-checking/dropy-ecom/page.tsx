@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -56,6 +57,7 @@ export default function DropyEcomPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [processingId, setProcessingId] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  const { logActivity } = useActivityLogger();
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState({
@@ -410,7 +412,15 @@ export default function DropyEcomPage() {
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
         await fetchProducts(true);
-        setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
+        setToast({ message: 'Product moved to Validation Main File!', type: 'success' });
+        logActivity({
+          action: 'approve',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: currentTable,
+          asin: product.asin,
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'dropy-ecom', target: 'india_validation_main_file' }
+        });
 
       } else if (action === 'not_approved') {
         targetTable = `india_seller_${SELLER_ID}_not_approved`;
@@ -422,7 +432,15 @@ export default function DropyEcomPage() {
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
         await fetchProducts(true);
-        setToast({ message: `Product moved to Not Approved!`, type: 'success' });
+        setToast({ message: 'Product moved to Not Approved!', type: 'success' });
+        logActivity({
+          action: 'not_approve',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: currentTable,
+          asin: product.asin,
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'dropy-ecom', target: targetTable }
+        });
 
       } else if (action === 'reject') {
         targetTable = `india_seller_${SELLER_ID}_reject`;
@@ -434,7 +452,15 @@ export default function DropyEcomPage() {
         await saveToHistory(product, currentTable, targetTable);
         await supabase.from(currentTable).delete().eq('asin', product.asin);
         await fetchProducts(true);
-        setToast({ message: `Product rejected!`, type: 'success' });
+        setToast({ message: 'Product rejected!', type: 'success' });
+        logActivity({
+          action: 'reject',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: currentTable,
+          asin: product.asin,
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'dropy-ecom', reason: reason, target: targetTable }
+        });
       }
     } catch (err: any) {
       console.error('Move product error:', err);
@@ -517,7 +543,15 @@ export default function DropyEcomPage() {
         .order('moved_at', { ascending: false })
         .limit(1);
 
-      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+      setToast({ message: `Rolled back ${product.product_name}`, type: 'success' });
+      logActivity({
+        action: 'rollback',
+        marketplace: 'india',
+        page: 'brand-checking',
+        table_name: fromTable,
+        asin: product.asin,
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'dropy-ecom' }
+      });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts(true);
     } catch (error: any) {
@@ -594,6 +628,14 @@ export default function DropyEcomPage() {
         }
 
         movedCount++;
+        logActivity({
+          action: 'move',
+          marketplace: 'india',
+          page: 'brand-checking',
+          table_name: `india_seller_${SELLER_ID}_reject`,
+          asin: product.asin,
+          details: { from: 'reject', to: targetTab, seller_id: SELLER_ID, seller_name: 'dropy-ecom' }
+        });
       }
 
       // Show result

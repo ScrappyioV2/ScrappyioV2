@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import PageTransition from "@/components/layout/PageTransition";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -12,18 +11,16 @@ import {
   Clock,
   CheckCircle2,
   AlertOctagon,
-  Loader2
 } from "lucide-react";
 
-/* ================= STATIC SELLERS ================= */
 /* ================= STATIC SELLERS ================= */
 const ALL_SELLERS = [
   { id: 1, slug: "golden-aura", name: "Golden Aura", color: "from-amber-400 to-orange-500" },
   { id: 2, slug: "rudra-retail", name: "Rudra Retail", color: "from-blue-400 to-indigo-500" },
   { id: 3, slug: "ubeauty", name: "Ubeauty", color: "from-pink-400 to-rose-500" },
   { id: 4, slug: "velvet-vista", name: "Velvet Vista", color: "from-emerald-400 to-teal-500" },
-  { id: 5, slug: "dropy-ecom", name: "Dropy Ecom", color: "from-orange-400 to-red-500" },        // ✅ NEW
-  { id: 6, slug: "costech-ventures", name: "Costech Ventures", color: "from-green-400 to-emerald-500" }, // ✅ NEW
+  { id: 5, slug: "dropy-ecom", name: "Dropy Ecom", color: "from-orange-400 to-red-500" },
+  { id: 6, slug: "costech-ventures", name: "Costech Ventures", color: "from-green-400 to-emerald-500" },
 ];
 
 /* ================= TYPES ================= */
@@ -40,13 +37,11 @@ type SellerUI = {
 export default function ListingErrorDashboard() {
   const router = useRouter();
 
-  // Initialize with Cache
   const [sellers, setSellers] = useState<SellerUI[]>(() => {
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('listing_error_real_counts');
       if (cached) {
         const parsed = JSON.parse(cached);
-        // ✅ FIX: If cached data has fewer sellers, ignore cache
         if (parsed.length < ALL_SELLERS.length) {
           localStorage.removeItem('listing_error_real_counts');
           return ALL_SELLERS.map((s) => ({
@@ -73,18 +68,13 @@ export default function ListingErrorDashboard() {
     router.push(`/dashboard/india-selling/listing-error/${sellerSlug}`);
   };
 
-  /* ===== FETCH REAL COUNTS DIRECTLY ===== */
   const fetchRealCounts = useCallback(async () => {
     try {
-      // console.log("📊 Fetching counts from india_listing_error tables...");
-
       const promises = ALL_SELLERS.map(async (seller) => {
-        // ✅ UPDATED: Exact table names from your screenshot
         const pendingTable = `india_listing_error_seller_${seller.id}_pending`;
-        const listedTable = `india_listing_error_seller_${seller.id}_done`; // 'done' = listed
+        const listedTable = `india_listing_error_seller_${seller.id}_done`;
         const errorTable = `india_listing_error_seller_${seller.id}_error`;
 
-        // Run counts in parallel
         const [pending, listed, error] = await Promise.all([
           supabase.from(pendingTable).select('*', { count: 'exact', head: true }),
           supabase.from(listedTable).select('*', { count: 'exact', head: true }),
@@ -106,11 +96,9 @@ export default function ListingErrorDashboard() {
           const freshData = results.find((r) => r.id === s.id);
           return freshData ? { ...s, ...freshData } : s;
         });
-
         localStorage.setItem('listing_error_real_counts', JSON.stringify(updated));
         return updated;
       });
-
     } catch (err) {
       console.error("❌ Error counting rows:", err);
     } finally {
@@ -118,11 +106,9 @@ export default function ListingErrorDashboard() {
     }
   }, []);
 
-  /* ===== LIFECYCLE ===== */
   useEffect(() => {
     fetchRealCounts();
 
-    // Auto-refresh when tab is active
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchRealCounts();
@@ -136,19 +122,19 @@ export default function ListingErrorDashboard() {
   }, [fetchRealCounts]);
 
   return (
-    <PageTransition>
-      <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
+    <>
+      <div className="h-full bg-slate-950 text-slate-200 p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
 
         {/* === HEADER === */}
-        <header className="flex items-center justify-between mb-10 pb-6 border-b border-slate-800/60">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
-                <LayoutDashboard className="w-6 h-6 text-indigo-400" />
+        <header className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                <LayoutDashboard className="w-5 h-5 text-indigo-400" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-white">Listing Overview</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-white">Listing Overview</h1>
             </div>
-            <p className="text-slate-400 pl-[3.5rem] max-w-lg">
+            <p className="text-slate-400 text-sm pl-[2.5rem] max-w-lg">
               Real-time overview of product distribution, listings, and error resolution.
             </p>
           </div>
@@ -162,95 +148,85 @@ export default function ListingErrorDashboard() {
         </header>
 
         {/* === GRID === */}
-        {loading && sellers[0].totalPending === 0 ? (
-          <div className="flex items-center justify-center h-64 text-slate-500 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-            <span className="text-sm font-medium tracking-widest">CALCULATING METRICS...</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
-            {sellers.map((seller, index) => {
-              const totalProcessed = seller.listed + seller.error;
-              const listedPercent = totalProcessed === 0 ? 0 : (seller.listed / totalProcessed) * 100;
-              const errorPercent = totalProcessed === 0 ? 0 : (seller.error / totalProcessed) * 100;
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-0 auto-rows-min">
+          {sellers.map((seller, index) => {
+            const totalProcessed = seller.listed + seller.error;
 
-              return (
-                <motion.div
-                  key={seller.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.4 }}
-                  onClick={() => handleSellerCardClick(seller.slug)}
-                  className="group relative bg-slate-900/40 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-6 cursor-pointer backdrop-blur-sm transition-all hover:bg-slate-900/60 hover:shadow-2xl hover:shadow-black/50 overflow-hidden"
-                >
-                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 bg-gradient-to-br ${seller.color}`} />
+            return (
+              <motion.div
+                key={seller.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.4 }}
+                onClick={() => handleSellerCardClick(seller.slug)}
+                className="group relative bg-slate-900/40 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 cursor-pointer backdrop-blur-sm transition-all hover:bg-slate-900/60 hover:shadow-2xl hover:shadow-black/50 overflow-hidden"
+              >
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 bg-gradient-to-br ${seller.color}`} />
 
-                  <div className="flex justify-between items-start mb-6 relative z-10">
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-100 group-hover:text-white transition-colors">{seller.name}</h3>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">INDIA Marketplace</p>
+                <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100 group-hover:text-white transition-colors">{seller.name}</h3>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mt-0.5">INDIA Marketplace</p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-1.5 text-amber-400 bg-amber-400/10 px-2 py-1 rounded-lg border border-amber-400/20">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span className="font-bold font-mono text-sm">{seller.totalPending}</span>
                     </div>
+                    <span className="text-[9px] text-slate-500 font-medium mt-0.5">PENDING</span>
+                  </div>
+                </div>
 
-                    <div className="flex flex-col items-end">
-                      <div className="flex items-center gap-2 text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/20 mb-1">
-                        <Clock className="w-4 h-4" />
-                        <span className="font-bold font-mono">{seller.totalPending}</span>
+                <div className="space-y-3 relative z-10">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-medium">
+                      <div className="flex items-center gap-1.5 text-emerald-400">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Listed</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-medium">PENDING</span>
+                      <span className="text-slate-300 font-mono">{seller.listed}</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${totalProcessed === 0 ? 0 : (seller.listed / totalProcessed) * 100}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                      />
                     </div>
                   </div>
 
-                  <div className="space-y-5 relative z-10">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-medium">
-                        <div className="flex items-center gap-1.5 text-emerald-400">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Listed</span>
-                        </div>
-                        <span className="text-slate-300 font-mono">{seller.listed}</span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-medium">
+                      <div className="flex items-center gap-1.5 text-rose-400">
+                        <AlertOctagon className="w-3 h-3" />
+                        <span>Errors</span>
                       </div>
-                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${listedPercent}%` }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-                        />
-                      </div>
+                      <span className="text-slate-300 font-mono">{seller.error}</span>
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-medium">
-                        <div className="flex items-center gap-1.5 text-rose-400">
-                          <AlertOctagon className="w-3.5 h-3.5" />
-                          <span>Errors</span>
-                        </div>
-                        <span className="text-slate-300 font-mono">{seller.error}</span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${errorPercent}%` }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
-                        />
-                      </div>
+                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${totalProcessed === 0 ? 0 : (seller.error / totalProcessed) * 100}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
+                      />
                     </div>
                   </div>
+                </div>
 
-                  <div className="mt-6 pt-4 border-t border-slate-800/50 flex items-center justify-between text-sm group-hover:text-white transition-colors relative z-10">
-                    <span className="text-slate-500 group-hover:text-slate-300 transition-colors">Manage Listings</span>
-                    <div className={`p-2 rounded-full bg-slate-800 group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
-                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                    </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800/50 flex items-center justify-between text-xs group-hover:text-white transition-colors relative z-10">
+                  <span className="text-slate-500 group-hover:text-slate-300 transition-colors">Manage Listings</span>
+                  <div className={`p-1.5 rounded-full bg-slate-800 group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" />
                   </div>
+                </div>
 
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
-    </PageTransition>
+    </>
   );
 }

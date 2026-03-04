@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getIndiaTrackingTableName } from '@/lib/utils';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type VyaparItem = {
     id: string;
@@ -39,7 +40,7 @@ export default function VyaparTable({
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
-
+    const { logActivity } = useActivityLogger();
 
     const fetchVyaparData = async () => {
         try {
@@ -80,7 +81,17 @@ export default function VyaparTable({
                 )
             )
 
-            console.log(`Status updated to ${newStatus} for item ${itemId}`)
+            console.log(`Status updated to ${newStatus} for item ${itemId}`);
+            // ✅ ADD THIS:
+            const item = items.find(i => i.id === itemId);
+            logActivity({
+                action: newStatus === 'done' ? 'approved' : 'move',
+                marketplace: 'india',
+                page: 'tracking',
+                table_name: `india_vyapar_seller_${sellerId}`,
+                asin: item?.asin || itemId,
+                details: { status: newStatus }
+            });
         } catch (error: any) {
             console.error('Error updating status:', error)
             alert(`Failed to update status: ${error.message}`)

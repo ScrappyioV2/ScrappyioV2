@@ -9,6 +9,7 @@ import Toast from '@/components/Toast'
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
 import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 const toSnakeCase = (obj: Record<string, any>): Record<string, any> => {
     const map: Record<string, string> = {
@@ -275,7 +276,11 @@ const ResizableTH = ({
 export default function ValidationPage() {
     const { user, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
-    const [products, setProducts] = useState<ValidationProduct[]>([])
+    const [products, _setProducts] = useState<ValidationProduct[]>([])
+    const setProducts: typeof _setProducts = (action) => {
+        console.log('🔴 setProducts called', new Error().stack?.split('\n')[2]?.trim());
+        _setProducts(action);
+    };
     const productsRef = useRef<ValidationProduct[]>([]);
     useEffect(() => { productsRef.current = products; }, [products]);
     const movingIdsRef = useRef<Set<string>>(new Set());
@@ -297,11 +302,13 @@ export default function ValidationPage() {
         if (typeof window === 'undefined') return 'ALL';
         return (localStorage.getItem('indiaValidationFunnelFilter') as 'ALL' | 'RS' | 'DP') || 'ALL';
     });
+    const { logActivity, logBatchActivity } = useActivityLogger();
 
     useEffect(() => {
         localStorage.setItem('indiaValidationFunnelFilter', funnelFilter);
     }, [funnelFilter]);
     const localEditCountRef = useRef(0);
+    const lastVisibilityRefreshRef = useRef(0);
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
     const [tabPages, setTabPages] = useState<Record<FileTab, number>>({ main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reject_file: 1, });
@@ -468,6 +475,8 @@ export default function ValidationPage() {
     const refreshProductsSilently = async () => {
         try {
             if (localEditCountRef.current > 0) return;
+            console.log('🟡 REFRESH CALLED', 'editCount=', localEditCountRef.current, 'movingIds=', [...movingIdsRef.current]);
+            if (movingIdsRef.current.size > 0) return;
 
             const validationData = (await fetchAllRows<ValidationProduct>(
                 'india_validation_main_file',
@@ -484,10 +493,14 @@ export default function ValidationPage() {
                 const localIds = new Set(prev.map(p => p.id));
 
                 // Update existing products with DB data, but KEEP local calculated fields
+                const movingIds = movingIdsRef.current;
+
+                // Update existing products with DB data, but KEEP local calculated fields
                 const merged = prev.map(p => {
                     const dbProduct = dbMap.get(p.id);
                     if (!dbProduct) return p;
                     dbMap.delete(p.id);
+                    if (movingIds.has(p.id)) return p;
                     // Keep local calculated_judgement if it exists (user just calculated)
                     return {
                         ...dbProduct,
@@ -500,6 +513,7 @@ export default function ValidationPage() {
 
                 // Add any new products from DB that weren't in local state
                 for (const [, dbProduct] of dbMap) {
+                    if (movingIds.has(dbProduct.id)) continue;
                     merged.push(dbProduct);
                 }
 
@@ -528,9 +542,11 @@ export default function ValidationPage() {
         // Realtime Subscription
         const channel = supabase
             .channel('validation-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'indiavalidationmainfile' }, () => {
-                if (localEditCountRef.current > 0) return; // ✅ CHANGED: Skip if local edit in progress
-                debouncedRefresh(); // ✅ CHANGED: Use debounced version
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_main_file' }, (payload) => {
+                console.log('🟢 REALTIME EVENT', payload?.eventType, 'editCount=', localEditCountRef.current, 'movingIds=', [...movingIdsRef.current]);
+                if (localEditCountRef.current > 0) return;
+                if (movingIdsRef.current.size > 0) return;
+                debouncedRefresh();
             })
 
             .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_pass_file' }, () => fetchStats())
@@ -539,8 +555,11 @@ export default function ValidationPage() {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                // Don't refresh if user has pending edits
                 if (localEditCountRef.current > 0) return;
+                if (movingIdsRef.current.size > 0) return;
+                const now = Date.now();
+                if (now - lastVisibilityRefreshRef.current < 10000) return;
+                lastVisibilityRefreshRef.current = now;
                 console.log('Tab visible! Refreshing...');
                 refreshProductsSilently();
                 fetchStats();
@@ -557,15 +576,12 @@ export default function ValidationPage() {
     // Clear search and filters when switching tabs
     useEffect(() => {
         setIsTabSwitching(true);
-        setSearchQuery('');
+        // searchQuery is NOT cleared — persists across tab switches
         setFilters({ seller_tag: '', brand: '', funnel: '' });
         setSelectedIds(new Set());
-        // setCurrentPage(1);
+        setCurrentPage(1);
         setTimeout(() => setIsTabSwitching(false), 100);
     }, [activeTab]);
-
-
-
 
     const fetchConstants = async () => {
         try {
@@ -711,6 +727,7 @@ export default function ValidationPage() {
     };
 
     const fetchProducts = async () => {
+        console.log('🟠 FULL FETCH CALLED', new Error().stack);
         setLoading(true);
         try {
             const validationData = await fetchAllRows<ValidationProduct>(
@@ -1454,6 +1471,14 @@ export default function ValidationPage() {
 
             setProducts((prev) => prev.filter((p) => p.id !== id))
             setToast({ message: 'Sent to Purchases successfully!', type: 'success' })
+            logActivity({
+                action: 'submit',
+                marketplace: 'india',
+                page: 'validation',
+                table_name: 'india_purchases',
+                asin: product.asin,
+                details: { seller_tag: product.seller_tag, journey_id: journeyId, journey_number: journeyNum }
+            });
 
         } catch (err) {
             console.error('Unexpected error:', err)
@@ -1473,9 +1498,11 @@ export default function ValidationPage() {
 
         if (!confirmed) return;
 
-        try {
-            const idsArray = Array.from(selectedIds);
+        const idsArray = Array.from(selectedIds);
+        idsArray.forEach(id => movingIdsRef.current.add(id));
+        localEditCountRef.current += 1;
 
+        try {
             console.log('🔄 Moving IDs:', idsArray);
 
             // Use CORRECT database field names (snake_case with underscores)
@@ -1527,18 +1554,26 @@ export default function ValidationPage() {
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
-            setToast({
-                message: `Successfully moved ${idsArray.length} items back to Main File!`,
-                type: 'success'
-            });
+            setToast({ message: `Successfully moved ${idsArray.length} items back to Main File!`, type: 'success' });
+            // ✅ ADD THIS:
+            const movedProducts = products.filter(p => selectedIds.has(p.id));
+            logBatchActivity(
+                movedProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag, from: activeTab, to: 'mainfile' } })),
+                { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+            );
 
-            // Background refresh
-            await fetchProducts();
             await fetchStats();
 
         } catch (err) {
             console.error('Move to main error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
+        } finally {
+            setTimeout(() => {
+                localEditCountRef.current -= 1;
+                setTimeout(() => {
+                    idsArray.forEach(id => movingIdsRef.current.delete(id));
+                }, 10000);
+            }, 5000);
         }
     };
 
@@ -1555,9 +1590,11 @@ export default function ValidationPage() {
 
         if (!confirmed) return;
 
-        try {
-            const idsArray = Array.from(selectedIds);
+        const idsArray = Array.from(selectedIds);
+        idsArray.forEach(id => movingIdsRef.current.add(id));
+        localEditCountRef.current += 1;
 
+        try {
             console.log('🔄 Moving to Pass:', idsArray);
 
             // Update judgement to PASS in main_file
@@ -1574,22 +1611,32 @@ export default function ValidationPage() {
             }
 
             // Immediate UI update
-            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setProducts(prev => prev.map(p =>
+                selectedIds.has(p.id) ? { ...p, judgement: 'PASS' } : p
+            ));
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
-            setToast({
-                message: `Successfully moved ${idsArray.length} items to Pass File!`,
-                type: 'success'
-            });
+            setToast({ message: `Successfully moved ${idsArray.length} items to Pass File!`, type: 'success' });
+            // ✅ ADD THIS:
+            const passProducts = products.filter(p => selectedIds.has(p.id));
+            logBatchActivity(
+                passProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag } })),
+                { action: 'pass', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+            );
 
-            // Background refresh
-            await fetchProducts();
             await fetchStats();
 
         } catch (err) {
             console.error('Move to pass error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
+        } finally {
+            setTimeout(() => {
+                localEditCountRef.current -= 1;
+                setTimeout(() => {
+                    idsArray.forEach(id => movingIdsRef.current.delete(id));
+                }, 10000);
+            }, 5000);
         }
     };
 
@@ -1606,8 +1653,11 @@ export default function ValidationPage() {
 
         if (!confirmed) return;
 
+        const idsArray = Array.from(selectedIds);
+        idsArray.forEach(id => movingIdsRef.current.add(id));
+        localEditCountRef.current += 1;
+
         try {
-            const idsArray = Array.from(selectedIds);
 
             console.log('🔄 Moving to Fail:', idsArray);
 
@@ -1625,22 +1675,32 @@ export default function ValidationPage() {
             }
 
             // Immediate UI update
-            setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+            setProducts(prev => prev.map(p =>
+                selectedIds.has(p.id) ? { ...p, judgement: 'FAIL' } : p
+            ));
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
 
-            setToast({
-                message: `Successfully moved ${idsArray.length} items to Fail File!`,
-                type: 'success'
-            });
+            setToast({ message: `Successfully moved ${idsArray.length} items to Fail File!`, type: 'success' });
+            // ✅ ADD THIS:
+            const failProducts = products.filter(p => selectedIds.has(p.id));
+            logBatchActivity(
+                failProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag } })),
+                { action: 'fail', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+            );
 
-            // Background refresh
-            await fetchProducts();
             await fetchStats();
 
         } catch (err) {
             console.error('Move to fail error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
+        } finally {
+            setTimeout(() => {
+                localEditCountRef.current -= 1;
+                setTimeout(() => {
+                    idsArray.forEach(id => movingIdsRef.current.delete(id));
+                }, 10000);
+            }, 5000);
         }
     };
 
@@ -1661,11 +1721,15 @@ export default function ValidationPage() {
             return
         }
         setIsRejectModalOpen(false)
+
+        const idsArray = Array.from(selectedIds)
+        idsArray.forEach(id => movingIdsRef.current.add(id));
+        localEditCountRef.current += 1;
+
         try {
-            const idsArray = Array.from(selectedIds)
             const { error } = await supabase
                 .from('india_validation_main_file')
-                .update(toSnakeCase({ judgement: 'REJECT', rejectreason: rejectReason.trim }))
+                .update(toSnakeCase({ judgement: 'REJECT', rejectreason: rejectReason.trim() }))
                 .in('id', idsArray)
 
             if (error) throw error
@@ -1675,12 +1739,25 @@ export default function ValidationPage() {
             ))
             setSelectedIds(new Set())
             setRejectReason('')
-            setToast({ message: `Successfully moved ${idsArray.length} items to Rejected!`, type: 'success' })
-            await fetchProducts()
+            setToast({ message: `Successfully moved ${idsArray.length} items to Rejected!`, type: 'success' });
+            // ✅ ADD THIS:
+            const rejectProducts = products.filter(p => selectedIds.has(p.id));
+            logBatchActivity(
+                rejectProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag, reason: rejectReason.trim() } })),
+                { action: 'reject', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+            );
+            // await fetchProducts()
             await fetchStats()
         } catch (err) {
             console.error('Move to reject error', err)
             setToast({ message: 'Failed to move items', type: 'error' })
+        } finally {
+            setTimeout(() => {
+                localEditCountRef.current -= 1;
+                setTimeout(() => {
+                    idsArray.forEach(id => movingIdsRef.current.delete(id));
+                }, 10000);
+            }, 5000);
         }
     }
 
@@ -1809,12 +1886,15 @@ export default function ValidationPage() {
 
     // Move ASIN to Pass/Fail based on calculated judgement
     const handleMoveByJudgement = async (product: ValidationProduct) => {
+        console.log('🔴 MOVE CLICKED', product.asin, product.calculated_judgement);
         const judgement = product.calculated_judgement;
+
         if (!judgement || judgement === 'PENDING') return;
 
-        // LOCK this product — no autoCalc can touch it anymore
+        // LOCK this product — no autoCalc or refresh can touch it
         movingIdsRef.current.add(product.id);
         localEditCountRef.current += 1;
+        let cleanedUp = false;
 
         try {
             // Step 1: Save to DB
@@ -1825,10 +1905,13 @@ export default function ValidationPage() {
 
             if (error) {
                 setToast({ message: 'Failed to move: ' + error.message, type: 'error' });
+                movingIdsRef.current.delete(product.id);
+                localEditCountRef.current -= 1;
+                cleanedUp = true;
                 return;
             }
 
-            // Step 2: Update local state — product stays in array but filtered out of main view
+            // Step 2: Update local state — product filtered to pass/fail tab view
             setProducts(prev => prev.map(p =>
                 p.id === product.id ? { ...p, judgement } : p
             ));
@@ -1837,9 +1920,15 @@ export default function ValidationPage() {
                 setRollbackHistory(prev => ({ ...prev, pass_move: { product, action: 'move_to_pass' } }));
             }
 
-            setToast({
-                message: `Moved to ${judgement === 'PASS' ? 'Pass' : 'Fail'} File`,
-                type: judgement === 'PASS' ? 'success' : 'error',
+            setToast({ message: `Moved to ${judgement === 'PASS' ? 'Pass' : 'Fail'} File`, type: judgement === 'PASS' ? 'success' : 'error' });
+            // ✅ ADD THIS:
+            logActivity({
+                action: judgement === 'PASS' ? 'pass' : 'fail',
+                marketplace: 'india',
+                page: 'validation',
+                table_name: 'india_validation_main_file',
+                asin: product.asin,
+                details: { seller_tag: product.seller_tag, funnel: product.funnel, judgement }
             });
 
             await fetchStats();
@@ -1847,12 +1936,15 @@ export default function ValidationPage() {
             console.error('Move by judgement error', err);
             setToast({ message: err?.message || 'Unexpected error', type: 'error' });
         } finally {
-            await new Promise(resolve => setTimeout(resolve, 300));
-            localEditCountRef.current -= 1;
-            // Keep the lock for 3 more seconds to block any late-arriving autoCalc writes
-            setTimeout(() => {
-                movingIdsRef.current.delete(product.id);
-            }, 3000);
+            if (!cleanedUp) {
+                // Keep lock for 5 seconds so no refresh can resurrect this product
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                localEditCountRef.current -= 1;
+                // Keep movingIds lock for 10 more seconds to block any late-arriving refresh
+                setTimeout(() => {
+                    movingIdsRef.current.delete(product.id);
+                }, 10000);
+            }
         }
     };
 
@@ -1899,6 +1991,16 @@ export default function ValidationPage() {
                 });
 
                 setToast({ message: `Rolled back ${last.product.asin} to Main File`, type: 'success' });
+                // ✅ ADD THIS:
+                logActivity({
+                    action: 'rollback',
+                    marketplace: 'india',
+                    page: 'validation',
+                    table_name: 'india_validation_main_file',
+                    asin: last.product.asin,
+                    details: { from: 'passfile', to: 'mainfile' }
+                });
+                movingIdsRef.current.delete(last.product.id);
                 await fetchProducts();
                 await fetchStats();
             } catch (err: any) {
@@ -1957,6 +2059,15 @@ export default function ValidationPage() {
                 });
 
                 setToast({ message: `Rolled back ${last.product.asin} from Purchases to Pass File`, type: 'success' });
+                // ✅ ADD THIS:
+                logActivity({
+                    action: 'rollback',
+                    marketplace: 'india',
+                    page: 'validation',
+                    table_name: 'india_purchases',
+                    asin: last.product.asin,
+                    details: { from: 'purchases', to: 'passfile' }
+                });
                 await fetchProducts();
                 await fetchStats();
             } catch (err: any) {
@@ -2703,6 +2814,15 @@ export default function ValidationPage() {
 
                                 {/* Funnel Quick Filters */}
                                 <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
+                                    <button
+                                        onClick={() => setFunnelFilter('ALL')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'ALL'
+                                            ? 'bg-indigo-600 text-white shadow-lg'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        ALL
+                                    </button>
                                     <button
                                         onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'

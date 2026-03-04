@@ -1,5 +1,6 @@
 'use client'
 
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
@@ -94,6 +95,7 @@ export default function ReorderPage() {
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const { logActivity } = useActivityLogger();
   // Filter states (persisted)
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -201,7 +203,16 @@ export default function ReorderPage() {
           .insert(newItems)
 
         if (insertError) throw insertError
-        alert(`Synced ${newItems.length} new products with history links!`)
+        alert(`Synced ${newItems.length} new products with history links!`);
+        // ✅ ADD THIS:
+        logActivity({
+          action: 'submit',
+          marketplace: 'india',
+          page: 'reorder',
+          table_name: `india_reorder_${activeSeller.table_suffix}`,
+          asin: `${newItems.length} ASINs synced`,
+          details: { seller: activeSeller.name }
+        });
         fetchReorderData()
       } else {
         alert('All listed products are already in Reorder.')
@@ -439,7 +450,16 @@ export default function ReorderPage() {
 
       // Execute Updates
       await Promise.all(promises)
-      await fetchReorderData() // Refresh UI immediately
+      await fetchReorderData(); // Refresh UI immediately
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'submit',
+        marketplace: 'india',
+        page: 'reorder',
+        table_name: `india_reorder_${activeSeller.table_suffix}`,
+        asin: `${matchCount} ASINs updated`,
+        details: { type: 'inventory_upload', seller: activeSeller.name }
+      });
 
       // Offer Recalculation
       const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
@@ -696,7 +716,16 @@ export default function ReorderPage() {
       await Promise.all(updatePromises)
       fetchReorderData()
 
-      alert('✅ Calculation complete! Tracking data aggregated from all 5 tables.')
+      alert('✅ Calculation complete! Tracking data aggregated from all 5 tables.');
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'submit',
+        marketplace: 'india',
+        page: 'reorder',
+        table_name: `india_reorder_${activeSeller.table_suffix}`,
+        asin: `${updates.length} ASINs recalculated`,
+        details: { type: 'recalculate', seller: activeSeller.name }
+      });
 
     } catch (err: any) {
       alert('Calculation failed: ' + err.message)
@@ -855,7 +884,16 @@ export default function ReorderPage() {
 
       // 6. Update UI instantly
       setProducts(prev => prev.filter(p => p.id !== product.id))
-      alert(`✅ ASIN ${product.asin} sent to Validation! (Journey #${nextJourneyNum})`)
+      alert(`✅ ASIN ${product.asin} sent to Validation! Journey #${nextJourneyNum}`);
+      // ✅ ADD THIS:
+      logActivity({
+        action: 'move',
+        marketplace: 'india',
+        page: 'reorder',
+        table_name: `india_reorder_${activeSeller.table_suffix}`,
+        asin: product.asin,
+        details: { from: 'reorder', to: 'validation', journey: nextJourneyNum }
+      });
 
     } catch (err: any) {
       console.error(err)
@@ -954,7 +992,7 @@ export default function ReorderPage() {
           </button>
         </div>
       </div>
-      
+
       {/* CONTROLS */}
       <div className="flex gap-3 items-center mb-6 px-6 pt-4">
         <div className="relative flex-1 max-w-md">

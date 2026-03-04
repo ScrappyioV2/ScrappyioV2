@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getIndiaTrackingTableName  } from '@/lib/utils';
+import { getIndiaTrackingTableName } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type InvoiceGroup = {
     invoice_number: string;
@@ -31,6 +32,7 @@ export default function RollbackModal({
     const [searchQuery, setSearchQuery] = useState('');
     const [processing, setProcessing] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const { logActivity } = useActivityLogger();
 
     // Fetch invoices grouped by invoice_number
     useEffect(() => {
@@ -44,7 +46,7 @@ export default function RollbackModal({
             setLoading(true);
 
             // ✅ FIX #1: Use seller-specific invoice table
-            const invoiceTableName = getIndiaTrackingTableName ('INVOICE', sellerId);
+            const invoiceTableName = getIndiaTrackingTableName('INVOICE', sellerId);
             console.log('📋 Fetching from table:', invoiceTableName);
 
             // Step 1: Get ALL invoice groups from seller's invoice table
@@ -140,8 +142,8 @@ export default function RollbackModal({
 
             for (const invoiceNumber of selectedInvoices) {
                 // ✅ FIX #2: Use seller-specific invoice table
-                const invoiceTableName = getIndiaTrackingTableName ('INVOICE', sellerId);
-                const mainFileTableName = getIndiaTrackingTableName ('MAIN', sellerId);
+                const invoiceTableName = getIndiaTrackingTableName('INVOICE', sellerId);
+                const mainFileTableName = getIndiaTrackingTableName('MAIN', sellerId);
 
                 console.log(`🔄 Rolling back invoice ${invoiceNumber}`);
                 console.log(`📋 Invoice table: ${invoiceTableName}`);
@@ -260,6 +262,17 @@ export default function RollbackModal({
             setToast({
                 message: `Successfully rolled back ${selectedInvoices.size} invoice(s)!`,
                 type: 'success',
+            });
+            // ✅ ADD THIS:
+            Array.from(selectedInvoices).forEach((invoiceNumber) => {
+                logActivity({
+                    action: 'rollback',
+                    marketplace: 'india',
+                    page: 'tracking',
+                    table_name: `india_tracking_seller_${sellerId}`,
+                    asin: invoiceNumber, // using invoice number as identifier
+                    details: { from: 'invoice', to: 'main_file' }
+                });
             });
 
             // Close modal and refresh after short delay
