@@ -71,8 +71,8 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     brand: 110,
     seller_tag: 100,
     funnel: 80,
-    no_of_seller: 80,
-    india_link: 100,
+    no_of_seller: 160,
+    india_link: 160,
     usa_link: 80,        // Minimal width for "View"
     product_weight: 90,
     usd_price: 90,
@@ -173,6 +173,7 @@ interface Stats {
     failed: number;
     pending: number;
     rejected: number;
+    reworking: number;
 }
 
 interface Filters {
@@ -181,7 +182,7 @@ interface Filters {
     funnel: string;
 }
 
-type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reject_file'
+type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file';
 
 const SELLER_STYLES: Record<string, string> = {
     GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',    // Golden Aura - YELLOW
@@ -278,7 +279,6 @@ export default function ValidationPage() {
     const [activeTab, setActiveTab] = useState<FileTab>('main_file')
     const [products, _setProducts] = useState<ValidationProduct[]>([])
     const setProducts: typeof _setProducts = (action) => {
-        console.log('🔴 setProducts called', new Error().stack?.split('\n')[2]?.trim());
         _setProducts(action);
     };
     const productsRef = useRef<ValidationProduct[]>([]);
@@ -288,10 +288,13 @@ export default function ValidationPage() {
     const [editingLinkValue, setEditingLinkValue] = useState<string>('');
     const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
     const [editingSkuValue, setEditingSkuValue] = useState<string>('');
+    const [editingUsaLinkId, setEditingUsaLinkId] = useState<string | null>(null);
+    const [editingUsaLinkValue, setEditingUsaLinkValue] = useState('');
+    const originalUsaLinkWidthRef = useRef<number>(0);
     const [loading, setLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
-    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0 })
+    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0, reworking: 0 });
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
@@ -311,7 +314,9 @@ export default function ValidationPage() {
     const lastVisibilityRefreshRef = useRef(0);
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
-    const [tabPages, setTabPages] = useState<Record<FileTab, number>>({ main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reject_file: 1, });
+    const [tabPages, setTabPages] = useState<Record<FileTab, number>>({
+        main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reworking: 1, reject_file: 1,
+    });
     const [rowsPerPage] = useState(100);
     const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
 
@@ -475,7 +480,6 @@ export default function ValidationPage() {
     const refreshProductsSilently = async () => {
         try {
             if (localEditCountRef.current > 0) return;
-            console.log('🟡 REFRESH CALLED', 'editCount=', localEditCountRef.current, 'movingIds=', [...movingIdsRef.current]);
             if (movingIdsRef.current.size > 0) return;
 
             const validationData = (await fetchAllRows<ValidationProduct>(
@@ -543,7 +547,6 @@ export default function ValidationPage() {
         const channel = supabase
             .channel('validation-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_main_file' }, (payload) => {
-                console.log('🟢 REALTIME EVENT', payload?.eventType, 'editCount=', localEditCountRef.current, 'movingIds=', [...movingIdsRef.current]);
                 if (localEditCountRef.current > 0) return;
                 if (movingIdsRef.current.size > 0) return;
                 debouncedRefresh();
@@ -560,7 +563,6 @@ export default function ValidationPage() {
                 const now = Date.now();
                 if (now - lastVisibilityRefreshRef.current < 10000) return;
                 lastVisibilityRefreshRef.current = now;
-                console.log('Tab visible! Refreshing...');
                 refreshProductsSilently();
                 fetchStats();
             }
@@ -582,6 +584,28 @@ export default function ValidationPage() {
         setCurrentPage(1);
         setTimeout(() => setIsTabSwitching(false), 100);
     }, [activeTab]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                const tag = (e.target as HTMLElement)?.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+                const canRollback =
+                    (activeTab === 'main_file' && rollbackHistory['pass_move']) ||
+                    (activeTab === 'pass_file' && rollbackHistory['purchase_move']) ||
+                    ((activeTab as string) === 'reworking' && rollbackHistory['reworking_move_out']);
+
+                if (canRollback) {
+                    e.preventDefault();
+                    handleRollBack();
+                }
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [activeTab, rollbackHistory]);
 
     const fetchConstants = async () => {
         try {
@@ -620,14 +644,15 @@ export default function ValidationPage() {
             const failed = products.filter(p => p.judgement === 'FAIL').length
             const pending = products.filter(p => !p.judgement || p.judgement === 'PENDING').length
             const rejected = products.filter(p => p.judgement === 'REJECT').length
-
+            const reworking = products.filter(p => p.judgement === 'REWORKING').length
 
             setStats({
-                total: products.length, // Total in main file
-                passed: passed,
-                failed: failed,
-                pending: pending,
-                rejected: rejected
+                total: products.length,
+                passed,
+                failed,
+                pending,
+                rejected,
+                reworking,
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
@@ -722,12 +747,9 @@ export default function ValidationPage() {
                 ? { ...p, usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` }
                 : p
         ));
-
-        console.log(`✅ Populated usa_link for ${products.length} products`);
     };
 
     const fetchProducts = async () => {
-        console.log('🟠 FULL FETCH CALLED', new Error().stack);
         setLoading(true);
         try {
             const validationData = await fetchAllRows<ValidationProduct>(
@@ -755,12 +777,12 @@ export default function ValidationPage() {
     };
 
     // ✅ Cache filtered products per tab
-    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reject_file: [] });
+    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [] });
 
     // ✅ Add this useEffect to clear cache when products change
     useEffect(() => {
         // Clear cache when products array updates
-        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reject_file: [] };
+        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [] };
     }, [products]);
 
 
@@ -779,7 +801,7 @@ export default function ValidationPage() {
 
             // Step 3: Auto-calculate using LATEST state (from ref, not stale closure)
             const CALC_FIELDS = ['usd_price', 'product_weight', 'inr_purchase'];
-            if ((activeTab === 'main_file' || activeTab === 'fail_file') && CALC_FIELDS.includes(field)) {
+            if ((activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') && CALC_FIELDS.includes(field)) {
                 const freshProduct = productsRef.current.find(p => p.id === id);
                 if (freshProduct) {
                     await autoCalculateAndUpdate(id, freshProduct);
@@ -834,6 +856,8 @@ export default function ValidationPage() {
             result = products.filter(p => p.judgement === 'FAIL');
         } else if (activeTab === 'reject_file') {
             result = products.filter(p => p.judgement === 'REJECT');
+        } else if (activeTab === 'reworking') {
+            result = products.filter(p => p.judgement === 'REWORKING');
         } else if (activeTab === 'pending' || activeTab === 'main_file') {
             result = products.filter(p => !p.judgement || p.judgement === 'PENDING');
         }
@@ -1704,6 +1728,91 @@ export default function ValidationPage() {
         }
     };
 
+    const handleMoveToReworkingClick = async () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
+        }
+        const confirmed = window.confirm(`Move ${selectedIds.size} items to Reworking?`);
+        if (!confirmed) return;
+
+        const idsArray = Array.from(selectedIds);
+        idsArray.forEach(id => movingIdsRef.current.add(id));
+        localEditCountRef.current += 1;
+
+        try {
+            console.log('Moving to Reworking:', idsArray);
+            const { error } = await supabase
+                .from('india_validation_main_file')
+                .update({
+                    judgement: 'REWORKING',
+                    calculated_judgement: 'FAIL',
+                    // check_brand: false,
+                    // check_item_expire: false,
+                    // check_small_size: false,
+                    // check_multi_seller: false,
+                    // origin_india: false,
+                    // origin_china: false,
+                    // origin_us: false,
+                    sent_to_purchases: false,
+                    sent_to_purchases_at: null,
+                    reject_reason: null,
+                })
+                .in('id', idsArray);
+
+            if (error) {
+                console.error('Supabase error:', error);
+                throw error;
+            }
+
+            setProducts(prev =>
+                prev.map(p => selectedIds.has(p.id)
+                    ? {
+                        ...p,
+                        judgement: 'REWORKING',
+                        calculated_judgement: 'FAIL',
+                        // check_brand: false,
+                        // check_item_expire: false,
+                        // check_small_size: false,
+                        // check_multi_seller: false,
+                        // origin_india: false,
+                        // origin_china: false,
+                        // origin_us: false,
+                        sent_to_purchases: false,
+                        sent_to_purchases_at: undefined,
+                    }
+                    : p
+                )
+            );
+            setSelectedIds(new Set());
+            setToast({ message: `Successfully moved ${idsArray.length} items to Reworking!`, type: 'success' });
+            const lastMovedProduct = products.find(p => idsArray.includes(p.id));
+            if (lastMovedProduct) {
+                setRollbackHistory(prev => ({
+                    ...prev,
+                    reworking_move: { product: lastMovedProduct, action: 'move_to_reworking' }
+                }));
+            }
+
+            const reworkProducts = products.filter(p => selectedIds.has(p.id));
+            logBatchActivity(
+                reworkProducts.map(p => ({
+                    asin: p.asin,
+                    details: { seller_tag: p.seller_tag, from: 'fail_file', to: 'reworking' }
+                })),
+                { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+            );
+
+            await fetchStats();
+        } catch (err) {
+            console.error('Move to reworking error:', err);
+            setToast({ message: 'Failed to move items', type: 'error' });
+        } finally {
+            setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
+            setTimeout(() => { idsArray.forEach(id => movingIdsRef.current.delete(id)); }, 10000);
+        }
+    };
+
     // Move items to Reject
     const handleMoveToRejectClick = async () => {
         if (selectedIds.size === 0) {
@@ -1857,7 +1966,7 @@ export default function ValidationPage() {
     };
 
     const recalculateAllProducts = async () => {
-        if (activeTab !== 'main_file') return
+        if (activeTab !== 'main_file' && activeTab !== 'reworking') return;
 
         const productsToRecalc = products.filter(p =>
             p.usd_price && p.product_weight && p.inr_sold && p.inr_purchase
@@ -1898,9 +2007,10 @@ export default function ValidationPage() {
 
         try {
             // Step 1: Save to DB
+            const finalJudgement = judgement;
             const { error } = await supabase
                 .from('india_validation_main_file')
-                .update({ judgement: judgement })
+                .update({ judgement: finalJudgement })
                 .eq('id', product.id);
 
             if (error) {
@@ -1913,22 +2023,29 @@ export default function ValidationPage() {
 
             // Step 2: Update local state — product filtered to pass/fail tab view
             setProducts(prev => prev.map(p =>
-                p.id === product.id ? { ...p, judgement } : p
+                p.id === product.id ? { ...p, judgement: finalJudgement } : p
             ));
 
-            if (judgement === 'PASS') {
+            if ((activeTab as string) === 'reworking') {
+                setRollbackHistory(prev => ({
+                    ...prev,
+                    reworking_move_out: { product, action: `move_to_${finalJudgement.toLowerCase()}` }
+                }));
+            } else if (finalJudgement === 'PASS') {
                 setRollbackHistory(prev => ({ ...prev, pass_move: { product, action: 'move_to_pass' } }));
+            } else {
+                setToast({ message: `Moved to Fail File`, type: 'error' });
             }
 
             setToast({ message: `Moved to ${judgement === 'PASS' ? 'Pass' : 'Fail'} File`, type: judgement === 'PASS' ? 'success' : 'error' });
             // ✅ ADD THIS:
             logActivity({
-                action: judgement === 'PASS' ? 'pass' : 'fail',
+                action: finalJudgement === 'PASS' ? 'pass' : 'fail',
                 marketplace: 'india',
                 page: 'validation',
                 table_name: 'india_validation_main_file',
                 asin: product.asin,
-                details: { seller_tag: product.seller_tag, funnel: product.funnel, judgement }
+                details: { seller_tag: product.seller_tag, funnel: product.funnel, judgement: finalJudgement },
             });
 
             await fetchStats();
@@ -1958,10 +2075,10 @@ export default function ValidationPage() {
                 return;
             }
 
-            const confirmed = window.confirm(
-                `Roll back "${last.product.asin}" from Pass File back to Main File (Pending)?`
-            );
-            if (!confirmed) return;
+            // const confirmed = window.confirm(
+            //     `Roll back "${last.product.asin}" from Pass File back to Main File (Pending)?`
+            // );
+            // if (!confirmed) return;
 
             try {
                 // Reset judgement to PENDING → moves it back to Main File view
@@ -2017,10 +2134,10 @@ export default function ValidationPage() {
                 return;
             }
 
-            const confirmed = window.confirm(
-                `Roll back "${last.product.asin}" from Purchases back to Pass File?`
-            );
-            if (!confirmed) return;
+            // const confirmed = window.confirm(
+            //     `Roll back "${last.product.asin}" from Purchases back to Pass File?`
+            // );
+            // if (!confirmed) return;
 
             try {
                 // 1. Delete from india_purchases
@@ -2073,6 +2190,49 @@ export default function ValidationPage() {
             } catch (err: any) {
                 console.error('Rollback from purchases error:', err);
                 setToast({ message: 'Rollback failed: ' + err.message, type: 'error' });
+            }
+        }
+
+        else if (activeTab === 'reworking') {
+            const last = rollbackHistory['reworking_move_out'];
+            if (!last) {
+                setToast({ message: 'No recent move to roll back', type: 'warning' });
+                return;
+            }
+            const movedTo = last.action === 'move_to_pass' ? 'Pass File' : 'Fail File';
+            // const confirmed = window.confirm(
+            //     `Roll back ${last.product.asin} from ${movedTo} back to Reworking?`
+            // );
+            // if (!confirmed) return;
+            try {
+                const { error } = await supabase
+                    .from('india_validation_main_file')
+                    .update({ judgement: 'REWORKING' })
+                    .eq('id', last.product.id);
+                if (error) throw error;
+
+                setRollbackHistory(prev => {
+                    const next = { ...prev };
+                    delete next['reworking_move_out'];
+                    return next;
+                });
+                setToast({ message: `Rolled back ${last.product.asin} to Reworking`, type: 'success' });
+
+                logActivity({
+                    action: 'rollback',
+                    marketplace: 'india',
+                    page: 'validation',
+                    table_name: 'india_validation_main_file',
+                    asin: last.product.asin,
+                    details: { from: movedTo, to: 'reworking' },
+                });
+
+                movingIdsRef.current.delete(last.product.id);
+                await fetchProducts();
+                await fetchStats();
+            } catch (err: any) {
+                console.error('Rollback to reworking error:', err);
+                setToast({ message: `Rollback failed: ${err.message}`, type: 'error' });
             }
         }
 
@@ -2202,7 +2362,7 @@ export default function ValidationPage() {
                 if (!visibleColumns.funnel) return null;
                 return (
                     <td key={col_key} className="p-3">
-                        {(activeTab === 'main_file' || activeTab === 'pending' || activeTab === 'pass_file' || activeTab === 'fail_file') ? (
+                        {(activeTab === 'main_file' || activeTab === 'pending' || activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <div className="relative">
                                 <button
                                     onClick={(e) => {
@@ -2264,99 +2424,198 @@ export default function ValidationPage() {
                 if (!visibleColumns.no_of_seller) return null;
                 return <td key={col_key} className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>;
 
-            case 'india_link':
+            case 'india_link': {
                 if (!visibleColumns.india_link) return null;
+                const isEditingIndia = editingLinkId === product.id;
                 return (
-                    <td key={col_key} className="px-4 py-3 text-sm">
-                        <div className="w-40">
-                            {editingLinkId === product.id ? (
-                                <div className="flex items-center gap-1">
-                                    <input
-                                        type="text"
-                                        value={editingLinkValue}
-                                        onChange={(e) => setEditingLinkValue(e.target.value)}
-                                        className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
-                                        placeholder="URL..."
-                                        autoFocus
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleCellEdit(product.id, 'india_link', editingLinkValue);
-                                                setEditingLinkId(null);
-                                            } else if (e.key === 'Escape') {
-                                                setEditingLinkId(null);
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => { handleCellEdit(product.id, 'india_link', editingLinkValue); setEditingLinkId(null); }}
-                                        className="text-emerald-500 hover:text-emerald-400 flex-shrink-0" title="Save (Enter)"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </button>
-                                    <button onClick={() => setEditingLinkId(null)} className="text-rose-500 hover:text-rose-400 flex-shrink-0" title="Cancel (Esc)">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    {product.india_link ? (
-                                        <>
-                                            <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
-                                                target="_blank" rel="noopener noreferrer"
-                                                className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs">
-                                                View Link
-                                            </a>
-                                            <button
-                                                onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(product.india_link || ''); }}
-                                                className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link"
-                                            >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                </svg>
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <button onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(''); }}
-                                            className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                            </svg>
-                                            Add Link
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </td>
-                );
-
-            case 'usa_link':
-                return (
-                    <td key={col_key} className="px-4 py-3 text-sm">
-                        {(product.usa_link || product.asin) ? (
-                            <a
-                                href={product.usa_link || `https://www.amazon.com/dp/${product.asin}?th=1&psc=1`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs"
-                            >
-                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                                .com
-                            </a>
+                    <td key={col_key} className="px-4 py-3 text-sm"
+                        style={isEditingIndia ? { minWidth: '350px' } : undefined}
+                    >
+                        {isEditingIndia ? (
+                            <div className="flex items-center gap-1">
+                                <input
+                                    type="text"
+                                    value={editingLinkValue}
+                                    onChange={(e) => setEditingLinkValue(e.target.value)}
+                                    className="flex-1 min-w-0 px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                    placeholder="Paste URL..."
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleCellEdit(product.id, 'india_link', editingLinkValue);
+                                            setEditingLinkId(null);
+                                        } else if (e.key === 'Escape') {
+                                            setEditingLinkId(null);
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={() => { handleCellEdit(product.id, 'india_link', editingLinkValue); setEditingLinkId(null); }}
+                                    className="text-emerald-500 hover:text-emerald-400 flex-shrink-0" title="Save (Enter)"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                                <button onClick={() => setEditingLinkId(null)} className="text-rose-500 hover:text-rose-400 flex-shrink-0" title="Cancel (Esc)">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
                         ) : (
-                            <span className="text-slate-600">-</span>
+                            <div className="flex items-center gap-2">
+                                {product.india_link ? (
+                                    <>
+                                        <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs">
+                                            View Link
+                                        </a>
+                                        <button
+                                            onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(product.india_link || ''); }}
+                                            className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(''); }}
+                                        className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Add Link
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </td>
                 );
+            }
+
+            case 'usa_link': {
+                const isEditingUsa = editingUsaLinkId === product.id;
+                return (
+                    <td key={col_key} className="px-4 py-3 text-sm">
+                        {isEditingUsa ? (
+                            <div className="flex items-center gap-1">
+                                <input
+                                    type="text"
+                                    value={editingUsaLinkValue}
+                                    onChange={(e) => setEditingUsaLinkValue(e.target.value)}
+                                    className="flex-1 min-w-0 px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                    placeholder="Paste URL..."
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleCellEdit(product.id, 'usa_link', editingUsaLinkValue);
+                                            setEditingUsaLinkId(null);
+                                            setColumnWidths(prev => {
+                                                const updated = { ...prev, usa_link: originalUsaLinkWidthRef.current };
+                                                localStorage.setItem('indiavalidationcolumnwidths', JSON.stringify(updated));
+                                                return updated;
+                                            });
+                                        } else if (e.key === 'Escape') {
+                                            setEditingUsaLinkId(null);
+                                            setColumnWidths(prev => {
+                                                const updated = { ...prev, usa_link: originalUsaLinkWidthRef.current };
+                                                localStorage.setItem('indiavalidationcolumnwidths', JSON.stringify(updated));
+                                                return updated;
+                                            });
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        handleCellEdit(product.id, 'usa_link', editingUsaLinkValue);
+                                        setEditingUsaLinkId(null);
+                                        setColumnWidths(prev => {
+                                            const updated = { ...prev, usa_link: originalUsaLinkWidthRef.current };
+                                            localStorage.setItem('indiavalidationcolumnwidths', JSON.stringify(updated));
+                                            return updated;
+                                        });
+                                    }}
+                                    className="text-emerald-500 hover:text-emerald-400 flex-shrink-0"
+                                    title="Save (Enter)"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditingUsaLinkId(null);
+                                        setColumnWidths(prev => {
+                                            const updated = { ...prev, usa_link: originalUsaLinkWidthRef.current };
+                                            localStorage.setItem('indiavalidationcolumnwidths', JSON.stringify(updated));
+                                            return updated;
+                                        });
+                                    }}
+                                    className="text-rose-500 hover:text-rose-400 flex-shrink-0"
+                                    title="Cancel (Esc)"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                {product.usa_link || product.asin ? (
+                                    <>
+                                        <a
+                                            href={product.usa_link || `https://www.amazon.com/dp/${product.asin}?th=1&psc=1`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs"
+                                        >
+                                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                            .com
+                                        </a>
+                                        <button
+                                            onClick={() => {
+                                                originalUsaLinkWidthRef.current = columnWidths['usa_link'] || 80;
+                                                setEditingUsaLinkId(product.id);
+                                                setEditingUsaLinkValue(product.usa_link || `https://www.amazon.com/dp/${product.asin}?th=1&psc=1`);
+                                                setColumnWidths(prev => ({ ...prev, usa_link: 350 }));
+                                            }}
+                                            className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
+                                            title="Edit link"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            originalUsaLinkWidthRef.current = columnWidths['usa_link'] || 80;
+                                            setEditingUsaLinkId(product.id);
+                                            setEditingUsaLinkValue('');
+                                            setColumnWidths(prev => ({ ...prev, usa_link: 350 }));
+                                        }}
+                                        className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Add Link
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </td>
+                );
+            }
 
             case 'origin':
-                if (activeTab !== 'pass_file' && activeTab !== 'fail_file') return null;
+                if (activeTab !== 'pass_file' && activeTab !== 'fail_file' && activeTab !== 'reworking') return null;
                 // PASTE YOUR EXACT EXISTING origin <td> block here
                 // It starts with: {activeTab === 'pass_file' && (() => { const origins = [...]
                 // Copy everything between the outer <td> and </td> for origin
@@ -2422,7 +2681,8 @@ export default function ValidationPage() {
                 if (!visibleColumns.product_weight) return null;
                 return (
                     <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
-                        {activeTab === 'main_file' || activeTab === 'fail_file' ? (
+                        {/* ✅ ADD 'reworking' */}
+                        {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <input type="number" key={product.id} defaultValue={product.product_weight ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'product_weight', e.target.value)}
                                 onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
@@ -2436,7 +2696,8 @@ export default function ValidationPage() {
                 if (!visibleColumns.usd_price) return null;
                 return (
                     <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
-                        {activeTab === 'main_file' || activeTab === 'fail_file' ? (
+                        {/* ✅ ADD 'reworking' */}
+                        {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <input type="text" key={product.id} defaultValue={product.usd_price ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'usd_price', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
@@ -2450,7 +2711,8 @@ export default function ValidationPage() {
                 if (!visibleColumns.inr_purchase) return null;
                 return (
                     <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
-                        {activeTab === 'main_file' || activeTab === 'fail_file' ? (
+                        {/* ✅ ADD 'reworking' */}
+                        {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <input type="text" key={product.id} defaultValue={product.inr_purchase ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'inr_purchase', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
@@ -2461,7 +2723,7 @@ export default function ValidationPage() {
                 );
 
             case 'inr_purchase_link':
-                if (activeTab !== 'main_file') return null;
+                if (activeTab !== 'main_file' && activeTab !== 'reworking') return null;
                 if (!visibleColumns.inr_purchase_link) return null;
                 return (
                     <td key={col_key} className="px-4 py-3 text-sm overflow-hidden">
@@ -2570,7 +2832,7 @@ export default function ValidationPage() {
                                 </span>
                             ) : (<span className="text-slate-500 text-xs"></span>)}
 
-                            {(activeTab === 'main_file' || activeTab === 'fail_file') && isReadyToMove(product) && (
+                            {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') && isReadyToMove(product) && (
                                 <button
                                     onClick={() => handleMoveByJudgement(product)}
                                     className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${product.calculated_judgement === 'PASS'
@@ -2629,24 +2891,27 @@ export default function ValidationPage() {
                                 <span className="text-[11px] font-medium text-rose-400 uppercase tracking-wider">✗ Fail</span>
                                 <span className="text-lg font-bold text-rose-300">{stats.failed}</span>
                             </div>
-                            <div className="flex items-center gap-2.5 bg-amber-900/30 rounded-lg px-3.5 py-2 border border-amber-500/20">
+                            {/* <div className="flex items-center gap-2.5 bg-amber-900/30 rounded-lg px-3.5 py-2 border border-amber-500/20">
                                 <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</span>
                                 <span className="text-lg font-bold text-amber-300">{stats.pending}</span>
-                            </div>
+                            </div> */}
                             <div className="flex items-center gap-2.5 bg-violet-900/30 rounded-lg px-3.5 py-2 border border-violet-500/20">
                                 <span className="text-[11px] font-medium text-violet-400 uppercase tracking-wider">Rejected</span>
                                 <span className="text-lg font-bold text-violet-300">{stats.rejected}</span>
                             </div>
+                            <div className="flex items-center gap-2.5 bg-cyan-900/30 rounded-lg px-3.5 py-2 border border-cyan-500/20">
+                                <span className="text-[11px] font-medium text-cyan-400 uppercase tracking-wider">Reworking</span>
+                                <span className="text-lg font-bold text-cyan-300">{stats.reworking}</span>
+                            </div>
                         </div>
-
                         {/* File Tabs */}
                         <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
                             {[
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
                                 { id: 'fail_file', label: 'Failed File' },
+                                { id: 'reworking', label: 'Reworking' },
                                 { id: 'reject_file', label: 'Rejected' },
-                                { id: 'pending', label: 'Pending' }
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -2778,6 +3043,22 @@ export default function ValidationPage() {
                                     </button>
                                 )}
 
+                                {activeTab === 'fail_file' && (
+                                    <button
+                                        onClick={handleMoveToReworkingClick}
+                                        disabled={selectedIds.size === 0}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
+                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                            : 'bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Move to Reworking
+                                    </button>
+                                )}
+
                                 {/* Move to Pass */}
                                 {/* {activeTab === 'pending' && (
       <button
@@ -2859,21 +3140,24 @@ export default function ValidationPage() {
                                     </button>
                                 )}
 
-                                {(activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                {(activeTab === 'main_file' || activeTab === 'pass_file' || activeTab === 'reworking') && (
                                     <button
                                         onClick={handleRollBack}
                                         disabled={
                                             (activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
-                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
+                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
+                                            (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
                                         }
                                         className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
-                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move'])
+                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
+                                            (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
                                             ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
                                             : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
                                             }`}
-                                        title={activeTab === 'main_file'
-                                            ? 'Roll back last ASIN from Pass File'
-                                            : 'Roll back last ASIN from Purchases'
+                                        title={
+                                            activeTab === 'main_file' ? 'Roll back last ASIN from Pass File' :
+                                                activeTab === 'reworking' ? 'Roll back last ASIN to Fail File' :
+                                                    'Roll back last ASIN from Purchases'
                                         }
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3036,10 +3320,10 @@ export default function ValidationPage() {
 
                                                 {columnOrder.map((col_key) => {
                                                     // Tab-specific visibility
-                                                    if (col_key === 'origin' && activeTab !== 'pass_file' && activeTab !== 'fail_file') return null;
+                                                    if (col_key === 'origin' && activeTab !== 'pass_file' && activeTab !== 'fail_file' && activeTab !== 'reworking') return null;
                                                     if (col_key === 'checklist' && activeTab !== 'pass_file') return null;
                                                     if (col_key === 'reject_reason' && activeTab !== 'reject_file') return null;
-                                                    if (col_key === 'inr_purchase_link' && activeTab !== 'main_file') return null;
+                                                    if (col_key === 'inr_purchase_link' && activeTab !== 'main_file' && activeTab !== 'reworking') return null;
 
                                                     // visibleColumns check for standard columns
                                                     const visKey = col_key as keyof typeof visibleColumns;
