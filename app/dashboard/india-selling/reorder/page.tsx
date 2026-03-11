@@ -4,7 +4,6 @@ import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
-import { getIndiaTrackingTableName } from '@/lib/utils';
 import * as XLSX from 'xlsx'
 import {
   Loader2,
@@ -79,11 +78,11 @@ type Seller = {
 
 // Configured Sellers
 const SELLERS: Seller[] = [
-  { id: 1, name: "Golden Aura", table_suffix: "seller_1", tag: "GA", emoji: "✨", activeColor: "bg-amber-500", activeShadow: "shadow-amber-500/40" },
+  { id: 1, name: "Golden Aura", table_suffix: "seller_1", tag: "GR", emoji: "✨", activeColor: "bg-amber-500", activeShadow: "shadow-amber-500/40" },
   { id: 2, name: "Rudra Retail", table_suffix: "seller_2", tag: "RR", emoji: "🔴", activeColor: "bg-red-600", activeShadow: "shadow-red-500/40" },
   { id: 3, name: "UBeauty", table_suffix: "seller_3", tag: "UB", emoji: "💅", activeColor: "bg-pink-500", activeShadow: "shadow-pink-500/40" },
   { id: 4, name: "Velvet Vista", table_suffix: "seller_4", tag: "VV", emoji: "💜", activeColor: "bg-violet-600", activeShadow: "shadow-violet-500/40" },
-  { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DC", emoji: "🟠", activeColor: "bg-orange-500", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
+  { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DE", emoji: "🟠", activeColor: "bg-orange-500", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
   { id: 6, name: "Costech Ventures", table_suffix: "seller_6", tag: "CV", emoji: "🟢", activeColor: "bg-green-600", activeShadow: "shadow-green-500/40" },  // ✅ NEW
 ];
 
@@ -476,201 +475,116 @@ export default function ReorderPage() {
     }
   }
 
-
-  // --- 4. Recalculate Logic ---
-  // const handleRecalculate = async () => {
-  //   try {
-  //     setProcessing(true)
-
-  //     const { data: trackingData, error: trackError } = await supabase
-  //       .from('india_traking')
-  //       .select('asin, buying_quantity')
-
-  //     if (trackError) throw trackError
-
-  //     const incomingMap: Record<string, number> = {}
-  //     trackingData?.forEach(t => {
-  //       const qty = t.buying_quantity || 0
-  //       if (!incomingMap[t.asin]) incomingMap[t.asin] = 0
-  //       incomingMap[t.asin] += qty
-  //     })
-
-  //     const { data: currentReorderData } = await supabase
-  //       .from(`india_reorder_${activeSeller.table_suffix}`)
-  //       .select('*')
-
-  //     if (!currentReorderData) return
-
-  //     const updates = currentReorderData.map(p => {
-  //       const target = p.admin_target_qty || 0
-  //       const current = p.current_qty || 0
-  //       const incoming = incomingMap[p.asin] || 0
-
-  //       const deficit = target - current
-  //       let finalReorder = 0
-  //       let status: 'Safe' | 'Covered' | 'Reorder' = 'Safe'
-  //       let isInFinalReorder = false
-
-  //       if (deficit > 0) {
-  //         finalReorder = Math.max(0, deficit - incoming)
-  //         if (finalReorder > 0) {
-  //           status = 'Reorder'
-  //           isInFinalReorder = true
-  //         } else {
-  //           status = 'Covered'
-  //           isInFinalReorder = false
-  //         }
-  //       } else {
-  //         status = 'Safe'
-  //         isInFinalReorder = false
-  //       }
-
-  //       return {
-  //         id: p.id,
-  //         tracking_qty: incoming,
-  //         final_reorder_qty: finalReorder,
-  //         status: status,
-  //         is_in_final_reorder: isInFinalReorder
-  //       }
-  //     })
-
-  //     const updatePromises = updates.map(u =>
-  //       supabase
-  //         .from(`india_reorder_${activeSeller.table_suffix}`)
-  //         .update({
-  //           tracking_qty: u.tracking_qty,
-  //           final_reorder_qty: u.final_reorder_qty,
-  //           status: u.status,
-  //           is_in_final_reorder: u.is_in_final_reorder
-  //         })
-  //         .eq('id', u.id)
-  //     )
-
-  //     await Promise.all(updatePromises)
-  //     fetchReorderData()
-
-  //   } catch (err: any) {
-  //     alert('Calculation failed: ' + err.message)
-  //   } finally {
-  //     setProcessing(false)
-  //   }
-  // }
-  // --- 4. Recalculate Logic (✅ UPDATED: Checks ALL 5 Tracking Tables) ---
+  // --- 4. Recalculate Logic (✅ UPDATED: Checks new tracking tables) ---
   const handleRecalculate = async () => {
     try {
       setProcessing(true)
 
-      // ✅ NEW: Helper function to get tracking quantity across ALL tables
-      // ✅ NEW: Helper function to get tracking quantity across ALL tables
-      const getTrackingQuantityForAsin = async (asin: string, sellerTag: string): Promise<number> => {
-        // 🔴 NEW LOGIC: Check tables in reverse priority - count from HIGHEST stage only
+      const sellerTag = activeSeller.tag  // e.g. 'GR', 'RR', etc.
 
-        const sellerIdMap: Record<string, number> = {
-          'GA': 1, 'GR': 1,
-          'RR': 2,
-          'UB': 3,
-          'VV': 4,
-          'DE': 5,
-          'CV': 6,
-        }
-
-        const sellerId = sellerIdMap[sellerTag] || activeSeller.id
-
-        // ✅ PRIORITY ORDER: Check from final stage backward
-        const tablesToCheck = [
-          // { name: getIndiaTrackingTableName('VYAPAR', sellerId), priority: 5 },      // ✅ CHANGED
-          { name: getIndiaTrackingTableName('SHIPMENT', sellerId), priority: 4 },    // ✅ CHANGED
-          { name: getIndiaTrackingTableName('CHECKING', sellerId), priority: 3 },    // ✅ CHANGED
-          { name: getIndiaTrackingTableName('INVOICE', sellerId), priority: 2 },     // ✅ CHANGED
-          { name: getIndiaTrackingTableName('MAIN', sellerId), priority: 1 }                   // ✅ Already correct
-        ];
-
-        console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
-
-        // ✅ Find the HIGHEST stage where this ASIN exists
-        let foundInTable = null
-        let totalQty = 0
-
-        for (const table of tablesToCheck) {
-          try {
-            const { data, error } = await supabase
-              .from(table.name)
-              .select('buying_quantity')
-              .eq('asin', asin)
-
-            if (error) {
-              console.warn(`⚠️ Error querying ${table.name}:`, error.message)
-              continue
-            }
-
-            if (data && data.length > 0) {
-              const tableQty = data.reduce((sum: number, row: any) => {
-                const qty = row.buying_quantity || 0
-                return sum + qty
-              }, 0)
-
-              if (tableQty > 0) {
-                // ✅ Found in this stage - use ONLY this quantity
-                totalQty = tableQty
-                foundInTable = table.name
-                console.log(`  ✅ Found in ${table.name}: ${tableQty} units (Priority ${table.priority})`)
-                break  // 🔴 STOP - Don't check lower stages
-              }
-            }
-          } catch (err) {
-            console.warn(`⚠️ Failed to query ${table.name}:`, err)
-          }
-        }
-
-        if (foundInTable) {
-          console.log(`📊 FINAL tracking for ${asin}: ${totalQty} units from ${foundInTable}\n`)
-        } else {
-          console.log(`📊 No tracking found for ${asin}\n`)
-        }
-
-        return totalQty
-      }
-
-      // Fetch current reorder data
+      // ✅ Fetch current reorder data
       const { data: currentReorderData } = await supabase
         .from(`india_reorder_${activeSeller.table_suffix}`)
         .select('*')
 
-      if (!currentReorderData) return
-
-      // ✅ NEW: Build incoming map by checking ALL tracking tables
-      console.log('🚀 Starting tracking calculation for all products...\n')
-
-      const incomingMap: Record<string, number> = {}
-
-      // Get unique ASINs with their seller tags
-      const asinSellerMap = new Map<string, string>()
-
-      // First, we need to get seller_tag for each ASIN from the tracking main table
-      const { data: mainFileData } = await supabase
-        .from('india_traking')
-        .select('asin, sellertag')
-
-      mainFileData?.forEach(item => {
-        if (item.asin && item.sellertag) {
-          asinSellerMap.set(item.asin, item.sellertag)
-        }
-      })
-
-      // Calculate tracking quantity for each product
-      for (const product of currentReorderData) {
-        const sellerTag = asinSellerMap.get(product.asin) || activeSeller.tag
-        const qty = await getTrackingQuantityForAsin(product.asin, sellerTag)
-        incomingMap[product.asin] = qty
+      if (!currentReorderData || currentReorderData.length === 0) {
+        alert('No products in reorder table.')
+        return
       }
 
-      console.log('✅ Tracking calculation complete!\n')
+      console.log(`🚀 Recalculating for ${activeSeller.name} (${sellerTag})...`)
 
-      // Calculate reorder quantities
+      // ✅ Build tracking quantity map by summing across ALL 4 pipeline tables
+      const trackingMap: Record<string, number> = {}
+
+      const addToMap = (asin: string, qty: number) => {
+        if (!asin || qty <= 0) return
+        const key = asin.trim().toUpperCase()
+        trackingMap[key] = (trackingMap[key] || 0) + qty
+      }
+
+      // ✅ Helper: For shared tables with possible comma-separated seller_tag,
+      // calculate this seller's share of buying_quantity
+      const getSellerShare = (rowSellerTag: string, buyingQty: number): number => {
+        if (!rowSellerTag || !buyingQty) return 0
+        const tags = rowSellerTag.split(',').map(t => t.trim().toUpperCase())
+        if (!tags.includes(sellerTag)) return 0
+        // If single seller tag, full qty. If comma-separated, divide equally.
+        return Math.floor(buyingQty / tags.length)
+      }
+
+      // --- Table 1: india_inbound_tracking (shared) ---
+      {
+        const { data, error } = await supabase
+          .from('india_inbound_tracking')
+          .select('asin, buying_quantity, seller_tag')
+          .like('seller_tag', `%${sellerTag}%`)
+
+        if (error) console.warn('⚠️ Error querying india_inbound_tracking:', error.message)
+        else {
+          data?.forEach(row => {
+            const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
+            addToMap(row.asin, share)
+          })
+          console.log(`  📦 Inbound: ${data?.length || 0} rows matched for ${sellerTag}`)
+        }
+      }
+
+      // --- Table 2: india_inbound_boxes (shared) ---
+      {
+        const { data, error } = await supabase
+          .from('india_inbound_boxes')
+          .select('asin, buying_quantity, seller_tag')
+          .like('seller_tag', `%${sellerTag}%`)
+
+        if (error) console.warn('⚠️ Error querying india_inbound_boxes:', error.message)
+        else {
+          data?.forEach(row => {
+            const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
+            addToMap(row.asin, share)
+          })
+          console.log(`  📦 Boxes: ${data?.length || 0} rows matched for ${sellerTag}`)
+        }
+      }
+
+      // --- Table 3: india_box_checking (shared) ---
+      {
+        const { data, error } = await supabase
+          .from('india_box_checking')
+          .select('asin, buying_quantity, seller_tag')
+          .like('seller_tag', `%${sellerTag}%`)
+
+        if (error) console.warn('⚠️ Error querying india_box_checking:', error.message)
+        else {
+          data?.forEach(row => {
+            const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
+            addToMap(row.asin, share)
+          })
+          console.log(`  📦 Checking: ${data?.length || 0} rows matched for ${sellerTag}`)
+        }
+      }
+
+      // --- Table 4: india_restock_seller_X (per-seller, no split needed) ---
+      {
+        const restockTable = `india_restock_${activeSeller.table_suffix}`
+        const { data, error } = await supabase
+          .from(restockTable)
+          .select('asin, buying_quantity')
+
+        if (error) console.warn(`⚠️ Error querying ${restockTable}:`, error.message)
+        else {
+          data?.forEach(row => addToMap(row.asin, row.buying_quantity || 0))
+          console.log(`  📦 Restock: ${data?.length || 0} rows`)
+        }
+      }
+
+      console.log('✅ Tracking map built:', Object.keys(trackingMap).length, 'unique ASINs')
+
+      // ✅ Calculate reorder quantities
       const updates = currentReorderData.map(p => {
         const target = p.admin_target_qty || 0
         const current = p.current_qty || 0
-        const incoming = incomingMap[p.asin] || 0
+        const incoming = trackingMap[p.asin?.trim().toUpperCase()] || 0
 
         const deficit = target - current
         let finalReorder = 0
@@ -700,7 +614,7 @@ export default function ReorderPage() {
         }
       })
 
-      // Update database
+      // ✅ Update database
       const updatePromises = updates.map(u =>
         supabase
           .from(`india_reorder_${activeSeller.table_suffix}`)
@@ -716,8 +630,7 @@ export default function ReorderPage() {
       await Promise.all(updatePromises)
       fetchReorderData()
 
-      alert('✅ Calculation complete! Tracking data aggregated from all 5 tables.');
-      // ✅ ADD THIS:
+      alert(`✅ Calculation complete! Tracked ${Object.keys(trackingMap).length} ASINs across Inbound → Boxes → Checking → Restock.`);
       logActivity({
         action: 'submit',
         marketplace: 'india',
@@ -733,6 +646,7 @@ export default function ReorderPage() {
       setProcessing(false)
     }
   }
+
   // --- 5. Update Target Qty ---
   const updateTargetQty = async (id: string, newTarget: number) => {
     const product = products.find(p => p.id === id)
@@ -832,7 +746,7 @@ export default function ReorderPage() {
       // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
       const { data: masterData, error: fetchError } = await supabase
         .from('india_validation_main_file')
-        .select('brand, seller_tag, funnel, origin, product_name, india_link')
+        .select('brand, seller_tag, funnel, origin, product_name, india_link, sku')
         .eq('asin', product.asin)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -865,7 +779,7 @@ export default function ReorderPage() {
           origin: masterData?.origin || 'India', // Default to India if unknown
           india_link: masterData?.india_link || product.seller_link,
           remark: product.remark ?? null,
-          sku: product.sku ?? null,
+          sku: masterData?.sku || product.sku || null,
           // Reset operational fields
           no_of_seller: 1,
           sent_to_purchases: false,

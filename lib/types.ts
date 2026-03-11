@@ -50,7 +50,7 @@ export type PermissionKey =
   | 'view-purchases'
   | 'view-reorder'
   | 'view-tracking'
-
+  | 'view-restock'
 
   // System
   | 'admin-access'

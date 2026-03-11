@@ -10,6 +10,7 @@ const ROLE_OPTIONS = [
     { value: 'brand-checking', label: 'Brand Checking', color: 'bg-blue-500' },
     { value: 'listing-error', label: 'Listing Error', color: 'bg-rose-500' },
     { value: 'tracking', label: 'Tracking', color: 'bg-cyan-500' },
+    { value: 'restock', label: 'Restock', color: 'bg-teal-500' },
     { value: 'reorder', label: 'Reorder', color: 'bg-orange-500' },
     { value: 'viewer', label: 'Viewer', color: 'bg-slate-500' },
 ];
@@ -25,13 +26,14 @@ const MARKETPLACE_OPTIONS = [
 
 // Maps role → which page permission keys to auto-grant
 const ROLE_PAGE_MAP: Record<string, string[]> = {
-    'admin': [], // admin bypasses all
+    'admin': [],
     'validation': ['view-validation'],
     'purchase': ['view-purchases'],
     'brand-checking': ['view-brand-checking'],
     'listing-error': ['view-listing-errors'],
     'tracking': ['view-tracking'],
-    'reorder': ['view-reorder'],
+    'restock': ['view-restock'],
+    'reorder': ['view-reorder'],          // unchanged — stays alone
     'viewer': [],
 };
 
@@ -218,9 +220,9 @@ export default function CreateUserModal({ open, onClose, onSuccess }: CreateUser
                                     key={opt.value}
                                     onClick={() => {
                                         setForm({ ...form, role: opt.value });
-                                        // Auto-add this role's page permissions
+                                        // Replace page selections with this role's default pages
                                         const rolePages = ROLE_PAGE_MAP[opt.value] || [];
-                                        setSelectedPages(prev => [...new Set([...prev, ...rolePages])]);
+                                        setSelectedPages([...rolePages]);
                                     }}
                                     className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${form.role === opt.value
                                         ? `${opt.color} text-white border-transparent shadow-lg`
@@ -290,6 +292,7 @@ export default function CreateUserModal({ open, onClose, onSuccess }: CreateUser
                                     { value: 'view-purchases', label: 'Purchases', color: 'bg-emerald-500' },
                                     { value: 'view-tracking', label: 'Tracking', color: 'bg-cyan-500' },
                                     { value: 'view-reorder', label: 'Reorder', color: 'bg-orange-500' },
+                                    { value: 'view-restock', label: 'Restock', color: 'bg-teal-500' },
                                 ].map((pg) => (
                                     <button
                                         key={pg.value}
@@ -301,8 +304,8 @@ export default function CreateUserModal({ open, onClose, onSuccess }: CreateUser
                                             );
                                         }}
                                         className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border ${selectedPages.includes(pg.value)
-                                                ? `${pg.color} text-white border-transparent shadow-lg`
-                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
+                                            ? `${pg.color} text-white border-transparent shadow-lg`
+                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
                                             }`}
                                     >
                                         {pg.label}

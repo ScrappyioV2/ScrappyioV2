@@ -47,14 +47,16 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
       };
 
       const promises = SELLERS.map(async (seller) => {
-        const tabs = ['high_demand', 'low_demand', 'dropshipping'];
-        let bcPending = 0;
-        for (const tab of tabs) {
-          const { count } = await supabase
-            .from(`india_seller_${seller.id}_${tab}`)
-            .select('*', { count: 'exact', head: true });
-          bcPending += count || 0;
-        }
+        const { data: bcData } = await supabase
+          .from('india_brand_check_progress')
+          .select('total, approved, notapproved')
+          .eq('sellerid', seller.id)
+          .single();
+
+        const bcTotal = bcData?.total || 0;
+        const bcApproved = bcData?.approved || 0;
+        const bcNotApproved = bcData?.notapproved || 0;
+        const bcPending = bcTotal - bcApproved - bcNotApproved;
 
         const { count: valPending } = await supabase
           .from('india_validation_main_file')
@@ -93,7 +95,7 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
         return {
           id: seller.id,
           name: seller.name,
-          brandChecking: { pending: bcPending },
+          brandChecking: { pending: bcPending, approved: bcApproved, notApproved: bcNotApproved, total: bcTotal },
           validation: { pending: valPending || 0, passed: valPassed || 0, failed: valFailed || 0 },
           listing: { errors: listErrors || 0 },
           purchasing: { pending: purchPending || 0, completed: purchDone || 0 }
@@ -102,7 +104,13 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
 
       const results = await Promise.all(promises);
 
-      newStats.brandChecking.sellers = results.map(r => ({ id: r.id, pending: r.brandChecking.pending }));
+      newStats.brandChecking.sellers = results.map(r => ({
+        id: r.id,
+        pending: r.brandChecking.pending,
+        approved: r.brandChecking.approved,
+        notApproved: r.brandChecking.notApproved,
+        total: r.brandChecking.total,
+      }));
       newStats.validation.sellers = results.map(r => ({ id: r.id, pending: r.validation.pending, approved: r.validation.passed, notApproved: r.validation.failed }));
       newStats.listing.sellers = results.map(r => ({ id: r.id, notApproved: r.listing.errors }));
       newStats.purchasing.sellers = results.map(r => ({ id: r.id, approved: r.purchasing.completed, pending: r.purchasing.pending }));
@@ -126,16 +134,49 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
 
     const channel = supabase
       .channel('india-dashboard-stats-changes')
+      // VALIDATION
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'india_validation_main_file' },
-        () => fetchStats(true)  // Always silent on realtime
+        () => fetchStats(true)
       )
+
+      // PURCHASING
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'india_purchases' },
-        () => fetchStats(true)  // Always silent on realtime
+        () => fetchStats(true)
       )
+
+      // BRAND CHECKING (progress table)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'india_brand_check_progress' },
+        () => fetchStats(true)
+      )
+
+      // LISTING ERRORS
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'india_listing_error_seller_1_error' },
+        () => fetchStats(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'india_listing_error_seller_2_error' },
+        () => fetchStats(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'india_listing_error_seller_3_error' },
+        () => fetchStats(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'india_listing_error_seller_4_error' },
+        () => fetchStats(true)
+      )
+
       .subscribe();
 
     const handleVisibilityChange = () => {

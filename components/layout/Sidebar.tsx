@@ -68,9 +68,12 @@ export default function Sidebar() {
       {/* User Role Badge */}
       {userRole && (
         <div className="px-4 py-2 border-b border-slate-800">
+          {userRole.full_name && (
+            <p className="text-xs text-slate-400 mb-1 truncate">{userRole.full_name}</p>
+          )}
           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
             <ShieldCheck className="w-3 h-3" />
-            {String(userRole)}
+            {userRole.role}
           </span>
         </div>
       )}

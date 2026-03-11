@@ -19,6 +19,7 @@ import {
 import { AppRoute } from '@/lib/types';
 
 
+
 export const APP_ROUTES: AppRoute[] = [
   // --- 0. MAIN DASHBOARD ---
   {
@@ -28,6 +29,7 @@ export const APP_ROUTES: AppRoute[] = [
     permission: 'public',
     subRoutes: []
   },
+
 
 
   // --- 1. General Management ---
@@ -81,6 +83,7 @@ export const APP_ROUTES: AppRoute[] = [
       }
     ]
   },
+
 
 
   // --- 2. USA Marketplace ---
@@ -148,6 +151,7 @@ export const APP_ROUTES: AppRoute[] = [
   },
 
 
+
   // --- 3. India Marketplace ---
   {
     path: '/dashboard/india-selling',
@@ -201,6 +205,21 @@ export const APP_ROUTES: AppRoute[] = [
         permission: 'view-tracking',
         icon: Truck
       },
+      // ✅ NEW — Restock (Inbound pipeline final stage, seller-wise)
+      {
+        path: '/dashboard/india-selling/restock',
+        label: 'Restock',
+        permission: 'view-restock',    // ← CHANGED from 'view-tracking'
+        icon: Package,
+        subRoutes: [
+          { path: '/dashboard/india-selling/restock/golden-aura', label: 'Golden Aura', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/rudra-retail', label: 'Rudra Retail', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/ubeauty', label: 'UBeauty', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/velvet-vista', label: 'Velvet Vista', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/dropy-ecom', label: 'Dropy Ecom', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/costech-ventures', label: 'Costech Ventures', permission: 'view-restock' }
+        ]
+      },
       {
         path: '/dashboard/india-selling/reorder',
         label: 'Reorder',
@@ -215,6 +234,7 @@ export const APP_ROUTES: AppRoute[] = [
       },
     ]
   },
+
 
 
   // --- 4. UK Marketplace ---
@@ -282,6 +302,7 @@ export const APP_ROUTES: AppRoute[] = [
   },
 
 
+
   // --- 5. UAE Marketplace ---
   {
     path: '/dashboard/uae-selling',
@@ -346,7 +367,8 @@ export const APP_ROUTES: AppRoute[] = [
     ]
   },
 
-  // --- 6. FLIPKART MARKETPLACE (✅ ALL LEVELS INCLUDED) ---
+
+  // --- 6. FLIPKART MARKETPLACE ---
   {
     path: '/dashboard/flipkart',
     label: 'Flipkart',
@@ -359,7 +381,6 @@ export const APP_ROUTES: AppRoute[] = [
         permission: 'view-brand-checking',
         icon: ShieldCheck,
         subRoutes: [
-          // ✅ LEVEL 1: Selector Pages (with Listed/Not Listed buttons)
           { path: '/dashboard/flipkart/brand-checking/golden-aura', label: 'Golden Aura (Select)', permission: 'view-brand-checking' },
           { path: '/dashboard/flipkart/brand-checking/rudra-retail', label: 'Rudra Retail (Select)', permission: 'view-brand-checking' },
           { path: '/dashboard/flipkart/brand-checking/ubeauty', label: 'UBeauty (Select)', permission: 'view-brand-checking' },
@@ -442,6 +463,7 @@ export const APP_ROUTES: AppRoute[] = [
       },
     ]
   },
+
 
 
   // --- 7. JioMart ---

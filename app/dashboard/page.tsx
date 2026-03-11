@@ -31,10 +31,14 @@ const PAGE_PERMISSIONS = [
   { key: 'view-purchases', label: 'Purchases' },
   { key: 'view-tracking', label: 'Tracking' },
   { key: 'view-reorder', label: 'Reorder' },
+  { key: 'view-restock', label: 'Restock' },        // ← ADD THIS
   { key: 'admin-access', label: 'Admin Approvals' },
 ];
 
-const ROLE_OPTIONS = ['admin', 'validation', 'purchase', 'brand-checking', 'listing-error', 'tracking', 'reorder', 'viewer'];
+const ROLE_OPTIONS = [
+  'admin', 'validation', 'purchase', 'brand-checking',
+  'listing-error', 'tracking', 'restock', 'reorder', 'viewer'
+];
 const formatRole = (role: string) => {
   const map: Record<string, string> = {
     'brand-checking': 'BRAND CHECKING',

@@ -158,7 +158,7 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
   }
 
   // ✅ FRONTEND BATCHING: Split into chunks to avoid timeout
-  const FRONTEND_BATCH_SIZE = 5000; // Each RPC call handles max 5k records
+  const FRONTEND_BATCH_SIZE = 5000;; // Each RPC call handles max 5k records
   const totalRecords = rows.length;
   const numBatches = Math.ceil(totalRecords / FRONTEND_BATCH_SIZE);
 

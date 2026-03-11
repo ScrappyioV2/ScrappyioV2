@@ -29,6 +29,7 @@ type PassFileProduct = {
   inr_purchase_link?: string | null  // ✅ Underscore
   buying_price: number | null  // ✅ Underscore
   buying_quantity: number | null  // ✅ Underscore
+  buying_quantities?: Record<string, number> | null;
   seller_link: string | null  // ✅ Underscore
   seller_phone: string | null  // ✅ Underscore
   payment_method: string | null  // ✅ Underscore
@@ -428,7 +429,7 @@ export default function PurchasesPage() {
         return (
           <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.funnelseller }}>
             {product.validation_seller_tag ? (
-              <div className="flex flex-wrap items-center gap-0.5">
+              <div className="grid grid-cols-3 gap-0.5">
                 {product.validation_seller_tag.split(',').map((tag: string) => {
                   const cleanTag = tag.trim();
                   let badgeColor = 'bg-slate-700 text-white';
@@ -436,7 +437,9 @@ export default function PurchasesPage() {
                   else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-slate-600';
                   else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white border border-pink-600';
                   else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
-                  return <span key={cleanTag} className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold ${badgeColor}`}>{cleanTag}</span>;
+                  else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black border border-cyan-600';
+                  else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white border border-teal-600';
+                  return <span key={cleanTag} className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${badgeColor}`}>{cleanTag}</span>;
                 })}
               </div>
             ) : <span className="text-xs text-slate-600">-</span>}
@@ -483,15 +486,89 @@ export default function PurchasesPage() {
 
       case 'buyingquantity':
         if (!visibleColumns.buyingquantity) return null;
+
+        // Extract seller tags for this product
+        const qtySellerTags = product.validation_seller_tag
+          ? product.validation_seller_tag
+            .split(',')
+            .map((t: string) => t.trim())
+            .filter(Boolean)
+          : [];
+
+        // ── Single / no seller tag → original single input ──
+        if (qtySellerTags.length <= 1) {
+          return (
+            <td key={colkey} className="px-3 py-2 overflow-hidden"
+              style={{ width: columnWidths.buyingquantity }}>
+              <input
+                type="number"
+                defaultValue={product.buying_quantity ?? ''}
+                onBlur={(e) =>
+                  handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))
+                }
+                className="w-14 min-w-[3rem] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                placeholder="Qty"
+              />
+            </td>
+          );
+        }
+
+        // ── Multiple seller tags → per-seller controlled inputs ──
+        const perSellerQty: Record<string, number> =
+          (product.buying_quantities as Record<string, number>) ?? {};
+
+        const qtyTagColors: Record<string, string> = {
+          GR: 'bg-yellow-500 text-black border border-yellow-600',
+          RR: 'bg-slate-500 text-white border border-slate-600',
+          UB: 'bg-pink-500 text-white border border-pink-600',
+          VV: 'bg-purple-500 text-white border border-purple-600',
+          DE: 'bg-cyan-500 text-black border border-cyan-600',
+          CV: 'bg-teal-500 text-white border border-teal-600',
+        };
+
         return (
-          <td key={colkey} className="px-3 py-2 overflow-hidden" style={{ width: columnWidths.buyingquantity }}>
-            <input
-              type="number"
-              defaultValue={product.buying_quantity ?? ''}
-              onBlur={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-              className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-              placeholder="Qty"
-            />
+          <td key={colkey} className="px-2 py-1.5 overflow-hidden"
+            style={{ width: columnWidths.buyingquantity }}>
+            <div className="grid grid-cols-2 gap-x-1.5 gap-y-1">
+              {qtySellerTags.map((tag: string) => (
+                <div key={tag} className="flex items-center gap-0.5">
+                  <span
+                    className={`w-5 h-4 flex items-center justify-center rounded text-[9px] font-bold flex-shrink-0 ${qtyTagColors[tag] ?? 'bg-slate-700 text-white'}`}
+                  >
+                    {tag}
+                  </span>
+                  <input
+                    type="number"
+                    value={(product.buying_quantities as any)?.[tag] !== undefined && (product.buying_quantities as any)?.[tag] !== null ? String((product.buying_quantities as any)[tag]) : ''}
+                    onChange={(e) => {
+                      const newVal = e.target.value;
+                      setProducts((prev) =>
+                        prev.map((p) => {
+                          if (p.id !== product.id) return p;
+                          const updated = { ...(p.buying_quantities as Record<string, number>) ?? {} };
+                          if (newVal === '') {
+                            delete updated[tag];
+                          } else {
+                            updated[tag] = parseInt(newVal) || 0;
+                          }
+                          return { ...p, buying_quantities: updated };
+                        })
+                      );
+                    }}
+                    onBlur={(e) =>
+                      handlePerSellerQtyEdit(
+                        product.id,
+                        tag,
+                        parseInt(e.target.value),
+                        product
+                      )
+                    }
+                    className="w-full px-1 py-0.5 bg-slate-950 border border-slate-700 rounded text-[11px] text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="0"
+                  />
+                </div>
+              ))}
+            </div>
           </td>
         );
 
@@ -594,7 +671,13 @@ export default function PurchasesPage() {
               <input
                 type="date"
                 defaultValue={product.delivery_date ?? ''}
-                onBlur={(e) => handleCellEdit(product.id, 'deliverydate', e.target.value)}
+                min="2020-01-01"
+                max="2099-12-31"
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  if (val && val.split('-')[0].length !== 4) { e.target.value = product.delivery_date ?? ''; return; }
+                  handleCellEdit(product.id, 'deliverydate', val);
+                }}
                 className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
@@ -610,7 +693,13 @@ export default function PurchasesPage() {
               <input
                 type="date"
                 defaultValue={product.order_date ?? ''}
-                onBlur={(e) => handleCellEdit(product.id, 'orderdate', e.target.value)}
+                min="2020-01-01"
+                max="2099-12-31"
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  if (val && val.split('-')[0].length !== 4) { e.target.value = product.order_date ?? ''; return; }
+                  handleCellEdit(product.id, 'orderdate', val);
+                }}
                 className="w-full px-2 py-1 bg-slate-950 border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             ) : <span className="text-xs text-slate-500 italic">After confirmation</span>}
@@ -711,6 +800,7 @@ export default function PurchasesPage() {
           // Ensure these are passed for other calculations
           profit: validationData?.profit ?? null,
           sku: product.sku ?? validationData?.sku ?? null,
+          buying_quantities: product.buying_quantities ?? {},
         }
       })
 
@@ -778,6 +868,7 @@ export default function PurchasesPage() {
           inr_purchase_from_validation: validationData?.inr_purchase ?? null,
           profit: validationData?.profit ?? null,
           sku: product.sku ?? validationData?.sku ?? null,
+          buying_quantities: product.buying_quantities ?? {},
           total_cost: validationData?.total_cost ?? null,        // <--- Added
           total_revenue: validationData?.total_revenue ?? null,
         }
@@ -857,11 +948,11 @@ export default function PurchasesPage() {
     // targetquantity: 55,
     admintargetprice: 80,
     funnelquantity: 45,
-    funnelseller: 55,
+    funnelseller: 95,
     inrpurchaselink: 55,
     origin: 60,
     buyingprice: 75,
-    buyingquantity: 80,
+    buyingquantity: 140,
     sellerlink: 75,
     sellerphno: 85,
     paymentmethod: 85,
@@ -876,8 +967,42 @@ export default function PurchasesPage() {
   // Handle sending to admin validation
   const handleSendToAdmin = async (product: PassFileProduct) => {
     try {
+      // ─────────────────────────────────────────────
+      // 🆕 STEP 0: SPLIT SELLER TAGS BY QUANTITY
+      // ─────────────────────────────────────────────
+      const allSellerTags: string[] = product.validation_seller_tag
+        ? product.validation_seller_tag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean)
+        : [];
+      const buyingQuantities = (product.buying_quantities || {}) as Record<string, number>;
+
+      let tagsToMove: string[] = [];
+      let tagsToKeep: string[] = [];
+
+      if (allSellerTags.length <= 1) {
+        // Single tag or no tag → always move (original behavior)
+        tagsToMove = allSellerTags.length > 0 ? [...allSellerTags] : [];
+      } else {
+        // Multiple seller tags → check each tag's quantity
+        for (const tag of allSellerTags) {
+          const qty = buyingQuantities[tag];
+          if (qty !== undefined && qty !== null && qty > 0) {
+            tagsToMove.push(tag);
+          } else {
+            tagsToKeep.push(tag);
+          }
+        }
+
+        // Edge case: ALL tags have zero qty → block
+        if (tagsToMove.length === 0) {
+          showToast('No seller tags have quantity > 0. Please enter quantities first.', 'error');
+          return;
+        }
+      }
+
+      console.log('Tags sending to admin:', tagsToMove);
+      console.log('Tags staying in purchases (qty=0):', tagsToKeep);
+
       // SAVE TO HISTORY FIRST!
-      // ✅ SAVE TO CURRENT TAB HISTORY
       setMovementHistory(prev => ({
         ...prev,
         [activeTab]: {
@@ -886,27 +1011,25 @@ export default function PurchasesPage() {
           toStatus: 'not_found',
           wasAdminConfirmed: product.admin_confirmed === true,
         },
-      }))
+      }));
 
       // 🆕 Fetch profit matching BOTH asin AND journey_id
       let validationData = null;
 
       if (product.journey_id) {
-        // Try to match by journey_id first (most accurate)
         const { data } = await supabase
           .from('india_validation_main_file')
-          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price,remark')
+          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price, remark')
           .eq('asin', product.asin)
           .eq('current_journey_id', product.journey_id)
           .maybeSingle();
         validationData = data;
       }
 
-      // Fallback: If no journey match, get latest by asin
       if (!validationData) {
         const { data } = await supabase
           .from('india_validation_main_file')
-          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price,remark')
+          .select('profit, total_cost, total_revenue, inr_purchase, product_weight, usd_price, remark')
           .eq('asin', product.asin)
           .order('journey_number', { ascending: false })
           .limit(1)
@@ -914,15 +1037,21 @@ export default function PurchasesPage() {
         validationData = data;
       }
 
-      // Build origin text based on checkboxes for trigger
-      const originParts = []
-      if (product.origin_india) originParts.push('India')
-      if (product.origin_china) originParts.push('China')
+      // Build origin text
+      const originParts: string[] = [];
+      if (product.origin_india) originParts.push('India');
+      if (product.origin_china) originParts.push('China');
       if (product.origin_us) originParts.push('US');
+      const originText = originParts.length > 0 ? originParts.join(', ') : 'India';
 
-      const originText = originParts.length > 0 ? originParts.join(', ') : 'India'
+      // 🆕 Build buying_quantities for ONLY the tags being moved
+      const movedQties: Record<string, number> = {};
+      for (const tag of tagsToMove) {
+        movedQties[tag] = buyingQuantities[tag] || 0;
+      }
+      const movedTotalQty = Object.values(movedQties).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
-      // Insert into admin validation - ONLY fields that exist in schema
+      // Insert into admin validation
       const { error: insertError } = await supabase
         .from('india_admin_validation')
         .insert({
@@ -933,17 +1062,19 @@ export default function PurchasesPage() {
 
           // Target pricing from validation
           target_price: validationData?.inr_purchase || null,
-          // target_quantity: 1,
           target_price_validation: validationData?.inr_purchase || null,
           target_price_link_validation: product.inr_purchase_link || null,
 
           // Funnel & Seller
           funnel: product.validation_funnel ? Number(product.validation_funnel) : null,
-          seller_tag: product.validation_seller_tag || null,
+          // 🆕 Only send the tags that have qty > 0
+          seller_tag: tagsToMove.length > 0 ? tagsToMove.join(', ') : (product.validation_seller_tag || null),
 
-          // Buying info (manual entry fields - set to null initially)
-          buying_price: null,
-          buying_quantity: null,
+          // Buying info
+          buying_price: product.buying_price ?? null,
+          // 🆕 Only qty for moved tags
+          buying_quantity: allSellerTags.length > 1 ? movedTotalQty : (product.buying_quantity ?? null),
+          buying_quantities: allSellerTags.length > 1 ? movedQties : (product.buying_quantities ?? {}),
           seller_link: null,
           seller_phone: product.seller_phone || '',
           payment_method: product.payment_method || '',
@@ -952,7 +1083,7 @@ export default function PurchasesPage() {
           origin_india: product.origin_india ?? false,
           origin_china: product.origin_china ?? false,
           origin_us: product.origin_us ?? false,
-          origin: originText,  // Text field for trigger
+          origin: originText,
 
           // INR Purchase Link
           inr_purchase_link: product.inr_purchase_link || null,
@@ -971,45 +1102,87 @@ export default function PurchasesPage() {
 
           // Admin fields
           admin_status: 'pending',
-          admin_target_price: null,  // Admin will fill this
-          admin_target_quantity: null,  // Admin will fill this
+          admin_target_price: null,
+          admin_target_quantity: null,
 
           // Status
           status: 'pending',
-        })
+        });
 
-      if (insertError) throw insertError
+      if (insertError) throw insertError;
 
-      // Update india_purchases
-      const { error: updateError } = await supabase
-        .from('india_purchases')
-        .update({
-          sent_to_admin: true,
-          sent_to_admin_at: new Date().toISOString(),
-        })
-        .eq('id', product.id)
+      // ─────────────────────────────────────────────
+      // 🆕 STEP: CONDITIONAL — Full move or Partial move
+      // ─────────────────────────────────────────────
+      if (tagsToKeep.length === 0) {
+        // ✅ ALL tags moved → mark sent_to_admin (original behavior)
+        const { error: updateError } = await supabase
+          .from('india_purchases')
+          .update({
+            sent_to_admin: true,
+            sent_to_admin_at: new Date().toISOString(),
+          })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
 
-      if (updateError) throw updateError
+        showToast('Sent to Admin Validation', 'success');
 
-      showToast('Sent to Admin Validation', 'success');
-      // ✅ ADD THIS:
+        // Optimistic: immediately hide from all tabs
+        setProducts(prev => prev.map(p =>
+          p.id === product.id ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() } : p
+        ));
+      } else {
+        // 🆕 PARTIAL MOVE — keep zero-qty tags in purchases
+        const remainingQties: Record<string, number> = {};
+        for (const tag of tagsToKeep) {
+          remainingQties[tag] = buyingQuantities[tag] || 0;
+        }
+
+        const { error: updateError } = await supabase
+          .from('india_purchases')
+          .update({
+            seller_tag: tagsToKeep.join(', '),
+            buying_quantities: remainingQties,
+            buying_quantity: 0,
+          })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
+
+        // Also update validation main file to reflect remaining tags
+        if (product.asin) {
+          await supabase
+            .from('india_validation_main_file')
+            .update({ seller_tag: tagsToKeep.join(', ') })
+            .eq('asin', product.asin);
+        }
+
+        showToast(
+          `Sent ${tagsToMove.join(', ')} to Admin. ${tagsToKeep.join(', ')} kept in purchases (qty=0).`,
+          'success'
+        );
+      }
+
+      // Log activity
       logActivity({
         action: 'submit',
         marketplace: 'india',
         page: 'purchases',
         table_name: 'india_admin_validation',
         asin: product.asin,
-        details: { from: activeTab, to: 'admin_validation', funnel: product.validation_funnel }
+        details: {
+          from: activeTab,
+          to: 'admin_validation',
+          funnel: product.validation_funnel,
+          tags_moved: tagsToMove,
+          tags_remaining: tagsToKeep,
+        },
       });
-      // Optimistic: immediately hide from all tabs
-      setProducts(prev => prev.map(p =>
-        p.id === product.id ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() } : p
-      ));
-      await refreshProductsSilently()
+
+      await refreshProductsSilently();
     } catch (error: any) {
-      showToast(`Error: ${error.message}`, 'error')
+      showToast(`Error: ${error.message}`, 'error');
     }
-  }
+  };
 
   // Fetch History for Sidebar
   const fetchHistory = async (asin: string) => {
@@ -1135,6 +1308,90 @@ export default function PurchasesPage() {
         if (deleteError) {
           console.error('Error deleting from admin validation:', deleteError)
         }
+      } else if (toStatus === 'tracking') {
+        // Rollback from tracking → delete from tracking tables, restore in purchases
+        const rawSellerTag = product.seller_tag || '';
+        const sellerTags = rawSellerTag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean);
+        const sellerTagMapping: Record<string, number> = {
+          'GR': 1, 'RR': 2, 'UB': 3, 'VV': 4, 'DE': 5, 'CV': 6
+        };
+
+        // Delete from each tracking table
+        const deletePromises = sellerTags.map(async (tag: string) => {
+          const sellerId = sellerTagMapping[tag] || 1;
+          return supabase
+            .from(`india_tracking_seller_${sellerId}`)
+            .delete()
+            .eq('asin', product.asin)
+            .eq('journey_id', product.journey_id);
+        });
+
+        const deleteResults = await Promise.all(deletePromises);
+        const deleteErrors = deleteResults.filter(r => r.error);
+        if (deleteErrors.length > 0) {
+          console.error('Tracking delete errors:', deleteErrors);
+        }
+
+        // Re-insert into purchases
+        const { error: reinsertError } = await supabase
+          .from('india_purchases')
+          .upsert({
+            id: product.id,
+            asin: product.asin,
+            journey_id: product.journey_id,
+            journey_number: product.journey_number,
+            product_name: product.product_name,
+            product_link: product.product_link,
+            brand: (product as any).brand,
+            target_price: product.target_price,
+            admin_target_price: (product as any).admin_target_price,
+            funnel: product.funnel,
+            seller_tag: product.seller_tag,
+            funnel_seller: (product as any).funnel_seller,
+            buying_price: product.buying_price,
+            buying_quantity: product.buying_quantity,
+            buying_quantities: product.buying_quantities,
+            seller_link: product.seller_link,
+            seller_phone: product.seller_phone,
+            payment_method: product.payment_method,
+            origin: (product as any).origin,
+            origin_india: (product as any).origin_india,
+            origin_china: (product as any).origin_china,
+            origin_us: (product as any).origin_us,
+            tracking_details: (product as any).tracking_details,
+            delivery_date: (product as any).delivery_date,
+            order_date: (product as any).order_date,
+            remark: (product as any).remark,
+            profit: (product as any).profit,
+            product_weight: (product as any).product_weight,
+            usd_price: (product as any).usd_price,
+            inr_purchase: (product as any).inr_purchase,
+            inr_purchase_link: (product as any).inr_purchase_link,
+            sku: (product as any).sku,
+            admin_confirmed: true,
+            status: 'confirmed',
+          }, { onConflict: 'id' });
+
+        if (reinsertError) throw reinsertError;
+
+        // Skip the normal update below — we already handled everything
+        setMovementHistory(prev => {
+          const newHistory = { ...prev };
+          delete newHistory[activeTab];
+          return newHistory;
+        });
+        showToast(`Rolled back ${product.product_name} from tracking`, 'success');
+        logActivity({
+          action: 'rollback',
+          marketplace: 'india',
+          page: 'purchases',
+          table_name: 'india_tracking',
+          asin: product.asin,
+          details: { from: 'tracking', to: 'order_confirmed' }
+        });
+        await refreshProductsSilently();
+        return; // ← Early return to skip the generic update below
+
       } else if (toStatus === 'price_wait' || toStatus === 'not_found') {
         updateData['move_to'] = fromStatus
         if (wasAdminConfirmed) {
@@ -1178,8 +1435,10 @@ export default function PurchasesPage() {
       return;
     }
 
+
     try {
       console.log('🚀 Moving to tracking:', product.asin);
+
 
       // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
       const { data: freshProduct, error: fetchError } = await supabase
@@ -1188,15 +1447,19 @@ export default function PurchasesPage() {
         .eq('id', product.id)
         .single();
 
+
       if (fetchError || !freshProduct) {
         throw new Error('Could not fetch latest data. Please refresh and try again.');
       }
 
+
       console.log('📦 Fresh data fetched:', freshProduct);
+
 
       // STEP 2: Extract ALL unique seller tags
       let sellerTags: string[] = [];
       const rawSellerTag = freshProduct.seller_tag || product.seller_tag || product.validation_seller_tag;
+
 
       if (rawSellerTag) {
         sellerTags = rawSellerTag
@@ -1206,12 +1469,50 @@ export default function PurchasesPage() {
         sellerTags = [...new Set(sellerTags)]; // Remove duplicates
       }
 
+
       // Fallback to GR if no tags
       if (sellerTags.length === 0) {
         sellerTags = ['GR'];
       }
 
+
       console.log('🏷️ Seller tags to process:', sellerTags);
+
+
+      // ─────────────────────────────────────────────
+      // 🆕 STEP 2.5: SPLIT TAGS BY QUANTITY
+      // Tags with qty > 0 → move to tracking
+      // Tags with qty = 0 or missing → stay in purchases
+      // ─────────────────────────────────────────────
+      const buyingQuantities = (freshProduct.buying_quantities || {}) as Record<string, number>;
+
+      let tagsToMove: string[] = [];
+      let tagsToKeep: string[] = [];
+
+      if (sellerTags.length <= 1) {
+        // Single seller tag → always move (original behavior)
+        tagsToMove = [...sellerTags];
+      } else {
+        // Multiple seller tags → check each tag's quantity
+        for (const tag of sellerTags) {
+          const qty = buyingQuantities[tag];
+          if (qty !== undefined && qty !== null && qty > 0) {
+            tagsToMove.push(tag);
+          } else {
+            tagsToKeep.push(tag);
+          }
+        }
+
+        // Edge case: ALL tags have zero qty → block
+        if (tagsToMove.length === 0) {
+          showToast('No seller tags have quantity > 0. Please enter quantities first.', 'error');
+          return;
+        }
+      }
+
+      console.log('✅ Tags moving to tracking:', tagsToMove);
+      console.log('⏸️ Tags staying in purchases (qty=0):', tagsToKeep);
+
 
       // Map seller tag to seller ID
       const sellerTagMapping: Record<string, number> = {
@@ -1223,118 +1524,183 @@ export default function PurchasesPage() {
         'CV': 6  // Costech Ventures ✅ NEW
       };
 
-      // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
-      const insertPromises = sellerTags.map(async (tag) => {
-        const sellerId = sellerTagMapping[tag] || 1;
-        const trackingTableName = `india_tracking_seller_${sellerId}`;
 
-        console.log(`📊 Inserting into: ${trackingTableName} (Seller: ${tag})`);
+      // STEP 3: INSERT into tracking tables — 🆕 ONLY for tags with qty > 0
+      const insertPromises = tagsToMove.map(async (tag) => {
+
+        console.log(`📊 Inserting into: india_inbound_tracking (Seller: ${tag})`);
+
 
         // ✅ ALL column names use snake_case to match database schema
         return supabase
-          .from(trackingTableName)
+          .from('india_inbound_tracking')
           .insert({
             // 1. CORE IDENTITY
             asin: freshProduct.asin,
-            journey_id: freshProduct.journey_id,           // ✅ Fixed
-            journey_number: freshProduct.journey_number || 1, // ✅ Fixed
+            journey_id: freshProduct.journey_id,
+            journey_number: freshProduct.journey_number || 1,
+
 
             // 2. PRODUCT INFORMATION
-            product_link: freshProduct.product_link,       // ✅ Fixed
-            product_name: freshProduct.product_name,       // ✅ Fixed
+            product_link: freshProduct.product_link,
+            product_name: freshProduct.product_name,
             brand: freshProduct.brand,
 
+
             // 3. PRICING FIELDS
-            target_price: freshProduct.target_price,       // ✅ Fixed
-            // target_quantity: freshProduct.target_quantity || 1, // ✅ Fixed
-            admin_target_price: freshProduct.admin_target_price, // ✅ Fixed
-            admin_target_quantity: freshProduct.admin_target_quantity, // ✅ Fixed
-            target_price_validation: freshProduct.target_price_validation, // ✅ Fixed
-            target_price_link_validation: freshProduct.target_price_link_validation, // ✅ Fixed
+            target_price: freshProduct.target_price,
+            admin_target_price: freshProduct.admin_target_price,
+            admin_target_quantity: freshProduct.admin_target_quantity,
+            target_price_validation: freshProduct.target_price_validation,
+            target_price_link_validation: freshProduct.target_price_link_validation,
+
 
             // 4. FUNNEL & SELLER
             funnel: freshProduct.funnel,
             seller_tag: tag, // specific tag for this insert
-            funnel_quantity: freshProduct.funnel_quantity || 1, // ✅ Fixed
-            funnel_seller: freshProduct.funnel_seller,     // ✅ Fixed
+            funnel_quantity: freshProduct.funnel_quantity || 1,
+            funnel_seller: freshProduct.funnel_seller,
+
 
             // 5. PURCHASE LINKS
-            inr_purchase_link: freshProduct.inr_purchase_link, // ✅ Fixed
+            inr_purchase_link: freshProduct.inr_purchase_link,
+
 
             // 6. ORIGIN
             origin: freshProduct.origin,
-            origin_india: freshProduct.origin_india ?? false, // ✅ Fixed
-            origin_china: freshProduct.origin_china ?? false, // ✅ Fixed
+            origin_india: freshProduct.origin_india ?? false,
+            origin_china: freshProduct.origin_china ?? false,
             origin_us: freshProduct.origin_us ?? false,
 
+
             // 7. BUYING DETAILS (USER EDITABLE)
-            buying_price: freshProduct.buying_price,       // ✅ Fixed
-            buying_quantity: freshProduct.buying_quantity, // ✅ Fixed
-            seller_link: freshProduct.seller_link,         // ✅ Fixed
-            seller_phone: freshProduct.seller_phone,       // ✅ Fixed
-            payment_method: freshProduct.payment_method,   // ✅ Fixed
+            buying_price: freshProduct.buying_price,
+            buying_quantity: freshProduct.buying_quantities?.[tag] ?? freshProduct.buying_quantity,
+            seller_link: freshProduct.seller_link,
+            seller_phone: freshProduct.seller_phone,
+            payment_method: freshProduct.payment_method,
+
 
             // 8. TRACKING & DELIVERY (USER EDITABLE)
-            tracking_details: freshProduct.tracking_details, // ✅ Fixed
-            delivery_date: freshProduct.delivery_date,     // ✅ Fixed
+            tracking_details: freshProduct.tracking_details,
+            delivery_date: freshProduct.delivery_date,
             order_date: freshProduct.order_date,
             remark: freshProduct.remark,
 
+
             // 9. FINANCIAL DATA
             profit: freshProduct.profit,
-            product_weight: freshProduct.product_weight,   // ✅ Fixed
-            usd_price: freshProduct.usd_price,             // ✅ Fixed
-            inr_purchase: freshProduct.inr_purchase,      // ✅ Fixed
+            product_weight: freshProduct.product_weight,
+            usd_price: freshProduct.usd_price,
+            inr_purchase: freshProduct.inr_purchase,
             sku: freshProduct.sku || null,
 
+
             // 10. STATUS FIELDS
-            admin_status: 'confirmed',                     // ✅ Fixed
+            admin_status: 'confirmed',
             status: 'tracking',
-            moved_at: new Date().toISOString(),            // ✅ Fixed
+            moved_at: new Date().toISOString(),
+            pending_quantity: freshProduct.buying_quantities?.[tag] ?? freshProduct.buying_quantity,
           });
       });
 
+
       // Wait for all insertions to complete
       const results = await Promise.all(insertPromises);
+
 
       // Check for errors
       const errors = results.filter((result) => result.error);
       if (errors.length > 0) {
         console.error('❌ Insert errors:', errors);
         errors.forEach((err, index) => {
-          console.error(`Error ${index + 1}:`, {
-            code: err.error?.code,
-            message: err.error?.message,
-            details: err.error?.details,
-            hint: err.error?.hint,
-          });
+          console.error(`Error ${index + 1}:`, JSON.stringify(err.error, null, 2));
         });
         throw new Error(`Failed to insert into ${errors.length} table(s)`);
       }
 
-      console.log(`✅ Successfully inserted into ${sellerTags.length} tracking tables: ${sellerTags.join(', ')}`);
 
-      // STEP 4: DELETE from purchases (only after ALL inserts succeed)
-      const { error: deleteError } = await supabase
-        .from('india_purchases')
-        .delete()
-        .eq('id', product.id);
+      console.log(`✅ Successfully inserted into ${tagsToMove.length} tracking tables: ${tagsToMove.join(', ')}`);
 
-      if (deleteError) {
-        console.error('❌ Delete error:', deleteError);
-        throw deleteError;
+      setMovementHistory(prev => ({
+        ...prev,
+        [activeTab]: {
+          product: { ...product, ...freshProduct },
+          fromStatus: 'order_confirmed',
+          toStatus: 'tracking',
+          wasAdminConfirmed: true,
+        },
+      }));
+
+      // ─────────────────────────────────────────────
+      // 🆕 STEP 4: CONDITIONAL — DELETE or UPDATE
+      // ─────────────────────────────────────────────
+      if (tagsToKeep.length === 0) {
+        // ✅ ALL tags had qty > 0 → DELETE from purchases (original behavior)
+        const { error: deleteError } = await supabase
+          .from('india_purchases')
+          .delete()
+          .eq('id', product.id);
+
+
+        if (deleteError) {
+          console.error('❌ Delete error:', deleteError);
+          throw deleteError;
+        }
+
+
+        console.log('✅ Delete successful — all tags moved');
+        showToast(`Moved to ${tagsToMove.length} tracking table(s): ${tagsToMove.join(', ')}`, 'success');
+      } else {
+        // 🆕 PARTIAL MOVE — keep zero-qty tags in Confirmed tab
+        const remainingQties: Record<string, number> = {};
+        for (const tag of tagsToKeep) {
+          remainingQties[tag] = buyingQuantities[tag] || 0;
+        }
+
+        const { error: updateError } = await supabase
+          .from('india_purchases')
+          .update({
+            seller_tag: tagsToKeep.join(', '),
+            buying_quantities: remainingQties,
+            buying_quantity: 0,
+          })
+          .eq('id', product.id);
+
+        if (updateError) {
+          console.error('❌ Update error:', updateError);
+          throw updateError;
+        }
+
+        // Sync validation main file to reflect remaining tags
+        if (freshProduct.asin) {
+          await supabase
+            .from('india_validation_main_file')
+            .update({ seller_tag: tagsToKeep.join(', ') })
+            .eq('asin', freshProduct.asin);
+        }
+
+        console.log(`⏸️ Partial move: ${tagsToMove.join(', ')} → tracking | ${tagsToKeep.join(', ')} → stayed`);
+        showToast(
+          `Moved ${tagsToMove.join(', ')} to tracking. ${tagsToKeep.join(', ')} kept in purchases (qty=0).`,
+          'success'
+        );
       }
 
-      console.log('✅ Delete successful');
-      showToast(`Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`, 'success');
-      // ✅ ADD THIS:
+
+      // ✅ Log activity
       logActivity({
         action: 'submit',
         marketplace: 'india',
         page: 'purchases',
         table_name: 'india_tracking',
         asin: product.asin,
-        details: { from: 'orderconfirmed', to: 'tracking', seller_tags: sellerTags }
+        details: {
+          from: 'orderconfirmed',
+          to: 'tracking',
+          seller_tags_moved: tagsToMove,
+          seller_tags_remaining: tagsToKeep,
+        }
       });
       await refreshProductsSilently();
     } catch (error: any) {
@@ -1342,7 +1708,6 @@ export default function PurchasesPage() {
       showToast(`Failed to move: ${error.message}`, 'error');
     }
   };
-
 
   // Handle column resize
   const handleMouseDown = (column: string, e: React.MouseEvent) => {
@@ -1480,6 +1845,46 @@ export default function PurchasesPage() {
       await refreshProductsSilently();
     } catch (error: any) {
       console.error(`Error updating ${dbField}:`, error.message);
+    }
+  };
+
+  // ── Per-Seller Buying Quantity Edit ──
+  const handlePerSellerQtyEdit = async (
+    id: string,
+    sellerTag: string,
+    qty: number,
+    product: PassFileProduct
+  ) => {
+    try {
+      const existing: Record<string, number> =
+        (product.buying_quantities as Record<string, number>) ?? {};
+      const updated = { ...existing, [sellerTag]: isNaN(qty) ? 0 : qty };
+
+      // Sum all per-seller quantities for backward compat
+      const total = Object.values(updated)
+        .reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+      const { error } = await supabase
+        .from('india_purchases')
+        .update({
+          buying_quantities: updated,
+          buying_quantity: total,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Optimistic local state update
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, buying_quantities: updated, buying_quantity: total }
+            : p
+        )
+      );
+    } catch (error: any) {
+      console.error('Error updating per-seller quantity:', error.message);
+      showToast('Failed to update quantity', 'error');
     }
   };
 

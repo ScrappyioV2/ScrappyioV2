@@ -1,9 +1,11 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
+import { bulkUpdateIndiaSkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
 import { useState, useEffect, useRef } from 'react'
 import Toast from '@/components/Toast';
-import { History, X, Loader2 } from 'lucide-react'
+import { History, X, Loader2, Upload, Download } from 'lucide-react';
+import Papa from 'papaparse';
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateProductValues, type CalculationConstants } from '@/lib/blackboxCalculations'
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
@@ -20,6 +22,7 @@ type AdminProduct = {
   // target_quantity: number | null;
   buying_price: number | null;
   buying_quantity: number | null;
+  buying_quantities?: Record<string, number> | null;
   funnel: number | string | null;
   seller_tag: string | null;
   seller_link: string | null;
@@ -132,6 +135,10 @@ export default function AdminValidationPage() {
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
   const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
   const [editingSkuValue, setEditingSkuValue] = useState<string>('');
+  const [skuUploading, setSkuUploading] = useState(false);
+  const [skuUploadProgress, setSkuUploadProgress] = useState(0);
+  const skuFileInputRef = useRef<HTMLInputElement>(null);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [openFunnelId, setOpenFunnelId] = useState<string | null>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [adminConstants, setAdminConstants] = useState<CalculationConstants>(getDefaultConstants());
@@ -206,7 +213,7 @@ export default function AdminValidationPage() {
       // 3️⃣ Batch fetch from BOTH tables
       const [purchaseResult, validationResult] = await Promise.all([
         supabase.from('india_purchases')
-          .select('asin, journey_id, journey_number, buying_price, buying_quantity, seller_link, seller_phone, payment_method, target_price, product_weight, usd_price, inr_purchase, funnel, seller_tag')
+          .select('asin, journey_id, journey_number, buying_price, buying_quantity, buying_quantities, seller_link, seller_phone, payment_method, target_price, product_weight, usd_price, inr_purchase, funnel, seller_tag')
           .in('asin', asins),
 
         supabase.from('india_validation_main_file')
@@ -289,6 +296,13 @@ export default function AdminValidationPage() {
           // FROM PURCHASE TEAM
           buying_price: product.buying_price ?? purchase?.buying_price ?? null,
           buying_quantity: product.buying_quantity ?? purchase?.buying_quantity ?? null,
+          buying_quantities: (() => {
+            const fromAdmin = (product as any).buying_quantities;
+            const fromPurchase = (purchase as any)?.buying_quantities;
+            if (fromAdmin && typeof fromAdmin === 'object' && Object.keys(fromAdmin).length > 0) return fromAdmin;
+            if (fromPurchase && typeof fromPurchase === 'object' && Object.keys(fromPurchase).length > 0) return fromPurchase;
+            return null;
+          })(),
           seller_link: product.seller_link ?? purchase?.seller_link ?? null,
           seller_phone: product.seller_phone ?? purchase?.seller_phone ?? null,
           payment_method: product.payment_method ?? purchase?.payment_method ?? null,
@@ -384,6 +398,12 @@ export default function AdminValidationPage() {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [openFunnelId]);
+
+  useEffect(() => {
+    const handleClickOutside = () => { if (isDownloadOpen) setIsDownloadOpen(false); };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isDownloadOpen]);
 
   useEffect(() => {
     fetchAdminConstants();
@@ -675,7 +695,7 @@ export default function AdminValidationPage() {
 
   const DEFAULT_COLUMN_ORDER = [
     'asin', 'sku', 'history', 'remark', 'product_name', 'product_link',
-    'target_price', 'admin_target_price', 'funnel_seller',
+    'target_price', 'admin_target_price',
     'funnel_qty', 'product_weight', 'profit', 'buying_price', 'buying_qty',
     'seller_link', 'seller_phone', 'payment_method', 'actions'
   ];
@@ -683,7 +703,7 @@ export default function AdminValidationPage() {
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_COLUMN_ORDER;
     try {
-      const saved = localStorage.getItem('adminValidationColumnOrder');
+      const saved = localStorage.getItem('adminValidationColumnOrder_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         const merged = parsed.filter((k: string) => DEFAULT_COLUMN_ORDER.includes(k));
@@ -720,7 +740,7 @@ export default function AdminValidationPage() {
     newOrder.splice(toIdx, 0, dragColumnRef.current);
 
     setColumnOrder(newOrder);
-    localStorage.setItem('adminValidationColumnOrder', JSON.stringify(newOrder));
+    localStorage.setItem('adminValidationColumnOrder_v2', JSON.stringify(newOrder));
     dragColumnRef.current = null;
     dragOverColumnRef.current = null;
   };
@@ -807,18 +827,25 @@ export default function AdminValidationPage() {
 
       for (const product of selectedProducts) {
         // ✅ STEP 1: UPDATE india_purchases (existing workflow preserved)
+        const bulkConfirmPayload: Record<string, any> = {
+          admin_confirmed: true,
+          admin_confirmed_at: new Date().toISOString(),
+          admin_target_price: product.admin_target_price,
+          buying_price: product.buying_price,
+          buying_quantity: product.buying_quantity,
+          seller_link: product.seller_link,
+          seller_phone: product.seller_phone,
+          payment_method: product.payment_method,
+        };
+
+        // Only overwrite buying_quantities if admin actually edited them
+        if ((product as any).buying_quantities && Object.keys((product as any).buying_quantities).length > 0) {
+          bulkConfirmPayload.buying_quantities = (product as any).buying_quantities;
+        }
+
         let confirmSelected = supabase
           .from('india_purchases')
-          .update({
-            admin_confirmed: true,
-            admin_confirmed_at: new Date().toISOString(),
-            admin_target_price: product.admin_target_price,
-            buying_price: product.buying_price,
-            buying_quantity: product.buying_quantity,
-            seller_link: product.seller_link,
-            seller_phone: product.seller_phone,
-            payment_method: product.payment_method,
-          })
+          .update(bulkConfirmPayload)
           .eq('asin', product.asin);
 
         // Use journey_id for precise matching when available
@@ -834,7 +861,7 @@ export default function AdminValidationPage() {
         const { error: updateAdminError } = await supabase
           .from('india_admin_validation')
           .update({
-            admin_status: 'confirmed',  // ✅ Set to 'confirmed' so it appears in Confirm tab
+            admin_status: 'confirmed',
             confirmed_at: new Date().toISOString(),
           })
           .eq('id', product.id);
@@ -958,6 +985,52 @@ export default function AdminValidationPage() {
     }
   };
 
+  // ── Per-Seller Buying Quantity Edit (Admin) ──
+  const handleAdminPerSellerQtyEdit = async (
+    id: string,
+    sellerTag: string,
+    qty: number,
+    product: AdminProduct
+  ) => {
+    try {
+      const existing: Record<string, number> =
+        (product.buying_quantities as Record<string, number>) ?? {};
+      const updated = { ...existing, [sellerTag]: isNaN(qty) ? 0 : qty };
+
+      // Sum all per-seller quantities
+      const total = Object.values(updated)
+        .reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+      // Update admin validation table
+      const { error } = await supabase
+        .from('india_admin_validation')
+        .update({
+          buying_quantities: updated,
+          buying_quantity: total,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Optimistic local state update
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, buying_quantities: updated, buying_quantity: total }
+            : p
+        )
+      );
+
+      setToast({
+        message: `${sellerTag}: ${isNaN(qty) ? 0 : qty} | Total: ${total}`,
+        type: 'success',
+      });
+    } catch (error: any) {
+      console.error('Error updating per-seller quantity:', error.message);
+      setToast({ message: 'Failed to update quantity', type: 'error' });
+    }
+  };
+
   const handleFunnelChange = async (id: string, newFunnel: string) => {
     const oldFunnel = products.find(p => p.id === id)?.funnel;
 
@@ -1003,6 +1076,14 @@ export default function AdminValidationPage() {
     try {
       const product = products.find((p) => p.id === productId);
       if (!product) return;
+      setMovementHistory((prev) => ({
+        ...prev,
+        [activeTab]: {
+          product,
+          fromStatus: product.admin_status,
+          toStatus: 'confirmed',
+        },
+      }));
 
       const cleanAsin = product.asin.trim();
       console.log(`🚀 Confirming: ${cleanAsin}`);
@@ -1067,15 +1148,16 @@ export default function AdminValidationPage() {
       // 5. LOOP THROUGH ALL VALID SELLERS (Distribute to each)
       for (const sellerId of validSellerIds) {
         // A. Prepare Payload
+        const salesPriceInr = Number(product.inr_purchase) || Number(product.admin_target_price) || 0;
         const payload = {
           source_admin_validation_id: product.id,
           asin: cleanAsin,
           product_name: product.product_name,
-          sku: product.sku || cleanAsin,
-          selling_price: product.buying_price || product.admin_target_price || 0,
+          sku: product.sku || null,
+          selling_price: salesPriceInr,
           seller_link: product.seller_link,
-          min_price: null,
-          max_price: null,
+          min_price: Math.round(salesPriceInr * 0.95 * 100) / 100,
+          max_price: Math.round(salesPriceInr * 1.20 * 100) / 100,
           remark: product.remark ?? null,
         };
 
@@ -1111,7 +1193,7 @@ export default function AdminValidationPage() {
       }
 
       // 6. Update FINAL Statuses (Once per product)
-      const confirmQuery = supabase.from('india_purchases').update({
+      const confirmPayload: Record<string, any> = {
         admin_confirmed: true,
         admin_confirmed_at: new Date().toISOString(),
         admin_target_price: product.admin_target_price,
@@ -1120,8 +1202,18 @@ export default function AdminValidationPage() {
         seller_link: product.seller_link,
         seller_phone: product.seller_phone,
         payment_method: product.payment_method,
-        sku: product.sku || null,
-      }).eq('asin', cleanAsin);
+        sku: product.sku ?? null,
+      };
+
+      // Only overwrite buying_quantities if admin actually has data
+      if (product.buying_quantities && Object.keys(product.buying_quantities).length > 0) {
+        confirmPayload.buying_quantities = product.buying_quantities;
+      }
+
+      const confirmQuery = supabase
+        .from('india_purchases')
+        .update(confirmPayload)
+        .eq('asin', cleanAsin);
 
       // Use journey_id for precise matching when available (legacy data may not have it)
       if (product.journey_id) {
@@ -1235,6 +1327,26 @@ export default function AdminValidationPage() {
           console.error('Error rolling back india_purchases:', updatePurchaseError);
         }
 
+        // 1b. Clean up listing error tables for all sellers
+        const rawTag = product.seller_tag;
+        if (rawTag) {
+          const tags = rawTag.split(',').map((t: string) => t.trim().toUpperCase());
+          const sellerMap: Record<string, number> = { GR: 1, RR: 2, UB: 3, VV: 4, DE: 5, CV: 6 };
+          for (const tag of tags) {
+            const sid = sellerMap[tag];
+            if (!sid) continue;
+            const tables = [
+              `india_listing_error_seller_${sid}_pending`,
+              `india_listing_error_seller_${sid}_high_demand`,
+              `india_listing_error_seller_${sid}_low_demand`,
+              `india_listing_error_seller_${sid}_dropshipping`,
+            ];
+            for (const table of tables) {
+              await supabase.from(table).delete().eq('asin', product.asin);
+            }
+          }
+        }
+
         // 2. Revert india_admin_validation status
         const { error: updateAdminError } = await supabase
           .from('india_admin_validation')
@@ -1266,7 +1378,7 @@ export default function AdminValidationPage() {
         return newHistory;
       });
 
-      alert(`Rolled back ${product.product_name}`);
+      setToast({ message: `Rolled back ${product.product_name}`, type: 'success' });
       // ✅ ADD THIS:
       logActivity({
         action: 'rollback',
@@ -1282,6 +1394,158 @@ export default function AdminValidationPage() {
       alert('Rollback failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─── CSV Download Helpers ───
+  const flattenProductForCSV = (p: AdminProduct) => ({
+    id: p.id,
+    asin: p.asin,
+
+    product_name: p.product_name ?? '',
+    product_link: p.product_link ?? '',
+
+    usd_price: p.usd_price ?? '',
+    target_price: p.target_price ?? '',
+    admin_target_price: p.admin_target_price ?? '',
+    buying_price: p.buying_price ?? '',
+    inr_purchase: p.inr_purchase ?? '',
+    inr_purchase_link: p.inr_purchase_link ?? '',
+
+    // You commented this out in the type, so keep it out or add it back to AdminProduct
+    // target_quantity: p.target_quantity ?? '',
+
+    buying_quantity: p.buying_quantity ?? '',
+    buying_quantities: p.buying_quantities
+      ? JSON.stringify(p.buying_quantities)
+      : '{}',
+
+    product_weight: p.product_weight ?? '',
+    total_cost: p.total_cost ?? '',
+    total_revenue: p.total_revenue ?? '',
+    profit: p.profit ?? '',
+
+    funnel: p.funnel ?? '',
+    seller_tag: p.seller_tag ?? '',
+    seller_link: p.seller_link ?? '',
+    seller_phone: p.seller_phone ?? '',
+
+    admin_status: p.admin_status ?? '',
+    status: p.status ?? '',
+    admin_notes: p.admin_notes ?? '',
+
+    origin_india: p.origin_india ?? false,
+    origin_china: p.origin_china ?? false,
+    origin_us: p.origin_us ?? false,
+
+    purchase_currency: p.purchase_currency ?? '',
+    payment_method: p.payment_method ?? '',
+
+    journey_id: p.journey_id ?? '',
+    journey_number: p.journey_number ?? 1,
+
+    remark: p.remark ?? '',
+    sku: p.sku ?? '',
+
+    created_at: p.created_at ?? '',
+  });
+
+  const downloadCSV = (data: AdminProduct[], filename: string) => {
+    if (data.length === 0) {
+      setToast({ message: 'No data to download', type: 'warning' });
+      return;
+    }
+    const csv = Papa.unparse(data.map(flattenProductForCSV));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setToast({ message: `Downloaded ${data.length} rows as ${filename}`, type: 'success' });
+  };
+
+  const handleDownloadCurrentPage = () => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    downloadCSV(filteredProducts, `india-admin-${activeTab}-page-${timestamp}.csv`);
+    setIsDownloadOpen(false);
+  };
+
+  const handleDownloadAllData = () => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    downloadCSV(products.filter((product) => {
+      // Apply same tab filter as filteredProducts
+      switch (activeTab) {
+        case 'india': return product.origin_india === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        case 'china': return product.origin_china === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        case 'us': return product.origin_us === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        case 'pending': return product.admin_status === 'pending' || !product.admin_status;
+        case 'confirm': return product.admin_status === 'confirmed';
+        case 'reject': return product.admin_status === 'rejected';
+        case 'overview': default: return product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+      }
+    }), `india-admin-${activeTab}-all-${timestamp}.csv`);
+    setIsDownloadOpen(false);
+  };
+
+
+  // Bulk SKU Upload Handler
+  const handleSkuUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input so same file can be re-uploaded
+    if (skuFileInputRef.current) skuFileInputRef.current.value = '';
+
+    setSkuUploading(true);
+    setSkuUploadProgress(0);
+
+    try {
+      const result = await bulkUpdateIndiaSkuFromFile(file, (progress) => {
+        setSkuUploadProgress(progress);
+      });
+
+      const messages: string[] = [
+        `✅ SKU Update Complete`,
+        `Rows processed: ${result.inputCount}`,
+        `ASINs updated: ${result.effectiveAsinCount}`,
+        `Total DB rows touched: ${result.updatedCount}`,
+      ];
+      if (result.duplicateAsinCount > 0) {
+        messages.push(`⚠️ Duplicate ASINs skipped: ${result.duplicateAsinCount}`);
+      }
+      if (result.emptySkuRowCount > 0) {
+        messages.push(`⚠️ Empty SKU rows skipped: ${result.emptySkuRowCount}`);
+      }
+
+      setToast({ message: messages.join(' | '), type: 'success' });
+
+      logActivity({
+        action: 'bulk_sku_update',
+        marketplace: 'india',
+        page: 'admin-validation',
+        table_name: 'all_india_tables',
+        asin: `batch_${result.effectiveAsinCount}`,
+        details: {
+          input_count: result.inputCount,
+          effective: result.effectiveAsinCount,
+          duplicates: result.duplicateAsinCount,
+          empty_sku: result.emptySkuRowCount,
+          db_rows_updated: result.updatedCount,
+        },
+      });
+
+      // Refresh table to show new SKUs
+      fetchProducts(false);
+    } catch (err: any) {
+      console.error('SKU Upload Error:', err);
+      setToast({ message: `SKU Upload Failed: ${err.message}`, type: 'error' });
+    } finally {
+      setSkuUploading(false);
+      setSkuUploadProgress(0);
     }
   };
 
@@ -1649,15 +1913,93 @@ export default function AdminValidationPage() {
           </td>
         );
 
-      case 'buying_qty':
+      case 'buying_qty': {
+        // Extract seller tags
+        const qtyTags: string[] = product.seller_tag
+          ? product.seller_tag.split(',').map((t: string) => t.trim()).filter(Boolean)
+          : [];
+
+        const perQty: Record<string, number> =
+          (product.buying_quantities as Record<string, number>) ?? {};
+
+        const hasMultiSeller = qtyTags.length > 1;
+
+        const tagColors: Record<string, string> = {
+          GR: 'bg-yellow-500 text-black border-yellow-600',
+          RR: 'bg-slate-500 text-white border-slate-600',
+          UB: 'bg-pink-500 text-white border-pink-600',
+          VV: 'bg-purple-500 text-white border-purple-600',
+          DE: 'bg-cyan-500 text-black border-cyan-600',
+          CV: 'bg-teal-500 text-white border-teal-600',
+        };
+
+        // ── Single seller → original single input (unchanged) ──
+        if (!hasMultiSeller) {
+          const singleTag = qtyTags[0] || '';
+          return (
+            <td key={col_key} className="px-4 py-3">
+              <div className="flex items-center gap-1">
+                {singleTag && (
+                  <span className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[singleTag] ?? 'bg-slate-700 text-white border-slate-600'}`}>
+                    {singleTag}
+                  </span>
+                )}
+                <input type="number"
+                  key={`${product.id}-single-${product.buying_quantity ?? ''}`}
+                  defaultValue={product.buying_quantity ?? ''}
+                  onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
+                  className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </td>
+          );
+        }
+
+        // ── Multiple sellers → per-seller editable inputs ──
+        const currentTotal = Object.values(perQty)
+          .reduce((s, v) => s + (Number(v) || 0), 0);
+
         return (
           <td key={col_key} className="px-4 py-3">
-            <input type="number" defaultValue={product.buying_quantity}
-              onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-              className="w-16 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+              {qtyTags.map((tag: string) => (
+                <div key={tag} className="flex items-center gap-1">
+                  <span
+                    className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[tag] ?? 'bg-slate-700 text-white border-slate-600'
+                      }`}
+                  >
+                    {tag}
+                  </span>
+                  <input
+                    type="number"
+                    ref={(el) => {
+                      if (el && perQty[tag] !== undefined && perQty[tag] !== null) {
+                        el.value = String(perQty[tag]);
+                      }
+                    }}
+                    onBlur={(e) =>
+                      handleAdminPerSellerQtyEdit(
+                        product.id,
+                        tag,
+                        parseInt(e.target.value),
+                        product
+                      )
+                    }
+                    className="w-14 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Qty"
+                  />
+                </div>
+              ))}
+              <div className="col-span-2 border-t border-slate-700/50 pt-1 mt-0.5 flex items-center gap-1">
+                <span className="text-[10px] text-slate-500 font-medium">Total:</span>
+                <span className="text-[11px] text-slate-300 font-bold">
+                  {currentTotal || '—'}
+                </span>
+              </div>
+            </div>
           </td>
         );
+      }
 
       case 'seller_link':
         return (
@@ -1969,6 +2311,75 @@ export default function AdminValidationPage() {
             </button>
 
             {/* Configure Constants Button */}
+            {/* Hidden file input for SKU upload */}
+            <input
+              type="file"
+              accept=".csv"
+              ref={skuFileInputRef}
+              onChange={handleSkuUpload}
+              className="hidden"
+            />
+
+            {/* Bulk SKU Upload Button */}
+            <button
+              onClick={() => skuFileInputRef.current?.click()}
+              disabled={skuUploading}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg ${skuUploading
+                ? 'bg-cyan-800 text-cyan-200 border-cyan-700 cursor-wait'
+                : 'bg-cyan-600 text-white hover:bg-cyan-500 border-cyan-500/50 shadow-cyan-900/20'
+                }`}
+              title="Upload CSV with asin,sku columns to bulk-update SKU across all India tables"
+            >
+              {skuUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Updating SKUs... {skuUploadProgress}%
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload SKU
+                </>
+              )}
+            </button>
+
+            {/* Download CSV Dropdown */}
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsDownloadOpen(!isDownloadOpen); }}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg bg-purple-600 text-white hover:bg-purple-500 border-purple-500/50 shadow-purple-900/20"
+              >
+                <Download className="w-4 h-4" />
+                Download CSV
+              </button>
+
+              {isDownloadOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                  <button
+                    onClick={handleDownloadCurrentPage}
+                    className="w-full px-4 py-3 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-3"
+                  >
+                    <Download className="w-4 h-4 text-purple-400" />
+                    <div>
+                      <div className="font-medium">Current Page</div>
+                      <div className="text-xs text-slate-400">{filteredProducts.length} rows</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleDownloadAllData}
+                    className="w-full px-4 py-3 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-3 border-t border-slate-700"
+                  >
+                    <Download className="w-4 h-4 text-purple-400" />
+                    <div>
+                      <div className="font-medium">All Data (This Tab)</div>
+                      <div className="text-xs text-slate-400">
+                        {activeTab === 'confirm' ? confirmedCount : activeTab === 'reject' ? rejectedCount : activeTab === 'pending' ? pendingCount : products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length} rows
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={() => {
                 setModalInputs({
@@ -2009,7 +2420,7 @@ export default function AdminValidationPage() {
               <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
                 <tr>
                   {/* Checkbox — always first, not draggable */}
-                  <th className="px-4 py-3 bg-slate-950">
+                  <th className="px-4 py-3 bg-slate-950 border-r border-slate-800">
                     <input
                       type="checkbox"
                       checked={selectedIds.size === products.length && products.length > 0}
@@ -2036,7 +2447,7 @@ export default function AdminValidationPage() {
                       product_weight: { label: 'Product Weight', widthKey: 'productweight', minWidth: 100 },
                       profit: { label: 'Profit', widthKey: 'profit', minWidth: 80 },
                       buying_price: { label: 'Purchase Price', widthKey: 'buyingprice', minWidth: 80 },
-                      buying_qty: { label: 'Buying Qty', widthKey: 'buyingqty', minWidth: 70 },
+                      buying_qty: { label: 'Buying Qty', widthKey: 'buyingqty', minWidth: 200 },
                       seller_link: { label: 'Purchase Link', widthKey: 'sellerlink', minWidth: 80 },
                       seller_phone: { label: 'Seller Ph No.', widthKey: 'sellerphone', minWidth: 100 },
                       payment_method: { label: 'Payment Method', widthKey: 'paymentmethod', minWidth: 100 },
@@ -2090,8 +2501,8 @@ export default function AdminValidationPage() {
                   </tr>
                 ) : (
                   filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800">
-                      <td className="px-4 py-3">
+                    <tr key={product.id} className="hover:bg-slate-800/60 transition-colors border-b border-slate-800 [&>td]:border-r [&>td]:border-slate-800">
+                      <td className="px-4 py-3 border-r border-slate-800">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(product.id)}
@@ -2110,6 +2521,14 @@ export default function AdminValidationPage() {
           {/* Stats Footer - FIXED AT BOTTOM */}
           <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">
             Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
+            {filteredProducts.length > 0 && (
+              <button
+                onClick={() => downloadCSV(filteredProducts, `india-admin-${activeTab}-quick-${new Date().toISOString().split('T')[0]}.csv`)}
+                className="ml-4 text-xs text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+              >
+                Export visible rows
+              </button>
+            )}
           </div>
         </div>
 

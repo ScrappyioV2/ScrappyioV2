@@ -129,6 +129,7 @@ const parseCurrency = (value: string) =>
 interface ValidationProduct {
     id: string
     asin: string
+    created_at?: string | null
     sku?: string | null
     product_name: string | null
     brand: string | null
@@ -298,6 +299,16 @@ export default function ValidationPage() {
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeRowId, setActiveRowId] = useState<string | null>(() => {
+        if (typeof window === 'undefined') return null;
+        return localStorage.getItem('indiaValidationActiveRowId');
+    });
+    const markRowActive = (id: string) => {
+        setActiveRowId(id);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('indiaValidationActiveRowId', id);
+        }
+    };
     const [rollbackHistory, setRollbackHistory] = useState<
         Record<string, { product: ValidationProduct; action: string } | undefined>
     >({});
@@ -891,6 +902,12 @@ export default function ValidationPage() {
         if (funnelFilter !== 'ALL') {
             result = result.filter(p => p.funnel === funnelFilter);
         }
+
+        result = [...result].sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return dateB - dateA; // newest first
+        });
 
         return result;
     }, [products, activeTab, searchQuery, filters, funnelFilter]);
@@ -3318,6 +3335,9 @@ export default function ValidationPage() {
                                                     />
                                                 </th>
 
+                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-950"
+                                                    style={{ width: 50, minWidth: 50 }}>Sr.</th>
+
                                                 {columnOrder.map((col_key) => {
                                                     // Tab-specific visibility
                                                     if (col_key === 'origin' && activeTab !== 'pass_file' && activeTab !== 'fail_file' && activeTab !== 'reworking') return null;
@@ -3378,8 +3398,16 @@ export default function ValidationPage() {
                                         </thead>
 
                                         <tbody className="divide-y divide-slate-800 overflow-visible">
-                                            {filteredProducts.map((product) => (
-                                                <tr key={product.id} className="hover:bg-slate-800/50 transition-colors">
+                                            {filteredProducts.map((product, idx) => (
+                                                <tr
+                                                    key={product.id}
+                                                    onClick={() => markRowActive(product.id)}
+                                                    className={
+                                                        product.id === activeRowId
+                                                            ? 'bg-emerald-900/80 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)] transition-colors'
+                                                            : 'hover:bg-slate-800/50 transition-colors'
+                                                    }
+                                                >
                                                     <td className="p-3">
                                                         <input
                                                             type="checkbox"
@@ -3387,6 +3415,10 @@ export default function ValidationPage() {
                                                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
                                                             className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
                                                         />
+                                                    </td>
+
+                                                    <td className="px-3 py-2 text-center text-xs font-mono text-slate-500">
+                                                        {(currentPage - 1) * rowsPerPage + idx + 1}
                                                     </td>
 
                                                     {columnOrder.map((col_key) => renderCell(col_key, product))}

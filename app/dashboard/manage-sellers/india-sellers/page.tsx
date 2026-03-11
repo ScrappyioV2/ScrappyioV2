@@ -182,6 +182,7 @@ export default function IndiaSellersPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
   const [isDistributing, setIsDistributing] = useState(false);
+  const [partialProgress, setPartialProgress] = useState({ current: 0, total: 0 });
 
   const ITEMS_PER_PAGE = 50;
 
@@ -338,12 +339,13 @@ export default function IndiaSellersPage() {
 
           try {
             // ✅ Call batched function with progress callback
+            setPartialProgress({ current: 0, total: normalizedData.length });
             const { updatedCount, skippedCount, message } =
               await bulkUpdateAsinRemarkMonthlyUnit(
                 normalizedData,
                 TABLE_NAME, // 'india_master_sellers'
                 (current, total) => {
-                  // Update toast with progress
+                  setPartialProgress({ current, total });
                   const percentage = Math.round((current / total) * 100);
                   toast.loading(
                     `Updating: ${current.toLocaleString()}/${total.toLocaleString()} (${percentage}%)`,
@@ -351,6 +353,7 @@ export default function IndiaSellersPage() {
                   );
                 }
               );
+            setPartialProgress({ current: 0, total: 0 });
 
             totalUpdated += updatedCount;
             hasPartialUpdate = true;
@@ -427,7 +430,7 @@ export default function IndiaSellersPage() {
 
       console.log(`✅ [INDIA] After deduplication: ${allNewProducts.length} unique products`);
 
-      const batchSize = 500;
+      const batchSize = 200;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;
@@ -476,7 +479,7 @@ export default function IndiaSellersPage() {
             }
 
             // ✅ Success log
-            console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} completed (${data.inserted_count} inserted)`);
+            console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} completed (${data?.affected_in_master ?? 'done'} inserted)`);
 
             return { success: true, count: batch.length };
           } catch (error: any) {
@@ -496,32 +499,27 @@ export default function IndiaSellersPage() {
       // ✅ NEW (parallel - 3 batches at a time):
       const CONCURRENCY = 3;
 
-      for (let i = 0; i < batches.length; i += CONCURRENCY) {
-        const chunk = batches.slice(i, i + CONCURRENCY);
-
+      for (let i = 0; i < batches.length; i++) {
         toast.loading(
-          `Uploading batches ${i + 1}-${Math.min(i + CONCURRENCY, totalBatches)} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
+          `Uploading batch ${i + 1} of ${totalBatches}... (${successCount.toLocaleString()}/${allNewProducts.length.toLocaleString()})`,
           { id: toastId }
         );
 
-        const results = await Promise.all(
-          chunk.map((batch, idx) => uploadBatch(batch, i + idx))
-        );
+        const result = await uploadBatch(batches[i], i);
 
-        results.forEach(result => {
-          if (result.success) {
-            successCount += result.count;
-          } else {
-            failedBatches++;
-          }
-        });
+        if (result.success) {
+          successCount += result.count;
+        } else {
+          failedBatches++;
+        }
 
         setUploadProgress({
           current: successCount,
           total: allNewProducts.length,
-          batch: Math.min(i + CONCURRENCY, totalBatches),
+          batch: i + 1,
           totalBatches,
         });
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // ============================================================
@@ -581,7 +579,7 @@ export default function IndiaSellersPage() {
         return;
       }
 
-      const DIST_CHUNK = 10000;
+      const DIST_CHUNK = 2000;
       const totalChunks = Math.ceil(count / DIST_CHUNK);
       let totalInserted = 0;
 
@@ -608,7 +606,7 @@ export default function IndiaSellersPage() {
 
         // Small delay between chunks
         if (chunk < totalChunks - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
 
@@ -768,53 +766,6 @@ export default function IndiaSellersPage() {
           }}
         />
 
-        {/* Upload Progress Modal - Dark Mode */}
-        {isUploading && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <Loader2 className="h-16 w-16 text-indigo-500 animate-spin" />
-                </div>
-                <h3 className="text-xl font-bold mb-4 text-white">Uploading Products...</h3>
-                {uploadProgress.total > 0 && (
-                  <>
-                    <p className="text-slate-400 mb-2">Batch {uploadProgress.batch} of {uploadProgress.totalBatches}</p>
-                    <p className="text-2xl font-bold text-indigo-400 mb-4">{uploadProgress.current.toLocaleString()} / {uploadProgress.total.toLocaleString()}</p>
-                    <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden">
-                      <div className="bg-indigo-600 h-3 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }}></div>
-                    </div>
-                    <p className="text-sm text-slate-500">{Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete</p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Export Loading Modal - Dark Mode */}
-        {isExporting && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full shadow-2xl">
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <Loader2 className="h-16 w-16 text-emerald-500 animate-spin" />
-                </div>
-                <h3 className="text-xl font-bold mb-4 text-white">Exporting Data...</h3>
-                {exportProgress.total > 0 && (
-                  <>
-                    <p className="text-2xl font-bold text-emerald-400 mb-4">{exportProgress.current.toLocaleString()} / {exportProgress.total.toLocaleString()} products</p>
-                    <div className="w-full bg-slate-800 rounded-full h-3 mb-2 overflow-hidden">
-                      <div className="bg-emerald-600 h-3 rounded-full transition-all duration-300" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }}></div>
-                    </div>
-                    <p className="text-sm text-slate-500">{Math.round((exportProgress.current / exportProgress.total) * 100)}% complete</p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* === HEADER === */}
         <div className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 -mx-10 px-10 py-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -865,6 +816,76 @@ export default function IndiaSellersPage() {
             </div>
           </div>
         </div>
+
+        {/* Inline Progress Bars */}
+        {isUploading && uploadProgress.total > 0 && (
+          <div className="mb-4 bg-slate-900 border border-indigo-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+                <span className="text-sm font-medium text-indigo-300">Uploading Products</span>
+              </div>
+              <span className="text-sm text-slate-400">
+                Batch {uploadProgress.batch}/{uploadProgress.totalBatches} &middot; {uploadProgress.current.toLocaleString()}/{uploadProgress.total.toLocaleString()}
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+              <div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }} />
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5 text-right">{Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete</p>
+          </div>
+        )}
+
+        {partialProgress.total > 0 && (
+          <div className="mb-4 bg-slate-900 border border-amber-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                <span className="text-sm font-medium text-amber-300">Partial Update in Progress</span>
+              </div>
+              <span className="text-sm text-slate-400">
+                {partialProgress.current.toLocaleString()}/{partialProgress.total.toLocaleString()} records
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+              <div className="bg-amber-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((partialProgress.current / partialProgress.total) * 100)}%` }} />
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5 text-right">{Math.round((partialProgress.current / partialProgress.total) * 100)}% complete</p>
+          </div>
+        )}
+
+        {isDistributing && (
+          <div className="mb-4 bg-slate-900 border border-emerald-500/30 rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+              <span className="text-sm font-medium text-emerald-300">Distributing to seller tables...</span>
+            </div>
+          </div>
+        )}
+
+        {isExporting && (
+          <div className="mb-4 bg-slate-900 border border-emerald-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                <span className="text-sm font-medium text-emerald-300">Exporting Data</span>
+              </div>
+              {exportProgress.total > 0 && (
+                <span className="text-sm text-slate-400">
+                  {exportProgress.current.toLocaleString()}/{exportProgress.total.toLocaleString()} products
+                </span>
+              )}
+            </div>
+            {exportProgress.total > 0 && (
+              <>
+                <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }} />
+                </div>
+                <p className="text-xs text-slate-500 mt-1.5 text-right">{Math.round((exportProgress.current / exportProgress.total) * 100)}% complete</p>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="text-xs text-slate-500 font-mono mb-4">
           Showing <span className="text-slate-200">{totalProducts > 0 ? startItem : 0}-{endItem}</span> of <span className="text-white font-bold">{totalProducts.toLocaleString()}</span> records

@@ -1,20 +1,24 @@
 'use client';
 
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getIndiaTrackingTableName } from '@/lib/utils';
+import { getIndiaTrackingTableName, SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
 
 type InvoiceItem = {
   id: string;
   invoice_number: string;
+  box_number?: string | null;
   asin: string;
+  sku: string | null;
   product_name: string | null;
   product_weight: number | null;
   buying_price: number | null;
   buying_quantity: number | null;
+  actual_quantity?: number | null;
   invoice_date: string | null;
   gst_number: string | null;
   amount: number | null;
@@ -26,6 +30,12 @@ type InvoiceItem = {
   seller_company: string | null;
   action_status: string | null;
   product_received: boolean | null;
+  seller_tag?: string | null;
+  check_mrp_label?: boolean | null;
+  check_gelatin?: boolean | null;
+  check_amazon_badge?: boolean | null;
+  check_cleaning?: boolean | null;
+  damaged_quantity?: number | null;
 };
 
 type GroupedInvoice = {
@@ -42,21 +52,15 @@ type GroupedInvoice = {
 
 // ✅ NEW: Default column widths
 const DEFAULT_COLUMN_WIDTHS = {
-  expand: 50,
-  invoice_no: 180,
-  invoice_date: 130,
-  gst_number: 150,
-  product_name: 200,
-  weight: 100,
-  qty: 80,
-  price: 120,
-  amount: 120,
-  tax_amount: 120,
-  tracking: 180,
-  delivery_date: 130,
-  company: 100,
-  upload: 100,
-  action: 120,
+  sr: 60,
+  expand: 160,
+  product_name: 220,
+  asin: 160,
+  weight: 70,
+  qty: 60,
+  tracking: 220,
+  delivery_date: 100,
+  action: 100,
 };
 
 interface CheckingTableProps {
@@ -81,22 +85,20 @@ export default function CheckingTable({
   // 🔴 ADD THIS NEW STATE
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
-  const [visibleColumns, setVisibleColumns] = useState({  // ✅ ADDED
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [listingErrorRollbackOpen, setListingErrorRollbackOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const [visibleColumns, setVisibleColumns] = useState({
+    sr: true,
     expand: true,
     invoice_no: true,
-    invoice_date: true,
-    gst_number: true,
     product_name: true,
+    asin: true,
     weight: true,
     qty: true,
-    price: true,
-    amount: true,
-    tax_amount: true,
-    total_amount: true,
     tracking: true,
     delivery_date: true,
-    company: true,
-    upload: true,
     action: true,
   });
 
@@ -105,6 +107,35 @@ export default function CheckingTable({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
+  const [openChecklistId, setOpenChecklistId] = useState<string | null>(null);
+  const getChecklistLabel = (item: InvoiceItem): string => {
+    const labels: string[] = [];
+    if (item.check_mrp_label) labels.push('MRP');
+    if (item.check_gelatin) labels.push('Gelatin');
+    if (item.check_amazon_badge) labels.push('Amazon');
+    if (item.check_cleaning) labels.push('Cleaning');
+
+    if (labels.length === 0) return '-';
+    if (labels.length === 1) return labels[0];
+    return labels.join(', ');
+  };
+  const hasAnyChecklist = (item: InvoiceItem): boolean => {
+    return !!(
+      item.check_mrp_label ||
+      item.check_gelatin ||
+      item.check_amazon_badge ||
+      item.check_cleaning
+    );
+  };
+  const [checklistDropdownPos, setChecklistDropdownPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+
+  useEffect(() => {
+    localStorage.removeItem('checking_table_column_widths');
+  }, []);
 
   // ✅ NEW: Load column widths from localStorage on mount
   useEffect(() => {
@@ -134,11 +165,11 @@ export default function CheckingTable({
       let hasMore = true;
 
       while (hasMore) {
-        const tableName = getIndiaTrackingTableName('CHECKING', sellerId);
+        const tableName = 'india_box_checking';
         const { data, error } = await supabase
           .from(tableName)
           .select('*')
-          .order('moved_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .range(from, from + batchSize - 1);
 
         if (error) throw error;
@@ -163,34 +194,19 @@ export default function CheckingTable({
     }
   };
 
-
-  // Group items by invoice_number
-  const groupedInvoices: GroupedInvoice[] = Object.values(
-    items.reduce((acc, item) => {
-      if (!acc[item.invoice_number]) {
-        acc[item.invoice_number] = {
-          invoice_number: item.invoice_number,
-          items: [],
-          invoice_date: item.invoice_date,
-          gst_number: item.gst_number,
-          total_amount: 0,
-          total_tax: 0,
-          seller_company: item.seller_company,
-          uploaded_invoice_url: item.uploaded_invoice_url,
-          uploaded_invoice_name: item.uploaded_invoice_name,
-        };
-      }
-      acc[item.invoice_number].items.push(item);
-      acc[item.invoice_number].total_amount += item.amount || 0;
-      acc[item.invoice_number].total_tax += item.tax_amount || 0;
-      return acc;
-    }, {} as Record<string, GroupedInvoice>)
-  );
-
   // ✅ Filter by search query
-  const filteredInvoices = groupedInvoices.filter(inv =>
-    inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter((item) => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return true;
+
+    return (
+      (item.invoice_number || '').toLowerCase().includes(q) ||
+      (item.box_number || '').toLowerCase().includes(q) ||
+      (item.product_name || '').toLowerCase().includes(q) ||
+      (item.asin || '').toLowerCase().includes(q) ||
+      (item.sku || '').toLowerCase().includes(q)
+    );
+  });
 
   // Toggle expanded state
   const toggleExpand = (invoiceNumber: string) => {
@@ -212,7 +228,7 @@ export default function CheckingTable({
       console.log(`${checked ? '✅' : '❌'} Marking item as ${checked ? 'received' : 'not received'}:`, itemId);
 
       // Update database
-      const tableName = getIndiaTrackingTableName('CHECKING', sellerId);
+      const tableName = 'india_box_checking';
       const { error } = await supabase
         .from(tableName)
         .update({ product_received: checked })
@@ -234,128 +250,155 @@ export default function CheckingTable({
     }
   };
 
-  // Move ONLY received items to Shipment + Vyapar
-  // Move items to Shipment & Vyapar
-  const handleMoveToShipment = async (itemIds: string[]) => {
+  // Move items to Distribution
+  const handleMoveToRestock = async (itemIds: string[]) => {
     try {
-      console.log('Moving items to Shipment & Vyapar:', itemIds)
+      if (itemIds.length === 0) {
+        alert('No items selected');
+        return;
+      }
 
-      // 1. Get items to move from CHECKING table (removed product_received filter)
-      const checkingTableName = getIndiaTrackingTableName('CHECKING', sellerId);
+      const checkingTableName = 'india_box_checking';
+
       const { data: itemsToMove, error: fetchError } = await supabase
         .from(checkingTableName)
         .select('*')
-        .in('id', itemIds)
+        .in('id', itemIds);
 
-      if (fetchError) throw fetchError
-
+      if (fetchError) throw fetchError;
       if (!itemsToMove || itemsToMove.length === 0) {
-        alert('No items found to move.')
-        return
+        alert('No items found to move.');
+        return;
       }
 
-      console.log(`📦 Found ${itemsToMove.length} received items to move`);
+      // Resolve sellerId using seller_tag if present, otherwise prop
+      const now = new Date().toISOString();
 
-      // 2. Prepare data (remove id, created_at, product_received)
-      const preparedData = itemsToMove.map((item) => {
-        const { id, created_at, product_received, ...rest } = item;
-        return {
-          ...rest,
-          moved_at: new Date().toISOString(),
-        };
+      // Group items by seller_tag so each goes to the correct restock + listing error table
+      const bySeller: Record<string, any[]> = {};
+      itemsToMove.forEach((item: any) => {
+        const tag = (item.seller_tag as SellerTag) || 'GR';
+        if (!bySeller[tag]) bySeller[tag] = [];
+        bySeller[tag].push(item);
       });
 
-      // 3. Prepare Shipment data
-      const shipmentData = preparedData.map(item => ({
-        ...item,
-        status: 'shipped',
-      }));
+      for (const [tag, sellerItems] of Object.entries(bySeller)) {
+        const resolvedSellerId = SELLER_TAG_MAPPING[tag as SellerTag] || sellerId;
+        const restockTableName = getIndiaTrackingTableName('RESTOCK', resolvedSellerId);
 
-      // 4. Prepare Vyapar data
-      const vyaparData = preparedData.map(item => ({
-        ...item,
-        status: 'vyapar_logged',
-      }));
+        const restockRows: any[] = [];
+        sellerItems.forEach((item: any) => {
+          const totalQty = item.actual_quantity ?? item.buying_quantity ?? 0;
+          const damagedQty = item.damaged_quantity || 0;
+          const goodQty = Math.max(totalQty - damagedQty, 0);
 
-      // 5. Insert into SHIPMENT table
-      const shipmentTableName = getIndiaTrackingTableName('SHIPMENT', sellerId);
-      console.log('📥 Inserting into Shipment:', shipmentTableName);
+          const base = {
+            asin: item.asin,
+            sku: item.sku,
+            product_name: item.product_name,
+            origin_india: item.origin_india ?? false,
+            origin_china: item.origin_china ?? false,
+            origin_us: item.origin_us ?? false,
+            funnel: item.funnel,
+            buying_price: item.buying_price,
+            product_weight: item.product_weight,
+            invoice_number: item.invoice_number,
+            tracking_details: item.tracking_details,
+            delivery_date: item.delivery_date,
+            seller_tag: item.seller_tag,
+            moved_from: 'checking',
+            checking_id: item.id,
+            moved_at: now,
+          };
 
-      const { error: shipmentInsertError } = await supabase
-        .from(shipmentTableName)
-        .insert(shipmentData);
+          if (goodQty > 0) {
+            restockRows.push({
+              ...base,
+              buying_quantity: goodQty,
+              status: 'pending',
+            });
+          }
 
-      if (shipmentInsertError) {
-        console.error('❌ Shipment insert error:', shipmentInsertError);
-        throw shipmentInsertError;
+          if (damagedQty > 0) {
+            restockRows.push({
+              ...base,
+              buying_quantity: damagedQty,
+              status: 'disposed',
+            });
+          }
+        });
+
+        if (restockRows.length === 0) continue;
+
+        const { error: insertError } = await supabase
+          .from(restockTableName)
+          .insert(restockRows);
+
+        if (insertError) throw insertError;
+
+        // Also copy to Listing Errors for this seller
+        const listingErrorRows = sellerItems.map((item: any) => ({
+          asin: item.asin,
+          product_name: item.product_name,
+          sku: item.sku,
+          seller_tag: item.seller_tag,
+        }));
+
+        const listingErrorTable = `india_listing_error_seller_${resolvedSellerId}_error`;
+        const { error: listingError } = await supabase
+          .from(listingErrorTable)
+          .upsert(listingErrorRows, { onConflict: 'asin' });
+
+        if (listingError) {
+          console.error(`Failed to copy to ${listingErrorTable}:`, listingError);
+        }
       }
 
-      console.log('✅ Shipment insert successful');
-
-      // 6. Insert into VYAPAR table
-      const vyaparTableName = getIndiaTrackingTableName('VYAPAR', sellerId);
-      console.log('📥 Inserting into Vyapar:', vyaparTableName);
-
-      const { error: vyaparInsertError } = await supabase
-        .from(vyaparTableName)
-        .insert(vyaparData);
-
-      if (vyaparInsertError) {
-        console.error('❌ Vyapar insert error:', vyaparInsertError);
-        throw vyaparInsertError;
-      }
-
-      console.log('✅ Vyapar insert successful');
-
-      // 7. Delete from CHECKING table
-      console.log('🗑️ Deleting from:', checkingTableName);
-
+      // Only delete from checking AFTER all inserts succeeded
       const { error: deleteError } = await supabase
         .from(checkingTableName)
         .delete()
         .in('id', itemIds);
 
-      if (deleteError) {
-        console.error('❌ Delete error:', deleteError);
-        throw deleteError;
-      }
+      if (deleteError) throw deleteError;
 
-      console.log('✅ Delete successful');
+      setItems(prev => prev.filter(i => !itemIds.includes(i.id)));
+      await onCountsChange?.();
 
-      // 8. Update local state - remove moved items
-      setItems((prevItems) =>
-        prevItems.filter((item) => !itemIds.includes(item.id))
-      );
+      const sellerTags = Object.keys(bySeller).join(', ');
+      const asinList = itemsToMove.map((item: any) => item.asin).join(', ');
+      const msg = `✅ ${itemsToMove.length} ASIN(s) [${asinList}] sent to Restock & Listing Errors for sellers: ${sellerTags}`;
+      setToast({ message: msg, type: 'success' });
+      setTimeout(() => setToast(null), 5000);
 
-      // 9. Trigger parent count refresh
-      if (onCountsChange) {
-        onCountsChange();
-      }
-
-      alert(`${itemsToMove.length} items moved to Shipment & Vyapar!`);
-      // ✅ ADD THIS:
       logBatchActivity(
-        itemsToMove.map((item: any) => ({ asin: item.asin, details: { invoice: item.invoicenumber } })),
-        { action: 'submit', marketplace: 'india', page: 'tracking', table_name: `india_shipment_seller_${sellerId}` }
+        itemsToMove.map((item: any) => ({
+          asin: item.asin,
+          details: { from: 'checking', seller_tag: item.seller_tag },
+        })),
+        {
+          action: 'move',
+          marketplace: 'india',
+          page: 'tracking',
+          table_name: 'restock (multi-seller)',
+        },
       );
     } catch (error: any) {
-      console.error('❌ Error moving items:', error);
-      alert(`Failed to move items: ${error.message}`);
+      console.error('Error moving to restock:', error);
+      alert('Failed to move items: ' + error.message);
     }
   };
 
   // Handle edit field with auto-save
   const handleEditField = async (itemId: string, field: string, value: number | null) => {
     try {
-      // Update local state immediately for instant feedback
       setItems((prevItems) => {
         const newItems = prevItems.map((item) => {
           if (item.id === itemId) {
             const updatedItem = { ...item, [field]: value };
 
-            // Auto-calculate amount if qty or price changed
-            if (field === 'buying_quantity' || field === 'buying_price') {
-              const qty = field === 'buying_quantity' ? value : item.buying_quantity;
+            if (field === 'actual_quantity' || field === 'buying_price') {
+              const qty = field === 'actual_quantity' ? value : (item.actual_quantity ?? item.buying_quantity);
               const price = field === 'buying_price' ? value : item.buying_price;
               updatedItem.amount = (qty || 0) * (price || 0);
             }
@@ -364,24 +407,12 @@ export default function CheckingTable({
           }
           return item;
         });
-        return [...newItems]; // Force new array reference
+        return [...newItems];
       });
 
-      // Prepare update data
       const updateData: any = { [field]: value };
 
-      // If qty or price changed, recalculate amount
-      if (field === 'buying_quantity' || field === 'buying_price') {
-        const currentItem = items.find(i => i.id === itemId);
-        if (currentItem) {
-          const qty = field === 'buying_quantity' ? value : currentItem.buying_quantity;
-          const price = field === 'buying_price' ? value : currentItem.buying_price;
-          updateData.amount = (qty || 0) * (price || 0);
-        }
-      }
-
-      // Update database
-      const tableName = getIndiaTrackingTableName('CHECKING', sellerId);
+      const tableName = 'india_box_checking';
       const { error } = await supabase
         .from(tableName)
         .update(updateData)
@@ -393,7 +424,58 @@ export default function CheckingTable({
     } catch (error: any) {
       console.error('Error updating field:', error);
       alert('Failed to update: ' + error.message);
-      // Revert on error
+      fetchCheckingData();
+    }
+  };
+
+  const handleChecklistChange = async (
+    itemId: string,
+    field:
+      | 'check_mrp_label'
+      | 'check_gelatin'
+      | 'check_amazon_badge'
+      | 'check_cleaning',
+    checked: boolean
+  ) => {
+    try {
+      // local state
+      setItems(prev =>
+        prev.map(it =>
+          it.id === itemId ? { ...it, [field]: checked } : it
+        )
+      );
+
+      const { error } = await supabase
+        .from('india_box_checking')
+        .update({ [field]: checked })
+        .eq('id', itemId);
+
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Checklist update failed', e);
+      alert('Failed to update checklist: ' + e.message);
+      fetchCheckingData();
+    }
+  };
+
+  // ✅ Update damaged quantity
+  const handleDamagedQtyChange = async (itemId: string, value: number | null) => {
+    try {
+      setItems(prev =>
+        prev.map(it =>
+          it.id === itemId ? { ...it, damaged_quantity: value } : it
+        )
+      );
+
+      const { error } = await supabase
+        .from('india_box_checking')
+        .update({ damaged_quantity: value })
+        .eq('id', itemId);
+
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Damaged qty update failed', e);
+      alert('Failed to update damaged qty: ' + e.message);
       fetchCheckingData();
     }
   };
@@ -424,90 +506,20 @@ export default function CheckingTable({
     });
   };
 
-  // Handle bulk move all selected items
-  const handleBulkMoveToShipment = async () => {
+  // Bulk move all selected items to Restock
+  const handleBulkMoveToRestock = async () => {
     if (selectedItemIds.size === 0) {
       alert('No items selected');
       return;
     }
 
-    const confirmed = confirm(`Move ${selectedItemIds.size} item(s) to Shipment & Vyapar?`);
+    const confirmed = confirm(
+      `Move ${selectedItemIds.size} items to Restock?`,
+    );
     if (!confirmed) return;
 
-    try {
-      console.log('🚀 Bulk moving items:', Array.from(selectedItemIds));
-
-      // 1. Get items from CHECKING table
-      const checkingTableName = getIndiaTrackingTableName('CHECKING', sellerId);
-      const { data: itemsToMove, error: fetchError } = await supabase
-        .from(checkingTableName)
-        .select('*')
-        .in('id', Array.from(selectedItemIds));
-
-      if (fetchError) throw fetchError;
-      if (!itemsToMove || itemsToMove.length === 0) {
-        alert('No items found to move.');
-        return;
-      }
-
-      console.log(`📦 Found ${itemsToMove.length} items to move`);
-
-      // 2. Prepare data
-      const preparedData = itemsToMove.map((item: any) => {
-        const { id, created_at, product_received, ...rest } = item;
-        return {
-          ...rest,
-          moved_at: new Date().toISOString(),
-        };
-      });
-
-      // 3. Insert into SHIPMENT
-      const shipmentTableName = getIndiaTrackingTableName('SHIPMENT', sellerId);
-      const shipmentData = preparedData.map(item => ({ ...item, status: 'shipped' }));
-      const { error: shipmentInsertError } = await supabase
-        .from(shipmentTableName)
-        .insert(shipmentData);
-
-      if (shipmentInsertError) throw shipmentInsertError;
-      console.log('✅ Shipment insert successful');
-
-      // 4. Insert into VYAPAR
-      const vyaparTableName = getIndiaTrackingTableName('VYAPAR', sellerId);
-      const vyaparData = preparedData.map(item => ({ ...item, status: 'vyapar_logged' }));
-      const { error: vyaparInsertError } = await supabase
-        .from(vyaparTableName)
-        .insert(vyaparData);
-
-      if (vyaparInsertError) throw vyaparInsertError;
-      console.log('✅ Vyapar insert successful');
-
-      // 5. Delete from CHECKING
-      const { error: deleteError } = await supabase
-        .from(checkingTableName)
-        .delete()
-        .in('id', Array.from(selectedItemIds));
-
-      if (deleteError) throw deleteError;
-      console.log('✅ Delete successful');
-
-      // 6. Update UI
-      setItems(prevItems => prevItems.filter(item => !selectedItemIds.has(item.id)));
-      setSelectedItemIds(new Set());
-
-      if (onCountsChange) {
-        onCountsChange();
-      }
-
-      alert(`${itemsToMove.length} items moved to Shipment & Vyapar!`);
-      // ✅ ADD THIS:
-      logBatchActivity(
-        itemsToMove.map((item: any) => ({ asin: item.asin, details: { invoice: item.invoicenumber } })),
-        { action: 'submit', marketplace: 'india', page: 'tracking', table_name: `india_shipment_seller_${sellerId}` }
-      );
-    } catch (error: any) {
-      console.error('❌ Error moving items:', error);
-      alert('Failed to move items: ' + error.message);
-    }
+    await handleMoveToRestock(Array.from(selectedItemIds));
+    setSelectedItemIds(new Set());
   };
 
   // ✅ NEW: Truncate text helper function
@@ -558,6 +570,73 @@ export default function CheckingTable({
     };
   }, [resizingColumn, startX, startWidth, columnWidths]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!openChecklistId) return;
+
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Ignore clicks on trigger or dropdown content
+      if (
+        target.closest('[data-checklist-trigger="true"]') ||
+        target.closest('[data-checklist-dropdown="true"]')
+      ) {
+        return;
+      }
+
+      setOpenChecklistId(null);
+      setChecklistDropdownPos(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openChecklistId]);
+
+  const SELLER_TAG_COLORS: Record<string, string> = {
+    GR: 'bg-yellow-400 text-black',
+    RR: 'bg-gray-400 text-black',
+    UB: 'bg-pink-500 text-white',
+    VV: 'bg-purple-600 text-white',
+    DE: 'bg-orange-500 text-white',
+    CV: 'bg-green-600 text-white',
+  };
+
+  type MergedCheckingRow = {
+    asin: string;
+    representative: InvoiceItem;
+    sellers: { tag: string; qty: number; id: string }[];
+    allIds: string[];
+    totalQty: number;
+  };
+
+  const mergedItems: MergedCheckingRow[] = useMemo(() => {
+    const grouped: Record<string, MergedCheckingRow> = {};
+    filteredItems.forEach(item => {
+      const key = item.asin;
+      if (!grouped[key]) {
+        grouped[key] = {
+          asin: item.asin,
+          representative: item,
+          sellers: [],
+          allIds: [],
+          totalQty: 0,
+        };
+      }
+      const qty = item.actual_quantity ?? item.buying_quantity ?? 0;
+      grouped[key].sellers.push({
+        tag: (item as any).seller_tag || '??',
+        qty,
+        id: item.id,
+      });
+      grouped[key].allIds.push(item.id);
+      grouped[key].totalQty += qty;
+    });
+    return Object.values(grouped);
+  }, [filteredItems]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -566,16 +645,25 @@ export default function CheckingTable({
     );
   }
 
+  const SELLER_ID_TO_TAG: Record<number, string> = {
+    1: 'GR',
+    2: 'RR',
+    3: 'UB',
+    4: 'VV',
+    5: 'DE',
+    6: 'CV',
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Search Bar & Hide Columns */}
-      <div className="flex-none px-4 pb-4 flex gap-3 items-center">
+      <div className="flex-none px-4 pt-5 pb-4 flex gap-4 items-center">
         <input
           type="text"
-          placeholder="Search by Invoice Number..."
+          placeholder="Search by Box, Invoice, ASIN or Product..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+          className="max-w-sm px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
         />
 
         {/* Hide Columns Button */}
@@ -608,6 +696,7 @@ export default function CheckingTable({
                       'gst_number': 'GST Number',
                       'product_name': 'Product Name',
                       'weight': 'Weight',
+                      'asin': 'ASIN',
                       'qty': 'Qty',
                       'price': 'Price',
                       'amount': 'Amount',
@@ -666,6 +755,19 @@ export default function CheckingTable({
             </>
           )}
         </div>
+        {/* ⏪ Rollback from Distribution */}
+        <button
+          onClick={() => setRollbackOpen(true)}
+          className="px-4 py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+        >
+          ⏪ Rollback from Restock
+        </button>
+        <button
+          onClick={() => setListingErrorRollbackOpen(true)}
+          className="px-4 py-2.5 bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded-lg text-sm font-semibold hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+        >
+          ⏪ Rollback from Listing Errors
+        </button>
       </div>
 
       {/* Table Wrapper - Same as page.tsx */}
@@ -673,801 +775,283 @@ export default function CheckingTable({
         <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
           {/* Table Scroll Container */}
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full divide-y divide-slate-800" style={{ minWidth: '2000px' }}>
-
-              <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
+            <table
+              className="w-full divide-y divide-slate-800"
+              style={{ minWidth: '1100px' }}   // or just omit style={}
+            >
+              <thead className="bg-slate-950 sticky top-0 z-10">
                 <tr>
-                  {/* Expand Column */}
-                  {visibleColumns.expand && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.expand }}>
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('expand', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Invoice No */}
-                  {visibleColumns.invoice_no && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_no }}>
-                      Invoice No
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('invoice_no', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Invoice Date */}
-                  {visibleColumns.invoice_date && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.invoice_date }}>
-                      Invoice Date
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('invoice_date', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* GST Number */}
-                  {visibleColumns.gst_number && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.gst_number }}>
-                      GST Number
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('gst_number', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Product Name */}
-                  {visibleColumns.product_name && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.product_name }}>
-                      Product Name
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('product_name', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Weight */}
-                  {visibleColumns.weight && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.weight }}>
-                      Weight
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('weight', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Qty */}
-                  {visibleColumns.qty && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.qty }}>
-                      Qty
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('qty', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Price */}
-                  {visibleColumns.price && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.price }}>
-                      Price
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('price', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Amount */}
-                  {visibleColumns.amount && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.amount }}>
-                      Amount
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('amount', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Tax Amount */}
-                  {visibleColumns.tax_amount && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tax_amount }}>
-                      Tax Amount
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('tax_amount', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Total Amount */}
-                  {visibleColumns.total_amount && (
+                  {/* Sr. No */}
+                  {visibleColumns.sr && (
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-slate-800 select-none"
-                      onMouseDown={(e) => handleResizeStart('tax_amount', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
+                      style={{ width: columnWidths.sr }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
                     >
-                      Total Amount
+                      Sr
                     </th>
                   )}
 
-
-                  {/* Tracking Details */}
-                  {visibleColumns.tracking && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.tracking }}>
-                      Tracking Details
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('tracking', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  {/* SKU */}
+                  {visibleColumns.expand && (
+                    <th
+                      style={{ width: columnWidths.expand }}
+                      className="px-3 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                    >
+                      SKU
                     </th>
                   )}
 
-                  {/* Delivery Date */}
-                  {visibleColumns.delivery_date && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.delivery_date }}>
-                      Delivery Date
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('delivery_date', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  {visibleColumns.product_name && (
+                    <th
+                      style={{ width: columnWidths.product_name }}
+                      className="px-3 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                    >
+                      Product
                     </th>
                   )}
 
-                  {/* Company */}
-                  {visibleColumns.company && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.company }}>
-                      Company
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('company', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  <th
+                    style={{ width: columnWidths.asin }}
+                    className="px-3 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                  >
+                    ASIN
+                  </th>
+
+                  <th
+                    style={{ width: 220 }}
+                    className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                  >
+                    Seller Tag
+                  </th>
+
+                  {visibleColumns.weight && (
+                    <th
+                      style={{ width: columnWidths.weight }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                    >
+                      Weight
                     </th>
                   )}
 
-                  {/* Upload */}
-                  {visibleColumns.upload && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 relative" style={{ width: columnWidths.upload }}>
-                      Upload
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('upload', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  {visibleColumns.qty && (
+                    <th
+                      style={{ width: columnWidths.qty }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800"
+                    >
+                      Qty
                     </th>
                   )}
 
-                  {/* 🔴 KEEP THIS SIMPLE - NO BULK BUTTON IN HEADER */}
+                  {/* Checklist column */}
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
+                    Checklist
+                  </th>
+
+                  {/* Damaged Qty column */}
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
+                    Damaged Qty
+                  </th>
+
                   {visibleColumns.action && (
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400" style={{ width: columnWidths.action }}>
+                    <th
+                      style={{ width: columnWidths.action }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase"
+                    >
                       Action
                     </th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredInvoices.length === 0 ? (
-                  <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center py-8 text-slate-500">
-                      {searchQuery ? 'No invoices found' : 'No checking items available'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInvoices.map((group) => {
-                    const isExpanded = expandedInvoices.has(group.invoice_number);
-                    const hasMultipleItems = group.items.length > 1;
-
-                    return (
-                      <React.Fragment key={group.invoice_number}>
-                        {/* Main Invoice Row */}
-                        <tr
-                          className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
-                          onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
+              <tbody className="divide-y divide-slate-800/50">
+                {mergedItems.map((merged, index) => {
+                  const item = merged.representative;
+                  const anyChecklist = merged.allIds.some(id => {
+                    const row = items.find(i => i.id === id);
+                    return row ? hasAnyChecklist(row) : false;
+                  });
+                  return (
+                    <tr key={merged.asin + '-' + index} className="bg-slate-900/40 hover:bg-slate-800/60">
+                      {/* SR NO */}
+                      {visibleColumns.sr && (
+                        <td
+                          style={{ width: columnWidths.sr }}
+                          className="px-3 py-2 text-center text-sm text-slate-300 border-r border-slate-800"
                         >
-                          {visibleColumns.expand && (
-                            <td className="px-4 py-3" style={{ width: columnWidths.expand }}>
-                              {hasMultipleItems ? (
-                                isExpanded ? (
-                                  <ChevronDown size={16} className="text-slate-400" />
-                                ) : (
-                                  <ChevronRight size={16} className="text-slate-400" />
-                                )
-                              ) : null}
-                            </td>
-                          )}
-                          {visibleColumns.invoice_no && (
-                            <td className="px-4 py-3 font-semibold text-slate-200" style={{ width: columnWidths.invoice_no }}>
-                              {group.invoice_number}
-                              {hasMultipleItems && (
-                                <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
-                                  {group.items.length} items
-                                </span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.invoice_date && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.invoice_date }}>
-                              {group.invoice_date
-                                ? new Date(group.invoice_date).toLocaleDateString()
-                                : '-'}
-                            </td>
-                          )}
-                          {visibleColumns.gst_number && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
-                          )}
+                          {index + 1}
+                        </td>
+                      )}
 
-                          {/* Product Name - WITH TRUNCATION */}
-                          {visibleColumns.product_name && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
-                              {!hasMultipleItems ? (
-                                truncateText(group.items[0].product_name || '', 30)
-                              ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* SKU column */}
+                      {visibleColumns.expand && (
+                        <td
+                          style={{ width: columnWidths.expand }}
+                          className="px-3 py-2 text-sm font-mono text-slate-300 border-r border-slate-800"
+                        >
+                          {item.sku || '-'}
+                        </td>
+                      )}
 
-                          {/* Weight - EDITABLE when single item */}
-                          {visibleColumns.weight && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.weight }}>
-                              {!hasMultipleItems ? (
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={group.items[0].product_weight || ''}
-                                  onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                  placeholder="kg"
-                                />
-                              ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* Product name */}
+                      {visibleColumns.product_name && (
+                        <td
+                          style={{ width: columnWidths.product_name }}
+                          className="px-3 py-2 text-sm text-slate-300 border-r border-slate-800"
+                        >
+                          {item.product_name || '-'}
+                        </td>
+                      )}
 
-                          {/* Qty - EDITABLE when single item */}
-                          {visibleColumns.qty && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.qty }}>
-                              {!hasMultipleItems ? (
-                                <input
-                                  type="number"
-                                  value={group.items[0].buying_quantity || ''}
-                                  onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                  placeholder="0"
-                                />
-                              ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* ASIN */}
+                      <td
+                        style={{ width: columnWidths.asin }}
+                        className="px-3 py-2 text-sm font-mono text-slate-300 border-r border-slate-800"
+                      >
+                        {item.asin || '-'}
+                      </td>
 
-                          {/* Price - EDITABLE when single item */}
-                          {visibleColumns.price && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.price }}>
-                              {!hasMultipleItems ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-slate-400 text-sm">₹</span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={group.items[0].buying_price || ''}
-                                    onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                    placeholder="0.00"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* Seller Tag (merged) */}
+                      <td
+                        style={{ width: 220 }}
+                        className="px-3 py-2 text-center border-r border-slate-800"
+                      >
+                        <div className="flex flex-wrap gap-1.5 justify-center items-center">
+                          {merged.sellers.map(s => (
+                            <div key={s.id} className="flex items-center gap-1">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-slate-700 text-white'}`}>
+                                {s.tag}
+                              </span>
+                              <input
+                                type="number"
+                                className="w-14 bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-xs text-white text-center"
+                                value={s.qty}
+                                onChange={(e) => {
+                                  const newVal = e.target.value === '' ? null : parseInt(e.target.value);
+                                  handleEditField(s.id, 'actual_quantity', newVal);
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </td>
 
-                          {/* EXISTING COLUMNS */}
-                          {visibleColumns.amount && (
-                            <td className="px-4 py-3 font-semibold text-green-400" style={{ width: columnWidths.amount }}>
-                              ₹ {group.total_amount.toFixed(2)}
-                            </td>
-                          )}
-                          {visibleColumns.tax_amount && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tax_amount }}>
-                              {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
-                            </td>
-                          )}
-                          {visibleColumns.total_amount && (
-                            <td className="px-4 py-3 text-sm font-bold text-green-400 bg-green-900/10 border-r border-slate-800/50">
-                              ₹ {(group.total_amount + group.total_tax).toFixed(2)}
-                            </td>
-                          )}
+                      {/* Weight */}
+                      {visibleColumns.weight && (
+                        <td
+                          style={{ width: columnWidths.weight }}
+                          className="px-3 py-2 text-center border-r border-slate-800"
+                        >
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            value={item.product_weight ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : null;
+                              merged.allIds.forEach(id => handleEditField(id, 'product_weight', val));
+                            }}
+                            className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </td>
+                      )}
 
-                          {visibleColumns.tracking && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.tracking }}>
-                              {!hasMultipleItems ? (
-                                group.items[0].tracking_details || '-'
-                              ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.delivery_date && (
-                            <td className="px-4 py-3 text-slate-300" style={{ width: columnWidths.delivery_date }}>
-                              {!hasMultipleItems && group.items[0].delivery_date ? (
-                                new Date(group.items[0].delivery_date).toLocaleDateString()
-                              ) : !hasMultipleItems ? (
-                                '-'
-                              ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.company && (
-                            <td className="px-4 py-3" style={{ width: columnWidths.company }}>
-                              {group.seller_company ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCompany(group.seller_company);
-                                  }}
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                                >
-                                  View
-                                </button>
-                              ) : (
-                                <span className="text-slate-600">-</span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.upload && (
-                            <td className="px-4 py-3" style={{ width: columnWidths.upload }}>
-                              {group.uploaded_invoice_url ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedInvoice({
-                                      url: group.uploaded_invoice_url!,
-                                      name: group.uploaded_invoice_name || 'Invoice',
-                                    });
-                                  }}
-                                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                                >
-                                  View
-                                </button>
-                              ) : (
-                                <span className="text-slate-600">-</span>
-                              )}
-                            </td>
-                          )}
+                      {/* Qty (read-only total) */}
+                      {visibleColumns.qty && (
+                        <td
+                          style={{ width: columnWidths.qty }}
+                          className="px-3 py-2 text-center border-r border-slate-800 text-sm text-slate-200 font-bold"
+                        >
+                          {merged.totalQty}
+                        </td>
+                      )}
 
-                          {/* Action Column - Selection Checkbox */}
-                          {/* 🔴 SHOW BULK BUTTON IN MAIN INVOICE ROW */}
-                          {/* 🔴 DUAL ACTION: Checkbox + Individual Send + Bulk Button */}
-                          {visibleColumns.action && (
-                            <td className="px-4 py-3 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
-                              {!hasMultipleItems ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  {/* 🔥 FIXED LOGIC */}
-                                  {selectedItemIds.size === 0 ? (
-                                    // ✅ NO SELECTION - Show individual "Send" button
-                                    <button
-                                      onClick={() => handleMoveToShipment([group.items[0].id])}
-                                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                      title="Send this item to Shipment & Vyapar"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                      </svg>
-                                      Send
-                                    </button>
-                                  ) : selectedItemIds.size === 1 && selectedItemIds.has(group.items[0].id) ? (
-                                    // ✅ SINGLE ITEM SELECTED - Show "Done" button
-                                    <button
-                                      onClick={() => handleMoveToShipment([group.items[0].id])}
-                                      className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                      title="Move this item to Shipment & Vyapar"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                      Done
-                                    </button>
-                                  ) : selectedItemIds.size > 1 && selectedItemIds.has(group.items[0].id) && Array.from(selectedItemIds)[0] === group.items[0].id ? (
-                                    // ✅ MULTIPLE ITEMS SELECTED - Show "Bulk Send" button on first selected row
-                                    <button
-                                      onClick={handleBulkMoveToShipment}
-                                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg whitespace-nowrap flex items-center gap-1"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                      </svg>
-                                      Bulk Send ({selectedItemIds.size})
-                                    </button>
-                                  ) : null}
+                      {/* Checklist — applies to ALL underlying rows */}
+                      <td className="px-3 py-2 text-center border-r border-slate-800">
+                        <div className="inline-flex flex-wrap items-center justify-center gap-2">
+                          <label className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-200 border border-emerald-500/60 hover:bg-emerald-500/20 hover:border-emerald-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_mrp_label}
+                              onChange={(e) =>
+                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_mrp_label', e.target.checked))
+                              }
+                              className="h-3 w-3 rounded border-emerald-400 bg-slate-900 text-emerald-400 focus:ring-emerald-400"
+                            />
+                            <span>MRP label</span>
+                          </label>
 
-                                  {/* ✅ Checkbox for Selection (Always visible) */}
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedItemIds.has(group.items[0].id)}
-                                    onChange={(e) => handleRowSelect(group.items[0].id, e.target.checked)}
-                                    className="w-5 h-5 cursor-pointer accent-indigo-600 rounded"
-                                    title="Select for bulk action"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-slate-600">-</span>
-                              )}
-                            </td>
-                          )}
-                        </tr>
+                          <label className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-200 border border-amber-500/60 hover:bg-amber-500/20 hover:border-amber-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_gelatin}
+                              onChange={(e) =>
+                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_gelatin', e.target.checked))
+                              }
+                              className="h-3 w-3 rounded border-amber-400 bg-slate-900 text-amber-400 focus:ring-amber-400"
+                            />
+                            <span>Gelatin</span>
+                          </label>
 
-                        {/* Expanded Card - Show individual items */}
-                        {isExpanded && hasMultipleItems && (
-                          <tr>
-                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-slate-800/30 px-4 py-3">
-                              <div className="ml-8 space-y-2">
-                                {group.items.map((item) => (
-                                  <div
-                                    key={item.id}
-                                    className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-md hover:border-indigo-500/50 transition-all"
-                                  >
-                                    <div className="flex items-center gap-6 text-sm">
-                                      {/* ASIN */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">ASIN:</span>
-                                        <span className="font-mono text-indigo-400 font-semibold">{item.asin}</span>
-                                      </div>
+                          <label className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] text-sky-200 border border-sky-500/60 hover:bg-sky-500/20 hover:border-sky-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_amazon_badge}
+                              onChange={(e) =>
+                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_amazon_badge', e.target.checked))
+                              }
+                              className="h-3 w-3 rounded border-sky-400 bg-slate-900 text-sky-400 focus:ring-sky-400"
+                            />
+                            <span>Amazon Badge</span>
+                          </label>
 
-                                      {/* Product Name */}
-                                      <div className="flex items-center gap-2 flex-1 min-w-0" title={item.product_name || ''}>
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Product:</span>
-                                        <span className="text-slate-200 truncate">{item.product_name || '-'}</span>
-                                      </div>
+                          <label className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-1 text-[11px] text-rose-200 border border-rose-500/60 hover:bg-rose-500/20 hover:border-rose-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_cleaning}
+                              onChange={(e) =>
+                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_cleaning', e.target.checked))
+                              }
+                              className="h-3 w-3 rounded border-rose-400 bg-slate-900 text-rose-400 focus:ring-rose-400"
+                            />
+                            <span>Cleaning</span>
+                          </label>
+                        </div>
+                      </td>
 
-                                      {/* Weight - EDITABLE */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Weight:</span>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          value={item.product_weight || ''}
-                                          onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                          placeholder="kg"
-                                        />
-                                      </div>
+                      {/* Damaged quantity — applies to ALL underlying rows */}
+                      <td className="px-3 py-2 text-center border-r border-slate-800">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.damaged_quantity ?? ''}
+                          onChange={e => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            merged.allIds.forEach(id => handleDamagedQtyChange(id, val));
+                          }}
+                          className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                        />
+                      </td>
 
-                                      {/* Quantity - EDITABLE */}
-                                      <div className="flex items-center gap-2 min-w-[100px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Qty:</span>
-                                        <input
-                                          type="number"
-                                          value={item.buying_quantity || ''}
-                                          onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                          placeholder="0"
-                                        />
-                                      </div>
-
-                                      {/* Price - EDITABLE */}
-                                      <div className="flex items-center gap-2 min-w-[130px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Price:</span>
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-slate-400 text-sm">₹</span>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={item.buying_price || ''}
-                                            onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all"
-                                            placeholder="0.00"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      {/* Amount - AUTO-CALCULATED */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Amount:</span>
-                                        <span className="font-bold text-green-400">
-                                          {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
-                                        </span>
-                                      </div>
-
-                                      {/* Tracking */}
-                                      <div className="flex items-center gap-2 min-w-[140px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Tracking:</span>
-                                        <span className="text-slate-200 truncate" title={item.tracking_details || ''}>
-                                          {item.tracking_details || '-'}
-                                        </span>
-                                      </div>
-
-                                      {/* Delivery Date */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-slate-500 uppercase">Delivery:</span>
-                                        <span className="text-slate-200">
-                                          {item.delivery_date
-                                            ? new Date(item.delivery_date).toLocaleDateString('en-IN', {
-                                              day: '2-digit',
-                                              month: 'short',
-                                            })
-                                            : '-'}
-                                        </span>
-                                      </div>
-
-                                      {/* Action - Checkbox → Done → Move to Shipment */}
-                                      {/* 🔴 DUAL ACTION: Individual Send + Checkbox */}
-                                      {/* Action - Show Done/Bulk Send based on selection */}
-                                      <div className="flex items-center gap-2 min-w-[140px] justify-end">
-                                        {/* 🔥 FIXED LOGIC - Same as main row */}
-                                        {selectedItemIds.size === 0 ? (
-                                          // ✅ NO SELECTION - Show "Send" button
-                                          <button
-                                            onClick={() => handleMoveToShipment([item.id])}
-                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                          >
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                            </svg>
-                                            Send
-                                          </button>
-                                        ) : selectedItemIds.size === 1 && selectedItemIds.has(item.id) ? (
-                                          // ✅ SINGLE ITEM SELECTED - Show "Done" button
-                                          <button
-                                            onClick={() => handleMoveToShipment([item.id])}
-                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                          >
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            Done
-                                          </button>
-                                        ) : selectedItemIds.size > 1 && selectedItemIds.has(item.id) && Array.from(selectedItemIds)[0] === item.id ? (
-                                          // ✅ MULTIPLE ITEMS SELECTED - Show "Bulk Send" on first selected item
-                                          <button
-                                            onClick={handleBulkMoveToShipment}
-                                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg whitespace-nowrap flex items-center gap-1"
-                                          >
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                            Bulk Send ({selectedItemIds.size})
-                                          </button>
-                                        ) : null}
-
-                                        {/* ✅ Checkbox - Always visible */}
-                                        <label className="flex items-center gap-1 cursor-pointer group">
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedItemIds.has(item.id)}
-                                            onChange={(e) => handleRowSelect(item.id, e.target.checked)}
-                                            className="w-4 h-4 cursor-pointer accent-indigo-600 rounded"
-                                          />
-                                          <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
-                                            Select
-                                          </span>
-                                        </label>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })
-                )}
+                      {/* Action — sends ALL underlying seller rows to restock */}
+                      {visibleColumns.action && (
+                        <td
+                          style={{ width: columnWidths.action }}
+                          className="px-3 py-2 text-center"
+                        >
+                          <button
+                            onClick={() => handleMoveToRestock(merged.allIds)}
+                            disabled={!anyChecklist}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${anyChecklist
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                              : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                              }`}
+                          >
+                            → To Restock
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1475,7 +1059,7 @@ export default function CheckingTable({
           {/* Footer Count - STICKY AT BOTTOM */}
           <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
             <div className="text-sm text-slate-400">
-              Showing {filteredInvoices.length} of {groupedInvoices.length} invoices
+              Showing {filteredItems.length} of {items.length} items
             </div>
           </div>
         </div>
@@ -1510,6 +1094,38 @@ export default function CheckingTable({
           </div>
         </div>
       )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-[100] animate-slide-in">
+          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
+
+      <GenericRollbackModal
+        open={rollbackOpen}
+        onClose={() => setRollbackOpen(false)}
+        onSuccess={() => { fetchCheckingData(); if (onCountsChange) onCountsChange(); }}
+        direction="DISTRIBUTION_TO_CHECKING"
+        sellerId={sellerId}
+        sellerTag=""
+        sourceTableName={getIndiaTrackingTableName('RESTOCK', sellerId)}
+        targetTableName="india_box_checking"
+      />
+      <GenericRollbackModal
+        open={listingErrorRollbackOpen}
+        onClose={() => setListingErrorRollbackOpen(false)}
+        onSuccess={() => { fetchCheckingData(); if (onCountsChange) onCountsChange(); }}
+        direction="LISTING_ERROR_TO_CHECKING"
+        sellerId={sellerId}
+        sellerTag=""
+        sourceTableName={`india_listing_error_seller_${sellerId}_error`}
+        targetTableName="india_box_checking"
+      />
     </div>
   );
 }

@@ -328,4 +328,24 @@ export const resolveSellerId = (tag: string): number | null => {
   const cleanTag = tag?.toUpperCase().trim() as SellerTag;
   return SELLER_TAG_MAPPING[cleanTag] || null;
 };
+
+// ============================================
+// FUNNEL BADGE STYLING (Shared across all components)
+// ============================================
+
+export const getFunnelBadgeStyle = (funnel: string | null): { display: string; color: string } => {
+  if (!funnel) return { display: '-', color: '' };
+
+  const isRS = funnel === 'HD' || funnel === 'LD' || funnel === 'RS';
+  const isDP = funnel === 'DP';
+
+  return {
+    display: isRS ? 'RS' : funnel,
+    color: isRS
+      ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30'
+      : isDP
+        ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg border border-amber-500/30'
+        : 'bg-slate-600 text-white',
+  };
+};
 //C:\Users\Admin\Desktop\Project2\ScrappyioV2-main\lib\utils.ts

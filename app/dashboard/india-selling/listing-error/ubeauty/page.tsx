@@ -1,11 +1,11 @@
 'use client';
 
-import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import {
   Search,
   RotateCcw,
@@ -25,7 +25,7 @@ import {
 const SELLER_ID = 3;
 const SELLER_NAME = "UBeauty";
 const BASE_TABLE_PREFIX = `india_listing_error_seller_${SELLER_ID}`;
-const ITEMS_PER_PAGE = 100; // Matches your screenshot
+const ITEMS_PER_PAGE = 100;
 const getTablesForTab = (tab: TabType): string[] => {
   switch (tab) {
     case 'high_demand': return [`${BASE_TABLE_PREFIX}_high_demand`, `${BASE_TABLE_PREFIX}_low_demand`];
@@ -36,6 +36,37 @@ const getTablesForTab = (tab: TabType): string[] => {
     case 'removed': return [`${BASE_TABLE_PREFIX}_removed`];
     default: return [`${BASE_TABLE_PREFIX}_${tab}`];
   }
+};
+
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// 🆕 SELLER TAG COLORS (same as purchases page)
+const SELLER_TAG_COLORS: Record<string, string> = {
+  GR: 'bg-yellow-500 text-black border border-yellow-600',
+  RR: 'bg-slate-500 text-white border border-slate-600',
+  UB: 'bg-pink-500 text-white border border-pink-600',
+  VV: 'bg-purple-500 text-white border border-purple-600',
+  DE: 'bg-cyan-500 text-black border border-cyan-600',
+  CV: 'bg-teal-500 text-white border border-teal-600',
+};
+
+// 🆕 SELLER TAG FILTER COLORS (gradient style for filter buttons)
+const SELLER_TAG_FILTER_COLORS: Record<string, string> = {
+  GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg',
+  RR: 'bg-gradient-to-br from-slate-400 to-slate-600 text-white shadow-lg',
+  UB: 'bg-gradient-to-br from-pink-400 to-pink-600 text-white shadow-lg',
+  VV: 'bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg',
+  DE: 'bg-gradient-to-br from-cyan-400 to-cyan-600 text-black shadow-lg',
+  CV: 'bg-gradient-to-br from-teal-400 to-teal-600 text-white shadow-lg',
 };
 
 interface ListingProduct {
@@ -50,7 +81,10 @@ interface ListingProduct {
   listing_notes?: string | null;
   error_reason?: string | null;
   source_admin_validation_id?: string;
+  journey_id?: string | null;
+  journey_number?: number | null;
   remark: string | null;
+  seller_tag?: string | null; // 🆕
 }
 
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
@@ -72,7 +106,6 @@ export default function UBeautyListingPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { logActivity } = useActivityLogger();
 
-  // Pagination State
   const [page, setPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -93,8 +126,48 @@ export default function UBeautyListingPage() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+  const SELLER_TAG_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV' };
+  const SELLER_NAME_MAP: Record<number, string> = {
+    1: 'Golden Aura', 2: 'Rudra Retail', 3: 'UBeauty',
+    4: 'Velvet Vista', 5: 'Dropy Ecom', 6: 'Costech Ventures'
+  };
+  const ALL_SELLER_IDS = [1, 2, 3, 4, 5, 6];
 
-  // Reset page when tab changes
+  type CrossSellerInfo = { tag: string; sellerName: string; listedAt: string | null };
+  const [listedByOthers, setListedByOthers] = useState<Record<string, CrossSellerInfo[]>>({});
+  const [minPercent, setMinPercent] = useState(5);
+  const [maxPercent, setMaxPercent] = useState(20);
+  const [editingMinHeader, setEditingMinHeader] = useState(false);
+  const [editingMaxHeader, setEditingMaxHeader] = useState(false);
+  const [tempHeaderValue, setTempHeaderValue] = useState('');
+
+  // Calculate min/max from price
+  const calcMin = (price: number | null) => price ? Math.round(price * (1 - minPercent / 100) * 100) / 100 : null;
+  const calcMax = (price: number | null) => price ? Math.round(price * (1 + maxPercent / 100) * 100) / 100 : null;
+  const batchUpdateMinMax = async (newMinPct: number, newMaxPct: number) => {
+    try {
+      const tables = getTablesForTab(activeTab);
+      for (const table of tables) {
+        const { data } = await supabase.from(table).select('id, selling_price');
+        if (!data || data.length === 0) continue;
+        const updates = data
+          .filter((p: any) => p.selling_price)
+          .map((p: any) =>
+            supabase.from(table).update({
+              min_price: Math.round(p.selling_price * (1 - newMinPct / 100) * 100) / 100,
+              max_price: Math.round(p.selling_price * (1 + newMaxPct / 100) * 100) / 100,
+            }).eq('id', p.id)
+          );
+        await Promise.all(updates);
+      }
+      setToast({ message: `Updated Min(${newMinPct}%) / Max(${newMaxPct}%) for all products`, type: 'success' });
+      fetchProducts();
+    } catch (err) {
+      console.error('Batch update error', err);
+      setToast({ message: 'Failed to update prices', type: 'error' });
+    }
+  };
+
   useEffect(() => {
     setPage(1);
     setSearchQuery('');
@@ -107,7 +180,7 @@ export default function UBeautyListingPage() {
     }
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setPage(1); // Reset to page 1 on new search
+      setPage(1);
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -123,10 +196,32 @@ export default function UBeautyListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // ✅ UPDATED FETCH LOGIC WITH PAGINATION
-  const fetchProducts = useCallback(async () => {
+  const fetchCrossSellerStatus = async (asins: string[]) => {
+    if (asins.length === 0) return;
+    const otherSellerIds = ALL_SELLER_IDS.filter(id => id !== SELLER_ID);
+    const promises = otherSellerIds.map(async (id) => {
+      const tag = SELLER_TAG_MAP[id];
+      const sellerName = SELLER_NAME_MAP[id];
+      const { data } = await supabase
+        .from(`india_listing_error_seller_${id}_done`)
+        .select('asin, created_at')
+        .in('asin', asins);
+      return { tag, sellerName, items: data || [] };
+    });
+    const results = await Promise.all(promises);
+    const statusMap: Record<string, CrossSellerInfo[]> = {};
+    for (const { tag, sellerName, items } of results) {
+      for (const item of items as any[]) {
+        if (!statusMap[item.asin]) statusMap[item.asin] = [];
+        statusMap[item.asin].push({ tag, sellerName, listedAt: item.created_at || null });
+      }
+    }
+    setListedByOthers(statusMap);
+  };
+
+  const fetchProducts = useCallback(async (showLoader = false) => {
     if (!user) return;
-    setLoading(true);
+    if (showLoader) setLoading(true);
 
     try {
       const tables = getTablesForTab(activeTab);
@@ -147,8 +242,9 @@ export default function UBeautyListingPage() {
           .range(from, to);
 
         if (error) throw error;
-        setProducts(data || []);
+        setProducts(data);
         setTotalItems(count || 0);
+        fetchCrossSellerStatus(data.map((p: any) => p.asin));
 
       } else {
         const results = await Promise.all(
@@ -179,6 +275,7 @@ export default function UBeautyListingPage() {
 
         setProducts(sliced);
         setTotalItems(totalCount);
+        fetchCrossSellerStatus(sliced.map((p: any) => p.asin));
       }
 
     } catch (err: any) {
@@ -187,27 +284,38 @@ export default function UBeautyListingPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, user, page]);
+  }, [activeTab, debouncedSearch, user, page]); // 🆕 Added sellerTagFilter
 
-  // Fetch on change
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(true);
 
+    // Subscribe to current seller's tables
     const tables = getTablesForTab(activeTab);
-    const channels = tables.map(tableName => {
+    const channels = tables.map((tableName) => {
       const channelName = `realtime_${tableName}`;
       return supabase
         .channel(channelName)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: tableName },
-          () => { fetchProducts(); }
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, () => fetchProducts())
+        .subscribe();
+    });
+
+    // Subscribe to OTHER sellers' _done tables for cross-seller status updates
+    const otherSellerIds = ALL_SELLER_IDS.filter(id => id !== SELLER_ID);
+    const crossChannels = otherSellerIds.map((id) => {
+      const doneTable = `india_listing_error_seller_${id}_done`;
+      return supabase
+        .channel(`cross_seller_${id}_done`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: doneTable }, () => {
+          // Silent re-fetch of cross-seller status only (not full product reload)
+          const currentAsins = products.map(p => p.asin);
+          fetchCrossSellerStatus(currentAsins);
+        })
         .subscribe();
     });
 
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));
+      crossChannels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [fetchProducts, activeTab]);
 
@@ -232,10 +340,12 @@ export default function UBeautyListingPage() {
         product_name: product.product_name,
         sku: product.sku,
         selling_price: product.selling_price,
+        min_price: calcMin(product.selling_price),
+        max_price: calcMax(product.selling_price),
         seller_link: product.seller_link,
         from_table: fromTable,
         to_table: toTable,
-        remark: product.remark ?? null,
+        remark: product.remark ?? null
       });
       setMovementHistory((prev) => ({
         ...prev,
@@ -246,6 +356,10 @@ export default function UBeautyListingPage() {
 
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
+
+    const journeyId = product.journey_id || generateUUID();
+    const journeyNum = product.journey_number || 1;
+
     try {
       const sourceTableName = activeTab === 'high_demand'
         ? ((product as any)._sourceTable || `${BASE_TABLE_PREFIX}_high_demand`)
@@ -259,10 +373,32 @@ export default function UBeautyListingPage() {
         sku: product.sku,
         selling_price: product.selling_price,
         seller_link: product.seller_link,
+        journey_id: journeyId,
+        journey_number: journeyNum,
         remark: product.remark ?? null,
+        seller_tag: product.seller_tag ?? null,
+        min_price: calcMin(product.selling_price),
+        max_price: calcMax(product.selling_price),
         ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
         ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
+
+      if (target === 'done') {
+        const { error: historyError } = await supabase.from('india_asin_history').insert({
+          asin: product.asin,
+          journey_id: journeyId,
+          journey_number: journeyNum,
+          stage: 'listing_done',
+          status: 'listed',
+          profit: null,
+          snapshot_data: {
+            final_price: product.selling_price,
+            sku: product.sku,
+            listed_at: new Date().toISOString()
+          }
+        });
+        if (historyError) console.error("⚠️ History snapshot failed:", historyError);
+      }
 
       const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
       if (insertError) throw insertError;
@@ -275,7 +411,6 @@ export default function UBeautyListingPage() {
         `${BASE_TABLE_PREFIX}_low_demand`,
         `${BASE_TABLE_PREFIX}_dropshipping`
       ];
-
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
       if (target === 'done') await updateProgressStats('listed', 1);
@@ -287,7 +422,7 @@ export default function UBeautyListingPage() {
 
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
-      // ✅ ADD THIS:
+
       logActivity({
         action: target === 'done' ? 'listed' : target === 'error' ? 'error' : 'removed',
         marketplace: 'india',
@@ -298,16 +433,15 @@ export default function UBeautyListingPage() {
           from: activeTab,
           to: target,
           seller_id: SELLER_ID,
-          seller_name: 'ubeauty',
+          seller_name: 'rudra-retail',
           ...(reason ? { error_reason: reason } : {})
         }
       });
 
-      // Refetch if page becomes empty
       if (products.length === 1 && page > 1) {
         setPage(prev => prev - 1);
       } else {
-        fetchProducts(); // Refresh count
+        fetchProducts();
       }
 
     } catch (err: any) {
@@ -357,14 +491,14 @@ export default function UBeautyListingPage() {
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts();
       setToast({ message: `Restored ${product.asin} to ${activeTab} and Pending`, type: 'success' });
-      // ✅ ADD THIS:
+
       logActivity({
         action: 'rollback',
         marketplace: 'india',
         page: 'listing-error',
         table_name: fromTable,
         asin: product.asin,
-        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'ubeauty' }
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'rudra-retail' }
       });
     } catch (err: any) {
       console.error("Rollback error:", err);
@@ -456,8 +590,6 @@ export default function UBeautyListingPage() {
 
           {/* === TABLE CONTAINER === */}
           <div className="flex-1 min-h-0 bg-slate-900/40 rounded-2xl border border-slate-800/60 backdrop-blur-sm flex flex-col relative overflow-hidden">
-
-            {/* Scrollable Table Area */}
             <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
 
               {loading ? (
@@ -480,9 +612,82 @@ export default function UBeautyListingPage() {
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider w-1/3 border-r border-slate-800 last:border-r-0">Product Details</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">SKU</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0">Price</th>
+                      {/* MIN PRICE - EDITABLE HEADER */}
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0 cursor-pointer select-none"
+                        onClick={() => { setEditingMinHeader(true); setTempHeaderValue(String(minPercent)); }}>
+                        {editingMinHeader ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-amber-400">Min</span>
+                            <input
+                              autoFocus
+                              type="number"
+                              value={tempHeaderValue}
+                              onChange={(e) => setTempHeaderValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseFloat(tempHeaderValue);
+                                  if (!isNaN(val) && val >= 0 && val <= 100) {
+                                    setMinPercent(val);
+                                    setEditingMinHeader(false);
+                                    batchUpdateMinMax(val, maxPercent);
+                                  }
+                                }
+                                if (e.key === 'Escape') setEditingMinHeader(false);
+                              }}
+                              onBlur={() => setEditingMinHeader(false)}
+                              className="w-12 px-1 py-0.5 bg-slate-950 border border-indigo-500 rounded text-xs text-white text-center focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <span className="text-amber-400">%</span>
+                          </div>
+                        ) : (
+                          <span className="hover:text-amber-400 transition-colors" title="Click to edit %">
+                            Min ({minPercent}%) ✎
+                          </span>
+                        )}
+                      </th>
+
+                      {/* MAX PRICE - EDITABLE HEADER */}
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-slate-800 last:border-r-0 cursor-pointer select-none"
+                        onClick={() => { setEditingMaxHeader(true); setTempHeaderValue(String(maxPercent)); }}>
+                        {editingMaxHeader ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-sky-400">Max</span>
+                            <input
+                              autoFocus
+                              type="number"
+                              value={tempHeaderValue}
+                              onChange={(e) => setTempHeaderValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseFloat(tempHeaderValue);
+                                  if (!isNaN(val) && val >= 0 && val <= 100) {
+                                    setMaxPercent(val);
+                                    setEditingMaxHeader(false);
+                                    batchUpdateMinMax(minPercent, val);
+                                  }
+                                }
+                                if (e.key === 'Escape') setEditingMaxHeader(false);
+                              }}
+                              onBlur={() => setEditingMaxHeader(false)}
+                              className="w-12 px-1 py-0.5 bg-slate-950 border border-indigo-500 rounded text-xs text-white text-center focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <span className="text-sky-400">%</span>
+                          </div>
+                        ) : (
+                          <span className="hover:text-sky-400 transition-colors" title="Click to edit %">
+                            Max ({maxPercent}%) ✎
+                          </span>
+                        )}
+                      </th>
+                      {/* 🆕 SELLER TAG COLUMN HEADER */}
+                      <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Seller Tag</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Source</th>
                       <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Remark</th>
+                      {/* 🆕 ACTIONS on ALL tabs: Restock, Dropshipping, Pending get full actions; Listed gets Error+Remove; Error & Removed get nothing extra */}
                       {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                        <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Actions</th>
+                      )}
+                      {activeTab === 'done' && (
                         <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center border-r border-slate-800 last:border-r-0">Actions</th>
                       )}
                       {activeTab === 'error' && (
@@ -499,7 +704,16 @@ export default function UBeautyListingPage() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ delay: index * 0.03, duration: 0.2 }}
-                          className="group hover:bg-slate-800/40 transition-colors"
+                          className={`group transition-colors ${(() => {
+                            const currentSellerTag = SELLER_TAG_MAP[SELLER_ID];
+                            const otherTags = (product.seller_tag?.split(',').map(t => t.trim().toUpperCase()).filter(Boolean) || [])
+                              .filter(t => t !== currentSellerTag);
+                            const allOthersListed = otherTags.length > 0 && otherTags.every(tag =>
+                              (listedByOthers[product.asin] || []).some(s => s.tag === tag)
+                            );
+                            return allOthersListed ? 'bg-emerald-900/20 hover:bg-emerald-900/30' : 'hover:bg-slate-800/40';
+                          })()
+                            }`}
                         >
                           <td className="px-6 py-4 text-sm font-medium text-slate-300 font-mono tracking-tight border-r border-slate-800/50 last:border-r-0">{product.asin}</td>
                           <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
@@ -511,6 +725,51 @@ export default function UBeautyListingPage() {
                               {product.selling_price ? `₹${product.selling_price}` : '-'}
                             </span>
                           </td>
+
+                          {/* MIN PRICE CELL */}
+                          <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
+                            <span className="inline-flex px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-sm font-semibold font-mono">
+                              {product.selling_price ? `₹${calcMin(product.selling_price)}` : '-'}
+                            </span>
+                          </td>
+
+                          {/* MAX PRICE CELL */}
+                          <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
+                            <span className="inline-flex px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 text-sm font-semibold font-mono">
+                              {product.selling_price ? `₹${calcMax(product.selling_price)}` : '-'}
+                            </span>
+                          </td>
+
+                          {/* SELLER TAG COLUMN CELL */}
+                          <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
+                            {product.seller_tag ? (
+                            <div className="grid grid-cols-2 gap-2.5 justify-items-center w-fit mx-auto">
+                                {product.seller_tag.split(',').map((tag: string) => {
+                                  const cleanTag = tag.trim().toUpperCase();
+                                  const crossInfo = (listedByOthers[product.asin] || []).find(s => s.tag === cleanTag);
+                                  const isListedByOther = !!crossInfo;
+                                  const tooltipText = isListedByOther
+                                    ? `✓ Listed by ${crossInfo.sellerName}${crossInfo.listedAt ? ` on ${new Date(crossInfo.listedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`
+                                    : cleanTag;
+                                  return (
+                                    <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_TAG_COLORS[cleanTag] || 'bg-slate-700 text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
+                                      {cleanTag}
+                                      {isListedByOther && (
+                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
+                                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        </span>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+
                           <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
                             {product.seller_link ? (
                               <a href={product.seller_link} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200">
@@ -519,7 +778,6 @@ export default function UBeautyListingPage() {
                             ) : <span className="text-slate-700">-</span>}
                           </td>
 
-                          {/* ✅ ADD THIS NEW REMARK COLUMN */}
                           <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
                             {product.remark ? (
                               <button
@@ -533,6 +791,7 @@ export default function UBeautyListingPage() {
                             )}
                           </td>
 
+                          {/* Original actions for Restock, Dropshipping, Pending */}
                           {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
                             <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
                               <div className="flex items-center justify-center gap-3">
@@ -572,6 +831,35 @@ export default function UBeautyListingPage() {
                             </td>
                           )}
 
+                          {/* 🆕 ACTIONS FOR LISTED TAB - Move to Error or Removed */}
+                          {activeTab === 'done' && (
+                            <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
+                              <div className="flex items-center justify-center gap-3">
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => { setSelectedForError(product); setIsReasonModalOpen(true); }}
+                                  disabled={processingId === product.id}
+                                  className="p-2 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
+                                  title="Move to Error"
+                                >
+                                  <X className="w-4 h-4" />
+                                </motion.button>
+
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleMoveProduct(product, 'removed')}
+                                  disabled={processingId === product.id}
+                                  className="p-2 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 hover:bg-slate-700 hover:text-white transition-all"
+                                  title="Move to Removed"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </motion.button>
+                              </div>
+                            </td>
+                          )}
+
                           {activeTab === 'error' && (
                             <td className="px-6 py-4 border-r border-slate-800/50 last:border-r-0">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
@@ -588,7 +876,7 @@ export default function UBeautyListingPage() {
               )}
             </div>
 
-            {/* ✅ PAGINATION FOOTER */}
+            {/* PAGINATION FOOTER */}
             <div className="flex-none border-t border-slate-800 bg-slate-900/50 p-4 flex items-center justify-between">
               <span className="text-sm text-slate-400">
                 Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span> products
@@ -618,10 +906,9 @@ export default function UBeautyListingPage() {
                 </button>
               </div>
             </div>
-
           </div>
 
-          {/* CUSTOM ERROR REASON MODAL */}
+          {/* ERROR REASON MODAL */}
           {isReasonModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
               <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-md shadow-2xl">
@@ -648,7 +935,8 @@ export default function UBeautyListingPage() {
               </div>
             </div>
           )}
-          {/* ✅ REMARK MODAL - SIMPLE VERSION */}
+
+          {/* REMARK MODAL */}
           <AnimatePresence>
             {selectedRemark && (
               <>
