@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { APP_ROUTES } from '@/lib/config/routes'
 import { AppRoute } from '@/lib/types'
+import NotificationBell from '@/components/chat/NotificationBell'
 import {
   LogOut,
   ChevronDown,
@@ -15,7 +16,13 @@ import {
 } from 'lucide-react'
 import UniversalAsinSearch from './UniversalAsinSearch'
 
-export default function Sidebar() {
+// ✅ NEW: Accept mobile props
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { userRole, logout, hasPageAccess, loading } = useAuth()
   const pathname = usePathname()
 
@@ -41,6 +48,11 @@ export default function Sidebar() {
     setOpenMenus(newOpenMenus)
   }, [pathname])
 
+  // ✅ NEW: Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (onClose) onClose()
+  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleMenu = (path: string) => {
     setOpenMenus(prev => ({ ...prev, [path]: !prev[path] }))
   }
@@ -53,7 +65,8 @@ export default function Sidebar() {
     )
   }
 
-  return (
+  // ✅ The actual sidebar content (shared between mobile overlay & desktop)
+  const sidebarContent = (
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-slate-800 flex items-center gap-2">
@@ -67,14 +80,17 @@ export default function Sidebar() {
 
       {/* User Role Badge */}
       {userRole && (
-        <div className="px-4 py-2 border-b border-slate-800">
-          {userRole.full_name && (
-            <p className="text-xs text-slate-400 mb-1 truncate">{userRole.full_name}</p>
-          )}
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <ShieldCheck className="w-3 h-3" />
-            {userRole.role}
-          </span>
+        <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between">
+          <div>
+            {userRole.full_name && (
+              <p className="text-xs text-slate-400 mb-1 truncate">{userRole.full_name}</p>
+            )}
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <ShieldCheck className="w-3 h-3" />
+              {userRole.role}
+            </span>
+          </div>
+          <NotificationBell />
         </div>
       )}
 
@@ -103,6 +119,32 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+  )
+
+  return (
+    <>
+      {/* ✅ DESKTOP: Show sidebar normally (hidden on mobile) */}
+      <div className="hidden md:flex h-full">
+        {sidebarContent}
+      </div>
+
+      {/* ✅ MOBILE: Overlay sidebar (hidden on desktop) */}
+      <div className="md:hidden">
+        {/* Backdrop */}
+        <div
+          className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          onClick={onClose}
+        />
+        {/* Slide-in panel */}
+        <div
+          className={`fixed top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+        >
+          {sidebarContent}
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -174,8 +216,8 @@ function SidebarItem({
   return (
     <div>
       <div
-        draggable={true}                    // ✅ NEW
-        onDragStart={handleDragStart}       // ✅ NEW
+        draggable={true}
+        onDragStart={handleDragStart}
         className={`
           flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-150
           select-none

@@ -45,6 +45,7 @@ type InboundProduct = {
     status: string; // 'pending' | 'in_transit' | 'delivered'
     product_weight: number | null;
     created_at: string | null;
+    address: string | null;
 };
 
 type BoxSummary = {
@@ -66,6 +67,7 @@ const DEFAULT_COLUMNS = [
     { key: 'sku', label: 'SKU', minWidth: 100 },
     { key: 'product_name', label: 'Product Name', minWidth: 180 },
     { key: 'product_link', label: 'Product Link', minWidth: 100 },
+    { key: 'seller_link', label: 'Seller Link', minWidth: 100 },
     { key: 'funnel', label: 'Funnel', minWidth: 80 },
     { key: 'seller_tag', label: 'Seller Tag', minWidth: 190 },
     { key: 'origin', label: 'Origin', minWidth: 80 },
@@ -75,6 +77,7 @@ const DEFAULT_COLUMNS = [
     { key: 'tracking', label: 'Tracking Details', minWidth: 150 },
     { key: 'delivery_date', label: 'Delivery Date', minWidth: 120 },
     { key: 'order_date', label: 'Order Date', minWidth: 110 },
+    { key: 'address', label: 'Address', minWidth: 80 },
     { key: 'status', label: 'Status', minWidth: 200 },
 ];
 
@@ -113,7 +116,15 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
     const [columnOrder, setColumnOrder] = useState<string[]>(() => {
         if (typeof window === 'undefined') return DEFAULT_COLUMNS.map(c => c.key);
         const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : DEFAULT_COLUMNS.map(c => c.key);
+        if (saved) {
+            const parsed: string[] = JSON.parse(saved);
+            // Merge: keep saved order, add any new columns that aren't in saved
+            const allKeys = DEFAULT_COLUMNS.map(c => c.key);
+            const merged = parsed.filter(k => allKeys.includes(k));
+            allKeys.forEach(k => { if (!merged.includes(k)) merged.push(k); });
+            return merged;
+        }
+        return DEFAULT_COLUMNS.map(c => c.key);
     });
 
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
@@ -218,7 +229,8 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                     order_date,
                     status,
                     product_weight,
-                    created_at
+                    created_at,
+                    address
                 `)
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -286,7 +298,8 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                     order_date,
                     status,
                     product_weight,
-                    created_at
+                    created_at,
+                    address
                 `)
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -660,6 +673,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
         product_name: string | null;
         sku: string | null;
         product_link: string | null;
+        seller_link: string | null;
         funnel: string | null;
         origin_india: boolean;
         origin_china: boolean;
@@ -669,6 +683,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
         delivery_date: string | null;
         order_date: string | null;
         created_at: string | null;
+        address: string | null;
         // seller tags with their quantities
         sellerEntries: { tag: string; qty: number; pendingQty: number; id: string }[];
         totalQty: number;
@@ -686,6 +701,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                     product_name: p.product_name,
                     sku: p.sku,
                     product_link: p.product_link,
+                    seller_link: p.seller_link,
                     funnel: p.funnel,
                     origin_india: p.origin_india,
                     origin_china: p.origin_china,
@@ -695,6 +711,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                     delivery_date: p.delivery_date,
                     order_date: p.order_date,
                     created_at: p.created_at,
+                    address: p.address,
                     sellerEntries: [],
                     totalQty: 0,
                     totalPending: 0,
@@ -710,11 +727,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
             group.totalPending += pending;
         });
         return Array.from(map.values()).filter(row => {
-            const hasActivePending = row.sellerEntries.some(s => s.pendingQty > 0);
-            if (hasActivePending) return true;
-            // If all pending = 0, still show if nothing was boxed (user manually zeroed qty)
-            const allFullyBoxed = row.rows.every(p => (p.assigned_quantity ?? 0) > 0);
-            return !allFullyBoxed;
+            return row.sellerEntries.some(s => s.pendingQty > 0);
         });
     }, [filteredProducts]);
 
@@ -898,18 +911,18 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
     return (
         <div className="h-full flex flex-col">
             {/* Toolbar */}
-            <div className="flex-none pt-5 pb-4 flex gap-4 items-center flex-wrap">
+            <div className="flex-none pt-4 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
                 {/* Search */}
                 <input
                     type="text"
                     placeholder="Search by ASIN, Name, SKU, or Tracking..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 text-sm bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
                 />
 
                 {/* Status Filter */}
-                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
+                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1 overflow-x-auto scrollbar-none">
                     {(['ALL', 'pending', 'in_transit', 'delivered'] as const).map(opt => (
                         <button
                             key={opt}
@@ -928,7 +941,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                 </div>
 
                 {/* Origin Filter */}
-                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
+                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1 overflow-x-auto scrollbar-none">
                     {(['ALL', 'India', 'China', 'US'] as const).map(opt => (
                         <button
                             key={opt}
@@ -1025,6 +1038,12 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                                                                         {merged.product_link ? <a href={merged.product_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 no-underline">🔗 Link</a> : <span className="text-slate-600">-</span>}
                                                                     </td>
                                                                 );
+                                                            case 'seller_link':
+                                                                return (
+                                                                    <td key={key} className={base} style={style}>
+                                                                        {merged.seller_link ? <a href={merged.seller_link.startsWith('http') ? merged.seller_link : `https://${merged.seller_link}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 no-underline text-xs">🔗 Seller</a> : <span className="text-slate-600">-</span>}
+                                                                    </td>
+                                                                );
                                                             case 'funnel':
                                                                 return <td key={key} className={`${base} text-center`} style={style}><FunnelBadge funnel={merged.funnel} /></td>;
                                                             case 'seller_tag':
@@ -1108,6 +1127,16 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                                                                 return <td key={key} className={base} style={style}>{EditableCell(primaryRow.id, "delivery_date", merged.delivery_date ?? null)}</td>;
                                                             case 'order_date':
                                                                 return <td key={key} className={base} style={style}>{merged.order_date || '-'}</td>;
+                                                            case 'address':
+                                                                return (
+                                                                    <td key={key} className={`${base} text-center`} style={style}>
+                                                                        {merged.address ? (
+                                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${merged.address === 'A' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                                                                                {merged.address}
+                                                                            </span>
+                                                                        ) : <span className="text-slate-600">-</span>}
+                                                                    </td>
+                                                                );
                                                             case 'status':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
@@ -1163,13 +1192,13 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none borde-t border-slate-800 bg-slate-950 px-4 py-3">
-                        <div className="flex items-center justify-between text-sm text-slate-400">
+                    <div className="flex-none borde-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-slate-400">
                             <span>
-                                Showing {mergedProducts.length} of {products.length} items ({mergedProducts.length} unique ASINs)
+                                Showing {mergedProducts.length} unique ASINs ({products.length} total rows)
                                 {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}
                             </span>
-                            <div className="flex gap-4">
+                            <div className="flex gap-2 sm:gap-4 flex-wrap">
                                 <span className="text-yellow-400">⏳ {products.filter(p => p.status === 'pending').length} Pending</span>
                                 <span className="text-blue-400">🚚 {products.filter(p => p.status === 'in_transit').length} In Transit</span>
                                 <span className="text-green-400">✅ {products.filter(p => p.status === 'delivered').length} Delivered</span>
@@ -1202,7 +1231,7 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
             />
             {viewBoxOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-                    <div className="w-full max-w-6xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col">
+                    <div className="w-full max-w-6xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
                         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold text-white">

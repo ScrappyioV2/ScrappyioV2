@@ -362,6 +362,7 @@ export default function UBeautyPage() {
     reason?: string
   ) => {
     setProcessingId(product.id);
+    setProducts(prev => prev.filter(p => p.id !== product.id));
     try {
       let targetTable: string;
       let dataToInsert: any;
@@ -408,9 +409,10 @@ export default function UBeautyPage() {
           }
         }
 
-        await saveToHistory(product, currentTable, targetTable);
-        await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts(true);
+        await Promise.all([
+          saveToHistory(product, currentTable, targetTable),
+          supabase.from(currentTable).delete().eq('asin', product.asin),
+        ]);
         setToast({ message: 'Product moved to Validation Main File!', type: 'success' });
         logActivity({
           action: 'approve',
@@ -428,9 +430,10 @@ export default function UBeautyPage() {
         const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
         if (insertError) throw insertError;
 
-        await saveToHistory(product, currentTable, targetTable);
-        await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts(true);
+        await Promise.all([
+          saveToHistory(product, currentTable, targetTable),
+          supabase.from(currentTable).delete().eq('asin', product.asin),
+        ]);
         setToast({ message: 'Product moved to Not Approved!', type: 'success' });
         logActivity({
           action: 'not_approve',
@@ -448,9 +451,10 @@ export default function UBeautyPage() {
         const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
         if (insertError) throw insertError;
 
-        await saveToHistory(product, currentTable, targetTable);
-        await supabase.from(currentTable).delete().eq('asin', product.asin);
-        await fetchProducts(true);
+        await Promise.all([
+          saveToHistory(product, currentTable, targetTable),
+          supabase.from(currentTable).delete().eq('asin', product.asin),
+        ]);
         setToast({ message: 'Product rejected!', type: 'success' });
         logActivity({
           action: 'reject',
@@ -462,6 +466,7 @@ export default function UBeautyPage() {
         });
       }
     } catch (err: any) {
+      setProducts(prev => [...prev, product]);
       console.error('Move product error:', err);
       setToast({ message: `Error: ${err.message}`, type: 'error' });
     } finally {
@@ -681,9 +686,9 @@ export default function UBeautyPage() {
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
     return (
-      <div className="sticky bottom-0 z-40 bg-slate-900 border-t border-slate-800 p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-400">
+      <div className="sticky bottom-0 z-40 bg-slate-900 border-t border-slate-800 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="text-xs sm:text-sm text-slate-400">
             Showing <span className="text-slate-200 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
             <span className="text-slate-200 font-medium">{Math.min(currentPage * rowsPerPage, totalCount)}</span> of{' '}
             <span className="text-white font-bold">{totalCount}</span> products
@@ -782,7 +787,7 @@ export default function UBeautyPage() {
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
+      className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-xl whitespace-nowrap transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
         ? `text-white bg-slate-800 shadow-[0_0_20px_-5px_currentColor] ${colorClass}`
         : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-transparent hover:border-slate-800'
         }`}
@@ -802,17 +807,17 @@ export default function UBeautyPage() {
     <>
       <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
         {/* HEADER */}
-        <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
+        <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-4 sm:pt-6 px-3 sm:px-4 lg:px-6">
           <div className="max-w-[1920px] mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                    <LayoutList className="w-6 h-6 text-indigo-400" />
+                    <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
                   </div>
-                  <h1 className="text-2xl font-bold tracking-tight text-white">UBeauty Listing</h1>
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">UBeauty Listing</h1>
                 </div>
-                <p className="text-slate-400 pl-[3.25rem] text-sm">
+                <p className="text-xs sm:text-sm text-slate-400 pl-[3.25rem]">
                   Review and process listing errors and approvals
                 </p>
               </div>
@@ -825,7 +830,7 @@ export default function UBeautyPage() {
             </div>
 
             {/* TABS */}
-            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit">
+            <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-full sm:w-fit overflow-x-auto scrollbar-none">
               {tabStyles('high_demand', 'text-emerald-400', 'Restock')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
               {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
@@ -833,12 +838,12 @@ export default function UBeautyPage() {
             </div>
 
             {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800 mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4 bg-slate-900/40 p-2 sm:p-3 rounded-xl border border-slate-800 mb-2">
               <div className="flex gap-3 w-full md:w-auto">
                 <div className="relative">
                   <button
                     onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 text-sm font-medium transition-colors"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors"
                   >
                     <Columns className="w-4 h-4" /> Columns
                   </button>
@@ -892,7 +897,7 @@ export default function UBeautyPage() {
                     <button
                       onClick={() => setIsMoveToDropdownOpen(!isMoveToDropdownOpen)}
                       disabled={selectedIds.size === 0}
-                      className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${selectedIds.size > 0
+                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium transition-all ${selectedIds.size > 0
                         ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
                         : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                         }`}
@@ -932,7 +937,7 @@ export default function UBeautyPage() {
                 <button
                   onClick={handleRollBack}
                   disabled={!hasRollback}
-                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium transition-all ${hasRollback
                     ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                     }`}
@@ -946,7 +951,7 @@ export default function UBeautyPage() {
         </div>
 
         {/* TABLE */}
-        <div className="max-w-[1920px] mx-auto px-6 pb-6">
+        <div className="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pb-4 sm:pb-6">
           <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl shadow-black/20">
             {loading ? (
               <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
@@ -1111,7 +1116,7 @@ export default function UBeautyPage() {
         {/* ✅ ADD THIS - Remark Modal */}
         {selectedRemark && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-white">Remark Details</h3>
                 <button

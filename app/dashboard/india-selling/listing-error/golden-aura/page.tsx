@@ -409,8 +409,10 @@ export default function GoldenAuraListingPage() {
         `${BASE_TABLE_PREFIX}_pending`,
         `${BASE_TABLE_PREFIX}_high_demand`,
         `${BASE_TABLE_PREFIX}_low_demand`,
-        `${BASE_TABLE_PREFIX}_dropshipping`
-      ];
+        `${BASE_TABLE_PREFIX}_dropshipping`,
+        `${BASE_TABLE_PREFIX}_done`,
+        `${BASE_TABLE_PREFIX}_error`,
+      ].filter(t => t !== targetTableName);
       await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
 
       if (target === 'done') await updateProgressStats('listed', 1);
@@ -517,30 +519,30 @@ export default function GoldenAuraListingPage() {
         <div className="flex-1 flex flex-col w-full mx-auto p-3 overflow-hidden">
           {/* === HEADER & CONTROLS === */}
           <div className="flex-none space-y-4 pb-4">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-800/60">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-slate-800/60">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                    <LayoutList className="w-6 h-6 text-indigo-400" />
+                    <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
                   </div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
+                  <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
                 </div>
-                <p className="text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
+                <p className="text-xs sm:text-sm text-slate-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
-                  TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{totalItems}</span>
+                <div className="px-3 sm:px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400">
+                  <span className="hidden sm:inline">TOTAL ITEMS:</span><span className="sm:hidden">TOTAL:</span> <span className="text-white font-bold text-sm sm:text-base ml-1 sm:ml-2">{totalItems}</span>
                 </div>
               </div>
             </header>
 
             <div className="space-y-6">
-              <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-fit">
+              <div className="flex flex-wrap gap-2 p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800/60 backdrop-blur-sm w-full sm:w-fit overflow-x-auto scrollbar-none">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
-                    className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`relative px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 z-10 whitespace-nowrap ${activeTab === tab.id ? `text-white ${tab.glow}` : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     {activeTab === tab.id && (
                       <motion.div
@@ -557,7 +559,7 @@ export default function GoldenAuraListingPage() {
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 bg-slate-900/40 p-3 sm:p-4 rounded-2xl border border-slate-800/60">
                 <div className="relative w-full sm:w-96 group">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
@@ -579,7 +581,7 @@ export default function GoldenAuraListingPage() {
                   whileTap={hasRollback ? { scale: 0.98 } : {}}
                   onClick={handleRollBack}
                   disabled={!hasRollback}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'}`}
+                  className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${hasRollback ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 hover:bg-indigo-500' : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'}`}
                 >
                   <RotateCcw className="w-4 h-4" />
                   Undo Action
@@ -752,7 +754,7 @@ export default function GoldenAuraListingPage() {
                                     ? `✓ Listed by ${crossInfo.sellerName}${crossInfo.listedAt ? ` on ${new Date(crossInfo.listedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`
                                     : cleanTag;
                                   return (
-                                     <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_TAG_COLORS[cleanTag] || 'bg-slate-700 text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
+                                    <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_TAG_COLORS[cleanTag] || 'bg-slate-700 text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
                                       {cleanTag}
                                       {isListedByOther && (
                                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
@@ -877,12 +879,12 @@ export default function GoldenAuraListingPage() {
             </div>
 
             {/* PAGINATION FOOTER */}
-            <div className="flex-none border-t border-slate-800 bg-slate-900/50 p-4 flex items-center justify-between">
-              <span className="text-sm text-slate-400">
-                Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span> products
+            <div className="flex-none border-t border-slate-800 bg-slate-900/50 p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <span className="text-xs sm:text-sm text-slate-400">
+                Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span>
               </span>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
@@ -911,7 +913,7 @@ export default function GoldenAuraListingPage() {
           {/* ERROR REASON MODAL */}
           {isReasonModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-              <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-md shadow-2xl">
+              <div className="bg-slate-900 border border-slate-700 p-4 sm:p-6 rounded-2xl w-full max-w-md mx-3 sm:mx-0 shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-4">Report Error</h3>
                 <p className="text-slate-400 mb-4 text-sm">Why are you rejecting <b>{selectedForError?.asin}</b>?</p>
                 <input
@@ -955,7 +957,7 @@ export default function GoldenAuraListingPage() {
                 >
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
+                    className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-3 sm:mx-4 border border-slate-700 overflow-hidden pointer-events-auto"
                   >
                     <div className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700">
                       <h2 className="text-xl font-bold text-white">Remark Details</h2>

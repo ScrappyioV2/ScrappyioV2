@@ -948,6 +948,8 @@ export default function AdminValidationPage() {
           const updated = { ...p, [field]: value };
           if (field === 'admintargetprice') updated.admin_target_price = value;
           if (field === 'sellertag') updated.seller_tag = value;
+          if (field === 'sellerlink') updated.seller_link = value;
+          if (field === 'productlink') updated.product_link = value;
           if (calcResult.profit !== null) {
             updated.profit = calcResult.profit;
             updated.total_cost = calcResult.total_cost;
@@ -1159,6 +1161,7 @@ export default function AdminValidationPage() {
           min_price: Math.round(salesPriceInr * 0.95 * 100) / 100,
           max_price: Math.round(salesPriceInr * 1.20 * 100) / 100,
           remark: product.remark ?? null,
+          seller_tag: rawSellerTag,
         };
 
         // B. Select Tables for THIS seller
@@ -1805,7 +1808,8 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-4 py-3">
             <input type="number" defaultValue={product.target_price}
-              onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
+              onBlur={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </td>
@@ -1824,8 +1828,9 @@ export default function AdminValidationPage() {
       case 'admin_target_price':
         return (
           <td key={col_key} className="px-4 py-3 bg-purple-900/10">
-            <input type="number" step="0.01" value={product.admin_target_price ?? ''}
-              onChange={(e) => handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))}
+            <input type="number" step="0.01" defaultValue={product.admin_target_price ?? ''}
+              onBlur={(e) => handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="w-24 px-2 py-1 bg-slate-950 border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
               placeholder="₹"
             />
@@ -1906,7 +1911,8 @@ export default function AdminValidationPage() {
                 <option value="USD">$</option>
               </select>
               <input type="number" defaultValue={product.buying_price}
-                onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+                onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                 className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
@@ -2096,17 +2102,17 @@ export default function AdminValidationPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-3 sm:p-4 lg:p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
       <div className="w-full flex flex-col flex-1 overflow-hidden">
 
         {/* Header Section */}
-        <div className="flex-none mb-6">
-          <h1 className="text-3xl font-bold text-white">Admin Validation</h1>
-          <p className="text-slate-400 mt-1">Review and manage product pricing and profitability</p>
+        <div className="flex-none mb-3 sm:mb-6">
+          <h1 className="text-xl sm:text-3xl font-bold text-white">Admin Validation</h1>
+          <p className="text-slate-400 mt-1 text-xs sm:text-sm">Review and manage product pricing and profitability</p>
         </div>
 
         {/* Tabs - STICKY */}
-        <div className="flex-none flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
+        <div className="flex-none flex gap-1.5 sm:gap-2 mb-3 sm:mb-5 overflow-x-auto p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-full sm:w-fit backdrop-blur-sm scrollbar-none">
           {[
             { id: 'overview', label: 'Overview', count: products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length, color: 'text-indigo-400', activeBg: 'bg-indigo-500/10' },
             { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/10' },
@@ -2119,7 +2125,7 @@ export default function AdminValidationPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
-              className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
+              className={`px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === tab.id
                 ? `text-white bg-slate-800 shadow-[0_0_15px_-5px_currentColor] border border-slate-700 ${tab.color}`
                 : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
                 }`}
@@ -2140,7 +2146,7 @@ export default function AdminValidationPage() {
         </div>
 
         {/* Search Bar & Buttons */}
-        <div className="flex-none mb-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex-none mb-3 sm:mb-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
           {/* Left: Search Input */}
           <div className="relative flex-1 w-full md:max-w-md group">
             <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2156,7 +2162,7 @@ export default function AdminValidationPage() {
           </div>
 
           {/* Right: Buttons Group */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
 
             {/* Funnel Filter Pills - RS / DP */}
             <div className="flex items-center bg-slate-900/50 rounded-xl border border-slate-800 p-1">
@@ -2286,28 +2292,28 @@ export default function AdminValidationPage() {
             <button
               onClick={handleRollBack}
               disabled={!movementHistory[activeTab]}
-              className="px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
               title="Roll Back last action from this tab (Ctrl+Z)"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
-              Roll Back
+              <span className="hidden sm:inline">Roll Back</span>
             </button>
 
             {/* 🆕 NEW: Toggle Button for All Journeys */}
             <button
               onClick={() => setShowAllJourneys(!showAllJourneys)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
                 ? 'bg-indigo-600 text-white hover:bg-indigo-500 border-indigo-500/50 shadow-indigo-900/20'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
                 }`}
               title={`Currently showing: ${showAllJourneys ? 'All journey cycles' : 'Latest journey only'}`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-              {showAllJourneys ? 'Show Latest Only' : 'Show All Journeys'}
+              <span className="hidden sm:inline">{showAllJourneys ? 'Show Latest Only' : 'Show All Journeys'}</span>
             </button>
 
             {/* Configure Constants Button */}
@@ -2324,7 +2330,7 @@ export default function AdminValidationPage() {
             <button
               onClick={() => skuFileInputRef.current?.click()}
               disabled={skuUploading}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg ${skuUploading
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg ${skuUploading
                 ? 'bg-cyan-800 text-cyan-200 border-cyan-700 cursor-wait'
                 : 'bg-cyan-600 text-white hover:bg-cyan-500 border-cyan-500/50 shadow-cyan-900/20'
                 }`}
@@ -2333,12 +2339,12 @@ export default function AdminValidationPage() {
               {skuUploading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Updating SKUs... {skuUploadProgress}%
+                  <span className="hidden sm:inline">Updating SKUs...</span> {skuUploadProgress}%
                 </>
               ) : (
                 <>
                   <Upload className="w-4 h-4" />
-                  Upload SKU
+                  <span className="hidden sm:inline">Upload SKU</span>
                 </>
               )}
             </button>
@@ -2347,10 +2353,10 @@ export default function AdminValidationPage() {
             <div className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsDownloadOpen(!isDownloadOpen); }}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg bg-purple-600 text-white hover:bg-purple-500 border-purple-500/50 shadow-purple-900/20"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg bg-purple-600 text-white hover:bg-purple-500 border-purple-500/50 shadow-purple-900/20"
               >
                 <Download className="w-4 h-4" />
-                Download CSV
+                <span className="hidden sm:inline">Download CSV</span>
               </button>
 
               {isDownloadOpen && (
@@ -2391,18 +2397,18 @@ export default function AdminValidationPage() {
                 });
                 setIsConstantsModalOpen(true);
               }}
-              className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Configure Constants
+              <span className="hidden sm:inline">Configure Constants</span>
             </button>
           </div>
         </div>
 
-        <div className="text-xs text-indigo-400 mb-2 px-1 font-medium flex items-center gap-2">
+        <div className="text-xs text-indigo-400 mb-2 px-1 font-medium hidden sm:flex items-center gap-2">
           <span className="bg-indigo-500/10 px-2 py-1 rounded">💡</span>
           <span>
             {showAllJourneys
@@ -2541,13 +2547,13 @@ export default function AdminValidationPage() {
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
               <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6 rounded-t-xl">
-                  <h2 className="text-2xl font-bold">Admin Calculation Constants</h2>
-                  <p className="text-purple-100 mt-1 opacity-90">Configure constants for profit calculation</p>
+                <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-4 sm:p-6 rounded-t-xl">
+                  <h2 className="text-lg sm:text-2xl font-bold">Admin Calculation Constants</h2>
+                  <p className="text-purple-100 mt-1 opacity-90 text-xs sm:text-sm">Configure constants for profit calculation</p>
                 </div>
 
                 {/* Body */}
-                <div className="grid grid-cols-2 gap-6 p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 p-4 sm:p-6">
                   {/* Dollar Rate */}
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-2">💵 Dollar Rate (₹)</label>
@@ -2605,7 +2611,7 @@ export default function AdminValidationPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3 rounded-b-xl">
+                <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3 rounded-b-xl">
                   <button onClick={() => setIsConstantsModalOpen(false)} className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 border border-slate-700 font-medium transition-colors">Cancel</button>
                   <button onClick={saveAdminConstants} disabled={isSavingConstants} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all">
                     {isSavingConstants ? (
@@ -2655,7 +2661,7 @@ export default function AdminValidationPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">

@@ -423,14 +423,14 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
     return (
         <div className="h-full flex flex-col">
             {/* Toolbar */}
-            <div className="flex-none pt-5 pb-4 flex gap-4 items-center flex-wrap">
+            <div className="flex-none pt-3 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
                 {/* Search */}
                 <input
                     type="text"
                     placeholder={`Search ${sellerName} items...`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500 text-sm"
                 />
 
                 {/* Status Filter */}
@@ -480,9 +480,9 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                         {/* ⏪ Rollback from Restock */}
                         <button
                             onClick={() => setRollbackOpen(true)}
-                            className="px-4 py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
+                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
                         >
-                            ⏪ Rollback from Restock
+                            <span className="hidden sm:inline">⏪ Rollback from Restock</span><span className="sm:hidden">⏪ Rollback</span>
                         </button>
                     </div>
                 )}
@@ -623,8 +623,8 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-                        <div className="flex items-center justify-between text-sm text-slate-400">
+                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-slate-400">
                             <span>
                                 Showing {filteredProducts.length} of {products.length} items for {sellerName}
                                 {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}

@@ -123,7 +123,7 @@ export default function ListingErrorDashboard() {
 
   return (
     <>
-      <div className="h-full bg-slate-950 text-slate-200 p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
+      <div className="h-full bg-slate-950 text-slate-200 p-3 sm:p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
 
         {/* === HEADER === */}
         <header className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0">
@@ -132,9 +132,9 @@ export default function ListingErrorDashboard() {
               <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                 <LayoutDashboard className="w-5 h-5 text-indigo-400" />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white">Listing Overview</h1>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Listing Overview</h1>
             </div>
-            <p className="text-slate-400 text-sm pl-[2.5rem] max-w-lg">
+            <p className="text-slate-400 text-xs sm:text-sm pl-[2.5rem] max-w-lg hidden sm:block">
               Real-time overview of product distribution, listings, and error resolution.
             </p>
           </div>
@@ -143,7 +143,7 @@ export default function ListingErrorDashboard() {
             onClick={() => { setLoading(true); fetchRealCounts(); }}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-slate-700"
           >
-            Refresh Data
+            <span className="hidden sm:inline">Refresh Data</span><span className="sm:hidden">Refresh</span>
           </button>
         </header>
 

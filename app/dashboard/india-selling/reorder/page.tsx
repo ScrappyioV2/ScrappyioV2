@@ -18,7 +18,8 @@ import {
   History,
   ArrowRightCircle,
   X,
-  Send
+  Send,
+  Info
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -44,6 +45,7 @@ type ReorderProduct = {
   admin_target_qty: number;
   current_qty: number;
   tracking_qty: number;
+  tracking_sources?: { inbound: number; boxes: number; checking: number; restock: number };
   final_reorder_qty: number;
   status: 'Safe' | 'Covered' | 'Reorder';
   updated_at: string;
@@ -497,6 +499,15 @@ export default function ReorderPage() {
       // ✅ Build tracking quantity map by summing across ALL 4 pipeline tables
       const trackingMap: Record<string, number> = {}
 
+      const trackingSourcesMap: Record<string, { inbound: number; boxes: number; checking: number; restock: number }> = {}
+
+      const addToSourceMap = (asin: string, qty: number, source: 'inbound' | 'boxes' | 'checking' | 'restock') => {
+        if (!asin || qty <= 0) return
+        const key = asin.trim().toUpperCase()
+        if (!trackingSourcesMap[key]) trackingSourcesMap[key] = { inbound: 0, boxes: 0, checking: 0, restock: 0 }
+        trackingSourcesMap[key][source] += qty
+      }
+
       const addToMap = (asin: string, qty: number) => {
         if (!asin || qty <= 0) return
         const key = asin.trim().toUpperCase()
@@ -525,6 +536,7 @@ export default function ReorderPage() {
           data?.forEach(row => {
             const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
             addToMap(row.asin, share)
+            addToSourceMap(row.asin, share, 'inbound')
           })
           console.log(`  📦 Inbound: ${data?.length || 0} rows matched for ${sellerTag}`)
         }
@@ -542,6 +554,7 @@ export default function ReorderPage() {
           data?.forEach(row => {
             const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
             addToMap(row.asin, share)
+            addToSourceMap(row.asin, share, 'boxes')
           })
           console.log(`  📦 Boxes: ${data?.length || 0} rows matched for ${sellerTag}`)
         }
@@ -559,6 +572,7 @@ export default function ReorderPage() {
           data?.forEach(row => {
             const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
             addToMap(row.asin, share)
+            addToSourceMap(row.asin, share, 'checking')
           })
           console.log(`  📦 Checking: ${data?.length || 0} rows matched for ${sellerTag}`)
         }
@@ -573,7 +587,10 @@ export default function ReorderPage() {
 
         if (error) console.warn(`⚠️ Error querying ${restockTable}:`, error.message)
         else {
-          data?.forEach(row => addToMap(row.asin, row.buying_quantity || 0))
+          data?.forEach(row => {
+            addToMap(row.asin, row.buying_quantity || 0)
+            addToSourceMap(row.asin, row.buying_quantity || 0, 'restock')
+          })
           console.log(`  📦 Restock: ${data?.length || 0} rows`)
         }
       }
@@ -608,6 +625,7 @@ export default function ReorderPage() {
         return {
           id: p.id,
           tracking_qty: incoming,
+          tracking_sources: trackingSourcesMap[p.asin?.trim().toUpperCase()] || { inbound: 0, boxes: 0, checking: 0, restock: 0 },
           final_reorder_qty: finalReorder,
           status: status,
           is_in_final_reorder: isInFinalReorder
@@ -628,7 +646,21 @@ export default function ReorderPage() {
       )
 
       await Promise.all(updatePromises)
-      fetchReorderData()
+
+      // Merge tracking sources into local state (client-side only, not persisted to DB)
+      const sourcesById = new Map(updates.map(u => [u.id, u]))
+      setProducts(prev => prev.map(p => {
+        const update = sourcesById.get(p.id)
+        if (!update) return p
+        return {
+          ...p,
+          tracking_qty: update.tracking_qty,
+          final_reorder_qty: update.final_reorder_qty,
+          status: update.status,
+          is_in_final_reorder: update.is_in_final_reorder,
+          tracking_sources: update.tracking_sources,
+        }
+      }))
 
       alert(`✅ Calculation complete! Tracked ${Object.keys(trackingMap).length} ASINs across Inbound → Boxes → Checking → Restock.`);
       logActivity({
@@ -857,36 +889,37 @@ export default function ReorderPage() {
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200 relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
+      <div className="flex-none px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 pb-4 border-b border-slate-800">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">Replenishment Manager</h1>
-            <p className="text-slate-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
+            <h1 className="text-xl sm:text-3xl font-bold text-white">Replenishment Manager</h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
           </div>
 
           {/* SELLER TABS */}
-          <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shadow-xl">
+          <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shadow-xl overflow-x-auto scrollbar-none">
             {SELLERS.map(s => (
               <button
                 key={s.id}
                 onClick={() => setActiveSeller(s)}
-                className={`relative px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${activeSeller.id === s.id
+                className={`relative px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeSeller.id === s.id
                   ? `${s.activeColor} text-white ${s.activeShadow} shadow-lg scale-105 z-10`
                   : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
                   }`}
               >
                 <span className="text-base">{s.emoji}</span>
-                {s.name}
+                <span className="hidden sm:inline">{s.name}</span>
+                <span className="sm:hidden">{s.tag}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* WORKSPACE TABS */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('main')}
-            className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'main'
+            className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-xs sm:text-sm rounded-xl transition-all duration-300 whitespace-nowrap ${activeTab === 'main'
               ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
               : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
               }`}
@@ -896,7 +929,7 @@ export default function ReorderPage() {
 
           <button
             onClick={() => setActiveTab('final')}
-            className={`px-6 py-3 font-semibold text-sm rounded-xl flex items-center gap-2 transition-all duration-300 ${activeTab === 'final'
+            className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all duration-300 whitespace-nowrap ${activeTab === 'final'
               ? 'bg-slate-800 text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
               : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
               }`}
@@ -908,8 +941,8 @@ export default function ReorderPage() {
       </div>
 
       {/* CONTROLS */}
-      <div className="flex gap-3 items-center mb-6 px-6 pt-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex gap-2 sm:gap-3 items-center flex-wrap mb-4 sm:mb-6 px-3 sm:px-4 lg:px-6 pt-4">
+        <div className="relative flex-1 min-w-0 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
@@ -942,7 +975,7 @@ export default function ReorderPage() {
         <div className="relative">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
               ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
               : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
               }`}
@@ -1023,28 +1056,28 @@ export default function ReorderPage() {
         </div>
 
         {activeTab === 'main' && (
-          <div className="flex gap-2">
-            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors">
-              <RefreshCw className={`w-4 h-4 ${processing ? 'animate-spin' : ''}`} />
-              Sync Listed
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-medium transition-colors">
+              <RefreshCw className={`w-4 h-4 shrink-0 ${processing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Sync Listed</span><span className="sm:hidden">Sync</span>
             </button>
             <div className="relative">
               <input type="file" accept=".csv,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors">
-                <Upload className="w-4 h-4" />
-                Upload Inventory
+              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-medium transition-colors">
+                <Upload className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Upload Inventory</span><span className="sm:hidden">Upload</span>
               </button>
             </div>
-            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shadow-lg text-sm font-medium transition-colors">
-              <Save className="w-4 h-4" />
-              Run Calculation
+            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shadow-lg text-xs sm:text-sm font-medium transition-colors">
+              <Save className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Run Calculation</span><span className="sm:hidden">Calculate</span>
             </button>
           </div>
         )}
       </div>
 
       {/* MAIN TABLE */}
-      <div className="flex-1 overflow-hidden px-6 pb-6">
+      <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 pb-4 sm:pb-6">
         <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
           <div className="flex-1 overflow-y-auto">
             <table className="w-full divide-y divide-slate-800">
@@ -1123,7 +1156,44 @@ export default function ReorderPage() {
                         </td>
                         <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-slate-800/50">{product.current_qty}</td>
                         <td className={`px-6 py-4 text-center font-bold text-sm border-r border-slate-800/50 ${deficit > 0 ? 'text-rose-400' : 'text-slate-500'}`}>{deficit}</td>
-                        <td className="px-6 py-4 text-center bg-blue-900/10 text-blue-300 font-medium text-sm border-r border-slate-800/50">{product.tracking_qty}</td>
+                        <td className="px-6 py-4 text-center bg-blue-900/10 border-r border-slate-800/50 group/track relative">
+                          <span className="text-blue-300 font-medium text-sm cursor-help inline-flex items-center gap-1">
+                            {product.tracking_qty}
+                            {product.tracking_sources && product.tracking_qty > 0 && (
+                              <Info className="w-3.5 h-3.5 text-slate-500" />
+                            )}
+                          </span>
+                          {product.tracking_sources && product.tracking_qty > 0 && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/track:block z-50 w-44 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2.5 text-xs pointer-events-none">
+                              <div className="text-slate-400 font-semibold mb-1.5 text-center">Source Breakdown</div>
+                              {product.tracking_sources.inbound > 0 && (
+                                <div className="flex justify-between py-0.5">
+                                  <span className="text-cyan-400">Inbound</span>
+                                  <span className="text-white font-medium">{product.tracking_sources.inbound}</span>
+                                </div>
+                              )}
+                              {product.tracking_sources.boxes > 0 && (
+                                <div className="flex justify-between py-0.5">
+                                  <span className="text-amber-400">Boxes</span>
+                                  <span className="text-white font-medium">{product.tracking_sources.boxes}</span>
+                                </div>
+                              )}
+                              {product.tracking_sources.checking > 0 && (
+                                <div className="flex justify-between py-0.5">
+                                  <span className="text-purple-400">Checking</span>
+                                  <span className="text-white font-medium">{product.tracking_sources.checking}</span>
+                                </div>
+                              )}
+                              {product.tracking_sources.restock > 0 && (
+                                <div className="flex justify-between py-0.5">
+                                  <span className="text-emerald-400">Restock</span>
+                                  <span className="text-white font-medium">{product.tracking_sources.restock}</span>
+                                </div>
+                              )}
+                              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-0 h-0 border-l-[6px] border-r-[6px] border-b-[6px] border-transparent border-b-slate-700" />
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-center border-r border-slate-800/50">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${product.status === 'Reorder'
                             ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
@@ -1179,7 +1249,7 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -1266,7 +1336,7 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>

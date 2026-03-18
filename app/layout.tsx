@@ -9,7 +9,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Scrappy v2",
+  title: {
+    template: "%s | Scrappy v2",
+    default: "Scrappy v2",
+  },
   description: "Amazon seller management system",
 };
 

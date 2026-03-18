@@ -37,13 +37,13 @@ export default function TrackingPage() {
     const fetchTabCounts = async () => {
         try {
             const [inboundRes, boxesRes, checkingRes] = await Promise.all([
-                supabase.from("india_inbound_tracking").select("*", { count: "exact", head: true }),
+                supabase.from("india_inbound_tracking").select("asin").gt("pending_quantity", 0),
                 supabase.from("india_inbound_boxes").select("*", { count: "exact", head: true }),
                 supabase.from("india_box_checking").select("*", { count: "exact", head: true }),
             ]);
 
             setCounts({
-                inbound: inboundRes.count ?? 0,
+                inbound: new Set((inboundRes.data || []).map((r: any) => r.asin)).size,
                 boxes: boxesRes.count ?? 0,
                 checking: checkingRes.count ?? 0,
             });
@@ -73,22 +73,22 @@ export default function TrackingPage() {
         <PageGuard>
             <div className="h-screen flex flex-col bg-slate-950 text-slate-200">
                 {/* Header Section - FIXED */}
-                <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-bold text-white">
+                <div className="flex-none px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-slate-800">
+                    <div className="mb-4 sm:mb-6">
+                        <h1 className="text-xl sm:text-3xl font-bold text-white">
                             Tracking
                         </h1>
-                        <p className="text-slate-400 mt-1">
+                        <p className="text-xs sm:text-sm text-slate-400 mt-1">
                             Inbound → Boxes → Checking
                         </p>
                     </div>
 
                     {/* STAGE TABS */}
-                    <div className="flex gap-2 mb-4 overflow-x-auto">
+                    <div className="flex gap-2 mb-4 w-full sm:w-fit overflow-x-auto scrollbar-none">
                         {/* Inbound Tab */}
                         <button
                             onClick={() => setActiveTab("inbound")}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "inbound"
+                            className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === "inbound"
                                 ? "bg-slate-800 text-white border-b-2 border-indigo-500"
                                 : "text-slate-500 hover:text-slate-300"
                                 }`}
@@ -99,7 +99,7 @@ export default function TrackingPage() {
                         {/* Boxes Tab */}
                         <button
                             onClick={() => setActiveTab("boxes")}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "boxes"
+                            className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === "boxes"
                                 ? "bg-slate-800 text-white border-b-2 border-indigo-500"
                                 : "text-slate-500 hover:text-slate-300"
                                 }`}
@@ -110,7 +110,7 @@ export default function TrackingPage() {
                         {/* Checking Tab */}
                         <button
                             onClick={() => setActiveTab("checking")}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "checking"
+                            className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${activeTab === "checking"
                                 ? "bg-slate-800 text-white border-b-2 border-indigo-500"
                                 : "text-slate-500 hover:text-slate-300"
                                 }`}
@@ -121,9 +121,9 @@ export default function TrackingPage() {
                 </div>
 
                 {/* Table Container - SCROLLABLE ONLY */}
-                <div className="flex-1 overflow-hidden px-6 pb-6">
+                <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 pb-3 sm:pb-6">
                     <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
-                        <div className="flex-1 overflow-hidden min-h-0 px-6 pb-6">
+                        <div className="flex-1 overflow-hidden min-h-0 px-3 sm:px-4 lg:px-6 pb-3 sm:pb-6">
                             {activeTab === "inbound" && (
                                 <InboundTable onCountsChange={handleCountsChange} />
                             )}

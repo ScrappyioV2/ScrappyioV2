@@ -87,10 +87,10 @@ export default function UploadedInvoiceModal({
       >
         {/* Draggable Header */}
         <div
-          className="bg-gray-800 text-white px-4 py-3 flex items-center justify-between cursor-move"
+          className="bg-gray-800 text-white px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between cursor-move"
           onMouseDown={handleMouseDownDrag}
         >
-          <h3 className="font-semibold">{invoiceName}</h3>
+          <h3 className="font-semibold text-sm sm:text-base truncate">{invoiceName}</h3>
           <button
             onClick={onClose}
             className="hover:bg-gray-700 rounded p-1 transition-colors"

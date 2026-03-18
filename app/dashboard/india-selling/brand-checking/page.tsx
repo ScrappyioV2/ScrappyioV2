@@ -171,7 +171,7 @@ export default function BrandCheckingPage() {
 
   return (
     <>
-      <div className="h-full bg-slate-950 text-slate-200 p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
+      <div className="h-full bg-slate-950 text-slate-200 p-3 sm:p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
 
         {/* === HEADER === */}
         <div className="mb-3 shrink-0">
@@ -189,9 +189,9 @@ export default function BrandCheckingPage() {
                 <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                   <ShieldCheck className="w-5 h-5 text-indigo-400" />
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight text-white">Brand Checking Dashboard</h1>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Brand Checking Dashboard</h1>
               </div>
-              <p className="text-slate-400 text-sm pl-[2.5rem] max-w-2xl">
+              <p className="text-slate-400 text-xs sm:text-sm pl-[2.5rem] max-w-2xl hidden sm:block">
                 Monitor real-time brand approval progress across all sellers.
                 <span className="ml-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">
                   Total Sellers: {sellers.length}
@@ -202,7 +202,7 @@ export default function BrandCheckingPage() {
         </div>
 
         {/* === SELLER GRID === */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-0 auto-rows-min">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 min-h-0 auto-rows-min overflow-y-auto">
           {sellers.map((seller) => {
             const checkedTotal = seller.approved + seller.notApproved;
             const approvedPercentage = checkedTotal === 0 ? 0 : (seller.approved / checkedTotal) * 100;
@@ -216,26 +216,27 @@ export default function BrandCheckingPage() {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                <div className="grid grid-cols-5 gap-4 relative z-10">
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4 relative z-10">
 
                   {/* Left: Seller Card */}
-                  <div className="col-span-2 flex flex-col">
-                    <div className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg p-3 flex flex-col items-center justify-center text-center group-hover:border-indigo-500/20 transition-colors">
-                      <div className="w-9 h-9 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-2 text-slate-400 group-hover:text-indigo-400 group-hover:scale-110 transition-all shadow-inner">
+                  <div className="sm:col-span-2 flex flex-col">
+                    <div className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg p-3 flex flex-row sm:flex-col items-center sm:justify-center text-center gap-3 sm:gap-0 group-hover:border-indigo-500/20 transition-colors">
+                      <div className="w-9 h-9 shrink-0 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-0 sm:mb-2 text-slate-400 group-hover:text-indigo-400 group-hover:scale-110 transition-all shadow-inner">
                         <LayoutDashboard className="w-4 h-4" />
                       </div>
-                      <h3 className="text-xs font-semibold text-slate-300 mb-0.5 w-full text-center">
+                      <h3 className="text-xs font-semibold text-slate-300 mb-0.5 text-left sm:text-center">
                         {seller.name}
+                        <span className="sm:hidden text-slate-500 font-normal ml-1">· {seller.totalProducts.toLocaleString()}</span>
                       </h3>
-                      <div className="text-xl font-bold text-white tracking-tight">
+                      <div className="text-xl font-bold text-white tracking-tight hidden sm:block">
                         {seller.totalProducts.toLocaleString()}
                       </div>
-                      <span className="text-[9px] uppercase tracking-wider text-slate-500 mt-0.5 font-semibold">Total Products</span>
+                      <span className="text-[9px] uppercase tracking-wider text-slate-500 mt-0.5 font-semibold hidden sm:block">Total Products</span>
                     </div>
                   </div>
 
                   {/* Right: Progress Bars */}
-                  <div className="col-span-3 flex flex-col justify-center space-y-3">
+                  <div className="sm:col-span-3 flex flex-col justify-center space-y-3">
                     <div>
                       <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                         Brand Check Status

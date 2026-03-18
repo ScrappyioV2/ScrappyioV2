@@ -56,7 +56,7 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
         const bcTotal = bcData?.total || 0;
         const bcApproved = bcData?.approved || 0;
         const bcNotApproved = bcData?.notapproved || 0;
-        const bcPending = bcTotal - bcApproved - bcNotApproved;
+        const bcPending = bcTotal;
 
         const { count: valPending } = await supabase
           .from('india_validation_main_file')

@@ -15,6 +15,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (!supabase) return
 
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('logout') === 'true') return
+
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {

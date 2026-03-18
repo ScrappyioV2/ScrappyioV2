@@ -143,10 +143,10 @@ function RestockRollbackModal({
     const color = sourceStatus === 'relisted' ? 'emerald' : 'red';
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-start justify-between p-6 border-b border-slate-800">
+                <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-800">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl bg-${color}-500/20 flex items-center justify-center`}>
                             <RotateCcw className={`w-5 h-5 text-${color}-400`} />
@@ -171,7 +171,7 @@ function RestockRollbackModal({
                 </div>
 
                 {/* Search */}
-                <div className="px-6 py-4">
+                <div className="px-4 sm:px-6 py-3 sm:py-4">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                         <input
@@ -185,7 +185,7 @@ function RestockRollbackModal({
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-y-auto px-6">
+                <div className="flex-1 overflow-y-auto px-4 sm:px-6">
                     {loading ? (
                         <div className="text-center py-12 text-slate-400">Loading...</div>
                     ) : filtered.length === 0 ? (
@@ -249,7 +249,7 @@ function RestockRollbackModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-4 sm:p-6 border-t border-slate-800">
                     <span className="text-sm text-slate-400">
                         {filtered.length} items available
                         {selected.size > 0 && ` · ${selected.size} selected`}
@@ -689,29 +689,30 @@ export default function RestockPage() {
             <div className="h-screen flex flex-col bg-slate-950 text-slate-200">
 
                 {/* Header */}
-                <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
+                <div className="flex-none px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-slate-800">
                     <div className="mb-4">
-                        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                            <Package className="w-8 h-8 text-amber-500" />
+                        <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500 shrink-0" />
                             Restock
                         </h1>
-                        <p className="text-slate-400 mt-1">
+                        <p className="text-xs sm:text-sm text-slate-400 mt-1">
                             Inbound → Boxes → Checking → Distribution → <span className="text-amber-400 font-semibold">Restock</span>
                         </p>
                     </div>
 
                     {/* Seller Tabs */}
-                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                    <div className="flex gap-2 mb-4 w-full sm:w-fit overflow-x-auto scrollbar-none pb-2">
                         {SELLERS.map(seller => (
                             <button
                                 key={seller.tag}
                                 onClick={() => router.push(`/dashboard/india-selling/restock/${seller.slug}`)}
-                                className={`relative px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 ${currentSeller.tag === seller.tag
+                                className={`relative px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${currentSeller.tag === seller.tag
                                     ? `${seller.color} text-white shadow-lg scale-105`
                                     : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'
                                     }`}
                             >
-                                {seller.name}
+                                <span className="hidden sm:inline">{seller.name}</span>
+                                <span className="sm:hidden">{seller.tag}</span>
                                 {currentSeller.tag === seller.tag && (
                                     <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                                 )}
@@ -720,7 +721,7 @@ export default function RestockPage() {
                     </div>
 
                     {/* Status Filter Pills */}
-                    <div className="flex gap-3 mb-4">
+                    <div className="flex gap-2 sm:gap-3 mb-4 overflow-x-auto scrollbar-none">
                         {(['pending', 'relisted', 'disposed', 'removed'] as const).map(opt => {
                             const count = counts[opt];
                             const colors: Record<string, string> = {
@@ -733,7 +734,7 @@ export default function RestockPage() {
                                 <button
                                     key={opt}
                                     onClick={() => setStatusFilter(opt)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${statusFilter === opt
+                                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${statusFilter === opt
                                         ? colors[opt] + ' ring-2 ring-white/20 shadow-lg'
                                         : 'bg-slate-800 text-slate-500 hover:text-slate-300'
                                         }`}
@@ -745,8 +746,8 @@ export default function RestockPage() {
                     </div>
 
                     {/* Search + Rollback Actions (Pending tab only) */}
-                    <div className="flex gap-3 items-center">
-                        <div className="relative flex-1 max-w-md">
+                    <div className="flex gap-2 sm:gap-3 items-center flex-wrap">
+                        <div className="relative flex-1 min-w-0 max-w-md">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                             <input
                                 type="text"
@@ -761,17 +762,19 @@ export default function RestockPage() {
                             <>
                                 <button
                                     onClick={() => setRollbackSource('relisted')}
-                                    className="px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white"
+                                    className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white"
                                 >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Rollback from Relisted
+                                    <RotateCcw className="w-4 h-4 shrink-0" />
+                                    <span className="hidden sm:inline">Rollback from Relisted</span>
+                                    <span className="sm:hidden">Relisted</span>
                                 </button>
                                 <button
                                     onClick={() => setRollbackSource('disposed')}
-                                    className="px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600 hover:text-white"
+                                    className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600 hover:text-white"
                                 >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Rollback from Disposed
+                                    <RotateCcw className="w-4 h-4 shrink-0" />
+                                    <span className="hidden sm:inline">Rollback from Disposed</span>
+                                    <span className="sm:hidden">Disposed</span>
                                 </button>
                             </>
                         )}
@@ -779,7 +782,7 @@ export default function RestockPage() {
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-hidden px-6 pb-6 pt-4">
+                <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 pb-3 sm:pb-6 pt-3 sm:pt-4">
                     <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto">
                             <table className="w-full divide-y divide-slate-800" style={{ minWidth: '1400px' }}>
@@ -965,8 +968,8 @@ export default function RestockPage() {
                         </div>
 
                         {/* Footer */}
-                        <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-                            <div className="text-sm text-slate-400">
+                        <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
+                            <div className="text-xs sm:text-sm text-slate-400">
                                 Showing {groupedByAsin.length} ASINs ({filteredItems.length} items) of {items.length} total
                             </div>
                         </div>
@@ -975,8 +978,8 @@ export default function RestockPage() {
 
                 {/* Dispose Reason Modal */}
                 {disposeModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                        <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+                        <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 sm:p-6 w-full max-w-md shadow-2xl">
                             <h3 className="text-lg font-bold text-white mb-4">Reason for Disposal</h3>
                             <textarea
                                 value={disposeReason}
@@ -1017,8 +1020,8 @@ export default function RestockPage() {
 
                 {/* Toast */}
                 {toast && (
-                    <div className="fixed top-6 right-6 z-[100] animate-slide-in">
-                        <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'
+                    <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+                        <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:min-w-[320px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'
                             }`}>
                             <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
                             <span className="font-semibold flex-1">{toast.message}</span>

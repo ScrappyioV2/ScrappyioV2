@@ -9,7 +9,7 @@ import {
   LogOut, ShieldCheck, LayoutDashboard, Users,
   UserCheck, UserX, Shield, Eye, Save,
   ChevronRight, Loader2, ToggleLeft, ToggleRight,
-  Activity, AlertTriangle, UserPlus
+  Activity, AlertTriangle, UserPlus, ArrowLeft
 } from 'lucide-react';
 
 import CreateUserModal from '@/components/CreateUserModal';
@@ -31,7 +31,7 @@ const PAGE_PERMISSIONS = [
   { key: 'view-purchases', label: 'Purchases' },
   { key: 'view-tracking', label: 'Tracking' },
   { key: 'view-reorder', label: 'Reorder' },
-  { key: 'view-restock', label: 'Restock' },        // ← ADD THIS
+  { key: 'view-restock', label: 'Restock' },
   { key: 'admin-access', label: 'Admin Approvals' },
 ];
 
@@ -75,6 +75,8 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  // ✅ NEW: Mobile view state — 'list' shows user cards, 'detail' shows permission panel
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -126,6 +128,7 @@ export default function DashboardPage() {
     setEditedPages([...u.allowed_pages]);
     setEditedRole(u.role);
     setSaveSuccess(false);
+    setMobileView('detail'); // ✅ NEW: Switch to detail view on mobile
   };
 
   const togglePermission = (key: string) => {
@@ -204,10 +207,19 @@ export default function DashboardPage() {
         throw new Error(data.error || 'Delete failed');
       }
       setUsers((prev) => prev.filter((usr) => usr.id !== u.id));
-      if (selectedUser?.id === u.id) setSelectedUser(null);
+      if (selectedUser?.id === u.id) {
+        setSelectedUser(null);
+        setMobileView('list'); // ✅ NEW: Go back to list on delete
+      }
     } catch (err: any) {
       alert('Failed to delete user: ' + err.message);
     }
+  };
+
+  // ✅ NEW: Mobile back handler
+  const handleMobileBack = () => {
+    setMobileView('list');
+    setSelectedUser(null);
   };
 
   if (loading) {
@@ -227,49 +239,48 @@ export default function DashboardPage() {
     editedRole !== selectedUser.role
   );
 
-  // ✅ NEW — helper for date-aware label
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
 
   return (
-    <div className="h-full bg-slate-950 text-slate-200 p-4 lg:p-6 font-sans flex flex-col overflow-hidden">
+    <div className="h-full bg-slate-950 text-slate-200 p-3 sm:p-4 lg:p-6 font-sans flex flex-col overflow-hidden">
 
       {/* === HEADER === */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0 gap-3">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
             <LayoutDashboard className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Admin Command Center</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-white">Admin Command Center</h1>
             <p className="text-xs text-slate-400">
               Welcome back, <span className="text-slate-200 font-medium">{userRole.full_name || user.email}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex gap-2">
-            <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono flex items-center gap-1.5">
+            <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono flex items-center gap-1.5">
               <Users className="w-3 h-3 text-indigo-400" />
-              {users.length} Users
+              {users.length}
             </span>
-            <span className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono flex items-center gap-1.5">
+            <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono flex items-center gap-1.5">
               <UserCheck className="w-3 h-3 text-emerald-400" />
-              {activeUsers} Active
+              {activeUsers}
             </span>
           </div>
 
-          <span className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold flex items-center gap-1.5">
+          <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5" />
             ADMIN
           </span>
 
           <button
             onClick={logout}
-            className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white transition-all text-xs flex items-center gap-1.5 font-medium"
+            className="px-2 sm:px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white transition-all text-xs flex items-center gap-1.5 font-medium"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Logout
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </div>
@@ -277,8 +288,8 @@ export default function DashboardPage() {
       {/* === MAIN CONTENT === */}
       <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-4 min-h-0">
 
-        {/* LEFT: User Cards */}
-        <div className="xl:col-span-1 flex flex-col min-h-0">
+        {/* LEFT: User Cards — hidden on mobile when viewing detail */}
+        <div className={`xl:col-span-1 flex flex-col min-h-0 ${mobileView === 'detail' ? 'hidden xl:flex' : 'flex'}`}>
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h2 className="text-sm font-bold text-slate-300 flex items-center gap-2">
               <Users className="w-4 h-4 text-indigo-400" />
@@ -293,7 +304,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* ✅ NEW — Date Picker */}
+          {/* Date Picker */}
           <div className="flex items-center gap-2 mb-3 px-1 shrink-0">
             <button
               onClick={() => {
@@ -352,17 +363,17 @@ export default function DashboardPage() {
                     }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${u.is_active ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-500'
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${u.is_active ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-500'
                         }`}>
                         {(u.full_name || u.email).charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{u.full_name || u.email.split('@')[0]}</p>
-                        <p className="text-[10px] text-slate-500">{u.email}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{u.full_name || u.email.split('@')[0]}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{u.email}</p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${u.role === 'admin' ? 'bg-amber-500/10 text-amber-400'
                         : u.role === 'validation' ? 'bg-purple-500/10 text-purple-400'
                           : u.role === 'purchase' ? 'bg-emerald-500/10 text-emerald-400'
@@ -381,7 +392,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* ✅ NEW — Date-aware actions label */}
                   {(todayStats[u.user_id] || 0) > 0 && (
                     <div className="mt-2 pt-2 border-t border-slate-800/50">
                       <span className="text-[10px] text-emerald-400 flex items-center gap-1">
@@ -400,8 +410,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* RIGHT: Permission Panel */}
-        <div className="xl:col-span-2 min-h-0">
+        {/* RIGHT: Permission Panel — hidden on mobile when viewing list */}
+        <div className={`xl:col-span-2 min-h-0 ${mobileView === 'list' ? 'hidden xl:block' : 'block'}`}>
           <AnimatePresence mode="wait">
             {selectedUser ? (
               <motion.div
@@ -413,61 +423,107 @@ export default function DashboardPage() {
                 className="h-full flex flex-col bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden"
               >
                 {/* User Header */}
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${selectedUser.is_active ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-500'
-                      }`}>
-                      {(selectedUser.full_name || selectedUser.email).charAt(0).toUpperCase()}
+                <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-800 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* ✅ NEW: Mobile back button */}
+                      <button
+                        onClick={handleMobileBack}
+                        className="xl:hidden p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                        aria-label="Back to user list"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${selectedUser.is_active ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-500'
+                        }`}>
+                        {(selectedUser.full_name || selectedUser.email).charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm sm:text-base font-bold text-white truncate">
+                          {selectedUser.full_name || selectedUser.email.split('@')[0]}
+                          {isCurrentUser && <span className="text-[10px] text-indigo-400 ml-2">(You)</span>}
+                        </h3>
+                        <p className="text-xs text-slate-400 truncate">{selectedUser.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white">
-                        {selectedUser.full_name || selectedUser.email.split('@')[0]}
-                        {isCurrentUser && <span className="text-[10px] text-indigo-400 ml-2">(You)</span>}
-                      </h3>
-                      <p className="text-xs text-slate-400">{selectedUser.email}</p>
+
+                    {/* Desktop: inline actions | Mobile: role selector only */}
+                    <div className="hidden sm:flex items-center gap-2">
+                      {!isCurrentUser && (
+                        <>
+                          <button
+                            onClick={() => toggleActive(selectedUser)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${selectedUser.is_active
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'
+                              }`}
+                          >
+                            {selectedUser.is_active ? (
+                              <><UserCheck className="w-3 h-3" /> Active</>
+                            ) : (
+                              <><UserX className="w-3 h-3" /> Inactive</>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(selectedUser)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white"
+                          >
+                            <UserX className="w-3 h-3" /> Delete
+                          </button>
+                        </>
+                      )}
+
+                      <select
+                        value={editedRole}
+                        onChange={(e) => { setEditedRole(e.target.value); setSaveSuccess(false); }}
+                        disabled={isCurrentUser}
+                        className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {ROLE_OPTIONS.map(r => (
+                          <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {!isCurrentUser && (
-                      <>
-                        <button
-                          onClick={() => toggleActive(selectedUser)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${selectedUser.is_active
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'
-                            }`}
-                        >
-                          {selectedUser.is_active ? (
-                            <><UserCheck className="w-3 h-3" /> Active</>
-                          ) : (
-                            <><UserX className="w-3 h-3" /> Inactive</>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(selectedUser)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white"
-                        >
-                          <UserX className="w-3 h-3" /> Delete
-                        </button>
-                      </>
-                    )}
-
+                  {/* ✅ NEW: Mobile action row — only on <sm */}
+                  <div className="sm:hidden flex items-center gap-2 mt-3 pt-3 border-t border-slate-800/50">
                     <select
                       value={editedRole}
                       onChange={(e) => { setEditedRole(e.target.value); setSaveSuccess(false); }}
                       disabled={isCurrentUser}
-                      className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {ROLE_OPTIONS.map(r => (
                         <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
                       ))}
                     </select>
+                    {!isCurrentUser && (
+                      <>
+                        <button
+                          onClick={() => toggleActive(selectedUser)}
+                          className={`p-1.5 rounded-lg text-xs transition-all ${selectedUser.is_active
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            }`}
+                          title={selectedUser.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                          {selectedUser.is_active ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(selectedUser)}
+                          className="p-1.5 rounded-lg text-xs transition-all bg-red-500/10 text-red-400 border border-red-500/20"
+                          title="Delete user"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Permission Toggles */}
-                <div className="flex-1 overflow-y-auto p-5">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5">
                   {isCurrentUser && editedRole === 'admin' && (
                     <div className="mb-4 px-3 py-2 bg-amber-500/5 border border-amber-500/20 rounded-lg flex items-center gap-2 text-xs text-amber-400">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -531,20 +587,21 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between shrink-0">
+                <div className="px-4 sm:px-5 py-3 border-t border-slate-800 flex items-center justify-between shrink-0">
                   <button
                     onClick={() => router.push(`/dashboard/user-activity/${selectedUser.user_id}`)}
                     className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 font-medium transition-colors"
                   >
                     <Activity className="w-3.5 h-3.5" />
-                    View Full Activity
+                    <span className="hidden sm:inline">View Full Activity</span>
+                    <span className="sm:hidden">Activity</span>
                     <ChevronRight className="w-3 h-3" />
                   </button>
 
                   <button
                     onClick={handleSave}
                     disabled={!hasChanges || saving}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${saveSuccess
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${saveSuccess
                       ? 'bg-emerald-500 text-white'
                       : hasChanges
                         ? 'bg-indigo-500 text-white hover:bg-indigo-600'
@@ -556,7 +613,7 @@ export default function DashboardPage() {
                     ) : saveSuccess ? (
                       <><ShieldCheck className="w-3.5 h-3.5" /> Saved!</>
                     ) : (
-                      <><Save className="w-3.5 h-3.5" /> Save Permissions</>
+                      <><Save className="w-3.5 h-3.5" /> Save</>
                     )}
                   </button>
                 </div>

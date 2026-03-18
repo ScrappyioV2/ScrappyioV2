@@ -38,7 +38,7 @@ function Toast({
 
     return (
         <div
-            className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 rounded-xl border shadow-2xl text-white text-sm font-medium animate-slide-in ${styles[type]}`}
+            className={`fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl border shadow-2xl text-white text-xs sm:text-sm font-medium animate-slide-in max-w-[calc(100vw-2rem)] ${styles[type]}`}
             style={{
                 animation: "slideIn 0.3s ease-out",
             }}
@@ -82,7 +82,7 @@ function ConfirmModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
             <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div className="px-6 pt-5 pb-2">
@@ -170,7 +170,7 @@ function BoxSummaryModal({
     );
 
     return (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
             <div className="w-full max-w-5xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col">
                 {/* Header */}
                 <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
@@ -610,7 +610,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4">
             <div className="w-full max-w-7xl bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
                 <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
                     <div>
@@ -620,7 +620,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                     <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl">×</button>
                 </div>
 
-                <div className="px-5 py-4 border-b border-slate-800 bg-slate-900/50 flex flex-wrap gap-6">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/50 flex flex-wrap gap-3 sm:gap-6">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-slate-400 uppercase">Box ID</label>
                         <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500 focus:outline-none" />
@@ -642,10 +642,10 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                 onChange={(e) => { setEditSearch(e.target.value); setEditShowDropdown(true); }}
                                 onFocus={() => setEditShowDropdown(true)}
                                 placeholder="Search ASIN or Product to add..."
-                                className="w-80 px-3 py-2 bg-slate-950 border border-indigo-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500"
+                                className="w-full sm:w-80 px-3 py-2 bg-slate-950 border border-indigo-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500"
                             />
                             {editShowDropdown && editDropdownCandidates.length > 0 && (
-                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-50 max-h-[300px] overflow-y-auto w-[600px]">
+                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-50 max-h-[300px] overflow-y-auto w-full sm:w-[600px]">
                                     {editDropdownCandidates.map((group: any) => {
                                         const item = group.representative;
                                         const totalPending = group.sellers.reduce((s: number, x: any) => s + x.pending, 0);
@@ -750,7 +750,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                     )}
                 </div>
 
-                <div className="px-5 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/30">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-slate-800 flex justify-end gap-2 sm:gap-3 bg-slate-900/30">
                     <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800">Cancel</button>
                     <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 flex items-center gap-2">
                         {saving ? "Saving..." : "💾 Save Changes"}
@@ -785,6 +785,25 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
     const [showDropdown, setShowDropdown] = useState(false);
     const [showSummary, setShowSummary] = useState(false);
     const [editBoxData, setEditBoxData] = useState<GroupedBox | null>(null);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyData, setHistoryData] = useState<any[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+
+    const fetchHistory = async () => {
+        setHistoryLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("india_box_history")
+                .select("*")
+                .order("archived_at", { ascending: false });
+            if (error) throw error;
+            setHistoryData(data || []);
+        } catch (err) {
+            console.error("Error fetching box history:", err);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
     const searchRef = useRef<HTMLDivElement>(null);
     // Toast state
     const [toast, setToast] = useState<{
@@ -996,6 +1015,45 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                         }
                     }
 
+                    const { data: fullBoxRows } = await supabase
+                        .from("india_inbound_boxes")
+                        .select("*")
+                        .eq("box_number", boxNumber);
+
+                    if (fullBoxRows && fullBoxRows.length > 0) {
+                        const historyRows = fullBoxRows.map((r: any) => ({
+                            box_number: r.box_number,
+                            inbound_tracking_id: r.inbound_tracking_id ?? null,
+                            asin: r.asin ?? null,
+                            product_name: r.product_name ?? null,
+                            sku: r.sku ?? null,
+                            seller_tag: r.seller_tag ?? null,
+                            funnel: r.funnel ?? null,
+                            origin: r.origin ?? null,
+                            origin_india: r.origin_india ?? false,
+                            origin_china: r.origin_china ?? false,
+                            origin_us: r.origin_us ?? false,
+                            buying_price: r.buying_price ?? null,
+                            buying_quantity: r.buying_quantity ?? null,
+                            quantity_assigned: r.quantity_assigned ?? null,
+                            product_weight: r.product_weight ?? null,
+                            total_box_weight: r.total_box_weight ?? null,
+                            box_status: r.box_status ?? null,
+                            box_booking_date: r.box_booking_date ?? null,
+                            tracking_details: r.tracking_details ?? null,
+                            delivery_date: r.delivery_date ?? null,
+                            order_date: r.order_date ?? null,
+                            product_link: r.product_link ?? null,
+                            seller_link: r.seller_link ?? null,
+                            journey_id: r.journey_id ?? null,
+                            action: 'deleted',
+                            reason: reason || null,
+                            original_created_at: r.created_at ?? null,
+                        }));
+
+                        await supabase.from("india_box_history").insert(historyRows);
+                    }
+
                     // 3) Delete the box rows themselves
                     const boxIds = (rows as any[]).map(r => r.id);
 
@@ -1098,6 +1156,45 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                         .from("india_box_checking")
                         .insert(dataToInsert);
                     if (insertError) throw insertError;
+
+                    const { data: fullBoxRows } = await supabase
+                        .from("india_inbound_boxes")
+                        .select("*")
+                        .eq("box_number", boxNumber);
+
+                    if (fullBoxRows && fullBoxRows.length > 0) {
+                        const historyRows = fullBoxRows.map((r: any) => ({
+                            box_number: r.box_number,
+                            inbound_tracking_id: r.inbound_tracking_id ?? null,
+                            asin: r.asin ?? null,
+                            product_name: r.product_name ?? null,
+                            sku: r.sku ?? null,
+                            seller_tag: r.seller_tag ?? null,
+                            funnel: r.funnel ?? null,
+                            origin: r.origin ?? null,
+                            origin_india: r.origin_india ?? false,
+                            origin_china: r.origin_china ?? false,
+                            origin_us: r.origin_us ?? false,
+                            buying_price: r.buying_price ?? null,
+                            buying_quantity: r.buying_quantity ?? null,
+                            quantity_assigned: r.quantity_assigned ?? null,
+                            product_weight: r.product_weight ?? null,
+                            total_box_weight: r.total_box_weight ?? null,
+                            box_status: r.box_status ?? null,
+                            box_booking_date: r.booking_date ?? null,
+                            tracking_details: r.tracking_details ?? null,
+                            delivery_date: r.delivery_date ?? null,
+                            order_date: r.order_date ?? null,
+                            product_link: r.product_link ?? null,
+                            seller_link: r.seller_link ?? null,
+                            journey_id: r.journey_id ?? null,
+                            action: 'moved_to_checking',
+                            reason: null,
+                            original_created_at: r.created_at ?? null,
+                        }));
+
+                        await supabase.from("india_box_history").insert(historyRows);
+                    }
 
                     const ids = boxItems.map(p => p.id);
                     const { error: deleteError } = await supabase
@@ -1416,7 +1513,39 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
 
             if (insertError) throw insertError;
 
-            await refreshSilently();          // refresh boxes
+            // Archive to history as 'created'
+            const historyRows = inserts.map((r: any) => ({
+                box_number: r.box_number,
+                inbound_tracking_id: r.inbound_tracking_id ?? null,
+                asin: r.asin ?? null,
+                product_name: r.product_name ?? null,
+                sku: r.sku ?? null,
+                seller_tag: r.seller_tag ?? null,
+                funnel: r.funnel ?? null,
+                origin: r.origin ?? null,
+                origin_india: r.origin_india ?? false,
+                origin_china: r.origin_china ?? false,
+                origin_us: r.origin_us ?? false,
+                buying_price: r.buying_price ?? null,
+                buying_quantity: r.buying_quantity ?? null,
+                quantity_assigned: r.quantity_assigned ?? null,
+                product_weight: r.product_weight ?? null,
+                total_box_weight: r.total_box_weight ?? null,
+                box_status: r.box_status ?? null,
+                box_booking_date: r.booking_date ?? null,
+                tracking_details: r.tracking_details ?? null,
+                delivery_date: r.delivery_date ?? null,
+                order_date: r.order_date ?? null,
+                product_link: r.product_link ?? null,
+                seller_link: r.seller_link ?? null,
+                journey_id: r.journey_id ?? null,
+                action: 'created',
+                reason: null,
+                original_created_at: new Date().toISOString(),
+            }));
+            await supabase.from("india_box_history").insert(historyRows);
+
+            await refreshSilently();          // refresh boxes          // refresh boxes
             await fetchInboundDelivered();
             // if you added fetchInboundDelivered, call it here too to refresh inbound
             // await fetchInboundDelivered();
@@ -1490,13 +1619,13 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
             />
 
             {/* Toolbar */}
-            <div className="flex-none pt-5 pb-4 flex gap-4 items-center flex-wrap">
+            <div className="flex-none pt-4 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
                 <input
                     type="text"
                     placeholder="Search by ASIN, Name, SKU, or Box Number..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 text-sm bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
                 />
 
                 <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
@@ -1520,23 +1649,32 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                     </button>
                 </div>
 
-                <div className="h-8 w-px bg-slate-700" />
+                <div className="hidden sm:block h-8 w-px bg-slate-700" />
 
                 <button
                     onClick={() => {
                         setIsAddingBox(true);
                         fetchInboundDelivered(); // ← refresh delivered items
                     }}
-                    className="px-4 py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg"
                 >
-                    + Add Box Details
+                    <span className="sm:hidden">+ Add</span>
+                    <span className="hidden sm:inline">+ Add Box Details</span>
                 </button>
 
                 <button
                     onClick={() => setRollbackOpen(true)}
-                    className="px-4 py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
                 >
-                    ⏪ Rollback from Checking
+                    <span className="sm:hidden">⏪ Rollback</span>
+                    <span className="hidden sm:inline">⏪ Rollback from Checking</span>
+                </button>
+                <button
+                    onClick={() => { setHistoryOpen(true); fetchHistory(); }}
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-700/30 text-slate-300 border border-slate-600/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2"
+                >
+                    <span className="sm:hidden">📜 History</span>
+                    <span className="hidden sm:inline">📜 Box History</span>
                 </button>
             </div>
 
@@ -1544,9 +1682,9 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                 {isAddingBox ? (
                     <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
                         {/* Panel header */}
-                        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                        <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 flex items-start sm:items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-semibold text-white">
+                                <h2 className="text-base sm:text-lg font-semibold text-white">
                                     Add Box Details
                                 </h2>
                                 <p className="text-xs text-slate-400 mt-1">
@@ -1563,76 +1701,79 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                     setAddQuantities({});
                                     setAddWeights({});
                                 }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700"
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 shrink-0"
                             >
                                 ← Back to Boxes
                             </button>
                         </div>
 
                         {/* Controls row */}
-                        <div className="px-5 py-3 border-b border-slate-800 flex flex-wrap gap-4 items-center">
-                            {/* Box ID — same as before */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-400">Box ID</span>
-                                <input type="text" value={newBoxId} onChange={(e) => setNewBoxId(e.target.value)} placeholder="BOX-001"
-                                    className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                        <div className="px-3 sm:px-5 py-3 border-b border-slate-800 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 sm:items-center">
+                            {/* Top row: Box ID, Weight, Date */}
+                            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 sm:gap-4 sm:items-center">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                    <span className="text-xs text-slate-400">Box ID</span>
+                                    <input type="text" value={newBoxId} onChange={(e) => setNewBoxId(e.target.value)} placeholder="BOX-001"
+                                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 min-w-0" />
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Wgt (kg)</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        step={0.01}
+                                        value={boxTotalWeight ?? ""}
+                                        onChange={(e) => setBoxTotalWeight(e.target.value ? Number(e.target.value) : null)}
+                                        placeholder="e.g. 12"
+                                        className="w-full sm:w-24 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white focus:outline-none focus:border-indigo-500 min-w-0"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Booking</span>
+                                    <input type="date" max="9999-12-31" value={boxBookingDate} onChange={(e) => setBoxBookingDate(e.target.value)} className="w-full px-2 sm:px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white focus:outline-none focus:border-indigo-500 min-w-0" />
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Total Wgt (kg)</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    step={0.01}
-                                    value={boxTotalWeight ?? ""}
-                                    onChange={(e) => setBoxTotalWeight(e.target.value ? Number(e.target.value) : null)}
-                                    placeholder="e.g. 12"
-                                    className="w-24 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white focus:outline-none focus:border-indigo-500"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Booking Date</span>
-                                <input type="date" max="9999-12-31" value={boxBookingDate} onChange={(e) => setBoxBookingDate(e.target.value)} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white focus:outline-none focus:border-indigo-500" />
-                            </div>
-
-                            <div className="flex items-center gap-2 flex-1 min-w-[300px] relative" ref={searchRef}>
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Search ASIN</span>
-                                <div className="relative flex-1">
+                            {/* Search ASIN — full width on mobile */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 sm:flex-1 sm:min-w-[300px] relative" ref={searchRef}>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Search ASIN</span>
+                                <div className="relative flex-1 min-w-0">
                                     <input type="text" value={addSearch}
                                         onChange={(e) => { setAddSearch(e.target.value); setShowDropdown(true); }}
                                         onFocus={() => setShowDropdown(true)}
                                         placeholder="Type to search ASIN or Product..."
-                                        className="w-full px-4 py-2 bg-slate-950 border border-indigo-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500 shadow-inner" />
+                                        className="w-full px-3 sm:px-4 py-2 bg-slate-950 border border-indigo-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500 shadow-inner" />
 
                                     {showDropdown && groupedDropdownCandidates.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto">
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-50 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
                                             {groupedDropdownCandidates.map((group) => {
                                                 const item = group.representative;
                                                 const totalPending = group.sellers.reduce((s, x) => s + x.pending, 0);
                                                 return (
-                                                    <div key={item.asin} className="flex items-center justify-between px-5 py-4 hover:bg-slate-800 transition-colors border-b border-slate-700 last:border-0 cursor-pointer" onClick={() => handleAddGroupedAsin(group)}>
-                                                        <div className="flex-1 min-w-0 pr-4">
-                                                            <div className="flex items-center gap-3 mb-1">
-                                                                <span className="font-mono text-base font-bold text-white">{item.asin}</span>
-                                                                {item.sku && <span className="text-xs text-slate-200 bg-slate-800 px-2.5 py-0.5 rounded border border-slate-600 font-medium">SKU: {item.sku}</span>}
+                                                    <div key={item.asin} className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 sm:px-5 py-3 sm:py-4 hover:bg-slate-800 transition-colors border-b border-slate-700 last:border-0 cursor-pointer" onClick={() => handleAddGroupedAsin(group)}>
+                                                        <div className="flex-1 min-w-0 sm:pr-4">
+                                                            <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                                                                <span className="font-mono text-sm sm:text-base font-bold text-white">{item.asin}</span>
+                                                                {item.sku && <span className="text-[10px] sm:text-xs text-slate-200 bg-slate-800 px-1.5 sm:px-2.5 py-0.5 rounded border border-slate-600 font-medium truncate">SKU: {item.sku}</span>}
                                                             </div>
-                                                            <div className="text-sm font-medium text-slate-200 truncate mb-1.5">{item.product_name || '-'}</div>
-                                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                            <div className="text-xs sm:text-sm font-medium text-slate-200 truncate mb-1.5">{item.product_name || '-'}</div>
+                                                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
                                                                 {group.sellers.map(s => (
-                                                                    <div key={s.id} className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded">
-                                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-slate-700 text-white'}`}>{s.tag}</span>
-                                                                        <span className="text-xs text-amber-300 font-semibold">{s.pending} pending</span>
+                                                                    <div key={s.id} className="flex items-center gap-1 sm:gap-1.5 bg-slate-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                                                                        <span className={`px-1 sm:px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-slate-700 text-white'}`}>{s.tag}</span>
+                                                                        <span className="text-[10px] sm:text-xs text-amber-300 font-semibold">{s.pending} pending</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                         </div>
-                                                        <div className="flex flex-col items-end gap-2 shrink-0">
-                                                            <span className="bg-amber-500/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{totalPending} total pending</span>
-                                                            <span className="text-emerald-300 font-bold text-sm">₹{item.buying_price ?? '-'}</span>
+                                                        <div className="flex items-center sm:flex-col sm:items-end gap-2 mt-2 sm:mt-0 shrink-0">
+                                                            <span className="bg-amber-500/25 text-amber-300 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-bold">{totalPending} pending</span>
+                                                            <span className="text-emerald-300 font-bold text-xs sm:text-sm">₹{item.buying_price ?? '-'}</span>
                                                             <button onClick={(e) => { e.stopPropagation(); handleAddGroupedAsin(group); }}
-                                                                className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 shadow-lg transition-all">
-                                                                + Add to Box
+                                                                className="px-3 sm:px-5 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-emerald-500 shadow-lg transition-all">
+                                                                + Add
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1648,18 +1789,18 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                 </div>
                             </div>
 
-                            {/* Save Box button — now shows count and opens summary */}
-                            <div className="ml-auto flex items-center gap-4">
+                            {/* Save Box button */}
+                            <div className="flex sm:ml-auto items-center gap-2 sm:gap-4">
                                 <button onClick={() => setShowSummary(true)}
                                     disabled={!newBoxId.trim() || addItems.length === 0}
-                                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                                    className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
                                     💾 Save Box {groupedAddItems.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{groupedAddItems.length}</span>}
                                 </button>
                             </div>
                         </div>
 
                         {/* Items table */}
-                        <div className="flex-1 overflow-auto px-5 py-4">
+                        <div className="flex-1 overflow-auto px-3 sm:px-5 py-3 sm:py-4">
                             {groupedAddItems.length === 0 ? (
                                 <div className="h-full flex items-center justify-center flex-col gap-3">
                                     <span className="text-4xl">📭</span>
@@ -1762,9 +1903,9 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                         className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
                                                         onClick={() => toggleExpand(group.box_number)}
                                                     >
-                                                        <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                                             <svg
-                                                                className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? "rotate-90" : ""
+                                                                className={`w-4 h-4 sm:w-5 sm:h-5 text-slate-400 transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""
                                                                     }`}
                                                                 fill="none"
                                                                 stroke="currentColor"
@@ -1778,10 +1919,10 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                                 />
                                                             </svg>
 
-                                                            <span className="text-xl">
+                                                            <span className="text-base sm:text-xl">
                                                                 {statusIcons[group.status]}
                                                             </span>
-                                                            <span className="font-bold text-lg text-white">
+                                                            <span className="font-bold text-sm sm:text-lg text-white">
                                                                 {group.box_number}
                                                             </span>
 
@@ -1791,18 +1932,21 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                                 {group.status.toUpperCase()}
                                                             </span>
 
-                                                            <span className="text-sm text-slate-400">
+                                                            <span className="hidden sm:inline text-sm text-slate-400">
                                                                 {new Set(group.items.map(i => i.asin)).size} ASINs · {group.total_quantity} qty · {group.items[0]?.total_box_weight ? `${group.items[0].total_box_weight} kg` : ''}
+                                                            </span>
+                                                            <span className="sm:hidden text-xs text-slate-400">
+                                                                {new Set(group.items.map(i => i.asin)).size}A · {group.total_quantity}qty
                                                             </span>
 
                                                             {group.items[0]?.booking_date && (
-                                                                <span className="text-xs text-slate-500">
+                                                                <span className="hidden sm:inline text-xs text-slate-500">
                                                                     📅 {new Date(group.items[0].booking_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                                                                 </span>
                                                             )}
 
                                                             {(group.items[0]?.box_created_at || group.items[0]?.moved_from_inbound_at) && (
-                                                                <span className="text-xs text-slate-500">
+                                                                <span className="hidden sm:inline text-xs text-slate-500">
                                                                     🕒 {new Date(group.items[0].box_created_at || group.items[0].moved_from_inbound_at!).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}{" "}
                                                                     {new Date(group.items[0].box_created_at || group.items[0].moved_from_inbound_at!).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                                                                 </span>
@@ -1811,7 +1955,7 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
 
                                                         {/* Actions */}
                                                         <div
-                                                            className="flex items-center gap-3"
+                                                            className="flex items-center gap-2 sm:gap-3 flex-wrap shrink-0"
                                                             onClick={e => e.stopPropagation()}
                                                         ><button
                                                             onClick={() => {
@@ -1840,28 +1984,28 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                                 a.click();
                                                                 URL.revokeObjectURL(url);
                                                             }}
-                                                            className="px-4 py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition-all shadow"
+                                                            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition-all shadow"
                                                         >
-                                                                📥 Download
+                                                                <span className="hidden sm:inline">📥 Download</span><span className="sm:hidden">📥</span>
                                                             </button>
                                                             <button
                                                                 onClick={() => setEditBoxData(group)}
-                                                                className="px-4 py-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow"
+                                                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow"
                                                             >
-                                                                ✏️ Edit
+                                                                <span className="hidden sm:inline">✏️ Edit</span><span className="sm:hidden">✏️</span>
                                                             </button>
                                                             <button
                                                                 disabled={moving}
                                                                 onClick={() => handleMoveToChecking(group.box_number)}
-                                                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50 shadow"
+                                                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50 shadow"
                                                             >
-                                                                {moving ? '⏳ Moving...' : '✅ Move to Checking'}
+                                                                {moving ? '⏳' : '✅'}<span className="hidden sm:inline"> {moving ? 'Moving...' : 'Move to Checking'}</span>
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteBox(group.box_number)}
-                                                                className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow"
+                                                                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow"
                                                             >
-                                                                🗑 Delete
+                                                                <span className="hidden sm:inline">🗑 Delete</span><span className="sm:hidden">🗑</span>
                                                             </button>
                                                         </div>
                                                     </div>
@@ -2058,7 +2202,7 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                             : group.status.charAt(0).toUpperCase() + group.status.slice(1)}
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-center">
-                                                        <div className="flex items-center gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-2 justify-center flex-wrap" onClick={(e) => e.stopPropagation()}>
                                                             <button
                                                                 onClick={() => {
                                                                     const headers = ['Sr No', 'ASIN', 'SKU', 'Product Name', 'Quantity', 'Weight (kg)', 'Buying Price', 'Box Number', 'Booking Date', 'Status'];
@@ -2088,26 +2232,26 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                                 }}
                                                                 className="px-3 py-1.5 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition-all"
                                                             >
-                                                                📥 Download
+                                                                📥
                                                             </button>
                                                             <button
                                                                 onClick={() => setEditBoxData(group)}
                                                                 className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all"
                                                             >
-                                                                ✏️ Edit
+                                                                ✏️
                                                             </button>
                                                             <button
                                                                 disabled={moving}
                                                                 onClick={() => handleMoveToChecking(group.box_number)}
                                                                 className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50"
                                                             >
-                                                                {moving ? '⏳ Moving...' : '✅ Move to Checking'}
+                                                                {moving ? '⏳' : '✅'}
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteBox(group.box_number)}
                                                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-500 transition-all"
                                                             >
-                                                                🗑 Delete Box
+                                                                🗑
                                                             </button>
                                                         </div>
                                                     </td>
@@ -2121,6 +2265,127 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                     </div>
                 )}
             </div>
+            {/* Box History Modal */}
+            {historyOpen && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3">
+                    <div className="w-full max-w-6xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col">
+                        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-bold text-white">📜 Box History</h2>
+                                <p className="text-xs text-slate-400 mt-1">All deleted and moved boxes are archived here</p>
+                            </div>
+                            <button onClick={() => setHistoryOpen(false)} className="text-slate-400 hover:text-white text-2xl">×</button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto px-5 py-4">
+                            {historyLoading ? (
+                                <div className="h-40 flex items-center justify-center text-slate-400">Loading history...</div>
+                            ) : historyData.length === 0 ? (
+                                <div className="h-40 flex items-center justify-center text-slate-500">No box history yet.</div>
+                            ) : (() => {
+                                const grouped: Record<string, { box_number: string; action: string; reason: string | null; archived_at: string; items: any[] }> = {};
+                                historyData.forEach(row => {
+                                    const key = `${row.box_number}__${row.archived_at}`;
+                                    if (!grouped[key]) {
+                                        grouped[key] = {
+                                            box_number: row.box_number,
+                                            action: row.action,
+                                            reason: row.reason,
+                                            archived_at: row.archived_at,
+                                            items: [],
+                                        };
+                                    }
+                                    grouped[key].items.push(row);
+                                });
+
+                                return (
+                                    <div className="space-y-4">
+                                        {Object.values(grouped).map((group, idx) => {
+                                            const totalQty = group.items.reduce((s, i) => s + (i.quantity_assigned ?? 0), 0);
+                                            const uniqueAsins = new Set(group.items.map(i => i.asin)).size;
+                                            const actionColor = group.action === 'deleted'
+                                                ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                                : group.action === 'created'
+                                                    ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                                    : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                                            const actionLabel = group.action === 'deleted' ? '🗑 Deleted'
+                                                : group.action === 'created' ? '📦 Created'
+                                                    : '✅ Moved to Checking';
+
+                                            return (
+                                                <div key={idx} className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/30">
+                                                    <div className="px-4 py-3 flex items-center justify-between flex-wrap gap-2 bg-slate-900/50">
+                                                        <div className="flex items-center gap-3 flex-wrap">
+                                                            <span className="font-bold text-white text-base">📦 {group.box_number}</span>
+                                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${actionColor}`}>{actionLabel}</span>
+                                                            <span className="text-xs text-slate-400">{uniqueAsins} ASINs · {totalQty} qty</span>
+                                                            {group.reason && (
+                                                                <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Reason: {group.reason}</span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">
+                                                            {new Date(group.archived_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}{" "}
+                                                            {new Date(group.archived_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                                                        </span>
+                                                    </div>
+                                                    <table className="w-full text-xs">
+                                                        <thead className="bg-slate-950/50">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left text-slate-400">ASIN</th>
+                                                                <th className="px-3 py-2 text-left text-slate-400">Product</th>
+                                                                <th className="px-3 py-2 text-center text-slate-400">Seller</th>
+                                                                <th className="px-3 py-2 text-center text-slate-400">Funnel</th>
+                                                                <th className="px-3 py-2 text-center text-slate-400">Qty</th>
+                                                                <th className="px-3 py-2 text-center text-slate-400">Price</th>
+                                                                <th className="px-3 py-2 text-center text-slate-400">Weight</th>
+                                                                <th className="px-3 py-2 text-center text-slate-400">Origin</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-800/40">
+                                                            {group.items.map((item, i) => (
+                                                                <tr key={i} className="hover:bg-slate-800/30">
+                                                                    <td className="px-3 py-2 font-mono text-slate-200">{item.asin}</td>
+                                                                    <td className="px-3 py-2 text-slate-300"><div className="truncate max-w-[200px]">{item.product_name || '-'}</div></td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        {item.seller_tag ? (
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[item.seller_tag] || 'bg-slate-700 text-white'}`}>{item.seller_tag}</span>
+                                                                        ) : '-'}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        {item.funnel ? (() => {
+                                                                            const { display, color } = getFunnelBadgeStyle(item.funnel);
+                                                                            return <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${color}`}>{display}</span>;
+                                                                        })() : '-'}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center text-slate-200 font-bold">{item.quantity_assigned ?? 0}</td>
+                                                                    <td className="px-3 py-2 text-center text-slate-300">{item.buying_price ? `₹${item.buying_price}` : '-'}</td>
+                                                                    <td className="px-3 py-2 text-center text-slate-300">{item.product_weight ? `${item.product_weight} kg` : '-'}</td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        <div className="flex gap-0.5 justify-center">
+                                                                            {item.origin_india && <span className="px-1 py-0.5 bg-orange-500 text-white rounded text-[9px] font-bold">IN</span>}
+                                                                            {item.origin_china && <span className="px-1 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold">CN</span>}
+                                                                            {item.origin_us && <span className="px-1 py-0.5 bg-sky-500 text-white rounded text-[9px] font-bold">US</span>}
+                                                                            {!item.origin_india && !item.origin_china && !item.origin_us && <span className="text-slate-600">-</span>}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
+                            <button onClick={() => setHistoryOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800">Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Rollback modal */}
             <GenericRollbackModal
                 open={rollbackOpen}

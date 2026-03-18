@@ -37,62 +37,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ✅ FIX: Load role from localStorage first, then database as fallback
   const fetchUserRole = async (userId: string): Promise<boolean> => {
-  // STEP 1: Check cache for instant display
-  let cacheHit = false;
-  if (typeof window !== 'undefined') {
-    const cachedRole = localStorage.getItem('scrappy_user_role');
-    if (cachedRole) {
-      try {
-        const roleData = JSON.parse(cachedRole);
-        if (roleData.user_id === userId) {
-          console.log('✅ Role loaded from cache:', roleData.role);
-          setUserRole(roleData as UserRole);
-          loadedUserId.current = userId;
-          cacheHit = true;
-        }
-      } catch {}
+    // STEP 1: Check cache for instant display
+    let cacheHit = false;
+    if (typeof window !== 'undefined') {
+      const cachedRole = localStorage.getItem('scrappy_user_role');
+      if (cachedRole) {
+        try {
+          const roleData = JSON.parse(cachedRole);
+          if (roleData.user_id === userId) {
+            console.log('✅ Role loaded from cache:', roleData.role);
+            setUserRole(roleData as UserRole);
+            loadedUserId.current = userId;
+            cacheHit = true;
+          }
+        } catch { }
+      }
     }
-  }
 
-  // STEP 2: Fetch fresh from DB
-  const dbFetch = async () => {
-    try {
-      console.log('🔄 Fetching fresh role from database...');
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+    // STEP 2: Fetch fresh from DB
+    const dbFetch = async () => {
+      try {
+        console.log('🔄 Fetching fresh role from database...');
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
 
-      if (error) {
-        console.error('❌ Role fetch error:', error.message);
+        if (error) {
+          console.error('❌ Role fetch error:', error.message);
+          return false;
+        }
+        if (data) {
+          console.log('✅ Role loaded from DB:', data.role);
+          setUserRole(data as UserRole);
+          loadedUserId.current = userId;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('scrappy_user_role', JSON.stringify(data));
+          }
+          return true;
+        }
+        return false;
+      } catch (err: any) {
+        console.error('❌ DB fetch exception:', err.message);
         return false;
       }
-      if (data) {
-        console.log('✅ Role loaded from DB:', data.role);
-        setUserRole(data as UserRole);
-        loadedUserId.current = userId;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('scrappy_user_role', JSON.stringify(data));
-        }
-        return true;
-      }
-      return false;
-    } catch (err: any) {
-      console.error('❌ DB fetch exception:', err.message);
-      return false;
+    };
+
+    if (cacheHit) {
+      // Cache exists — don't block, fetch DB in background
+      dbFetch();
+      return true;
+    } else {
+      // No cache — must wait for DB
+      return await dbFetch();
     }
   };
-
-  if (cacheHit) {
-    // Cache exists — don't block, fetch DB in background
-    dbFetch();
-    return true;
-  } else {
-    // No cache — must wait for DB
-    return await dbFetch();
-  }
-};
 
   // Initialize authentication on mount
   useEffect(() => {
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         console.log("🔐 Initializing auth...");
-        
+
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
-
+      if (event === 'TOKEN_REFRESHED') return;
       console.log("🔄 Auth state changed:", event);
 
       if (event === "SIGNED_OUT") {
@@ -192,30 +192,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await supabase.auth.signOut();
+    } catch (error: any) {
+      console.error("Logout error:", error.message || error);
+    } finally {
       setUser(null);
       setUserRole(null);
       loadedUserId.current = null;
       fetchInProgress.current = false;
-      
-      // Clear cached role
+
       if (typeof window !== 'undefined') {
         localStorage.removeItem('scrappy_user_role');
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        });
       }
-      
-      window.location.href = "/login";
-    } catch (error: any) {
-      console.error("Logout error:", error.message || error);
+
+      window.location.href = "/login?logout=true";
     }
   };
 
   const hasPageAccess = (permissionKey: string): boolean => {
-  if (!userRole) return false;
-  if (userRole.role === 'admin') return true;
-  if (permissionKey === 'public') return true;
-  if (permissionKey === 'admin-access') return false;
-  const pages = Array.isArray(userRole.allowed_pages) ? userRole.allowed_pages : [];
-  return pages.includes(permissionKey) || pages.includes('all') || pages.includes('*');
-};
+    if (!userRole) return false;
+    if (userRole.role === 'admin') return true;
+    if (permissionKey === 'public') return true;
+    if (permissionKey === 'admin-access') return false;
+    const pages = Array.isArray(userRole.allowed_pages) ? userRole.allowed_pages : [];
+    return pages.includes(permissionKey) || pages.includes('all') || pages.includes('*');
+  };
 
   return (
     <AuthContext.Provider

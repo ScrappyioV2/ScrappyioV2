@@ -230,6 +230,40 @@ export default function AddBoxDetailsModal({
 
             if (boxError) throw boxError;
 
+            // Archive to history as 'created'
+            if (insertedBoxes && insertedBoxes.length > 0) {
+                const historyArchive = boxRows.map((r: any) => ({
+                    box_number: r.box_number,
+                    inbound_tracking_id: r.inbound_tracking_id ?? null,
+                    asin: r.asin ?? null,
+                    product_name: r.product_name ?? null,
+                    sku: r.sku ?? null,
+                    seller_tag: r.seller_tag ?? null,
+                    funnel: r.funnel ?? null,
+                    origin: r.origin ?? null,
+                    origin_india: r.origin_india ?? false,
+                    origin_china: r.origin_china ?? false,
+                    origin_us: r.origin_us ?? false,
+                    buying_price: r.buying_price ?? null,
+                    buying_quantity: r.buying_quantity ?? null,
+                    quantity_assigned: r.quantity_assigned ?? null,
+                    product_weight: r.product_weight ?? null,
+                    total_box_weight: r.total_box_weight ?? null,
+                    box_status: 'assigned',
+                    box_booking_date: r.booking_date ?? null,
+                    tracking_details: null,
+                    delivery_date: null,
+                    order_date: r.order_date ?? null,
+                    product_link: r.product_link ?? null,
+                    seller_link: r.seller_link ?? null,
+                    journey_id: r.journey_id ?? null,
+                    action: 'created',
+                    reason: null,
+                    original_created_at: new Date().toISOString(),
+                }));
+                await supabase.from("india_box_history").insert(historyArchive);
+            }
+
             // Group inserted rows by inbound_tracking_id
             const byInbound = new Map<string, any[]>();
             (insertedBoxes || []).forEach((row) => {
@@ -310,9 +344,9 @@ export default function AddBoxDetailsModal({
 
     return (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-            <div className="w-full max-w-5xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col">
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-white">
+            <div className="w-full max-w-5xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 flex items-center justify-between">
+                    <h2 className="text-base sm:text-lg font-semibold text-white">
                         Add Box Details
                     </h2>
                     <button
@@ -323,7 +357,7 @@ export default function AddBoxDetailsModal({
                     </button>
                 </div>
 
-                <div className="px-5 py-4 border-b border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                         <label className="block text-xs font-semibold text-slate-400 mb-1">
                             Box ID
@@ -362,7 +396,7 @@ export default function AddBoxDetailsModal({
                     </div>
                 </div>
 
-                <div className="px-5 pt-3 space-y-2">
+                <div className="px-3 sm:px-5 pt-3 space-y-2">
                     <label className="block text-xs font-semibold text-slate-400">
                         Add ASIN to this box
                     </label>
@@ -427,7 +461,7 @@ export default function AddBoxDetailsModal({
                     </p>
                 </div>
 
-                <div className="flex-1 overflow-auto px-5 py-4">
+                <div className="flex-1 overflow-auto px-3 sm:px-5 py-3 sm:py-4">
                     <table className="w-full text-xs border-separate border-spacing-y-1">
                         <thead>
                             <tr className="bg-slate-900">
@@ -439,7 +473,7 @@ export default function AddBoxDetailsModal({
                                 <th className="px-2 py-2 text-center text-slate-400">Qty in Box</th>
                                 <th className="px-2 py-2 text-center text-slate-400">Weight (kg)</th>
                                 <th className="px-2 py-2 text-center text-slate-400"></th>
-                                </tr>
+                            </tr>
                         </thead>
                         <tbody>
                             {itemsInThisBox.length === 0 ? (
@@ -528,15 +562,15 @@ export default function AddBoxDetailsModal({
                 </div>
 
                 {errorMsg && (
-                    <div className="px-5 pb-2 text-xs text-rose-400">
+                    <div className="px-3 sm:px-5 pb-2 text-xs text-rose-400">
                         {errorMsg}
                     </div>
                 )}
 
-                <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between">
+                <div className="px-3 sm:px-5 py-3 border-t border-slate-800 flex items-center justify-between">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800"
+                        className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800"
                         disabled={submitting}
                     >
                         Cancel
@@ -544,7 +578,7 @@ export default function AddBoxDetailsModal({
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {submitting ? "Saving..." : "Submit Box"}
                     </button>

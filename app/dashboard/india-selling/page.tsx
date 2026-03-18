@@ -1,6 +1,8 @@
 "use client";
 
+
 export const dynamic = "force-dynamic";
+
 
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -14,6 +16,7 @@ import {
   Loader2, ShoppingBag
 } from 'lucide-react';
 
+
 /* ================= CONFIGURATION ================= */
 const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; border: string }> = {
   1: { name: "Golden Aura", color: "#f59e0b", bg: "bg-amber-500/10", border: "border-amber-500/20" },
@@ -22,11 +25,12 @@ const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; b
   4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/10", border: "border-emerald-500/20" }
 };
 
+
 // Custom Tooltip to handle the dual axis context
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-2xl">
+      <div className="bg-slate-900 border border-slate-700 p-3 sm:p-4 rounded-xl shadow-2xl">
         <p className="text-slate-300 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           {payload.map((entry: any, index: number) => (
@@ -45,21 +49,26 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+
 export default function IndiaSellingPage() {
   const router = useRouter();
   const { userRole, loading: authLoading } = useAuth();
+
 
   // 1. Determine if user is restricted (needs redirect)
   const redirectTarget = useMemo(() => {
     if (authLoading || !userRole) return null;
     const pages = userRole.allowed_pages || [];
 
+
     if (pages.includes('validation')) return '/dashboard/india-selling/validation';
     if (pages.includes('brand-checking')) return '/dashboard/india-selling/brand-checking';
     if (pages.includes('purchase')) return '/dashboard/india-selling/purchases';
 
+
     return null; // Admin or Manager
   }, [authLoading, userRole]);
+
 
   // 2. Execute Redirect
   useEffect(() => {
@@ -68,8 +77,10 @@ export default function IndiaSellingPage() {
     }
   }, [redirectTarget, router]);
 
+
   // 3. Only fetch stats if NOT redirecting
   const { stats, loading: statsLoading } = useIndiaDashboardStats({ enabled: !redirectTarget });
+
 
   // Calculate Header Totals
   const pipelineData = useMemo(() => {
@@ -86,31 +97,36 @@ export default function IndiaSellingPage() {
     });
   }, [stats]);
 
+
   const totalActive = pipelineData.reduce((acc, curr) => acc + curr["Brand Check"] + curr["Validation"] + curr["Purchasing"], 0);
+
 
   return (
     <>
-      <div className="h-full bg-slate-950 text-slate-200 p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
+      <div className="h-full bg-slate-950 text-slate-200 p-3 sm:p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-y-auto xl:overflow-hidden">
+
 
         {/* === HEADER — COMPACT === */}
-        <div className="flex items-end justify-between mb-4 border-b border-slate-800/60 pb-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-0 mb-3 sm:mb-4 border-b border-slate-800/60 pb-3 shrink-0">
           <div>
             <div className="flex items-center gap-2.5 mb-1">
               <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                 <TrendingUp className="w-5 h-5 text-indigo-400" />
               </div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">INDIA Overview</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">INDIA Overview</h1>
             </div>
-            <p className="text-slate-400 text-sm pl-1">
+            <p className="text-slate-400 text-xs sm:text-sm pl-1">
               Live pipeline metrics for <span className="text-indigo-400 font-bold">4 Brands</span>
             </p>
           </div>
 
-          <div className="bg-slate-900 px-4 py-2.5 rounded-xl border border-slate-800 shadow-xl flex flex-col items-center min-w-[140px]">
+
+          <div className="bg-slate-900 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-800 shadow-xl flex flex-col items-center min-w-0 sm:min-w-[140px] self-end sm:self-auto">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Total Active</span>
-            <span className="text-2xl font-mono font-bold text-white">{totalActive.toLocaleString()}</span>
+            <span className="text-xl sm:text-2xl font-mono font-bold text-white">{totalActive.toLocaleString()}</span>
           </div>
         </div>
+
 
         {/* === CONTENT === */}
         {(!stats || statsLoading) ? (
@@ -119,27 +135,29 @@ export default function IndiaSellingPage() {
             <span className="text-sm font-medium tracking-wide animate-pulse">SYNCING LIVE DATA...</span>
           </div>
         ) : (
-          <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-4 min-h-0">
+          <div className="xl:flex-1 grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 xl:min-h-0 xl:overflow-hidden">
+
 
             {/* === LEFT: PIPELINE CHART + STATS === */}
-            <div className="xl:col-span-2 flex flex-col gap-4 min-h-0">
-              <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-2xl shadow-xl backdrop-blur-sm flex-1 min-h-0 flex flex-col">
-                <div className="flex justify-between items-center mb-3">
+            <div className="xl:col-span-2 flex flex-col gap-3 sm:gap-4 xl:min-h-0">
+              <div className="bg-slate-900/40 border border-slate-800 p-3 sm:p-4 rounded-2xl shadow-xl backdrop-blur-sm xl:flex-1 min-h-[250px] flex flex-col">
+                <div className="flex justify-between items-center mb-2 sm:mb-3">
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-indigo-400" />
                     Pipeline Volume
                   </h2>
-                  <div className="text-[10px] text-slate-500 flex gap-3">
+                  <div className="text-[10px] text-slate-500 hidden sm:flex gap-3">
                     <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Right Scale</span>
                     <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div> Left Scale</span>
                   </div>
                 </div>
 
+
                 <div className="flex-1 min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={pipelineData} barGap={8}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} dy={5} />
+                      <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={5} interval={0} />
                       <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" fontSize={10} tickLine={false} axisLine={false} />
                       <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" fontSize={10} tickLine={false} axisLine={false} />
                       <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
@@ -152,15 +170,18 @@ export default function IndiaSellingPage() {
                 </div>
               </div>
 
+
               {/* === STATS ROW === */}
-              <div className="grid grid-cols-2 gap-4 shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 shrink-0">
                 <StatCard title="Brand Checking" icon={<ShieldCheck className="w-4 h-4 text-blue-400" />} data={stats.brandChecking.sellers} type="pending" />
                 <StatCard title="Validation" icon={<FileCheck className="w-4 h-4 text-purple-400" />} data={stats.validation.sellers} type="mixed" />
               </div>
             </div>
 
+
             {/* === RIGHT COLUMN === */}
-            <div className="flex flex-col gap-4 min-h-0">
+            <div className="flex flex-col gap-3 sm:gap-4 xl:min-h-0">
+
 
               {/* LISTING ERRORS */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl shrink-0">
@@ -189,8 +210,9 @@ export default function IndiaSellingPage() {
                 </div>
               </div>
 
+
               {/* PURCHASING QUEUE */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex-1 min-h-0">
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl xl:flex-1 min-h-0">
                 <div className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4 text-emerald-400" />
                   <h2 className="font-bold text-sm text-white">Ready to Buy</h2>
@@ -215,19 +237,22 @@ export default function IndiaSellingPage() {
                 </div>
               </div>
 
+
             </div>
           </div>
         )}
+
 
       </div>
     </>
   );
 }
 
+
 // === HELPER COMPONENT ===
 function StatCard({ title, icon, data, type }: { title: string, icon: any, data: any[], type: 'pending' | 'mixed' }) {
   return (
-    <div className="bg-slate-900/40 border border-slate-800 p-3.5 rounded-2xl shadow-lg backdrop-blur-sm">
+    <div className="bg-slate-900/40 border border-slate-800 p-3 sm:p-3.5 rounded-2xl shadow-lg backdrop-blur-sm">
       <div className="flex items-center gap-2 mb-2.5">
         <div className="p-1.5 bg-slate-800 rounded-lg">{icon}</div>
         <h3 className="font-bold text-sm text-slate-200">{title}</h3>
@@ -236,19 +261,23 @@ function StatCard({ title, icon, data, type }: { title: string, icon: any, data:
         {data.map((item: any) => {
           const cfg = SELLER_CONFIG[item.id];
           return (
-            <div key={item.id} className="flex items-center justify-between px-2.5 py-2 bg-slate-950/50 border border-slate-800/50 rounded-lg">
+            <div key={item.id} className="flex items-center justify-between px-2 sm:px-2.5 py-2 bg-slate-950/50 border border-slate-800/50 rounded-lg gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                <span className="text-[11px] text-slate-400 font-medium">{cfg.name}</span>
+                <span className="text-[11px] text-slate-400 font-medium truncate">{cfg.name}</span>
               </div>
-              <div className="flex gap-3 text-[11px]">
+              <div className="flex gap-2 sm:gap-3 text-[11px] shrink-0">
                 {type === 'pending' ? (
-                  <span className="font-bold text-blue-400">{item.pending} Pending</span>
+                  <>
+                    <span className="font-bold text-blue-400">{item.pending?.toLocaleString()} Pending</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="text-slate-400">{(item.pending + item.approved + item.notApproved).toLocaleString()} Total</span>
+                  </>
                 ) : (
                   <>
-                    <span className="text-emerald-400 font-bold">{item.approved} Pass</span>
+                    <span className="text-emerald-400 font-bold">{item.approved?.toLocaleString()} Pass</span>
                     <span className="text-slate-600">|</span>
-                    <span className="text-slate-300">{item.pending} Wait</span>
+                    <span className="text-slate-300">{item.pending?.toLocaleString()} Wait</span>
                   </>
                 )}
               </div>

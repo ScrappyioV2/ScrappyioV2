@@ -29,7 +29,7 @@ function Toast({ message, type, onClose }: { message: string; type: ToastType; o
 
     return (
         <div
-            className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 rounded-xl border shadow-2xl text-white text-sm font-medium animate-slide-in ${styles[type]}`}
+            className={`fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl border shadow-2xl text-white text-xs sm:text-sm font-medium animate-slide-in max-w-[calc(100vw-2rem)] ${styles[type]}`}
             style={{ animation: "slideIn 0.3s ease-out" }}
         >
             <span className="text-lg">{icons[type]}</span>
@@ -172,16 +172,16 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="w-full max-w-5xl bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="w-full max-w-5xl bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col max-h-[90vh] mx-2 sm:mx-0">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 flex items-center justify-between">
                     <div>
-                        <h2 className="text-xl font-bold text-white">✏️ Edit Box Details</h2>
-                        <p className="text-sm text-slate-400 mt-1">Modify box metadata or item quantities. Removed items will return to the Inbound queue.</p>
+                        <h2 className="text-base sm:text-xl font-bold text-white">✏️ Edit Box Details</h2>
+                        <p className="text-xs sm:text-sm text-slate-400 mt-1">Modify box metadata or item quantities. Removed items will return to the Inbound queue.</p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl">×</button>
                 </div>
 
-                <div className="px-5 py-4 border-b border-slate-800 bg-slate-900/50 flex flex-wrap gap-6">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/50 flex flex-wrap gap-3 sm:gap-6">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-slate-400 uppercase">Box ID</label>
                         <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500 focus:outline-none" />
@@ -196,7 +196,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-auto p-5">
+                <div className="flex-1 overflow-auto p-3 sm:p-5">
                     {activeItems.length === 0 ? (
                         <div className="text-center py-10 text-rose-400 font-medium">All items removed. Saving will delete the box entirely.</div>
                     ) : (
@@ -246,9 +246,9 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
                     )}
                 </div>
 
-                <div className="px-5 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/30">
-                    <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800">Cancel</button>
-                    <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 flex items-center gap-2">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/30">
+                    <button onClick={onClose} className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800">Cancel</button>
+                    <button onClick={handleSave} disabled={saving} className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 flex items-center gap-2">
                         {saving ? "Saving..." : "💾 Save Changes"}
                     </button>
                 </div>
@@ -684,14 +684,14 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <EditBoxModal open={!!editBoxData} boxGroup={editBoxData} onClose={() => setEditBoxData(null)} onSuccess={() => { setEditBoxData(null); refreshSilently(); onCountsChange(); }} showToast={showToast} />
             {/* Toolbar */}
-            <div className="flex-none pt-5 pb-4 flex gap-4 items-center flex-wrap">
+            <div className="flex-none pt-3 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
                 {/* Search */}
                 <input
                     type="text"
                     placeholder="Search by ASIN, Name, SKU, or Box Number..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500 text-sm"
                 />
 
                 {/* View Toggle */}
@@ -718,9 +718,9 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                 {/* ⏪ Rollback from Checking */}
                 <button
                     onClick={() => setRollbackOpen(true)}
-                    className="px-4 py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
                 >
-                    ⏪ Rollback from Checking
+                    <span className="hidden sm:inline">⏪ Rollback from Checking</span><span className="sm:hidden">⏪ Rollback</span>
                 </button>
             </div>
 
@@ -731,7 +731,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
 
                         {/* GROUPED VIEW */}
                         {viewMode === 'grouped' && (
-                            <div className="p-4 space-y-3">
+                            <div className="p-2 sm:p-4 space-y-2 sm:space-y-3">
                                 {groupedBoxes.length === 0 ? (
                                     <div className="text-center py-12 text-slate-500">
                                         No items in boxes yet. Move delivered items from Inbound tab.
@@ -748,7 +748,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                             >
                                                 {/* Box Header */}
                                                 <div
-                                                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                                                    className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 cursor-pointer hover:bg-slate-800/30 transition-colors flex-wrap gap-2"
                                                     onClick={() => toggleExpand(group.box_number)}
                                                 >
                                                     <div className="flex items-center gap-3">
@@ -763,7 +763,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                         {/* Box Icon + Name */}
                                                         <span className="text-xl">📦</span>
                                                         <div className="flex flex-col">
-                                                            <span className="font-extrabold text-lg text-white tracking-wide">
+                                                            <span className="font-extrabold text-sm sm:text-lg text-white tracking-wide">
                                                                 {isUnassigned ? '📋 Unassigned Items' : group.box_number}
                                                             </span>
                                                             {/* ✅ UI FIX: Shows Booking and Saved Dates */}
@@ -776,33 +776,33 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                         </div>
 
                                                         {/* Status Badge */}
-                                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ml-4 ${statusColors[group.status]}`}>
+                                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ml-1 sm:ml-4 ${statusColors[group.status]}`}>
                                                             {group.status.toUpperCase()}
                                                         </span>
 
                                                         {/* Item Count */}
-                                                        <span className="text-sm text-slate-300 font-medium bg-slate-900 px-3 py-1 rounded-lg border border-slate-800 ml-2">
+                                                        <span className="text-xs sm:text-sm text-slate-300 font-medium bg-slate-900 px-2 sm:px-3 py-1 rounded-lg border border-slate-800 ml-1 sm:ml-2">
                                                             {new Set(group.items.map(i => i.asin)).size} ASINs · {group.total_quantity} qty
                                                         </span>
                                                     </div>
 
                                                     {/* Box Actions */}
-                                                    <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                                                        <button onClick={() => setEditBoxData(group)} className="px-4 py-2 bg-sky-600/20 text-sky-400 border border-sky-500/30 rounded-lg text-xs font-bold hover:bg-sky-600 hover:text-white transition-all shadow">
+                                                    <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                                        <button onClick={() => setEditBoxData(group)} className="px-2 sm:px-4 py-1.5 sm:py-2 bg-sky-600/20 text-sky-400 border border-sky-500/30 rounded-lg text-xs font-bold hover:bg-sky-600 hover:text-white transition-all shadow">
                                                             ✏️ Edit Box
                                                         </button>
 
                                                         <button
                                                             disabled={moving}
                                                             onClick={() => handleMoveToChecking(group.box_number)}
-                                                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50 shadow"
+                                                            className="px-2 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50 shadow"
                                                         >
                                                             {moving ? '⏳ Moving...' : '✅ Move to Checking'}
                                                         </button>
 
                                                         <button
                                                             onClick={() => handleDeleteBox(group.box_number)}
-                                                            className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow"
+                                                            className="px-2 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow"
                                                         >
                                                             🗑 Delete
                                                         </button>
@@ -974,8 +974,8 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-                        <div className="flex items-center justify-between text-sm text-slate-400">
+                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-slate-400">
                             <span>
                                 {filteredProducts.length} items · {groupedBoxes.length} boxes
                             </span>

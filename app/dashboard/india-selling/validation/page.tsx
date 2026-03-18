@@ -513,7 +513,7 @@ export default function ValidationPage() {
                 // Update existing products with DB data, but KEEP local calculated fields
                 const merged = prev.map(p => {
                     const dbProduct = dbMap.get(p.id);
-                    if (!dbProduct) return p;
+                    if (!dbProduct) return null;
                     dbMap.delete(p.id);
                     if (movingIds.has(p.id)) return p;
                     // Keep local calculated_judgement if it exists (user just calculated)
@@ -532,7 +532,7 @@ export default function ValidationPage() {
                     merged.push(dbProduct);
                 }
 
-                return merged;
+                return merged.filter(Boolean) as ValidationProduct[];
             });
         } catch (err) {
             console.error('Silent refresh error:', err);
@@ -550,9 +550,7 @@ export default function ValidationPage() {
     useEffect(() => {
         if (authLoading) return;
 
-        fetchProducts(); // Runs once on mount (showing spinner)
-        fetchStats();
-        fetchConstants();
+        Promise.all([fetchProducts(), fetchStats(), fetchConstants()]); // parallel on mount
 
         // Realtime Subscription
         const channel = supabase
@@ -642,28 +640,22 @@ export default function ValidationPage() {
 
     const fetchStats = async () => {
         try {
-            // Get all products from main file
-            const mainData = await fetchAllRows<{ judgement: string | null }>(
-                'india_validation_main_file',
-                'judgement'
-            );
-
-            const products = mainData || []
-
-            // Count by judgement status
-            const passed = products.filter(p => p.judgement === 'PASS').length
-            const failed = products.filter(p => p.judgement === 'FAIL').length
-            const pending = products.filter(p => !p.judgement || p.judgement === 'PENDING').length
-            const rejected = products.filter(p => p.judgement === 'REJECT').length
-            const reworking = products.filter(p => p.judgement === 'REWORKING').length
+            const [passRes, failRes, pendingRes, rejectRes, reworkRes, totalRes] = await Promise.all([
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'PASS'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'FAIL'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).or('judgement.is.null,judgement.eq.PENDING'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'REJECT'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'REWORKING'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }),
+            ]);
 
             setStats({
-                total: products.length,
-                passed,
-                failed,
-                pending,
-                rejected,
-                reworking,
+                total: totalRes.count ?? 0,
+                passed: passRes.count ?? 0,
+                failed: failRes.count ?? 0,
+                pending: pendingRes.count ?? 0,
+                rejected: rejectRes.count ?? 0,
+                reworking: reworkRes.count ?? 0,
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
@@ -676,31 +668,36 @@ export default function ValidationPage() {
         order?: { column: string; ascending?: boolean }
     ): Promise<T[]> => {
         const PAGE_SIZE = 1000;
-        let from = 0;
-        let allRows: T[] = [];
 
-        while (true) {
+        // Get total count first so we can fetch all pages in parallel
+        const { count, error: countError } = await supabase
+            .from(table)
+            .select(select, { count: 'exact', head: true });
+
+        if (countError) throw countError;
+        if (!count || count === 0) return [];
+
+        const totalPages = Math.ceil(count / PAGE_SIZE);
+
+        const pagePromises = Array.from({ length: totalPages }, (_, i) => {
             let query = supabase
                 .from(table)
                 .select(select)
-                .range(from, from + PAGE_SIZE - 1);
+                .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
 
             if (order) {
-                query = query.order(order.column, {
-                    ascending: order.ascending ?? false,
-                });
+                query = query.order(order.column, { ascending: order.ascending ?? false });
             }
 
-            const { data, error } = await query;
+            return query;
+        });
 
+        const results = await Promise.all(pagePromises);
+
+        const allRows: T[] = [];
+        for (const { data, error } of results) {
             if (error) throw error;
-            if (!data || data.length === 0) break;
-
-            // ✅ TypeScript-safe narrowing
-            allRows = allRows.concat(data as T[]);
-
-            if (data.length < PAGE_SIZE) break;
-            from += PAGE_SIZE;
+            if (data) allRows.push(...(data as T[]));
         }
 
         return allRows;
@@ -739,11 +736,17 @@ export default function ValidationPage() {
     };
 
     const populateUsaLinks = async (products: ValidationProduct[]) => {
-        const BATCH = 100; // bigger batches = fewer round trips
+        // Update local state FIRST (instant UI)
+        setProducts(prev => prev.map(p =>
+            !p.usa_link && p.asin
+                ? { ...p, usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` }
+                : p
+        ));
+
+        // Then write to DB in background
+        const BATCH = 100;
         for (let i = 0; i < products.length; i += BATCH) {
             const batch = products.slice(i, i + BATCH);
-
-            // Fire all updates in parallel per batch
             await Promise.all(batch.map(p =>
                 supabase
                     .from('india_validation_main_file')
@@ -751,13 +754,6 @@ export default function ValidationPage() {
                     .eq('id', p.id)
             ));
         }
-
-        // Update local state ONCE after all batches done
-        setProducts(prev => prev.map(p =>
-            !p.usa_link && p.asin
-                ? { ...p, usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` }
-                : p
-        ));
     };
 
     const fetchProducts = async () => {
@@ -774,8 +770,7 @@ export default function ValidationPage() {
 
             // ✅ Auto-populate usa_link IN BACKGROUND (non-blocking)
             const missingUsaLink = validationData.filter(p => p.asin && !p.usa_link);
-            if (missingUsaLink.length > 0) {
-                // Don't await — let it run in background
+            if (missingUsaLink.length > 0 && missingUsaLink.length < 200) {
                 populateUsaLinks(missingUsaLink);
             }
 
@@ -1335,23 +1330,29 @@ export default function ValidationPage() {
     }
 
     const handleFunnelChange = async (id: string, newFunnel: string) => {
+        localEditCountRef.current += 1;
         const oldFunnel = products.find(p => p.id === id)?.funnel;
         // Optimistic UI
         setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: newFunnel } : p));
         setOpenFunnelId(null);
         setDropdownPos(null);
 
-        const { error } = await supabase
-            .from('india_validation_main_file')
-            .update({ funnel: newFunnel })
-            .eq('id', id);
+        try {
+            const { error } = await supabase
+                .from('india_validation_main_file')
+                .update({ funnel: newFunnel })
+                .eq('id', id);
 
-        if (error) {
-            // Rollback
-            setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel } : p));
-            setToast({ message: 'Failed to update funnel', type: 'error' });
-        } else {
-            setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
+            if (error) {
+                // Rollback
+                setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel } : p));
+                setToast({ message: 'Failed to update funnel', type: 'error' });
+            } else {
+                setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
+            }
+        } finally {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            localEditCountRef.current -= 1;
         }
     };
 
@@ -1383,8 +1384,6 @@ export default function ValidationPage() {
     }
 
     const handleChecklistOk = async (id: string) => {
-        const confirmed = window.confirm('Send this item to Purchases?')
-        if (!confirmed) return
 
         const product = products.find(p => p.id === id)
         if (!product) return
@@ -1500,17 +1499,25 @@ export default function ValidationPage() {
             }
 
             // 4. Mark as Sent
-            await supabase
+            const { error: markError } = await supabase
                 .from('india_validation_main_file')
                 .update(toSnakeCase({ senttopurchases: true, senttopurchasesat: new Date().toISOString(), currentjourneyid: journeyId, journeynumber: journeyNum }))
                 .eq('id', id)
+
+            if (markError) {
+                console.error('Failed to mark as sent:', markError);
+                setToast({ message: 'Warning: Product sent but flag not saved. Try again.', type: 'error' });
+                return;
+            }
 
             setRollbackHistory(prev => ({
                 ...prev,
                 purchase_move: { product, action: 'sent_to_purchases' }
             }));
 
-            setProducts((prev) => prev.filter((p) => p.id !== id))
+            setProducts((prev) => prev.map((p) =>
+                p.id === id ? { ...p, sent_to_purchases: true } : p
+            ))
             setToast({ message: 'Sent to Purchases successfully!', type: 'success' })
             logActivity({
                 action: 'submit',
@@ -2884,29 +2891,29 @@ export default function ValidationPage() {
 
     return (
         <>
-            <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
+            <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-3 sm:p-4 lg:p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
                 <div className="w-full flex flex-col flex-1 overflow-hidden">
                     {/* Fixed Header Section */}
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
-                            <h1 className="text-3xl font-bold text-white">INDIA Selling - Validation</h1>
-                            <p className="text-slate-400 mt-1">Manage validation files and product status</p>
+                            <h1 className="text-xl sm:text-3xl font-bold text-white">INDIA Selling - Validation</h1>
+                            <p className="text-xs sm:text-sm text-slate-400 mt-1">Manage validation files and product status</p>
                         </div>
 
                         {/* Stats Cards - Compact */}
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                             <div className="flex items-center gap-2.5 bg-slate-800/80 rounded-lg px-3.5 py-2 border border-slate-700/50">
                                 <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
-                                <span className="text-lg font-bold text-white">{stats.total}</span>
+                                <span className="text-sm sm:text-lg font-bold text-white">{stats.total}</span>
                             </div>
                             <div className="flex items-center gap-2.5 bg-emerald-900/30 rounded-lg px-3.5 py-2 border border-emerald-500/20">
                                 <span className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">✓ Pass</span>
-                                <span className="text-lg font-bold text-emerald-300">{stats.passed}</span>
+                                <span className="text-sm sm:text-lg font-bold text-emerald-300">{stats.passed}</span>
                             </div>
                             <div className="flex items-center gap-2.5 bg-rose-900/30 rounded-lg px-3.5 py-2 border border-rose-500/20">
                                 <span className="text-[11px] font-medium text-rose-400 uppercase tracking-wider">✗ Fail</span>
-                                <span className="text-lg font-bold text-rose-300">{stats.failed}</span>
+                                <span className="text-sm sm:text-lg font-bold text-rose-300">{stats.failed}</span>
                             </div>
                             {/* <div className="flex items-center gap-2.5 bg-amber-900/30 rounded-lg px-3.5 py-2 border border-amber-500/20">
                                 <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">⏳ Pending</span>
@@ -2914,15 +2921,15 @@ export default function ValidationPage() {
                             </div> */}
                             <div className="flex items-center gap-2.5 bg-violet-900/30 rounded-lg px-3.5 py-2 border border-violet-500/20">
                                 <span className="text-[11px] font-medium text-violet-400 uppercase tracking-wider">Rejected</span>
-                                <span className="text-lg font-bold text-violet-300">{stats.rejected}</span>
+                                <span className="text-sm sm:text-lg font-bold text-violet-300">{stats.rejected}</span>
                             </div>
                             <div className="flex items-center gap-2.5 bg-cyan-900/30 rounded-lg px-3.5 py-2 border border-cyan-500/20">
                                 <span className="text-[11px] font-medium text-cyan-400 uppercase tracking-wider">Reworking</span>
-                                <span className="text-lg font-bold text-cyan-300">{stats.reworking}</span>
+                                <span className="text-sm sm:text-lg font-bold text-cyan-300">{stats.reworking}</span>
                             </div>
                         </div>
                         {/* File Tabs */}
-                        <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
+                        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-5 p-1 sm:p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-full sm:w-fit overflow-x-auto scrollbar-none backdrop-blur-sm">
                             {[
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
@@ -2933,7 +2940,7 @@ export default function ValidationPage() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as FileTab)}
-                                    className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
+                                    className={`px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === tab.id
                                         ? 'text-white bg-slate-800 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] border border-slate-700'
                                         : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
                                         }`}
@@ -2945,13 +2952,13 @@ export default function ValidationPage() {
 
                         {/* Action Buttons */}
                         {/* Action Buttons */}
-                        <div className="mb-4 space-y-3">
+                        <div className="mb-3 sm:mb-4 space-y-2 sm:space-y-3">
                             {/* ROW 1: Search + Filter + Funnel + Action Buttons */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                                 {/* LEFT SIDE - Search + Filter */}
-                                <div className="flex gap-3 min-w-[300px]">
+                                <div className="flex gap-2 sm:gap-3 min-w-0 sm:min-w-[300px] w-full sm:w-auto">
                                     {/* Search Bar */}
-                                    <div className="relative flex-1 max-w-md group">
+                                    <div className="relative flex-1 min-w-0 max-w-md group">
                                         <svg
                                             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
                                             fill="none"
@@ -2965,7 +2972,7 @@ export default function ValidationPage() {
                                             placeholder="Search by ASIN, SKU, Product Name, or Brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
+                                            className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
                                         />
                                         {searchQuery && (
                                             <button
@@ -2983,7 +2990,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -3048,15 +3055,15 @@ export default function ValidationPage() {
                                     <button
                                         onClick={handleMoveToMainClick}
                                         disabled={selectedIds.size === 0}
-                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
                                             ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
                                             : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
                                             }`}
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>
-                                        Move to Main
+                                        <span className="hidden sm:inline">Move to Main</span>
                                     </button>
                                 )}
 
@@ -3064,15 +3071,15 @@ export default function ValidationPage() {
                                     <button
                                         onClick={handleMoveToReworkingClick}
                                         disabled={selectedIds.size === 0}
-                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
+                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
                                             ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
                                             : 'bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500'
                                             }`}
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
-                                        Move to Reworking
+                                        <span className="hidden sm:inline">Move to Reworking</span>
                                     </button>
                                 )}
 
@@ -3145,15 +3152,15 @@ export default function ValidationPage() {
                                     <button
                                         onClick={handleMoveToRejectClick}
                                         disabled={selectedIds.size === 0}
-                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
                                             ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
                                             : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
                                             }`}
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                                         </svg>
-                                        Move to Reject
+                                        <span className="hidden sm:inline">Move to Reject</span>
                                     </button>
                                 )}
 
@@ -3165,7 +3172,7 @@ export default function ValidationPage() {
                                             (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
                                             (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
                                         }
-                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
                                             (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
                                             (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
                                             ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
@@ -3177,16 +3184,16 @@ export default function ValidationPage() {
                                                     'Roll back last ASIN from Purchases'
                                         }
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                         </svg>
-                                        Roll Back
+                                        <span className="hidden sm:inline">Roll Back</span>
                                     </button>
                                 )}
                             </div>
 
                             {/* ROW 2: Download + Upload + Bulk Update + Constants */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                                 {/* Spacer to push everything right */}
                                 <div className="flex-1" />
 
@@ -3194,12 +3201,12 @@ export default function ValidationPage() {
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                        className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                        className="px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                         </svg>
-                                        Download CSV
+                                        <span className="hidden sm:inline">Download CSV</span>
                                         <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                         </svg>
@@ -3247,19 +3254,19 @@ export default function ValidationPage() {
                                 {/* Upload CSV */}
                                 <button
                                     onClick={handleUploadCSV}
-                                    className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                     </svg>
-                                    Upload CSV
+                                    <span className="hidden sm:inline">Upload CSV</span>
                                 </button>
                                 <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
 
                                 {/* Bulk india Price Update */}
                                 <button
                                     onClick={() => indiaPriceCSVInputRef.current?.click()}
-                                    className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
+                                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
                                 >
                                     Bulk INDIA Price Update
                                 </button>
@@ -3268,13 +3275,13 @@ export default function ValidationPage() {
                                 {/* Configure Constants */}
                                 <button
                                     onClick={openConstantsModal}
-                                    className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
-                                    Configure Constants
+                                    <span className="hidden sm:inline">Configure Constants</span>
                                 </button>
                             </div>
                         </div>
@@ -3283,7 +3290,7 @@ export default function ValidationPage() {
                     {/* Scrollable Table Section - ONLY THIS SCROLLS */}
                     <div className="flex-1 min-h-0 bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-800">
                         {loading ? (
-                            <div className="flex flex-col items-center justify-center p-16">
+                            <div className="flex flex-col items-center justify-center p-8 sm:p-16">
                                 <div className="relative">
                                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500/30"></div>
                                     <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-indigo-500"></div>
@@ -3291,7 +3298,7 @@ export default function ValidationPage() {
                                 <p className="mt-4 text-slate-400 font-medium tracking-wide animate-pulse">Loading products...</p>
                             </div>
                         ) : filteredProducts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-12 text-slate-500">
+                            <div className="flex flex-col items-center justify-center p-6 sm:p-12 text-slate-500">
                                 <svg className="w-16 h-16 mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                 </svg>
@@ -3429,7 +3436,7 @@ export default function ValidationPage() {
                                 </div>
 
                                 {allFilteredProducts.length > rowsPerPage && (
-                                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-slate-800 bg-slate-900">
                                         <div className="text-sm text-slate-400">
                                             Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{allFilteredProducts.length}</span> products
                                             {selectedIds.size > 0 && (
@@ -3439,7 +3446,7 @@ export default function ValidationPage() {
                                             )}
                                         </div>
 
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                             <button
                                                 onClick={() => setCurrentPage(1)}
                                                 disabled={currentPage === 1}
@@ -3502,13 +3509,13 @@ export default function ValidationPage() {
                     <>
                         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
                         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
-                                <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6">
-                                    <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
+                            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                                <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-4 sm:p-6">
+                                    <h2 className="text-lg sm:text-2xl font-bold">Calculation Constants Configuration</h2>
                                     <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
                                 </div>
 
-                                <div className="p-6 space-y-5">
+                                <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
                                         <input
@@ -3564,7 +3571,7 @@ export default function ValidationPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
+                                <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
                                     <button
                                         onClick={() => setIsConstantsModalOpen(false)}
                                         className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
@@ -3625,7 +3632,7 @@ export default function ValidationPage() {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+                            className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between mb-8">
@@ -3721,7 +3728,7 @@ export default function ValidationPage() {
             {/* REJECT REASON MODAL */}
             {isRejectModalOpen && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Reject {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''}</h3>
                             <button
@@ -3761,7 +3768,7 @@ export default function ValidationPage() {
             {/* REMARK VIEWER MODAL */}
             {selectedRemark !== null && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedRemark(null)}>
-                    <div className="bg-slate-900 border border-indigo-700/50 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-slate-900 border border-indigo-700/50 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-indigo-300">Remark</h3>
                             <button onClick={() => setSelectedRemark(null)} className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg">×</button>
@@ -3773,7 +3780,7 @@ export default function ValidationPage() {
             {/* REJECT REASON VIEWER MODAL */}
             {selectedRejectReason !== null && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedRejectReason(null)}>
-                    <div className="bg-slate-900 border border-violet-700/50 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-slate-900 border border-violet-700/50 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-violet-300">Reject Reason</h3>
                             <button onClick={() => setSelectedRejectReason(null)} className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg">×</button>

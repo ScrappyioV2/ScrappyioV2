@@ -339,9 +339,9 @@ export default function CheckingTable({
         // Also copy to Listing Errors for this seller
         const listingErrorRows = sellerItems.map((item: any) => ({
           asin: item.asin,
-          product_name: item.product_name,
+          product_name: item.productname,
           sku: item.sku,
-          seller_tag: item.seller_tag,
+          seller_tag: item.sellertag,
         }));
 
         const listingErrorTable = `india_listing_error_seller_${resolvedSellerId}_error`;
@@ -657,20 +657,20 @@ export default function CheckingTable({
   return (
     <div className="h-full flex flex-col">
       {/* Search Bar & Hide Columns */}
-      <div className="flex-none px-4 pt-5 pb-4 flex gap-4 items-center">
+      <div className="flex-none px-2 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
         <input
           type="text"
           placeholder="Search by Box, Invoice, ASIN or Product..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+          className="flex-1 min-w-0 max-w-sm px-3 sm:px-4 py-2 sm:py-2.5 text-sm bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
         />
 
         {/* Hide Columns Button */}
         <div className="relative">
           <button
             onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -758,15 +758,17 @@ export default function CheckingTable({
         {/* ⏪ Rollback from Distribution */}
         <button
           onClick={() => setRollbackOpen(true)}
-          className="px-4 py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+          className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
         >
-          ⏪ Rollback from Restock
+          <span className="sm:hidden">⏪ Restock</span>
+          <span className="hidden sm:inline">⏪ Rollback from Restock</span>
         </button>
         <button
           onClick={() => setListingErrorRollbackOpen(true)}
-          className="px-4 py-2.5 bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded-lg text-sm font-semibold hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+          className="px-3 sm:px-4 py-2 sm:py-2.5 bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
         >
-          ⏪ Rollback from Listing Errors
+          <span className="sm:hidden">⏪ Errors</span>
+          <span className="hidden sm:inline">⏪ Rollback from Listing Errors</span>
         </button>
       </div>
 
@@ -1057,8 +1059,8 @@ export default function CheckingTable({
           </div>
 
           {/* Footer Count - STICKY AT BOTTOM */}
-          <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-            <div className="text-sm text-slate-400">
+          <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
+            <div className="text-xs sm:text-sm text-slate-400">
               Showing {filteredItems.length} of {items.length} items
             </div>
           </div>
@@ -1077,8 +1079,8 @@ export default function CheckingTable({
 
       {/* Company Info Modal */}
       {selectedCompany && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
               <button
@@ -1097,8 +1099,8 @@ export default function CheckingTable({
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-6 right-6 z-[100] animate-slide-in">
-          <div className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
             <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
             <span className="font-semibold flex-1 text-sm">{toast.message}</span>
             <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
