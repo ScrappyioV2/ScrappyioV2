@@ -374,16 +374,19 @@ export default function VelvetvistaPage() {
         targetTable = `india_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-        const { data: existingRow, error: selectError } = await supabase
+        // ✅ FIX: Use .limit(1) instead of .maybeSingle() to handle duplicate ASIN rows
+        const { data: existingRows, error: selectError } = await supabase
           .from('india_validation_main_file')
           .select('id, seller_tag')
           .eq('asin', product.asin)
-          .maybeSingle();
+          .limit(1);
 
         if (selectError) console.warn('Validation select warning:', selectError);
 
+        const existingRow = existingRows?.[0] ?? null;
+
         if (!existingRow) {
-          await supabase.from('india_validation_main_file').insert({
+          const { error: insertError } = await supabase.from('india_validation_main_file').insert({
             asin: product.asin,
             product_name: product.product_name,
             brand: product.brand,
@@ -396,17 +399,20 @@ export default function VelvetvistaPage() {
             judgement: null,
             remark: product.remark,
             sku: product.sku,
+            is_new: true,
           });
+          if (insertError) throw insertError;
         } else {
-          const existingTags = existingRow.seller_tag?.split(',') ?? [];
+          const existingTags = existingRow.seller_tag?.split(',').map((t: string) => t.trim()) ?? [];
           if (!existingTags.includes(SELLER_CODE)) {
-            await supabase
+            const { error: updateError } = await supabase
               .from('india_validation_main_file')
               .update({
                 seller_tag: [...existingTags, SELLER_CODE].join(','),
                 no_of_seller: existingTags.length + 1,
               })
               .eq('id', existingRow.id);
+            if (updateError) throw updateError;
           }
         }
 
@@ -967,7 +973,7 @@ export default function VelvetvistaPage() {
                 <p className="text-sm text-slate-500">Try adjusting your search or filters</p>
               </div>
             ) : (
-              <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+              <div className="relative h-[calc(100vh-380px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                 <table className="w-full border-collapse text-left" ref={tableRef}>
                   <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
                     <tr>

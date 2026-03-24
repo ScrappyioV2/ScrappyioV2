@@ -337,7 +337,7 @@ export default function RestockPage() {
     });
     // const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [rollbackSource, setRollbackSource] = useState<'relisted' | 'disposed' | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'pending' | 'relisted' | 'disposed' | 'removed'>('pending');
+    const [statusFilter, setStatusFilter] = useState<'pending' | 'relisted' | 'disposed' | 'removed' | 'offline_sell'>('pending');
     const [sortField, setSortField] = useState<SortField>('created_at')
     const [sortDir, setSortDir] = useState<SortDir>('desc')
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -674,6 +674,7 @@ export default function RestockPage() {
         relisted: new Set(items.filter(i => i.status === 'relisted').map(i => i.asin)).size,
         disposed: new Set(items.filter(i => i.status === 'disposed').map(i => i.asin)).size,
         removed: new Set(items.filter(i => i.status === 'removed').map(i => i.asin)).size,
+        offline_sell: new Set(items.filter(i => i.status === 'offline_sell').map(i => i.asin)).size,
     }), [items])
 
     if (loading) {
@@ -722,13 +723,14 @@ export default function RestockPage() {
 
                     {/* Status Filter Pills */}
                     <div className="flex gap-2 sm:gap-3 mb-4 overflow-x-auto scrollbar-none">
-                        {(['pending', 'relisted', 'disposed', 'removed'] as const).map(opt => {
+                        {(['pending', 'relisted', 'disposed', 'removed', 'offline_sell'] as const).map(opt => {
                             const count = counts[opt];
                             const colors: Record<string, string> = {
                                 pending: 'bg-amber-500/20 text-amber-400',
                                 relisted: 'bg-emerald-500/20 text-emerald-400',
                                 disposed: 'bg-red-500/20 text-red-400',
                                 removed: 'bg-rose-500/20 text-rose-400',
+                                offline_sell: 'bg-cyan-500/20 text-cyan-400',
                             };
                             return (
                                 <button
@@ -739,7 +741,7 @@ export default function RestockPage() {
                                         : 'bg-slate-800 text-slate-500 hover:text-slate-300'
                                         }`}
                                 >
-                                    {opt.charAt(0).toUpperCase() + opt.slice(1)} ({count})
+                                    {opt === 'offline_sell' ? 'Offline Sell' : opt.charAt(0).toUpperCase() + opt.slice(1)} ({count})
                                 </button>
                             );
                         })}

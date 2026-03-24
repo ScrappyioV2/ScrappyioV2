@@ -64,7 +64,7 @@ const debounce = <T extends (...args: any[]) => any>(
 
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-    asin: 120,
+    asin: 180,
     sku: 100,
     history: 120,           // Reduced
     product_name: 220,   // Reduced from 320
@@ -166,6 +166,7 @@ interface ValidationProduct {
     calculated_judgement?: string | null
     remark: string | null
     reject_reason?: string | null
+    is_new?: boolean | null
 }
 
 interface Stats {
@@ -1650,6 +1651,7 @@ export default function ValidationPage() {
                 .from('india_validation_main_file')
                 .update({
                     judgement: 'PASS',
+                    is_new: false,
                 })
                 .in('id', idsArray);
 
@@ -1660,7 +1662,7 @@ export default function ValidationPage() {
 
             // Immediate UI update
             setProducts(prev => prev.map(p =>
-                selectedIds.has(p.id) ? { ...p, judgement: 'PASS' } : p
+                selectedIds.has(p.id) ? { ...p, judgement: 'PASS', is_new: false } : p
             ));
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
@@ -1714,6 +1716,7 @@ export default function ValidationPage() {
                 .from('india_validation_main_file')
                 .update({
                     judgement: 'FAIL',
+                    is_new: false,
                 })
                 .in('id', idsArray);
 
@@ -1724,7 +1727,7 @@ export default function ValidationPage() {
 
             // Immediate UI update
             setProducts(prev => prev.map(p =>
-                selectedIds.has(p.id) ? { ...p, judgement: 'FAIL' } : p
+                selectedIds.has(p.id) ? { ...p, judgement: 'FAIL', is_new: false } : p
             ));
             // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
             setSelectedIds(new Set());
@@ -2164,6 +2167,22 @@ export default function ValidationPage() {
             // if (!confirmed) return;
 
             try {
+                // ✅ GUARD: Check if this product was already sent to admin validation
+                const { data: purchaseRow } = await supabase
+                    .from('india_purchases')
+                    .select('sent_to_admin, admin_confirmed')
+                    .eq('asin', last.product.asin)
+                    .eq('journey_number', last.product.journey_number || 1)
+                    .maybeSingle();
+
+                if (purchaseRow?.sent_to_admin || purchaseRow?.admin_confirmed) {
+                    setToast({
+                        message: `Cannot roll back "${last.product.asin}" — it's already ${purchaseRow.admin_confirmed ? 'confirmed by admin' : 'sent to Admin Validation'}. Roll it back from there instead.`,
+                        type: 'error'
+                    });
+                    return;
+                }
+
                 // 1. Delete from india_purchases
                 const { error: deleteError } = await supabase
                     .from('india_purchases')
@@ -2273,8 +2292,15 @@ export default function ValidationPage() {
             case 'asin':
                 if (!visibleColumns.asin) return null;
                 return (
-                    <td key={col_key} className="p-3 font-mono text-sm text-slate-300">
-                        {product.asin}
+                    <td key={col_key} className="p-3 font-mono text-sm text-slate-300" style={{ minWidth: 160 }}>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                            <span>{product.asin}</span>
+                            {product.is_new && (
+                                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded uppercase tracking-wider animate-pulse">
+                                    New
+                                </span>
+                            )}
+                        </div>
                     </td>
                 );
 

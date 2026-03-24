@@ -831,10 +831,19 @@ export default function PurchasesPage() {
       })
 
       // 🆕 FILTER: Show only latest journey per ASIN (unless toggle is ON)
+      // ✅ FIX: Always keep admin_confirmed rows so they show in Order Confirmed tab
       let processedData = enrichedData;
       if (!showAllJourneys) {
         const latestByAsin = new Map();
+        const confirmedRows: typeof enrichedData = [];
+
         enrichedData.forEach((product: any) => {
+          // Always keep confirmed rows — they must show in the Confirmed tab
+          if (product.admin_confirmed === true) {
+            confirmedRows.push(product);
+            return;
+          }
+
           const existing = latestByAsin.get(product.asin);
           const currentJourney = product.journey_number || 1;
           const existingJourney = existing?.journey_number || 1;
@@ -843,7 +852,12 @@ export default function PurchasesPage() {
             latestByAsin.set(product.asin, product);
           }
         });
-        processedData = Array.from(latestByAsin.values());
+
+        // Merge: latest non-confirmed + all confirmed (dedup by id)
+        const mergedMap = new Map<string, any>();
+        for (const p of latestByAsin.values()) mergedMap.set(p.id, p);
+        for (const p of confirmedRows) mergedMap.set(p.id, p);
+        processedData = Array.from(mergedMap.values());
       }
 
       setProducts(processedData);
@@ -901,10 +915,19 @@ export default function PurchasesPage() {
       })
 
       // 🆕 FILTER: Show only latest journey per ASIN (unless toggle is ON)
+      // ✅ FIX: Always keep admin_confirmed rows so they show in Order Confirmed tab
       let processedData = enrichedData;
       if (!showAllJourneys) {
         const latestByAsin = new Map();
+        const confirmedRows: typeof enrichedData = [];
+
         enrichedData.forEach((product: any) => {
+          // Always keep confirmed rows — they must show in the Confirmed tab
+          if (product.admin_confirmed === true) {
+            confirmedRows.push(product);
+            return;
+          }
+
           const existing = latestByAsin.get(product.asin);
           const currentJourney = product.journey_number || 1;
           const existingJourney = existing?.journey_number || 1;
@@ -913,7 +936,12 @@ export default function PurchasesPage() {
             latestByAsin.set(product.asin, product);
           }
         });
-        processedData = Array.from(latestByAsin.values());
+
+        // Merge: latest non-confirmed + all confirmed (dedup by id)
+        const mergedMap = new Map<string, any>();
+        for (const p of latestByAsin.values()) mergedMap.set(p.id, p);
+        for (const p of confirmedRows) mergedMap.set(p.id, p);
+        processedData = Array.from(mergedMap.values());
       }
 
       setProducts(processedData);
@@ -1356,19 +1384,14 @@ export default function PurchasesPage() {
         };
 
         // Delete from each tracking table
-        const deletePromises = sellerTags.map(async (tag: string) => {
-          const sellerId = sellerTagMapping[tag] || 1;
-          return supabase
-            .from(`india_tracking_seller_${sellerId}`)
-            .delete()
-            .eq('asin', product.asin)
-            .eq('journey_id', product.journey_id);
-        });
+         // ✅ FIX: Delete from correct table (india_inbound_tracking)
+        const { error: trackingDeleteError } = await supabase
+          .from('india_inbound_tracking')
+          .delete()
+          .eq('asin', product.asin);
 
-        const deleteResults = await Promise.all(deletePromises);
-        const deleteErrors = deleteResults.filter(r => r.error);
-        if (deleteErrors.length > 0) {
-          console.error('Tracking delete errors:', deleteErrors);
+        if (trackingDeleteError) {
+          console.error('Tracking delete error:', trackingDeleteError);
         }
 
         // Re-insert into purchases

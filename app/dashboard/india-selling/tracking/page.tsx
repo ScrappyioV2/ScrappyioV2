@@ -27,6 +27,7 @@ export default function TrackingPage() {
     }, [activeSeller]);
 
     const [activeTab, setActiveTab] = useState<TabType>("inbound");
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const [counts, setCounts] = useState({
         inbound: 0,
@@ -38,13 +39,13 @@ export default function TrackingPage() {
         try {
             const [inboundRes, boxesRes, checkingRes] = await Promise.all([
                 supabase.from("india_inbound_tracking").select("asin").gt("pending_quantity", 0),
-                supabase.from("india_inbound_boxes").select("*", { count: "exact", head: true }),
+                supabase.from("india_inbound_boxes").select("box_number"),
                 supabase.from("india_box_checking").select("*", { count: "exact", head: true }),
             ]);
 
             setCounts({
                 inbound: new Set((inboundRes.data || []).map((r: any) => r.asin)).size,
-                boxes: boxesRes.count ?? 0,
+                boxes: new Set((boxesRes.data || []).map((r: any) => r.box_number)).size,
                 checking: checkingRes.count ?? 0,
             });
         } catch (error) {
@@ -54,6 +55,7 @@ export default function TrackingPage() {
 
     const handleCountsChange = () => {
         void fetchTabCounts();
+        setRefreshKey(k => k + 1);
     };
 
     useEffect(() => {
@@ -124,20 +126,21 @@ export default function TrackingPage() {
                 <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 pb-3 sm:pb-6">
                     <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
                         <div className="flex-1 overflow-hidden min-h-0 px-3 sm:px-4 lg:px-6 pb-3 sm:pb-6">
-                            {activeTab === "inbound" && (
-                                <InboundTable onCountsChange={handleCountsChange} />
-                            )}
+                            <div className={activeTab === "inbound" ? "h-full" : "hidden"}>
+                                <InboundTable onCountsChange={handleCountsChange} refreshKey={refreshKey} />
+                            </div>
 
-                            {activeTab === "boxes" && (
-                                <BoxesTab onCountsChange={handleCountsChange} />
-                            )}
+                            <div className={activeTab === "boxes" ? "h-full" : "hidden"}>
+                                <BoxesTab onCountsChange={handleCountsChange} refreshKey={refreshKey} />
+                            </div>
 
-                            {activeTab === "checking" && (
+                            <div className={activeTab === "checking" ? "h-full" : "hidden"}>
                                 <CheckingTable
                                     sellerId={currentSellerId}
                                     onCountsChange={handleCountsChange}
+                                    refreshKey={refreshKey}
                                 />
-                            )}
+                            </div>
                         </div>
                     </div>
                 </div>

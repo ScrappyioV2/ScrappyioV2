@@ -192,16 +192,31 @@ export default function AdminValidationPage() {
       }
 
       // 🆕 FILTER: Group by ASIN and keep only latest journey (unless showAll is enabled)
+      // ✅ FIX: Pending rows always win over confirmed/rejected
       let processedData = adminData;
       if (!showAllJourneys) {
         const latestByAsin = new Map();
         adminData.forEach(product => {
           const existing = latestByAsin.get(product.asin);
-          const currentJourney = product.journey_number || 1;
-          const existingJourney = existing?.journey_number || 1;
-
-          if (!existing || currentJourney > existingJourney) {
+          if (!existing) {
             latestByAsin.set(product.asin, product);
+            return;
+          }
+
+          const currentIsPending = product.admin_status === 'pending' || !product.admin_status;
+          const existingIsPending = existing.admin_status === 'pending' || !existing.admin_status;
+
+          if (currentIsPending && !existingIsPending) {
+            latestByAsin.set(product.asin, product);
+          } else if (!currentIsPending && existingIsPending) {
+            // keep existing pending — don't replace
+          } else {
+            // Both same status type — newest created_at wins
+            const currentDate = new Date(product.created_at).getTime();
+            const existingDate = new Date(existing.created_at).getTime();
+            if (currentDate > existingDate) {
+              latestByAsin.set(product.asin, product);
+            }
           }
         });
         processedData = Array.from(latestByAsin.values());
@@ -853,9 +868,56 @@ export default function AdminValidationPage() {
           confirmSelected = confirmSelected.eq('journey_id', product.journey_id);
         }
 
-        const { error: updatePurchaseError } = await confirmSelected;
+        const { data: updatedRows, error: updatePurchaseError } = await confirmSelected.select('id');
 
         if (updatePurchaseError) throw updatePurchaseError;
+
+        // ✅ FIX: If no rows matched, purchases row was deleted — re-create it
+        if (!updatedRows || updatedRows.length === 0) {
+          console.warn(`⚠️ Bulk confirm: No purchases row for ${product.asin}, inserting...`);
+
+          const originParts: string[] = [];
+          if (product.origin_india) originParts.push('India');
+          if (product.origin_china) originParts.push('China');
+          if (product.origin_us) originParts.push('US');
+
+          const { error: insertError } = await supabase
+            .from('india_purchases')
+            .insert({
+              asin: product.asin,
+              product_name: product.product_name,
+              product_link: product.product_link,
+              seller_tag: product.seller_tag,
+              funnel: product.funnel ?? null,
+              origin: originParts.join(', ') || 'India',
+              origin_india: product.origin_india ?? false,
+              origin_china: product.origin_china ?? false,
+              origin_us: product.origin_us ?? false,
+              inr_purchase_link: product.inr_purchase_link ?? null,
+              buying_price: product.buying_price ?? null,
+              buying_quantity: product.buying_quantity ?? null,
+              buying_quantities: (product as any).buying_quantities ?? {},
+              seller_link: product.seller_link ?? null,
+              seller_phone: product.seller_phone ?? '',
+              payment_method: product.payment_method ?? '',
+              target_price: product.target_price ?? null,
+              product_weight: product.product_weight ?? null,
+              usd_price: product.usd_price ?? null,
+              inr_purchase: product.inr_purchase ?? null,
+              profit: product.profit ?? null,
+              remark: product.remark ?? null,
+              sku: product.sku ?? null,
+              journey_id: product.journey_id ?? null,
+              journey_number: product.journey_number ?? 1,
+              status: 'pending',
+              admin_confirmed: true,
+              admin_confirmed_at: new Date().toISOString(),
+              sent_to_admin: true,
+              sent_to_admin_at: new Date().toISOString(),
+            });
+
+          if (insertError) throw insertError;
+        }
 
         // ✅ STEP 2: UPDATE status in india_admin_validation (KEEP the product, don't delete)
         const { error: updateAdminError } = await supabase
@@ -1123,77 +1185,8 @@ export default function AdminValidationPage() {
         }
       }
 
-      // 4. PARSE MULTIPLE TAGS (Fix for 'VV,GR' error)
-      // We split by comma to handle cases where a product belongs to multiple sellers
-      const tags = rawSellerTag.split(',').map((t: string) => t.trim().toUpperCase());
-      const validSellerIds: number[] = [];
-
-      for (const tag of tags) {
-        switch (tag) {
-          case "GR": validSellerIds.push(1); break;
-          case "RR": validSellerIds.push(2); break;
-          case "UB": validSellerIds.push(3); break;
-          case "VV": validSellerIds.push(4); break;
-          case "DE": validSellerIds.push(5); break; // ✅ ADD THIS
-          case "CV": validSellerIds.push(6); break; // ✅ ADD THIS
-          default: console.warn("Skipping unrecognized tag part", tag);
-        }
-      }
-
-      if (validSellerIds.length === 0) {
-        alert(`Error: No valid seller tags found in '${rawSellerTag}'`);
-        return;
-      }
-
-      console.log(`📊 Distributing to Sellers: ${validSellerIds.join(', ')} | Funnel=${finalFunnelId}`);
-
-      // 5. LOOP THROUGH ALL VALID SELLERS (Distribute to each)
-      for (const sellerId of validSellerIds) {
-        // A. Prepare Payload
-        const salesPriceInr = Number(product.inr_purchase) || Number(product.admin_target_price) || 0;
-        const payload = {
-          source_admin_validation_id: product.id,
-          asin: cleanAsin,
-          product_name: product.product_name,
-          sku: product.sku || null,
-          selling_price: salesPriceInr,
-          seller_link: product.seller_link,
-          min_price: Math.round(salesPriceInr * 0.95 * 100) / 100,
-          max_price: Math.round(salesPriceInr * 1.20 * 100) / 100,
-          remark: product.remark ?? null,
-          seller_tag: rawSellerTag,
-        };
-
-        // B. Select Tables for THIS seller
-        const tablesToInsert = [`india_listing_error_seller_${sellerId}_pending`];
-
-        if (finalFunnelId === 1) tablesToInsert.push(`india_listing_error_seller_${sellerId}_high_demand`);
-        else if (finalFunnelId === 2) tablesToInsert.push(`india_listing_error_seller_${sellerId}_low_demand`);
-        else if (finalFunnelId === 3) tablesToInsert.push(`india_listing_error_seller_${sellerId}_dropshipping`);
-
-        // C. Execute UPSERTS
-        const insertPromises = tablesToInsert.map(table =>
-          supabase.from(table).upsert(payload, { onConflict: 'asin' })
-        );
-
-        await Promise.all(insertPromises);
-
-        // D. Update Stats for THIS seller
-        const { data: currentStats } = await supabase
-          .from('listing_error_progress')
-          .select('total_pending')
-          .eq('seller_id', sellerId)
-          .single();
-
-        if (currentStats) {
-          await supabase.from('listing_error_progress')
-            .update({
-              total_pending: currentStats.total_pending + 1,
-              updated_at: new Date().toISOString()
-            })
-            .eq('seller_id', sellerId);
-        }
-      }
+      // ✅ Listing error data comes from Checking stage (after full pipeline)
+      // Admin confirm only marks purchases as confirmed
 
       // 6. Update FINAL Statuses (Once per product)
       const confirmPayload: Record<string, any> = {
@@ -1213,16 +1206,72 @@ export default function AdminValidationPage() {
         confirmPayload.buying_quantities = product.buying_quantities;
       }
 
-      const confirmQuery = supabase
+      // ✅ FIX: Try UPDATE first, then INSERT if row doesn't exist
+      let confirmQuery = supabase
         .from('india_purchases')
         .update(confirmPayload)
         .eq('asin', cleanAsin);
 
-      // Use journey_id for precise matching when available (legacy data may not have it)
       if (product.journey_id) {
-        await confirmQuery.eq('journey_id', product.journey_id);
-      } else {
-        await confirmQuery;
+        confirmQuery = confirmQuery.eq('journey_id', product.journey_id);
+      }
+
+      const { data: updatedRows, error: purchaseUpdateError } = await confirmQuery.select('id');
+
+      if (purchaseUpdateError) {
+        console.error('❌ Failed to update india_purchases:', purchaseUpdateError);
+        throw new Error(`Failed to update purchases: ${purchaseUpdateError.message}`);
+      }
+
+      // ✅ FIX: If no rows were updated, the purchases row was deleted.
+      // Re-create it from admin_validation data so it appears in the Confirmed tab.
+      if (!updatedRows || updatedRows.length === 0) {
+        console.warn(`⚠️ No purchases row found for ${cleanAsin}, inserting from admin data...`);
+
+        const originParts: string[] = [];
+        if (product.origin_india) originParts.push('India');
+        if (product.origin_china) originParts.push('China');
+        if (product.origin_us) originParts.push('US');
+
+        const { error: insertError } = await supabase
+          .from('india_purchases')
+          .insert({
+            asin: cleanAsin,
+            product_name: product.product_name,
+            product_link: product.product_link,
+            seller_tag: rawSellerTag,
+            funnel: rawFunnel,
+            origin: originParts.join(', ') || 'India',
+            origin_india: product.origin_india ?? false,
+            origin_china: product.origin_china ?? false,
+            origin_us: product.origin_us ?? false,
+            inr_purchase_link: product.inr_purchase_link ?? null,
+            buying_price: product.buying_price ?? null,
+            buying_quantity: product.buying_quantity ?? null,
+            buying_quantities: product.buying_quantities ?? {},
+            seller_link: product.seller_link ?? null,
+            seller_phone: product.seller_phone ?? '',
+            payment_method: product.payment_method ?? '',
+            target_price: product.target_price ?? null,
+            product_weight: product.product_weight ?? null,
+            usd_price: product.usd_price ?? null,
+            inr_purchase: product.inr_purchase ?? null,
+            profit: product.profit ?? null,
+            remark: product.remark ?? null,
+            sku: product.sku ?? null,
+            journey_id: product.journey_id ?? null,
+            journey_number: product.journey_number ?? 1,
+            status: 'pending',
+            admin_confirmed: true,
+            admin_confirmed_at: new Date().toISOString(),
+            sent_to_admin: true,
+            sent_to_admin_at: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error('❌ Failed to insert into india_purchases:', insertError);
+          throw new Error(`Failed to create purchases row: ${insertError.message}`);
+        }
       }
 
       await supabase.from('india_admin_validation').update({
@@ -1232,9 +1281,7 @@ export default function AdminValidationPage() {
 
       fetchProducts();
 
-      const dest = finalFunnelId === 1 ? "High Demand" : finalFunnelId === 2 ? "Low Demand" : finalFunnelId === 3 ? "Dropshipping" : "Pending Only";
-
-      setToast({ message: `Success! Distributed to ${validSellerIds.length} Sellers → ${dest}`, type: 'success' });
+      setToast({ message: `Success! Product confirmed and sent to Purchases.`, type: 'success' });
       // ✅ ADD THIS:
       logActivity({
         action: 'approved',
@@ -1242,7 +1289,7 @@ export default function AdminValidationPage() {
         page: 'admin-validation',
         table_name: 'india_admin_validation',
         asin: cleanAsin,
-        details: { sellers: validSellerIds, funnel: finalFunnelId, distributed_to: dest }
+        details: { funnel: finalFunnelId }
       });
 
     } catch (error: any) {
@@ -1330,25 +1377,7 @@ export default function AdminValidationPage() {
           console.error('Error rolling back india_purchases:', updatePurchaseError);
         }
 
-        // 1b. Clean up listing error tables for all sellers
-        const rawTag = product.seller_tag;
-        if (rawTag) {
-          const tags = rawTag.split(',').map((t: string) => t.trim().toUpperCase());
-          const sellerMap: Record<string, number> = { GR: 1, RR: 2, UB: 3, VV: 4, DE: 5, CV: 6 };
-          for (const tag of tags) {
-            const sid = sellerMap[tag];
-            if (!sid) continue;
-            const tables = [
-              `india_listing_error_seller_${sid}_pending`,
-              `india_listing_error_seller_${sid}_high_demand`,
-              `india_listing_error_seller_${sid}_low_demand`,
-              `india_listing_error_seller_${sid}_dropshipping`,
-            ];
-            for (const table of tables) {
-              await supabase.from(table).delete().eq('asin', product.asin);
-            }
-          }
-        }
+        // ✅ No listing error cleanup needed — admin confirm no longer inserts there
 
         // 2. Revert india_admin_validation status
         const { error: updateAdminError } = await supabase

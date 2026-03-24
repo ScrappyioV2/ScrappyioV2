@@ -58,6 +58,7 @@ type BoxSummary = {
 
 interface InboundTableProps {
     onCountsChange: () => void;
+    refreshKey?: number;
 }
 
 // ─── COLUMN ORDER & RESIZE STATE ───
@@ -87,7 +88,7 @@ const WIDTH_KEY = 'inbound-table-col-widths';
 // ============================================
 // COMPONENT
 // ============================================
-export default function InboundTable({ onCountsChange }: InboundTableProps) {
+export default function InboundTable({ onCountsChange, refreshKey }: InboundTableProps) {
     const [products, setProducts] = useState<InboundProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -430,6 +431,10 @@ export default function InboundTable({ onCountsChange }: InboundTableProps) {
 
         return () => { channel.unsubscribe(); };
     }, []);
+
+    useEffect(() => {
+        if (refreshKey) refreshSilently();
+    }, [refreshKey]);
 
     // ============================================
     // INLINE EDIT

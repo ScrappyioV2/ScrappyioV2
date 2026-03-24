@@ -36,6 +36,7 @@ type InvoiceItem = {
   check_amazon_badge?: boolean | null;
   check_cleaning?: boolean | null;
   damaged_quantity?: number | null;
+  offline_sell_qty?: number | null;
 };
 
 type GroupedInvoice = {
@@ -66,11 +67,13 @@ const DEFAULT_COLUMN_WIDTHS = {
 interface CheckingTableProps {
   sellerId: number;
   onCountsChange?: () => void | Promise<void>;
+  refreshKey?: number;
 }
 
 export default function CheckingTable({
   sellerId,
-  onCountsChange
+  onCountsChange,
+  refreshKey
 }: CheckingTableProps) {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,6 +156,11 @@ export default function CheckingTable({
   useEffect(() => {
     fetchCheckingData();
   }, []);
+
+  // Refresh when other tabs trigger changes
+  useEffect(() => {
+    if (refreshKey) fetchCheckingData();
+  }, [refreshKey]);;
 
   const fetchCheckingData = async () => {
     try {
@@ -290,7 +298,8 @@ export default function CheckingTable({
         sellerItems.forEach((item: any) => {
           const totalQty = item.actual_quantity ?? item.buying_quantity ?? 0;
           const damagedQty = item.damaged_quantity || 0;
-          const goodQty = Math.max(totalQty - damagedQty, 0);
+          const offlineSellQty = item.offline_sell_qty || 0;
+          const goodQty = Math.max(totalQty - damagedQty - offlineSellQty, 0);
 
           const base = {
             asin: item.asin,
@@ -311,19 +320,26 @@ export default function CheckingTable({
             moved_at: now,
           };
 
-          if (goodQty > 0) {
-            restockRows.push({
-              ...base,
-              buying_quantity: goodQty,
-              status: 'pending',
-            });
-          }
+          // Always send to pending (even with 0 qty so it follows normal flow)
+          restockRows.push({
+            ...base,
+            buying_quantity: goodQty,
+            status: 'pending',
+          });
 
           if (damagedQty > 0) {
             restockRows.push({
               ...base,
               buying_quantity: damagedQty,
               status: 'disposed',
+            });
+          }
+
+          if (offlineSellQty > 0) {
+            restockRows.push({
+              ...base,
+              buying_quantity: offlineSellQty,
+              status: 'offline_sell',
             });
           }
         });
@@ -336,21 +352,37 @@ export default function CheckingTable({
 
         if (insertError) throw insertError;
 
-        // Also copy to Listing Errors for this seller
-        const listingErrorRows = sellerItems.map((item: any) => ({
-          asin: item.asin,
-          product_name: item.productname,
-          sku: item.sku,
-          seller_tag: item.sellertag,
-        }));
+        // ✅ FIX: Copy to correct Listing Error tables (pending + funnel-based)
+        for (const item of sellerItems) {
+          const salesPrice = item.buying_price ?? 0;
+          const funnelStr = String(item.funnel || '').toUpperCase();
+          const listingPayload = {
+            asin: item.asin,
+            product_name: item.product_name,
+            sku: item.sku,
+            seller_tag: item.seller_tag,
+            selling_price: salesPrice,
+            min_price: Math.round(salesPrice * 0.95 * 100) / 100,
+            max_price: Math.round(salesPrice * 1.20 * 100) / 100,
+            remark: item.remark ?? null,
+          };
 
-        const listingErrorTable = `india_listing_error_seller_${resolvedSellerId}_error`;
-        const { error: listingError } = await supabase
-          .from(listingErrorTable)
-          .upsert(listingErrorRows, { onConflict: 'asin' });
+          // Always insert into pending
+          const tablesToInsert = [`india_listing_error_seller_${resolvedSellerId}_pending`];
 
-        if (listingError) {
-          console.error(`Failed to copy to ${listingErrorTable}:`, listingError);
+          // Also insert into funnel-specific table
+          if (funnelStr === 'RS' || funnelStr === 'HD' || funnelStr === 'LD' || funnelStr === '1' || funnelStr === '2') {
+            tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_high_demand`);
+          } else if (funnelStr === 'DP' || funnelStr === '3') {
+            tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_dropshipping`);
+          }
+
+          for (const table of tablesToInsert) {
+            const { error: listingError } = await supabase
+              .from(table)
+              .upsert(listingPayload, { onConflict: 'asin' });
+            if (listingError) console.error(`Failed to copy to ${table}:`, listingError);
+          }
         }
       }
 
@@ -455,6 +487,25 @@ export default function CheckingTable({
       console.error('Checklist update failed', e);
       alert('Failed to update checklist: ' + e.message);
       fetchCheckingData();
+    }
+  };
+
+  // ✅ Update offline sell quantity
+  const handleOfflineSellQtyChange = async (itemId: string, value: number | null) => {
+    try {
+      setItems(prev =>
+        prev.map(it =>
+          it.id === itemId ? { ...it, offline_sell_qty: value } : it
+        )
+      );
+      const { error } = await supabase
+        .from('india_box_checking')
+        .update({ offline_sell_qty: value })
+        .eq('id', itemId);
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Offline sell qty update failed', e);
+      alert('Failed to update offline sell qty: ' + e.message);
     }
   };
 
@@ -854,6 +905,11 @@ export default function CheckingTable({
                     Damaged Qty
                   </th>
 
+                  {/* Offline Sell column */}
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-slate-800">
+                    Offline Sell
+                  </th>
+
                   {visibleColumns.action && (
                     <th
                       style={{ width: columnWidths.action }}
@@ -906,9 +962,13 @@ export default function CheckingTable({
                       {/* ASIN */}
                       <td
                         style={{ width: columnWidths.asin }}
-                        className="px-3 py-2 text-sm font-mono text-slate-300 border-r border-slate-800"
+                        className="px-3 py-2 text-sm font-mono border-r border-slate-800"
                       >
-                        {item.asin || '-'}
+                        {item.asin ? (
+                          <a href={`https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
+                            {item.asin}
+                          </a>
+                        ) : '-'}
                       </td>
 
                       {/* Seller Tag (merged) */}
@@ -1030,6 +1090,20 @@ export default function CheckingTable({
                             merged.allIds.forEach(id => handleDamagedQtyChange(id, val));
                           }}
                           className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                        />
+                      </td>
+
+                      {/* Offline Sell quantity */}
+                      <td className="px-3 py-2 text-center border-r border-slate-800">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.offline_sell_qty ?? ''}
+                          onChange={e => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            merged.allIds.forEach(id => handleOfflineSellQtyChange(id, val));
+                          }}
+                          className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </td>
 

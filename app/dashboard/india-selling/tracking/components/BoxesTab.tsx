@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getFunnelBadgeStyle } from "@/lib/utils";
 import GenericRollbackModal from "@/components/india-selling/GenericRollbackModal";
+import VyaparBoxForm from './VyaparBoxForm';
 
 // ============================================
 // TOAST NOTIFICATION
@@ -373,6 +374,7 @@ type GroupedBox = {
 
 interface BoxesTabProps {
     onCountsChange: () => void;
+    refreshKey?: number;
 }
 
 const SELLER_TAG_COLORS: Record<string, string> = {
@@ -728,7 +730,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                 </div>
                                             </td>
                                             <td className="px-3 py-2 text-center align-top">
-                                                <input type="number" min={0} step={0.01} value={weights[group.sellerRows?.id] ?? 0}
+                                                <input type="number" min={0} step={0.01} value={weights[group.sellerRows[0]?.id] ?? 0}
                                                     onChange={e => {
                                                         const val = Number(e.target.value) || 0;
                                                         setWeights(prev => {
@@ -764,14 +766,18 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
 // ============================================
 // COMPONENT
 // ============================================
-export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
+export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) {
     const [products, setProducts] = useState<BoxProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [moving, setMoving] = useState(false);
     const [expandedBoxes, setExpandedBoxes] = useState<Set<string>>(new Set());
     const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
-    const [isAddingBox, setIsAddingBox] = useState(false);
+    const [isAddingBox, setIsAddingBox] = useState(() => {
+        try {
+            return !!sessionStorage.getItem('vyapar-box-form-create');
+        } catch { return false; }
+    });
     const [newBoxId, setNewBoxId] = useState("");
     const [boxBookingDate, setBoxBookingDate] = useState("");
     const [addSearch, setAddSearch] = useState("");
@@ -932,6 +938,10 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
     }, []);
 
     useEffect(() => {
+        if (refreshKey) { refreshSilently(); fetchInboundDelivered(); }
+    }, [refreshKey]);
+
+    useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(e.target as Node))
                 setShowDropdown(false);
@@ -968,16 +978,26 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                     }
 
                     // 2) Roll back quantities to inbound tracking
+                    // 2) Roll back quantities to inbound tracking
+                    // Group box rows by ASIN first (so multi-seller ASINs restore as one row)
+                    const byAsin = new Map<string, { rows: any[]; totalQty: number }>();
                     for (const row of rows as any[]) {
                         const qty = row.quantity_assigned ?? 0;
                         if (qty <= 0) continue;
+                        const existing = byAsin.get(row.asin) || { rows: [], totalQty: 0 };
+                        existing.rows.push(row);
+                        existing.totalQty += qty;
+                        byAsin.set(row.asin, existing);
+                    }
 
-                        const inboundId = row.inbound_tracking_id ?? null;
+                    for (const [asin, group] of byAsin) {
+                        const firstRow = group.rows[0];
+                        const totalQty = group.totalQty;
+                        const inboundId = firstRow.inbound_tracking_id ?? null;
 
                         let inboundRow: any = null;
 
                         if (inboundId) {
-                            // Direct lookup by stored ID
                             const { data } = await supabase
                                 .from("india_inbound_tracking")
                                 .select("id, assigned_quantity, pending_quantity")
@@ -986,32 +1006,60 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                             inboundRow = data?.[0];
                         }
 
-                        if (!inboundRow && row.asin) {
-                            // Fallback: match by ASIN + delivered status
+                        if (!inboundRow) {
                             const { data } = await supabase
                                 .from("india_inbound_tracking")
                                 .select("id, assigned_quantity, pending_quantity")
-                                .eq("asin", row.asin)
-                                .eq("status", "delivered")
+                                .eq("asin", asin)
                                 .limit(1);
                             inboundRow = data?.[0];
                         }
 
-                        if (!inboundRow) continue;
+                        if (inboundRow) {
+                            // Row exists — add qty back
+                            const { error } = await supabase
+                                .from("india_inbound_tracking")
+                                .update({
+                                    assigned_quantity: Math.max(0, (inboundRow.assigned_quantity ?? 0) - totalQty),
+                                    pending_quantity: (inboundRow.pending_quantity ?? 0) + totalQty,
+                                })
+                                .eq("id", inboundRow.id);
+                            if (error) console.error("Failed to rollback inbound tracking", error);
+                        } else {
+                            // ✅ Row was deleted — re-create as single row with combined seller tags
+                            const { data: boxRow } = await supabase
+                                .from("india_inbound_boxes")
+                                .select("*")
+                                .eq("id", firstRow.id)
+                                .single();
 
-                        const currentAssigned = inboundRow.assigned_quantity ?? 0;
-                        const currentPending = inboundRow.pending_quantity ?? 0;
-
-                        const { error } = await supabase
-                            .from("india_inbound_tracking")
-                            .update({
-                                assigned_quantity: Math.max(0, currentAssigned - qty),
-                                pending_quantity: currentPending + qty,
-                            })
-                            .eq("id", inboundRow.id);
-
-                        if (error) {
-                            console.error("Failed to rollback inbound tracking", error);
+                            if (boxRow) {
+                                const combinedTags = [...new Set(group.rows.map((r: any) => r.seller_tag).filter(Boolean))].join(', ');
+                                const { error: insertErr } = await supabase
+                                    .from("india_inbound_tracking")
+                                    .insert({
+                                        asin: boxRow.asin,
+                                        product_name: boxRow.product_name,
+                                        sku: boxRow.sku,
+                                        seller_tag: combinedTags,
+                                        funnel: boxRow.funnel,
+                                        origin: boxRow.origin,
+                                        origin_india: boxRow.origin_india ?? false,
+                                        origin_china: boxRow.origin_china ?? false,
+                                        origin_us: boxRow.origin_us ?? false,
+                                        buying_price: boxRow.buying_price,
+                                        buying_quantity: totalQty,
+                                        product_weight: boxRow.product_weight,
+                                        product_link: boxRow.product_link,
+                                        seller_link: boxRow.seller_link,
+                                        pending_quantity: totalQty,
+                                        assigned_quantity: 0,
+                                        status: 'tracking',
+                                        moved_at: new Date().toISOString(),
+                                    });
+                                if (insertErr) console.error(`❌ Failed to re-create inbound for ${asin}:`, insertErr);
+                                else console.log(`✅ Re-created inbound tracking for ${asin} (${combinedTags})`);
+                            }
                         }
                     }
 
@@ -1596,7 +1644,18 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                 onCancel={() => setConfirmModal(null)}
             />
 
-            <EditBoxModal open={!!editBoxData} boxGroup={editBoxData} onClose={() => { setEditBoxData(null); fetchInboundDelivered(); }} onSuccess={() => { setEditBoxData(null); refreshSilently(); onCountsChange(); fetchInboundDelivered(); }} showToast={showToast} inboundDelivered={inboundDelivered} />
+            {editBoxData && (
+                <div className="fixed inset-0 z-[100] bg-slate-950 p-4">
+                    <VyaparBoxForm
+                        mode="edit"
+                        editBoxGroup={editBoxData}
+                        onSave={() => { setEditBoxData(null); refreshSilently(); onCountsChange(); fetchInboundDelivered(); }}
+                        onCancel={() => { setEditBoxData(null); fetchInboundDelivered(); }}
+                        onCountsChange={onCountsChange}
+                        showToast={showToast}
+                    />
+                </div>
+            )}
 
             <BoxSummaryModal
                 open={showSummary}
@@ -1680,206 +1739,13 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
 
             <div className="flex-1 overflow-hidden">
                 {isAddingBox ? (
-                    <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
-                        {/* Panel header */}
-                        <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 flex items-start sm:items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-base sm:text-lg font-semibold text-white">
-                                    Add Box Details
-                                </h2>
-                                <p className="text-xs text-slate-400 mt-1">
-                                    Enter a box ID, pick delivered items, then save to create/update the box.
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setIsAddingBox(false);
-                                    setNewBoxId("");
-                                    setBoxBookingDate("");
-                                    setAddSearch("");
-                                    setAddItems([]);
-                                    setAddQuantities({});
-                                    setAddWeights({});
-                                }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 shrink-0"
-                            >
-                                ← Back to Boxes
-                            </button>
-                        </div>
-
-                        {/* Controls row */}
-                        <div className="px-3 sm:px-5 py-3 border-b border-slate-800 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 sm:items-center">
-                            {/* Top row: Box ID, Weight, Date */}
-                            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 sm:gap-4 sm:items-center">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                    <span className="text-xs text-slate-400">Box ID</span>
-                                    <input type="text" value={newBoxId} onChange={(e) => setNewBoxId(e.target.value)} placeholder="BOX-001"
-                                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 min-w-0" />
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Wgt (kg)</span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        step={0.01}
-                                        value={boxTotalWeight ?? ""}
-                                        onChange={(e) => setBoxTotalWeight(e.target.value ? Number(e.target.value) : null)}
-                                        placeholder="e.g. 12"
-                                        className="w-full sm:w-24 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white focus:outline-none focus:border-indigo-500 min-w-0"
-                                    />
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Booking</span>
-                                    <input type="date" max="9999-12-31" value={boxBookingDate} onChange={(e) => setBoxBookingDate(e.target.value)} className="w-full px-2 sm:px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-white focus:outline-none focus:border-indigo-500 min-w-0" />
-                                </div>
-                            </div>
-
-                            {/* Search ASIN — full width on mobile */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 sm:flex-1 sm:min-w-[300px] relative" ref={searchRef}>
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide shrink-0">Search ASIN</span>
-                                <div className="relative flex-1 min-w-0">
-                                    <input type="text" value={addSearch}
-                                        onChange={(e) => { setAddSearch(e.target.value); setShowDropdown(true); }}
-                                        onFocus={() => setShowDropdown(true)}
-                                        placeholder="Type to search ASIN or Product..."
-                                        className="w-full px-3 sm:px-4 py-2 bg-slate-950 border border-indigo-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500 shadow-inner" />
-
-                                    {showDropdown && groupedDropdownCandidates.length > 0 && (
-                                        <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-50 max-h-[350px] sm:max-h-[400px] overflow-y-auto">
-                                            {groupedDropdownCandidates.map((group) => {
-                                                const item = group.representative;
-                                                const totalPending = group.sellers.reduce((s, x) => s + x.pending, 0);
-                                                return (
-                                                    <div key={item.asin} className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 sm:px-5 py-3 sm:py-4 hover:bg-slate-800 transition-colors border-b border-slate-700 last:border-0 cursor-pointer" onClick={() => handleAddGroupedAsin(group)}>
-                                                        <div className="flex-1 min-w-0 sm:pr-4">
-                                                            <div className="flex items-center gap-2 sm:gap-3 mb-1">
-                                                                <span className="font-mono text-sm sm:text-base font-bold text-white">{item.asin}</span>
-                                                                {item.sku && <span className="text-[10px] sm:text-xs text-slate-200 bg-slate-800 px-1.5 sm:px-2.5 py-0.5 rounded border border-slate-600 font-medium truncate">SKU: {item.sku}</span>}
-                                                            </div>
-                                                            <div className="text-xs sm:text-sm font-medium text-slate-200 truncate mb-1.5">{item.product_name || '-'}</div>
-                                                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
-                                                                {group.sellers.map(s => (
-                                                                    <div key={s.id} className="flex items-center gap-1 sm:gap-1.5 bg-slate-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
-                                                                        <span className={`px-1 sm:px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-slate-700 text-white'}`}>{s.tag}</span>
-                                                                        <span className="text-[10px] sm:text-xs text-amber-300 font-semibold">{s.pending} pending</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center sm:flex-col sm:items-end gap-2 mt-2 sm:mt-0 shrink-0">
-                                                            <span className="bg-amber-500/25 text-amber-300 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded text-xs sm:text-sm font-bold">{totalPending} pending</span>
-                                                            <span className="text-emerald-300 font-bold text-xs sm:text-sm">₹{item.buying_price ?? '-'}</span>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleAddGroupedAsin(group); }}
-                                                                className="px-3 sm:px-5 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs sm:text-sm font-bold hover:bg-emerald-500 shadow-lg transition-all">
-                                                                + Add
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    {showDropdown && groupedDropdownCandidates.length === 0 && addSearch.trim() && (
-                                        <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 px-4 py-3 text-sm text-slate-500">
-                                            No matching items found.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Save Box button */}
-                            <div className="flex sm:ml-auto items-center gap-2 sm:gap-4">
-                                <button onClick={() => setShowSummary(true)}
-                                    disabled={!newBoxId.trim() || addItems.length === 0}
-                                    className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-                                    💾 Save Box {groupedAddItems.length > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{groupedAddItems.length}</span>}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Items table */}
-                        <div className="flex-1 overflow-auto px-3 sm:px-5 py-3 sm:py-4">
-                            {groupedAddItems.length === 0 ? (
-                                <div className="h-full flex items-center justify-center flex-col gap-3">
-                                    <span className="text-4xl">📭</span>
-                                    <p className="text-slate-500 text-sm">No items added to this box yet.</p>
-                                    <p className="text-slate-600 text-xs">Use the search bar above to find and add ASINs.</p>
-                                </div>
-                            ) : (
-                                <table className="w-full text-sm" style={{ minWidth: '1000px' }}>
-                                    <thead className="bg-slate-950/60">
-                                        <tr>
-                                            <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase w-16">Sr. No</th>
-                                            <th className="px-3 py-3 text-left text-xs font-bold text-slate-400 uppercase">ASIN</th>
-                                            <th className="px-3 py-3 text-left text-xs font-bold text-slate-400 uppercase">Product</th>
-                                            <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase">Price</th>
-                                            <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase">Qty for this box (per seller)</th>
-                                            <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase">Weight (kg)</th>
-                                            <th className="px-3 py-3 text-center text-xs font-bold text-slate-400 uppercase w-24">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-800/60">
-                                        {groupedAddItems.map((group, index) => {
-                                            const item = group.representative;
-                                            const totalQtyForBox = group.sellerRows.reduce((sum: number, r: any) => sum + (addQuantities[r.id] ?? 0), 0);
-                                            return (
-                                                <tr key={item.asin} className="bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors border-l-2 border-l-emerald-500">
-                                                    <td className="px-3 py-3 text-center text-slate-400 font-bold align-top">{index + 1}</td>
-                                                    <td className="px-3 py-3 font-mono text-slate-300 align-top">
-                                                        <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline font-semibold flex items-center gap-1">
-                                                            {item.asin} <span className="text-[10px]">↗</span>
-                                                        </a>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-slate-200 align-top"><div className="truncate max-w-[250px]">{item.product_name || '-'}</div></td>
-                                                    <td className="px-3 py-3 text-center text-emerald-400 font-semibold align-top">{item.buying_price ? `₹${item.buying_price}` : '-'}</td>
-                                                    {/* Per-seller qty inputs */}
-                                                    <td className="px-3 py-2 text-center">
-                                                        <div className="flex flex-col gap-2">
-                                                            {group.sellerRows.map((sellerItem: any) => {
-                                                                const sellerPending = sellerItem.pending_quantity ?? sellerItem.buying_quantity ?? sellerItem.ordered_quantity ?? 0;
-                                                                const sellerTag = sellerItem.seller_tag || '??';
-                                                                return (
-                                                                    <div key={sellerItem.id} className="flex items-center justify-center gap-2">
-                                                                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold min-w-[28px] text-center ${SELLER_TAG_COLORS[sellerTag] || 'bg-slate-700 text-white'}`}>{sellerTag}</span>
-                                                                        <input type="number" min={0} max={sellerPending} value={addQuantities[sellerItem.id] ?? 0}
-                                                                            onChange={(e) => { const val = Math.min(Number(e.target.value) || 0, sellerPending); setAddQuantities((prev) => ({ ...prev, [sellerItem.id]: val })); }}
-                                                                            className="w-20 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                                                        <span className="text-[10px] text-slate-500 w-16">{sellerPending} pending</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                            {group.sellerRows.length > 1 && (
-                                                                <div className="text-[10px] text-slate-400 font-semibold border-t border-slate-800 pt-1 mt-1">Total: {totalQtyForBox}</div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    {/* Shared weight per ASIN */}
-                                                    <td className="px-3 py-2 text-center align-top">
-                                                        <input type="number" min={0} step={0.01} value={addWeights[group.sellerRows[0]?.id] ?? item.product_weight ?? 0}
-                                                            onChange={(e) => {
-                                                                const val = Number(e.target.value) || 0;
-                                                                // Set same weight for all seller rows of this ASIN
-                                                                setAddWeights((prev) => {
-                                                                    const updated = { ...prev };
-                                                                    group.sellerRows.forEach((r: any) => { updated[r.id] = val; });
-                                                                    return updated;
-                                                                });
-                                                            }}
-                                                            className="w-24 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                                    </td>
-                                                    <td className="px-3 py-2 text-center align-top">
-                                                        <button onClick={() => handleRemoveAsinFromBox(item.asin)} className="text-rose-400 hover:text-rose-300 text-xs font-medium">✕ Remove</button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    </div>
+                    <VyaparBoxForm
+                        mode="create"
+                        onSave={() => { setIsAddingBox(false); refreshSilently(); fetchInboundDelivered(); }}
+                        onCancel={() => { setIsAddingBox(false); setNewBoxId(""); setBoxBookingDate(""); setAddSearch(""); setAddItems([]); setAddQuantities({}); setAddWeights({}); }}
+                        onCountsChange={onCountsChange}
+                        showToast={showToast}
+                    />
                 ) : (
                     <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto">
@@ -1892,7 +1758,7 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                             tab.
                                         </div>
                                     ) : (
-                                        groupedBoxes.map(group => {
+                                        groupedBoxes.map((group, boxIdx) => {
                                             const isExpanded = expandedBoxes.has(group.box_number);
                                             return (
                                                 <div
@@ -1919,6 +1785,7 @@ export default function BoxesTab({ onCountsChange }: BoxesTabProps) {
                                                                 />
                                                             </svg>
 
+                                                            <span className="text-sm font-bold text-slate-300 w-6">{boxIdx + 1}.</span>
                                                             <span className="text-base sm:text-xl">
                                                                 {statusIcons[group.status]}
                                                             </span>
