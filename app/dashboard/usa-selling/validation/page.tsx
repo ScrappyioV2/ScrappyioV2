@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
 import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -330,6 +331,13 @@ export default function ValidationPage() {
             return DEFAULT_COLUMN_WIDTHS;
         }
     });
+    const [confirmDialog, setConfirmDialog] = useState<{
+        title: string;
+        message: string;
+        confirmText: string;
+        type: 'danger' | 'warning';
+        onConfirm: () => void;
+    } | null>(null);
     const startResize = (key: string, startX: number) => {
         const startWidth = columnWidths[key] || DEFAULT_COLUMN_WIDTHS[key] || 120;
 
@@ -1047,174 +1055,157 @@ export default function ValidationPage() {
         }
     }
 
-    const handleChecklistOk = async (id: string) => {
-        const confirmed = window.confirm('Send this item to Purchases?')
-        if (!confirmed) return
-
+    const handleChecklistOk = (id: string) => {
         const product = products.find(p => p.id === id)
         if (!product) return
 
-        // ✅ LOGIC: Resolve Journey ID (Start Cycle 1 if missing)
-        // If it's a reorder, it will already have current_journey_id from the DB
-        const journeyId = product.current_journey_id || generateUUID()
-        const journeyNum = product.journey_number || 1
+        setConfirmDialog({
+            title: 'Send to Purchases',
+            message: 'Send this item to Purchases?',
+            confirmText: 'Send',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
-        try {
-            // ✅ STEP 1: Snapshot to History (The "Bag")
-            const snapshotData = {
-                source: 'validation_pass',
-                usd_price: product.usd_price,
-                inr_purchase: product.inr_purchase,
-                product_weight: product.product_weight,
-                profit: product.profit,
-                total_cost: product.total_cost,
-                total_revenue: product.total_revenue,
-                origin_india: product.origin_india,
-                origin_china: product.origin_china,
-                remark: product.remark,
-                timestamp: new Date().toISOString()
+                // ✅ LOGIC: Resolve Journey ID (Start Cycle 1 if missing)
+                // If it's a reorder, it will already have current_journey_id from the DB
+                const journeyId = product.current_journey_id || generateUUID()
+                const journeyNum = product.journey_number || 1
+
+                try {
+                    // ✅ STEP 1: Snapshot to History (The "Bag")
+                    const snapshotData = {
+                        source: 'validation_pass',
+                        usd_price: product.usd_price,
+                        inr_purchase: product.inr_purchase,
+                        product_weight: product.product_weight,
+                        profit: product.profit,
+                        total_cost: product.total_cost,
+                        total_revenue: product.total_revenue,
+                        origin_india: product.origin_india,
+                        origin_china: product.origin_china,
+                        remark: product.remark,
+                        timestamp: new Date().toISOString()
+                    }
+
+                    const { error: historyError } = await supabase
+                        .from('usa_asin_history')
+                        .insert({
+                            asin: product.asin,
+                            journey_id: journeyId,
+                            journey_number: journeyNum,
+                            stage: 'validation_to_purchase',
+                            snapshot_data: snapshotData,
+                            profit: product.profit,
+                            total_cost: product.total_cost,
+                            status: 'passed'
+                        })
+
+                    if (historyError) {
+                        console.error('History snapshot failed:', historyError)
+                        // We don't stop the flow for history error, but we log it
+                    }
+
+                    // ✅ STEP 2: Insert into Purchases with Journey ID
+                    const originText =
+                        (product.origin_india && product.origin_china) ? 'Both' :
+                            product.origin_china ? 'China' :
+                                product.origin_india ? 'India' : 'India';
+
+                    const { error: insertError } = await supabase
+                        .from('usa_purchases')
+                        .insert({
+                            asin: product.asin,
+                            product_name: product.product_name,
+                            brand: product.brand,
+                            seller_tag: product.seller_tag,
+                            funnel: product.funnel,
+                            origin: originText,
+                            origin_india: product.origin_india ?? false,
+                            origin_china: product.origin_china ?? false,
+                            product_link: product.usa_link,
+                            target_price: product.inr_purchase,
+                            target_quantity: 1,
+                            funnel_quantity: 1,
+                            funnel_seller: product.funnel,
+                            inr_purchase_link: product.inr_purchase_link ?? '',
+                            buying_price: null,
+                            buying_quantity: null,
+                            seller_link: null,
+                            seller_phone: '',
+                            payment_method: '',
+                            tracking_details: '',
+                            delivery_date: null,
+                            status: 'pending',
+                            admin_confirmed: false,
+                            product_weight: product.product_weight,
+                            usd_price: product.usd_price,
+                            inr_purchase: product.inr_purchase,
+                            profit: product.profit ?? null,
+                            remark: product.remark ?? null,
+
+                            // 🔗 LINKING THE CYCLE
+                            journey_id: journeyId,
+                            journey_number: journeyNum
+                        })
+
+                    if (insertError) {
+                        console.error('Insert error:', insertError)
+                        setToast({ message: `Failed: ${insertError.message}`, type: 'error' })
+                        return
+                    }
+
+                    // ✅ STEP 3: Mark as sent in main file
+                    // We also save the generated journey_id back to validation file for consistency
+                    const { error: updateError } = await supabase
+                        .from('usa_validation_main_file')
+                        .update({
+                            sent_to_purchases: true,
+                            sent_to_purchases_at: new Date().toISOString(),
+                            current_journey_id: journeyId, // Persist ID if we just generated it
+                            journey_number: journeyNum
+                        })
+                        .eq('id', id)
+
+                    if (updateError) {
+                        console.error('Update error:', updateError)
+                    }
+
+                    // Remove from local state
+                    setProducts((prev) => prev.filter((p) => p.id !== id))
+                    setToast({ message: 'Sent to Purchases with History!', type: 'success' })
+
+                } catch (err) {
+                    console.error('Unexpected error:', err)
+                    setToast({ message: 'An unexpected error occurred', type: 'error' })
+                }
             }
-
-            const { error: historyError } = await supabase
-                .from('usa_asin_history')
-                .insert({
-                    asin: product.asin,
-                    journey_id: journeyId,
-                    journey_number: journeyNum,
-                    stage: 'validation_to_purchase',
-                    snapshot_data: snapshotData,
-                    profit: product.profit,
-                    total_cost: product.total_cost,
-                    status: 'passed'
-                })
-
-            if (historyError) {
-                console.error('History snapshot failed:', historyError)
-                // We don't stop the flow for history error, but we log it
-            }
-
-            // ✅ STEP 2: Insert into Purchases with Journey ID
-            const originText =
-                (product.origin_india && product.origin_china) ? 'Both' :
-                    product.origin_china ? 'China' :
-                        product.origin_india ? 'India' : 'India';
-
-            const { error: insertError } = await supabase
-                .from('usa_purchases')
-                .insert({
-                    asin: product.asin,
-                    product_name: product.product_name,
-                    brand: product.brand,
-                    seller_tag: product.seller_tag,
-                    funnel: product.funnel,
-                    origin: originText,
-                    origin_india: product.origin_india ?? false,
-                    origin_china: product.origin_china ?? false,
-                    product_link: product.usa_link,
-                    target_price: product.inr_purchase,
-                    target_quantity: 1,
-                    funnel_quantity: 1,
-                    funnel_seller: product.funnel,
-                    inr_purchase_link: product.inr_purchase_link ?? '',
-                    buying_price: null,
-                    buying_quantity: null,
-                    seller_link: null,
-                    seller_phone: '',
-                    payment_method: '',
-                    tracking_details: '',
-                    delivery_date: null,
-                    status: 'pending',
-                    admin_confirmed: false,
-                    product_weight: product.product_weight,
-                    usd_price: product.usd_price,
-                    inr_purchase: product.inr_purchase,
-                    profit: product.profit ?? null,
-                    remark: product.remark ?? null,
-
-                    // 🔗 LINKING THE CYCLE
-                    journey_id: journeyId,
-                    journey_number: journeyNum
-                })
-
-            if (insertError) {
-                console.error('Insert error:', insertError)
-                setToast({ message: `Failed: ${insertError.message}`, type: 'error' })
-                return
-            }
-
-            // ✅ STEP 3: Mark as sent in main file
-            // We also save the generated journey_id back to validation file for consistency
-            const { error: updateError } = await supabase
-                .from('usa_validation_main_file')
-                .update({
-                    sent_to_purchases: true,
-                    sent_to_purchases_at: new Date().toISOString(),
-                    current_journey_id: journeyId, // Persist ID if we just generated it
-                    journey_number: journeyNum
-                })
-                .eq('id', id)
-
-            if (updateError) {
-                console.error('Update error:', updateError)
-            }
-
-            // Remove from local state
-            setProducts((prev) => prev.filter((p) => p.id !== id))
-            setToast({ message: 'Sent to Purchases with History!', type: 'success' })
-
-        } catch (err) {
-            console.error('Unexpected error:', err)
-            setToast({ message: 'An unexpected error occurred', type: 'error' })
-        }
+        });
     }
 
-    const handleMoveToMainClick = async () => {
+    const handleMoveToMainClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`
-        );
+        setConfirmDialog({
+            title: 'Move to Main File',
+            message: `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`,
+            confirmText: 'Move',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
-        if (!confirmed) return;
+                try {
+                    const idsArray = Array.from(selectedIds);
 
-        try {
-            const idsArray = Array.from(selectedIds);
+                    console.log('🔄 Moving IDs:', idsArray);
 
-            console.log('🔄 Moving IDs:', idsArray);
-
-            // Use CORRECT database field names (snake_case with underscores)
-            const { error } = await supabase
-                .from('usa_validation_main_file')
-                .update({
-                    judgement: 'PENDING',
-                    calculated_judgement: null,
-                    check_brand: false,
-                    check_item_expire: false,
-                    check_small_size: false,
-                    check_multi_seller: false,
-                    origin_india: false,
-                    origin_china: false,
-                    sent_to_purchases: false,
-                    sent_to_purchases_at: null,
-                })
-                .in('id', idsArray);
-
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
-            }
-
-            console.log('✅ Successfully updated!');
-
-            // Immediate UI update
-            setProducts((prev) =>
-                prev.map((p) =>
-                    selectedIds.has(p.id)
-                        ? {
-                            ...p,
+                    // Use CORRECT database field names (snake_case with underscores)
+                    const { error } = await supabase
+                        .from('usa_validation_main_file')
+                        .update({
                             judgement: 'PENDING',
                             calculated_judgement: null,
                             check_brand: false,
@@ -1224,201 +1215,244 @@ export default function ValidationPage() {
                             origin_india: false,
                             origin_china: false,
                             sent_to_purchases: false,
-                            sent_to_purchases_at: undefined,
-                        }
-                        : p
-                )
-            );
-            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setSelectedIds(new Set());
+                            sent_to_purchases_at: null,
+                        })
+                        .in('id', idsArray);
 
-            setToast({
-                message: `Successfully moved ${idsArray.length} items back to Main File!`,
-                type: 'success'
-            });
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
 
-            // Background refresh
-            await fetchProducts();
-            await fetchStats();
+                    console.log('✅ Successfully updated!');
 
-        } catch (err) {
-            console.error('Move to main error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        }
+                    // Immediate UI update
+                    setProducts((prev) =>
+                        prev.map((p) =>
+                            selectedIds.has(p.id)
+                                ? {
+                                    ...p,
+                                    judgement: 'PENDING',
+                                    calculated_judgement: null,
+                                    check_brand: false,
+                                    check_item_expire: false,
+                                    check_small_size: false,
+                                    check_multi_seller: false,
+                                    origin_india: false,
+                                    origin_china: false,
+                                    sent_to_purchases: false,
+                                    sent_to_purchases_at: undefined,
+                                }
+                                : p
+                        )
+                    );
+                    // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+                    setSelectedIds(new Set());
+
+                    setToast({
+                        message: `Successfully moved ${idsArray.length} items back to Main File!`,
+                        type: 'success'
+                    });
+
+                    // Background refresh
+                    await fetchProducts();
+                    await fetchStats();
+
+                } catch (err) {
+                    console.error('Move to main error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                }
+            }
+        });
     };
 
     // Move items from Pending to Pass
-    const handleMoveToPassClick = async () => {
+    const handleMoveToPassClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items to Pass File?`
-        );
+        setConfirmDialog({
+            title: 'Move to Pass',
+            message: `Move ${selectedIds.size} items to Pass File?`,
+            confirmText: 'Move',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
-        if (!confirmed) return;
+                try {
+                    const idsArray = Array.from(selectedIds);
 
-        try {
-            const idsArray = Array.from(selectedIds);
+                    console.log('🔄 Moving to Pass:', idsArray);
 
-            console.log('🔄 Moving to Pass:', idsArray);
+                    // Update judgement to PASS in main_file
+                    const { error } = await supabase
+                        .from('usa_validation_main_file')
+                        .update({
+                            judgement: 'PASS',
+                        })
+                        .in('id', idsArray);
 
-            // Update judgement to PASS in main_file
-            const { error } = await supabase
-                .from('usa_validation_main_file')
-                .update({
-                    judgement: 'PASS',
-                })
-                .in('id', idsArray);
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
 
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
+                    // Immediate UI update
+                    setProducts((prev) =>
+                        prev.map((p) =>
+                            selectedIds.has(p.id)
+                                ? {
+                                    ...p,
+                                    judgement: 'PENDING',
+                                    calculated_judgement: null,
+                                    check_brand: false,
+                                    check_item_expire: false,
+                                    check_small_size: false,
+                                    check_multi_seller: false,
+                                    origin_india: false,
+                                    origin_china: false,
+                                    sent_to_purchases: false,
+                                    sent_to_purchases_at: undefined,
+                                }
+                                : p
+                        )
+                    );
+                    // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+                    setSelectedIds(new Set());
+
+                    setToast({
+                        message: `Successfully moved ${idsArray.length} items to Pass File!`,
+                        type: 'success'
+                    });
+
+                    // Background refresh
+                    await fetchProducts();
+                    await fetchStats();
+
+                } catch (err) {
+                    console.error('Move to pass error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                }
             }
-
-            // Immediate UI update
-            setProducts((prev) =>
-                prev.map((p) =>
-                    selectedIds.has(p.id)
-                        ? {
-                            ...p,
-                            judgement: 'PENDING',
-                            calculated_judgement: null,
-                            check_brand: false,
-                            check_item_expire: false,
-                            check_small_size: false,
-                            check_multi_seller: false,
-                            origin_india: false,
-                            origin_china: false,
-                            sent_to_purchases: false,
-                            sent_to_purchases_at: undefined,
-                        }
-                        : p
-                )
-            );
-            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setSelectedIds(new Set());
-
-            setToast({
-                message: `Successfully moved ${idsArray.length} items to Pass File!`,
-                type: 'success'
-            });
-
-            // Background refresh
-            await fetchProducts();
-            await fetchStats();
-
-        } catch (err) {
-            console.error('Move to pass error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        }
+        });
     };
 
     // Move items from Pending to Fail
-    const handleMoveToFailClick = async () => {
+    const handleMoveToFailClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items to Fail File?`
-        );
+        setConfirmDialog({
+            title: 'Move to Fail',
+            message: `Move ${selectedIds.size} items to Fail File?`,
+            confirmText: 'Move to Fail',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
-        if (!confirmed) return;
+                try {
+                    const idsArray = Array.from(selectedIds);
 
-        try {
-            const idsArray = Array.from(selectedIds);
+                    console.log('🔄 Moving to Fail:', idsArray);
 
-            console.log('🔄 Moving to Fail:', idsArray);
+                    // Update judgement to FAIL in main_file
+                    const { error } = await supabase
+                        .from('usa_validation_main_file')
+                        .update({
+                            judgement: 'FAIL',
+                        })
+                        .in('id', idsArray);
 
-            // Update judgement to FAIL in main_file
-            const { error } = await supabase
-                .from('usa_validation_main_file')
-                .update({
-                    judgement: 'FAIL',
-                })
-                .in('id', idsArray);
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
 
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
+                    // Immediate UI update
+                    setProducts((prev) =>
+                        prev.map((p) =>
+                            selectedIds.has(p.id)
+                                ? {
+                                    ...p,
+                                    judgement: 'PENDING',
+                                    calculated_judgement: null,
+                                    check_brand: false,
+                                    check_item_expire: false,
+                                    check_small_size: false,
+                                    check_multi_seller: false,
+                                    origin_india: false,
+                                    origin_china: false,
+                                    sent_to_purchases: false,
+                                    sent_to_purchases_at: undefined,
+                                }
+                                : p
+                        )
+                    );
+                    // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+                    setSelectedIds(new Set());
+
+                    setToast({
+                        message: `Successfully moved ${idsArray.length} items to Fail File!`,
+                        type: 'success'
+                    });
+
+                    // Background refresh
+                    await fetchProducts();
+                    await fetchStats();
+
+                } catch (err) {
+                    console.error('Move to fail error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                }
             }
-
-            // Immediate UI update
-            setProducts((prev) =>
-                prev.map((p) =>
-                    selectedIds.has(p.id)
-                        ? {
-                            ...p,
-                            judgement: 'PENDING',
-                            calculated_judgement: null,
-                            check_brand: false,
-                            check_item_expire: false,
-                            check_small_size: false,
-                            check_multi_seller: false,
-                            origin_india: false,
-                            origin_china: false,
-                            sent_to_purchases: false,
-                            sent_to_purchases_at: undefined,
-                        }
-                        : p
-                )
-            );
-            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setSelectedIds(new Set());
-
-            setToast({
-                message: `Successfully moved ${idsArray.length} items to Fail File!`,
-                type: 'success'
-            });
-
-            // Background refresh
-            await fetchProducts();
-            await fetchStats();
-
-        } catch (err) {
-            console.error('Move to fail error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        }
+        });
     };
 
     // Move items to Reject
-    const handleMoveToRejectClick = async () => {
+    const handleMoveToRejectClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(`Move ${selectedIds.size} items to Rejected?`);
-        if (!confirmed) return;
+        setConfirmDialog({
+            title: 'Move to Rejected',
+            message: `Move ${selectedIds.size} items to Rejected?`,
+            confirmText: 'Reject',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
-        try {
-            const idsArray = Array.from(selectedIds);
+                try {
+                    const idsArray = Array.from(selectedIds);
 
-            const { error } = await supabase
-                .from('usa_validation_main_file')
-                .update({ judgement: 'REJECT' })
-                .in('id', idsArray);
+                    const { error } = await supabase
+                        .from('usa_validation_main_file')
+                        .update({ judgement: 'REJECT' })
+                        .in('id', idsArray);
 
-            if (error) throw error;
+                    if (error) throw error;
 
-            setProducts(prev =>
-                prev.map(p =>
-                    selectedIds.has(p.id) ? { ...p, judgement: 'REJECT' } : p
-                )
-            );
-            setSelectedIds(new Set());
-            setToast({ message: `Successfully moved ${idsArray.length} items to Rejected!`, type: 'success' });
+                    setProducts(prev =>
+                        prev.map(p =>
+                            selectedIds.has(p.id) ? { ...p, judgement: 'REJECT' } : p
+                        )
+                    );
+                    setSelectedIds(new Set());
+                    setToast({ message: `Successfully moved ${idsArray.length} items to Rejected!`, type: 'success' });
 
-            await fetchStats();
+                    await fetchStats();
 
-        } catch (err) {
-            console.error('Move to reject error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        }
+                } catch (err) {
+                    console.error('Move to reject error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                }
+            }
+        });
     };
 
     const downloadCSV = (mode: 'selected' | 'page' | 'all') => {
@@ -2468,6 +2502,17 @@ export default function ValidationPage() {
                         </div>
                     </div>
                 </div>
+            )}
+            {confirmDialog && (
+                <ConfirmDialog
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmText={confirmDialog.confirmText}
+                    cancelText="Cancel"
+                    type={confirmDialog.type}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog(null)}
+                />
             )}
         </PageTransition>
     )

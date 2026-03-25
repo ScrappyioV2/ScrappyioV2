@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
 import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -287,6 +288,13 @@ export default function ValidationPage() {
     const [constants, setConstants] = useState<CalculationConstants>(getDefaultConstants())
     const [isSavingConstants, setIsSavingConstants] = useState(false)
     const [selectedRemark, setSelectedRemark] = useState<string | null>(null)
+    const [confirmDialog, setConfirmDialog] = useState<{
+        title: string;
+        message: string;
+        confirmText: string;
+        type: 'danger' | 'warning';
+        onConfirm: () => void;
+    } | null>(null);
 
     // 5. UPDATE visibleColumns state (around line 100)
     const [visibleColumns, setVisibleColumns] = useState({
@@ -1124,15 +1132,20 @@ export default function ValidationPage() {
         }
     }
 
-    const handleChecklistOk = async (id: string) => {
-        const confirmed = window.confirm('Send this item to Purchases?')
-        if (!confirmed) return
-
+    const handleChecklistOk = (id: string) => {
         const product = products.find(p => p.id === id)
         if (!product) return
 
         const journeyId = product.current_journey_id || generateUUID()
         const journeyNum = product.journey_number || 1
+
+        setConfirmDialog({
+            title: 'Send to Purchases',
+            message: 'Send this item to Purchases?',
+            confirmText: 'Send',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
         try {
             // 1. Fetch fresh data from DB to get the correct links
@@ -1256,19 +1269,23 @@ export default function ValidationPage() {
             console.error('Unexpected error:', err)
             setToast({ message: 'An unexpected error occurred', type: 'error' })
         }
+            }
+        });
     }
 
-    const handleMoveToMainClick = async () => {
+    const handleMoveToMainClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`
-        );
-
-        if (!confirmed) return;
+        setConfirmDialog({
+            title: 'Move to Main File',
+            message: `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`,
+            confirmText: 'Move',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
         try {
             const idsArray = Array.from(selectedIds);
@@ -1337,20 +1354,24 @@ export default function ValidationPage() {
             console.error('Move to main error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
         }
+            }
+        });
     };
 
     // Move items from Pending to Pass
-    const handleMoveToPassClick = async () => {
+    const handleMoveToPassClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items to Pass File?`
-        );
-
-        if (!confirmed) return;
+        setConfirmDialog({
+            title: 'Move to Pass File',
+            message: `Move ${selectedIds.size} items to Pass File?`,
+            confirmText: 'Move',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
         try {
             const idsArray = Array.from(selectedIds);
@@ -1407,20 +1428,24 @@ export default function ValidationPage() {
             console.error('Move to pass error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
         }
+            }
+        });
     };
 
     // Move items from Pending to Fail
-    const handleMoveToFailClick = async () => {
+    const handleMoveToFailClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items to Fail File?`
-        );
-
-        if (!confirmed) return;
+        setConfirmDialog({
+            title: 'Move to Fail File',
+            message: `Move ${selectedIds.size} items to Fail File?`,
+            confirmText: 'Move to Fail',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
         try {
             const idsArray = Array.from(selectedIds);
@@ -1477,17 +1502,24 @@ export default function ValidationPage() {
             console.error('Move to fail error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
         }
+            }
+        });
     };
 
     // Move items to Reject
-    const handleMoveToRejectClick = async () => {
+    const handleMoveToRejectClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(`Move ${selectedIds.size} items to Rejected?`);
-        if (!confirmed) return;
+        setConfirmDialog({
+            title: 'Move to Rejected',
+            message: `Move ${selectedIds.size} items to Rejected?`,
+            confirmText: 'Reject',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
 
         try {
             const idsArray = Array.from(selectedIds);
@@ -1513,6 +1545,8 @@ export default function ValidationPage() {
             console.error('Move to reject error:', err);
             setToast({ message: 'Failed to move items', type: 'error' });
         }
+            }
+        });
     };
 
     const downloadCSV = (mode: 'selected' | 'page' | 'all') => {
@@ -2566,6 +2600,17 @@ export default function ValidationPage() {
                         </div>
                     </div>
                 </div>
+            )}
+            {confirmDialog && (
+                <ConfirmDialog
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmText={confirmDialog.confirmText}
+                    cancelText="Cancel"
+                    type={confirmDialog.type}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog(null)}
+                />
             )}
         </PageTransition>
     )

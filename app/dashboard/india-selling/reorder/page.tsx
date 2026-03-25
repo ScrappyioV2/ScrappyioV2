@@ -22,6 +22,7 @@ import {
   Info
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -134,6 +135,13 @@ export default function ReorderPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [remarkModalOpen, setRemarkModalOpen] = useState(false);  // ✅ ADD THIS
   const [selectedRemark, setSelectedRemark] = useState<{ id: string; asin: string; remark: string | null } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    type: 'danger' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // --- 1. Fetch Data ---
   const fetchReorderData = async () => {
@@ -463,15 +471,22 @@ export default function ReorderPage() {
       });
 
       // Offer Recalculation
-      const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
-      if (autoRecalc) {
-        await handleRecalculate()
-      }
+      setProcessing(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      setConfirmDialog({
+        title: 'Recalculate Reorder?',
+        message: `Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`,
+        confirmText: 'Recalculate',
+        type: 'warning',
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          await handleRecalculate()
+        }
+      });
 
     } catch (err: any) {
       console.error(err)
       alert('Error processing file: ' + err.message)
-    } finally {
       setProcessing(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -749,104 +764,110 @@ export default function ReorderPage() {
   }
 
   // --- 7. Send Back to Validation (Restart Loop) ---
-  const sendToValidation = async (product: ReorderProduct) => {
-    const confirm = window.confirm(`Send ASIN ${product.asin} back to Validation for re-evaluation?`)
-    if (!confirm) return
+  const sendToValidation = (product: ReorderProduct) => {
+    setConfirmDialog({
+      title: 'Send Back to Validation',
+      message: `Send ASIN ${product.asin} back to Validation for re-evaluation?`,
+      confirmText: 'Send to Validation',
+      type: 'warning',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setProcessing(true)
 
-    try {
-      setProcessing(true)
+          // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
+          const { data: historyData, error: historyError } = await supabase
+            .from('india_asin_history')
+            .select('journey_number')
+            .eq('asin', product.asin)
+            .order('journey_number', { ascending: false })
+            .limit(1)
+            .maybeSingle()
 
-      // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
-      const { data: historyData, error: historyError } = await supabase
-        .from('india_asin_history')
-        .select('journey_number')
-        .eq('asin', product.asin)
-        .order('journey_number', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+          if (historyError && historyError.code !== 'PGRST116') {
+            throw historyError
+          }
 
-      if (historyError && historyError.code !== 'PGRST116') {
-        throw historyError
+          // Calculate ACTUAL next journey number
+          const currentMaxJourney = historyData?.journey_number || 1
+          const nextJourneyNum = currentMaxJourney + 1
+
+          console.log(`📊 ASIN ${product.asin}: Current max journey = ${currentMaxJourney}, Next = ${nextJourneyNum}`)
+
+          // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
+          const { data: masterData, error: fetchError } = await supabase
+            .from('india_validation_main_file')
+            .select('brand, seller_tag, funnel, origin, product_name, india_link, sku')
+            .eq('asin', product.asin)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (fetchError && fetchError.code !== 'PGRST116') {
+            throw fetchError
+          }
+
+          // 3. Generate NEW Journey ID
+          const newJourneyId = generateUUID();
+
+          // 4. Insert into Validation Main File with RESTORED DATA
+          const { error: insertError } = await supabase
+            .from('india_validation_main_file')
+            .insert({
+              asin: product.asin,
+
+              // Use master data name if available, otherwise current reorder name
+              product_name: masterData?.product_name || product.product_name,
+
+              current_journey_id: newJourneyId, // ✅ New ID
+              journey_number: nextJourneyNum,   // ✅ FIXED: Uses actual max + 1
+              status: 'pending',
+
+              // ♻️ RESTORED FIELDS (The "Bag" Contents)
+              brand: masterData?.brand || null,
+              seller_tag: masterData?.seller_tag || null,
+              funnel: masterData?.funnel || null,
+              origin: masterData?.origin || 'India', // Default to India if unknown
+              india_link: masterData?.india_link || product.seller_link,
+              remark: product.remark ?? null,
+              sku: masterData?.sku || product.sku || null,
+              // Reset operational fields
+              no_of_seller: 1,
+              sent_to_purchases: false,
+              admin_status: 'pending'
+            })
+
+          if (insertError) throw insertError
+
+          // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
+          const { error: deleteError } = await supabase
+            .from(`india_reorder_${activeSeller.table_suffix}`)
+            .delete()
+            .eq('id', product.id)
+
+          if (deleteError) throw deleteError
+
+          // 6. Update UI instantly
+          setProducts(prev => prev.filter(p => p.id !== product.id))
+          alert(`✅ ASIN ${product.asin} sent to Validation! Journey #${nextJourneyNum}`);
+          // ✅ ADD THIS:
+          logActivity({
+            action: 'move',
+            marketplace: 'india',
+            page: 'reorder',
+            table_name: `india_reorder_${activeSeller.table_suffix}`,
+            asin: product.asin,
+            details: { from: 'reorder', to: 'validation', journey: nextJourneyNum }
+          });
+
+        } catch (err: any) {
+          console.error(err)
+          alert('Failed to send: ' + err.message)
+        } finally {
+          setProcessing(false)
+        }
       }
-
-      // Calculate ACTUAL next journey number
-      const currentMaxJourney = historyData?.journey_number || 1
-      const nextJourneyNum = currentMaxJourney + 1
-
-      console.log(`📊 ASIN ${product.asin}: Current max journey = ${currentMaxJourney}, Next = ${nextJourneyNum}`)
-
-      // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
-      const { data: masterData, error: fetchError } = await supabase
-        .from('india_validation_main_file')
-        .select('brand, seller_tag, funnel, origin, product_name, india_link, sku')
-        .eq('asin', product.asin)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError
-      }
-
-      // 3. Generate NEW Journey ID
-      const newJourneyId = generateUUID();
-
-      // 4. Insert into Validation Main File with RESTORED DATA
-      const { error: insertError } = await supabase
-        .from('india_validation_main_file')
-        .insert({
-          asin: product.asin,
-
-          // Use master data name if available, otherwise current reorder name
-          product_name: masterData?.product_name || product.product_name,
-
-          current_journey_id: newJourneyId, // ✅ New ID
-          journey_number: nextJourneyNum,   // ✅ FIXED: Uses actual max + 1
-          status: 'pending',
-
-          // ♻️ RESTORED FIELDS (The "Bag" Contents)
-          brand: masterData?.brand || null,
-          seller_tag: masterData?.seller_tag || null,
-          funnel: masterData?.funnel || null,
-          origin: masterData?.origin || 'India', // Default to India if unknown
-          india_link: masterData?.india_link || product.seller_link,
-          remark: product.remark ?? null,
-          sku: masterData?.sku || product.sku || null,
-          // Reset operational fields
-          no_of_seller: 1,
-          sent_to_purchases: false,
-          admin_status: 'pending'
-        })
-
-      if (insertError) throw insertError
-
-      // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
-      const { error: deleteError } = await supabase
-        .from(`india_reorder_${activeSeller.table_suffix}`)
-        .delete()
-        .eq('id', product.id)
-
-      if (deleteError) throw deleteError
-
-      // 6. Update UI instantly
-      setProducts(prev => prev.filter(p => p.id !== product.id))
-      alert(`✅ ASIN ${product.asin} sent to Validation! Journey #${nextJourneyNum}`);
-      // ✅ ADD THIS:
-      logActivity({
-        action: 'move',
-        marketplace: 'india',
-        page: 'reorder',
-        table_name: `india_reorder_${activeSeller.table_suffix}`,
-        asin: product.asin,
-        details: { from: 'reorder', to: 'validation', journey: nextJourneyNum }
-      });
-
-    } catch (err: any) {
-      console.error(err)
-      alert('Failed to send: ' + err.message)
-    } finally {
-      setProcessing(false)
-    }
+    });
   }
 
   const filteredProducts = products.filter(p => {
@@ -1406,6 +1427,18 @@ export default function ReorderPage() {
           </>
         )}
       </AnimatePresence>
+
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText={confirmDialog.confirmText}
+          cancelText="Cancel"
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   )
 }

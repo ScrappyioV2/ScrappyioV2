@@ -21,6 +21,7 @@ import {
   Send
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 // ✅ ADD THIS - Safe UUID generator (works in all browsers)
 const generateUUID = (): string => {
@@ -98,6 +99,13 @@ export default function ReorderPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [remarkModalOpen, setRemarkModalOpen] = useState(false);  // ✅ ADD THIS
   const [selectedRemark, setSelectedRemark] = useState<{ id: string; asin: string; remark: string | null } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    type: 'danger' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // --- 1. Fetch Data ---
   const fetchReorderData = async () => {
@@ -408,10 +416,16 @@ export default function ReorderPage() {
       await fetchReorderData() // Refresh UI immediately
 
       // Offer Recalculation
-      const autoRecalc = window.confirm(`Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`)
-      if (autoRecalc) {
-        await handleRecalculate()
-      }
+      setConfirmDialog({
+        title: 'Run Reorder Calculation?',
+        message: `Success! Updated ${matchCount} products.\n\nDo you want to run the Reorder Calculation now?`,
+        confirmText: 'Recalculate',
+        type: 'warning',
+        onConfirm: async () => {
+          setConfirmDialog(null);
+          await handleRecalculate();
+        }
+      });
 
     } catch (err: any) {
       console.error(err)
@@ -738,9 +752,14 @@ export default function ReorderPage() {
   }
 
   // --- 7. Send Back to Validation (Restart Loop) ---
-  const sendToValidation = async (product: ReorderProduct) => {
-    const confirm = window.confirm(`Send ASIN ${product.asin} back to Validation for re-evaluation?`)
-    if (!confirm) return
+  const sendToValidation = (product: ReorderProduct) => {
+    setConfirmDialog({
+      title: 'Send Back to Validation?',
+      message: `Send ASIN ${product.asin} back to Validation for re-evaluation?`,
+      confirmText: 'Send to Validation',
+      type: 'warning',
+      onConfirm: async () => {
+        setConfirmDialog(null);
 
     try {
       setProcessing(true)
@@ -825,6 +844,8 @@ export default function ReorderPage() {
     } finally {
       setProcessing(false)
     }
+      }
+    });
   }
 
   const filteredProducts = products.filter(p => {
@@ -1219,6 +1240,18 @@ export default function ReorderPage() {
           </>
         )}
       </AnimatePresence>
+
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText={confirmDialog.confirmText}
+          cancelText="Cancel"
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { calculateProductValues, getDefaultConstants, CalculationConstants } fro
 import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const toSnakeCase = (obj: Record<string, any>): Record<string, any> => {
     const map: Record<string, string> = {
@@ -368,6 +369,13 @@ export default function ValidationPage() {
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null)
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
     const [rejectReason, setRejectReason] = useState('')
+    const [confirmDialog, setConfirmDialog] = useState<{
+        title: string;
+        message: string;
+        confirmText: string;
+        type: 'danger' | 'warning';
+        onConfirm: () => void;
+    } | null>(null);
     const [selectedRejectReason, setSelectedRejectReason] = useState<string | null>(null)
 
     // 5. UPDATE visibleColumns state (around line 100)
@@ -796,11 +804,19 @@ export default function ValidationPage() {
     const handleCellEdit = async (id: string, field: string, value: any) => {
         localEditCountRef.current += 1;
         try {
+            // Fields that indicate someone is working on this ASIN — clears NEW badge
+            const WORK_FIELDS = ['usd_price', 'product_weight', 'inr_purchase', 'inr_purchase_link', 'sku', 'india_link', 'usa_link'];
+            const product = productsRef.current.find(p => p.id === id);
+            const shouldClearNew = activeTab !== 'main_file' && WORK_FIELDS.includes(field) && product?.is_new;
+
             // Step 1: Optimistic update
-            setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+            setProducts(prev => prev.map(p => p.id === id ? { ...p, [field]: value, ...(shouldClearNew ? { is_new: false } : {}) } : p));
 
             // Step 2: Save to DB
-            const { error } = await supabase.from('india_validation_main_file').update(toSnakeCase({ [field]: value })).eq('id', id);
+            const updatePayload = shouldClearNew
+                ? toSnakeCase({ [field]: value, is_new: false })
+                : toSnakeCase({ [field]: value });
+            const { error } = await supabase.from('india_validation_main_file').update(updatePayload).eq('id', id);
             if (error) {
                 setToast({ message: 'Failed to update', type: 'error' });
                 return;
@@ -1535,57 +1551,29 @@ export default function ValidationPage() {
         }
     }
 
-    const handleMoveToMainClick = async () => {
+    const handleMoveToMainClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`
-        );
+        setConfirmDialog({
+            title: 'Move to Main File',
+            message: `Move ${selectedIds.size} items back to Main File? This will reset their data for re-validation.`,
+            confirmText: 'Move',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const idsArray = Array.from(selectedIds);
+                idsArray.forEach(id => movingIdsRef.current.add(id));
+                localEditCountRef.current += 1;
 
-        if (!confirmed) return;
+                try {
+                    console.log('🔄 Moving IDs:', idsArray);
 
-        const idsArray = Array.from(selectedIds);
-        idsArray.forEach(id => movingIdsRef.current.add(id));
-        localEditCountRef.current += 1;
-
-        try {
-            console.log('🔄 Moving IDs:', idsArray);
-
-            // Use CORRECT database field names (snake_case with underscores)
-            const { error } = await supabase
-                .from('india_validation_main_file')
-                .update({
-                    judgement: 'PENDING',
-                    calculated_judgement: null,
-                    check_brand: false,
-                    check_item_expire: false,
-                    check_small_size: false,
-                    check_multi_seller: false,
-                    origin_india: false,
-                    origin_china: false,
-                    origin_us: false,
-                    sent_to_purchases: false,
-                    sent_to_purchases_at: null,
-                    reject_reason: null,
-                })
-                .in('id', idsArray);
-
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
-            }
-
-            console.log('✅ Successfully updated!');
-
-            // Immediate UI update
-            setProducts((prev) =>
-                prev.map((p) =>
-                    selectedIds.has(p.id)
-                        ? {
-                            ...p,
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update({
                             judgement: 'PENDING',
                             calculated_judgement: null,
                             check_brand: false,
@@ -1594,250 +1582,279 @@ export default function ValidationPage() {
                             check_multi_seller: false,
                             origin_india: false,
                             origin_china: false,
+                            origin_us: false,
                             sent_to_purchases: false,
-                            sent_to_purchases_at: undefined,
-                        }
-                        : p
-                )
-            );
-            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setSelectedIds(new Set());
+                            sent_to_purchases_at: null,
+                            reject_reason: null,
+                        })
+                        .in('id', idsArray);
 
-            setToast({ message: `Successfully moved ${idsArray.length} items back to Main File!`, type: 'success' });
-            // ✅ ADD THIS:
-            const movedProducts = products.filter(p => selectedIds.has(p.id));
-            logBatchActivity(
-                movedProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag, from: activeTab, to: 'mainfile' } })),
-                { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
-            );
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
 
-            await fetchStats();
+                    console.log('✅ Successfully updated!');
 
-        } catch (err) {
-            console.error('Move to main error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        } finally {
-            setTimeout(() => {
-                localEditCountRef.current -= 1;
-                setTimeout(() => {
-                    idsArray.forEach(id => movingIdsRef.current.delete(id));
-                }, 10000);
-            }, 5000);
-        }
+                    setProducts((prev) =>
+                        prev.map((p) =>
+                            selectedIds.has(p.id)
+                                ? {
+                                    ...p,
+                                    judgement: 'PENDING',
+                                    calculated_judgement: null,
+                                    check_brand: false,
+                                    check_item_expire: false,
+                                    check_small_size: false,
+                                    check_multi_seller: false,
+                                    origin_india: false,
+                                    origin_china: false,
+                                    sent_to_purchases: false,
+                                    sent_to_purchases_at: undefined,
+                                }
+                                : p
+                        )
+                    );
+                    setSelectedIds(new Set());
+
+                    setToast({ message: `Successfully moved ${idsArray.length} items back to Main File!`, type: 'success' });
+                    const movedProducts = products.filter(p => selectedIds.has(p.id));
+                    logBatchActivity(
+                        movedProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag, from: activeTab, to: 'mainfile' } })),
+                        { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+                    );
+
+                    await fetchStats();
+
+                } catch (err) {
+                    console.error('Move to main error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                } finally {
+                    setTimeout(() => {
+                        localEditCountRef.current -= 1;
+                        setTimeout(() => {
+                            idsArray.forEach(id => movingIdsRef.current.delete(id));
+                        }, 10000);
+                    }, 5000);
+                }
+            }
+        });
     };
 
     // Move items from Pending to Pass
-    const handleMoveToPassClick = async () => {
+    const handleMoveToPassClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items to Pass File?`
-        );
+        setConfirmDialog({
+            title: 'Move to Pass File',
+            message: `Move ${selectedIds.size} items to Pass File?`,
+            confirmText: 'Move to Pass',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const idsArray = Array.from(selectedIds);
+                idsArray.forEach(id => movingIdsRef.current.add(id));
+                localEditCountRef.current += 1;
 
-        if (!confirmed) return;
+                try {
+                    console.log('🔄 Moving to Pass:', idsArray);
 
-        const idsArray = Array.from(selectedIds);
-        idsArray.forEach(id => movingIdsRef.current.add(id));
-        localEditCountRef.current += 1;
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update({
+                            judgement: 'PASS',
+                        })
+                        .in('id', idsArray);
 
-        try {
-            console.log('🔄 Moving to Pass:', idsArray);
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
 
-            // Update judgement to PASS in main_file
-            const { error } = await supabase
-                .from('india_validation_main_file')
-                .update({
-                    judgement: 'PASS',
-                    is_new: false,
-                })
-                .in('id', idsArray);
+                    setProducts(prev => prev.map(p =>
+                        selectedIds.has(p.id) ? { ...p, judgement: 'PASS' } : p
+                    ));
+                    setSelectedIds(new Set());
 
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
+                    setToast({ message: `Successfully moved ${idsArray.length} items to Pass File!`, type: 'success' });
+                    const passProducts = products.filter(p => selectedIds.has(p.id));
+                    logBatchActivity(
+                        passProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag } })),
+                        { action: 'pass', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+                    );
+
+                    await fetchStats();
+
+                } catch (err) {
+                    console.error('Move to pass error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                } finally {
+                    setTimeout(() => {
+                        localEditCountRef.current -= 1;
+                        setTimeout(() => {
+                            idsArray.forEach(id => movingIdsRef.current.delete(id));
+                        }, 10000);
+                    }, 5000);
+                }
             }
-
-            // Immediate UI update
-            setProducts(prev => prev.map(p =>
-                selectedIds.has(p.id) ? { ...p, judgement: 'PASS', is_new: false } : p
-            ));
-            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setSelectedIds(new Set());
-
-            setToast({ message: `Successfully moved ${idsArray.length} items to Pass File!`, type: 'success' });
-            // ✅ ADD THIS:
-            const passProducts = products.filter(p => selectedIds.has(p.id));
-            logBatchActivity(
-                passProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag } })),
-                { action: 'pass', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
-            );
-
-            await fetchStats();
-
-        } catch (err) {
-            console.error('Move to pass error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        } finally {
-            setTimeout(() => {
-                localEditCountRef.current -= 1;
-                setTimeout(() => {
-                    idsArray.forEach(id => movingIdsRef.current.delete(id));
-                }, 10000);
-            }, 5000);
-        }
+        });
     };
 
     // Move items from Pending to Fail
-    const handleMoveToFailClick = async () => {
+    const handleMoveToFailClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
 
-        const confirmed = window.confirm(
-            `Move ${selectedIds.size} items to Fail File?`
-        );
+        setConfirmDialog({
+            title: 'Move to Fail File',
+            message: `Move ${selectedIds.size} items to Fail File?`,
+            confirmText: 'Move to Fail',
+            type: 'danger',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const idsArray = Array.from(selectedIds);
+                idsArray.forEach(id => movingIdsRef.current.add(id));
+                localEditCountRef.current += 1;
 
-        if (!confirmed) return;
+                try {
+                    console.log('🔄 Moving to Fail:', idsArray);
 
-        const idsArray = Array.from(selectedIds);
-        idsArray.forEach(id => movingIdsRef.current.add(id));
-        localEditCountRef.current += 1;
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update({
+                            judgement: 'FAIL',
+                        })
+                        .in('id', idsArray);
 
-        try {
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
 
-            console.log('🔄 Moving to Fail:', idsArray);
+                    setProducts(prev => prev.map(p =>
+                        selectedIds.has(p.id) ? { ...p, judgement: 'FAIL' } : p
+                    ));
+                    setSelectedIds(new Set());
 
-            // Update judgement to FAIL in main_file
-            const { error } = await supabase
-                .from('india_validation_main_file')
-                .update({
-                    judgement: 'FAIL',
-                    is_new: false,
-                })
-                .in('id', idsArray);
+                    setToast({ message: `Successfully moved ${idsArray.length} items to Fail File!`, type: 'success' });
+                    const failProducts = products.filter(p => selectedIds.has(p.id));
+                    logBatchActivity(
+                        failProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag } })),
+                        { action: 'fail', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+                    );
 
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
+                    await fetchStats();
+
+                } catch (err) {
+                    console.error('Move to fail error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                } finally {
+                    setTimeout(() => {
+                        localEditCountRef.current -= 1;
+                        setTimeout(() => {
+                            idsArray.forEach(id => movingIdsRef.current.delete(id));
+                        }, 10000);
+                    }, 5000);
+                }
             }
-
-            // Immediate UI update
-            setProducts(prev => prev.map(p =>
-                selectedIds.has(p.id) ? { ...p, judgement: 'FAIL', is_new: false } : p
-            ));
-            // setFilteredProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
-            setSelectedIds(new Set());
-
-            setToast({ message: `Successfully moved ${idsArray.length} items to Fail File!`, type: 'success' });
-            // ✅ ADD THIS:
-            const failProducts = products.filter(p => selectedIds.has(p.id));
-            logBatchActivity(
-                failProducts.map(p => ({ asin: p.asin, details: { seller_tag: p.seller_tag } })),
-                { action: 'fail', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
-            );
-
-            await fetchStats();
-
-        } catch (err) {
-            console.error('Move to fail error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        } finally {
-            setTimeout(() => {
-                localEditCountRef.current -= 1;
-                setTimeout(() => {
-                    idsArray.forEach(id => movingIdsRef.current.delete(id));
-                }, 10000);
-            }, 5000);
-        }
+        });
     };
 
-    const handleMoveToReworkingClick = async () => {
+    const handleMoveToReworkingClick = () => {
         if (selectedIds.size === 0) {
             setToast({ message: 'No items selected', type: 'warning' });
             return;
         }
-        const confirmed = window.confirm(`Move ${selectedIds.size} items to Reworking?`);
-        if (!confirmed) return;
 
-        const idsArray = Array.from(selectedIds);
-        idsArray.forEach(id => movingIdsRef.current.add(id));
-        localEditCountRef.current += 1;
+        setConfirmDialog({
+            title: 'Move to Reworking',
+            message: `Move ${selectedIds.size} items to Reworking?`,
+            confirmText: 'Move to Reworking',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const idsArray = Array.from(selectedIds);
+                idsArray.forEach(id => movingIdsRef.current.add(id));
+                localEditCountRef.current += 1;
 
-        try {
-            console.log('Moving to Reworking:', idsArray);
-            const { error } = await supabase
-                .from('india_validation_main_file')
-                .update({
-                    judgement: 'REWORKING',
-                    calculated_judgement: 'FAIL',
-                    // check_brand: false,
-                    // check_item_expire: false,
-                    // check_small_size: false,
-                    // check_multi_seller: false,
-                    // origin_india: false,
-                    // origin_china: false,
-                    // origin_us: false,
-                    sent_to_purchases: false,
-                    sent_to_purchases_at: null,
-                    reject_reason: null,
-                })
-                .in('id', idsArray);
+                try {
+                    console.log('Moving to Reworking:', idsArray);
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update({
+                            judgement: 'REWORKING',
+                            calculated_judgement: 'FAIL',
+                            // check_brand: false,
+                            // check_item_expire: false,
+                            // check_small_size: false,
+                            // check_multi_seller: false,
+                            // origin_india: false,
+                            // origin_china: false,
+                            // origin_us: false,
+                            sent_to_purchases: false,
+                            sent_to_purchases_at: null,
+                            reject_reason: null,
+                        })
+                        .in('id', idsArray);
 
-            if (error) {
-                console.error('Supabase error:', error);
-                throw error;
-            }
-
-            setProducts(prev =>
-                prev.map(p => selectedIds.has(p.id)
-                    ? {
-                        ...p,
-                        judgement: 'REWORKING',
-                        calculated_judgement: 'FAIL',
-                        // check_brand: false,
-                        // check_item_expire: false,
-                        // check_small_size: false,
-                        // check_multi_seller: false,
-                        // origin_india: false,
-                        // origin_china: false,
-                        // origin_us: false,
-                        sent_to_purchases: false,
-                        sent_to_purchases_at: undefined,
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
                     }
-                    : p
-                )
-            );
-            setSelectedIds(new Set());
-            setToast({ message: `Successfully moved ${idsArray.length} items to Reworking!`, type: 'success' });
-            const lastMovedProduct = products.find(p => idsArray.includes(p.id));
-            if (lastMovedProduct) {
-                setRollbackHistory(prev => ({
-                    ...prev,
-                    reworking_move: { product: lastMovedProduct, action: 'move_to_reworking' }
-                }));
+
+                    setProducts(prev =>
+                        prev.map(p => selectedIds.has(p.id)
+                            ? {
+                                ...p,
+                                judgement: 'REWORKING',
+                                calculated_judgement: 'FAIL',
+                                // check_brand: false,
+                                // check_item_expire: false,
+                                // check_small_size: false,
+                                // check_multi_seller: false,
+                                // origin_india: false,
+                                // origin_china: false,
+                                // origin_us: false,
+                                sent_to_purchases: false,
+                                sent_to_purchases_at: undefined,
+                            }
+                            : p
+                        )
+                    );
+                    setSelectedIds(new Set());
+                    setToast({ message: `Successfully moved ${idsArray.length} items to Reworking!`, type: 'success' });
+                    const lastMovedProduct = products.find(p => idsArray.includes(p.id));
+                    if (lastMovedProduct) {
+                        setRollbackHistory(prev => ({
+                            ...prev,
+                            reworking_move: { product: lastMovedProduct, action: 'move_to_reworking' }
+                        }));
+                    }
+
+                    const reworkProducts = products.filter(p => selectedIds.has(p.id));
+                    logBatchActivity(
+                        reworkProducts.map(p => ({
+                            asin: p.asin,
+                            details: { seller_tag: p.seller_tag, from: 'fail_file', to: 'reworking' }
+                        })),
+                        { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+                    );
+
+                    await fetchStats();
+                } catch (err) {
+                    console.error('Move to reworking error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                } finally {
+                    setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
+                    setTimeout(() => { idsArray.forEach(id => movingIdsRef.current.delete(id)); }, 10000);
+                }
             }
-
-            const reworkProducts = products.filter(p => selectedIds.has(p.id));
-            logBatchActivity(
-                reworkProducts.map(p => ({
-                    asin: p.asin,
-                    details: { seller_tag: p.seller_tag, from: 'fail_file', to: 'reworking' }
-                })),
-                { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
-            );
-
-            await fetchStats();
-        } catch (err) {
-            console.error('Move to reworking error:', err);
-            setToast({ message: 'Failed to move items', type: 'error' });
-        } finally {
-            setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
-            setTimeout(() => { idsArray.forEach(id => movingIdsRef.current.delete(id)); }, 10000);
-        }
+        });
     };
 
     // Move items to Reject
@@ -3814,6 +3831,17 @@ export default function ValidationPage() {
                         <p className="text-slate-300 whitespace-pre-wrap">{selectedRejectReason}</p>
                     </div>
                 </div>
+            )}
+            {confirmDialog && (
+                <ConfirmDialog
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmText={confirmDialog.confirmText}
+                    cancelText="Cancel"
+                    type={confirmDialog.type}
+                    onConfirm={confirmDialog.onConfirm}
+                    onCancel={() => setConfirmDialog(null)}
+                />
             )}
         </>
     )
