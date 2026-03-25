@@ -210,16 +210,9 @@ export default function VelvetvistaPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // ✅ NEW - Load movement history on initial page load
-  useEffect(() => {
-    fetchLastMovementHistory();
-  }, []); // Empty dependency - runs once on mount
-
-
   // Fetch products
   useEffect(() => {
     fetchProducts(false);
-    fetchLastMovementHistory();
   }, [activeTab, currentPage, debouncedSearch]);
 
   const fetchProducts = async (isSilent = false) => {
@@ -374,48 +367,35 @@ export default function VelvetvistaPage() {
         targetTable = `india_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-        // ✅ FIX: Use .limit(1) instead of .maybeSingle() to handle duplicate ASIN rows
-        const { data: existingRows, error: selectError } = await supabase
-          .from('india_validation_main_file')
-          .select('id, seller_tag')
-          .eq('asin', product.asin)
-          .limit(1);
+        // Atomic upsert — handles race conditions when multiple sellers approve same ASIN
+        const { error: rpcError } = await supabase.rpc('approve_to_validation', {
+          p_asin: product.asin,
+          p_product_name: product.product_name || null,
+          p_brand: product.brand || null,
+          p_seller_code: SELLER_CODE,
+          p_funnel: product.funnel || null,
+          p_india_link: product.product_link || null,
+          p_amz_link: product.amz_link || null,
+          p_remark: product.remark || null,
+          p_sku: product.sku || null,
+        });
 
-        if (selectError) console.warn('Validation select warning:', selectError);
-
-        const existingRow = existingRows?.[0] ?? null;
-
-        if (!existingRow) {
-          const { error: insertError } = await supabase.from('india_validation_main_file').insert({
-            asin: product.asin,
-            product_name: product.product_name,
-            brand: product.brand,
-            seller_tag: SELLER_CODE,
-            funnel: product.funnel,
-            no_of_seller: 1,
-            india_link: product.product_link,
-            amz_link: product.amz_link,
-            product_weight: null,
-            judgement: null,
-            remark: product.remark,
-            sku: product.sku,
-            is_new: true,
-          });
-          if (insertError) throw insertError;
-        } else {
-          const existingTags = existingRow.seller_tag?.split(',').map((t: string) => t.trim()) ?? [];
-          if (!existingTags.includes(SELLER_CODE)) {
-            const { error: updateError } = await supabase
-              .from('india_validation_main_file')
-              .update({
-                seller_tag: [...existingTags, SELLER_CODE].join(','),
-                no_of_seller: existingTags.length + 1,
-              })
-              .eq('id', existingRow.id);
-            if (updateError) throw updateError;
-          }
+        if (rpcError) {
+          throw new Error(`Failed to insert into validation: ${rpcError.message}`);
         }
 
+        // Verify the row exists before deleting from brand checking
+        const { data: verifyRow } = await supabase
+          .from('india_validation_main_file')
+          .select('id')
+          .eq('asin', product.asin)
+          .maybeSingle();
+
+        if (!verifyRow) {
+          throw new Error(`Validation insert verification failed for ${product.asin}`);
+        }
+
+        // Only delete from brand checking AFTER confirmed success
         await Promise.all([
           saveToHistory(product, currentTable, targetTable),
           supabase.from(currentTable).delete().eq('asin', product.asin),
@@ -542,8 +522,35 @@ export default function VelvetvistaPage() {
 
       if (insertError) throw insertError;
 
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-      if (deleteError) throw deleteError;
+      // If rolling back from validation, only remove this seller's tag (don't delete other sellers' data)
+      if (toTable === 'india_validation_main_file') {
+        const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
+        const { data: valRow } = await supabase
+          .from('india_validation_main_file')
+          .select('id, seller_tag')
+          .eq('asin', product.asin)
+          .maybeSingle();
+
+        if (valRow) {
+          const tags = valRow.seller_tag?.split(',').map((t: string) => t.trim()).filter((t: string) => t !== SELLER_CODE) || [];
+          if (tags.length === 0) {
+            const { error: deleteError } = await supabase.from(toTable).delete().eq('id', valRow.id);
+            if (deleteError) throw deleteError;
+          } else {
+            const { error: updateError } = await supabase
+              .from('india_validation_main_file')
+              .update({
+                seller_tag: tags.join(','),
+                no_of_seller: tags.length
+              })
+              .eq('id', valRow.id);
+            if (updateError) throw updateError;
+          }
+        }
+      } else {
+        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
+        if (deleteError) throw deleteError;
+      }
 
       await supabase
         .from(`india_seller_${SELLER_ID}_velvet_vista_movement_history`) // Change table name per seller
