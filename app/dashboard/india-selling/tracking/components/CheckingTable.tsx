@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { getIndiaTrackingTableName, SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
 
 type InvoiceItem = {
   id: string;
@@ -89,9 +88,17 @@ export default function CheckingTable({
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
   const [rollbackOpen, setRollbackOpen] = useState(false);
-  const [listingErrorRollbackOpen, setListingErrorRollbackOpen] = useState(false);
+  const [restockRollbackItems, setRestockRollbackItems] = useState<any[]>([]);
+  const [restockRollbackLoading, setRestockRollbackLoading] = useState(false);
+  const [restockRollbackSelected, setRestockRollbackSelected] = useState<Set<string>>(new Set());
+  const [restockRollbackSearch, setRestockRollbackSearch] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [checkingTab, setCheckingTab] = useState<'checking' | 'damaged' | 'offline_sell'>('checking');
+  const [recentlySentAsins, setRecentlySentAsins] = useState<Set<string>>(new Set());
+  const [partyFilter, setPartyFilter] = useState('');
+  const [offlineDateFilter, setOfflineDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [offlineDateStart, setOfflineDateStart] = useState('');
+  const [offlineDateEnd, setOfflineDateEnd] = useState('');
 
   const [visibleColumns, setVisibleColumns] = useState({
     sr: true,
@@ -161,7 +168,11 @@ export default function CheckingTable({
   // Refresh when other tabs trigger changes
   useEffect(() => {
     if (refreshKey) fetchCheckingData();
-  }, [refreshKey]);;
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (rollbackOpen) { fetchAllRestockItems(); setRestockRollbackSelected(new Set()); setRestockRollbackSearch(''); }
+  }, [rollbackOpen]);
 
   const fetchCheckingData = async () => {
     try {
@@ -210,6 +221,33 @@ export default function CheckingTable({
     if (checkingTab === 'checking' && (status === 'damaged' || status === 'offline_sell' || status === 'pending_restock')) return false;
     if (checkingTab === 'damaged' && status !== 'damaged') return false;
     if (checkingTab === 'offline_sell' && status !== 'offline_sell') return false;
+
+    // Date filter for offline sell tab
+    if (checkingTab === 'offline_sell') {
+      const itemDate = (item as any).offline_sold_at ? new Date((item as any).offline_sold_at) : null;
+      if (offlineDateFilter === 'today') {
+        if (!itemDate || itemDate.toDateString() !== new Date().toDateString()) return false;
+      } else if (offlineDateFilter === 'week') {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        if (!itemDate || itemDate < weekAgo) return false;
+      } else if (offlineDateFilter === 'month') {
+        const now = new Date();
+        if (!itemDate || itemDate.getMonth() !== now.getMonth() || itemDate.getFullYear() !== now.getFullYear()) return false;
+      } else if (offlineDateFilter === 'all' && (offlineDateStart || offlineDateEnd)) {
+        if (!itemDate) return false;
+        if (offlineDateStart && itemDate < new Date(offlineDateStart)) return false;
+        if (offlineDateEnd) {
+          const endDate = new Date(offlineDateEnd);
+          endDate.setHours(23, 59, 59, 999);
+          if (itemDate > endDate) return false;
+        }
+      }
+    }
+    // Party filter for offline sell tab
+    if (checkingTab === 'offline_sell' && partyFilter) {
+      const p = (item as any).party || '';
+      if (!p.toLowerCase().includes(partyFilter.toLowerCase())) return false;
+    }
 
     const q = searchQuery.toLowerCase();
     if (!q) return true;
@@ -415,7 +453,7 @@ export default function CheckingTable({
         keepRows.push({ ...baseKeep, buying_quantity: damagedQty, actual_quantity: damagedQty, action_status: 'damaged' });
       }
       if (offlineSellQty > 0) {
-        keepRows.push({ ...baseKeep, buying_quantity: offlineSellQty, actual_quantity: offlineSellQty, action_status: 'offline_sell' });
+        keepRows.push({ ...baseKeep, buying_quantity: offlineSellQty, actual_quantity: offlineSellQty, action_status: 'offline_sell', offline_sold_at: new Date().toISOString() });
       }
       if (keepRows.length > 0) {
         const { error: keepError } = await supabase.from(checkingTableName).insert(keepRows);
@@ -432,6 +470,8 @@ export default function CheckingTable({
       await onCountsChange?.();
       // Re-fetch to get proper IDs from DB
       fetchCheckingData();
+
+      setRecentlySentAsins(new Set(itemsToMove.map((i: any) => i.asin)));
 
       const sellerTags = sellerAllocations.map(s => s.tag).join(', ');
       const msg = `✅ ${representative.asin} → Restock (${remaining} qty distributed to ${sellerTags})${damagedQty > 0 ? ` | ${damagedQty} damaged kept` : ''}${offlineSellQty > 0 ? ` | ${offlineSellQty} offline kept` : ''}`;
@@ -645,6 +685,12 @@ export default function CheckingTable({
   };
 
   // ✅ Update damaged quantity
+  const handlePartyChange = async (itemId: string, value: string) => {
+    setItems(prev => prev.map(it => it.id === itemId ? { ...it, party: value } as any : it));
+    const { error } = await supabase.from('india_box_checking').update({ party: value }).eq('id', itemId);
+    if (error) console.error('Failed to update party:', error);
+  };
+
   const handleDamagedQtyChange = async (itemId: string, value: number | null) => {
     try {
       setItems(prev =>
@@ -840,9 +886,80 @@ export default function CheckingTable({
     6: 'CV',
   };
 
-  const checkingCount = items.filter(i => !i.action_status).length;
-  const damagedCount = items.filter(i => i.action_status === 'damaged').length;
-  const offlineSellCount = items.filter(i => i.action_status === 'offline_sell').length;
+  // ============================================
+  // ROLLBACK FROM ALL RESTOCK + LISTING ERROR
+  // ============================================
+  const fetchAllRestockItems = async () => {
+    setRestockRollbackLoading(true);
+    try {
+      const allItems: any[] = [];
+      for (let s = 1; s <= 6; s++) {
+        const tableName = `india_restock_seller_${s}`;
+        const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
+        if (!error && data) {
+          data.forEach((item: any) => allItems.push({ ...item, _sourceTable: tableName, _sellerId: s }));
+        }
+      }
+      setRestockRollbackItems(allItems);
+    } catch (err) {
+      console.error('Failed to fetch restock items:', err);
+    } finally {
+      setRestockRollbackLoading(false);
+    }
+  };
+
+
+  const handleRestockRollback = async () => {
+    if (restockRollbackSelected.size === 0) return;
+    if (!confirm(`Rollback ${restockRollbackSelected.size} item(s) from Restock & Listing Errors → Checking?`)) return;
+    try {
+      const selectedItems = restockRollbackItems.filter(i => restockRollbackSelected.has(i.id));
+      const byTable: Record<string, string[]> = {};
+      selectedItems.forEach(item => {
+        if (!byTable[item._sourceTable]) byTable[item._sourceTable] = [];
+        byTable[item._sourceTable].push(item.id);
+      });
+      // Insert back into checking
+      const checkingRows = selectedItems.map(item => ({
+        asin: item.asin, sku: item.sku, product_name: item.product_name,
+        seller_tag: item.seller_tag, funnel: item.funnel,
+        buying_price: item.buying_price, buying_quantity: item.buying_quantity,
+        actual_quantity: item.buying_quantity, product_weight: item.product_weight,
+        origin_india: item.origin_india ?? false, origin_china: item.origin_china ?? false,
+        origin_us: item.origin_us ?? false, tracking_details: item.tracking_details,
+        delivery_date: item.delivery_date,
+      }));
+      const { error: insertError } = await supabase.from('india_box_checking').insert(checkingRows);
+      if (insertError) throw insertError;
+      // Delete from restock tables
+      for (const [table, ids] of Object.entries(byTable)) {
+        const { error } = await supabase.from(table).delete().in('id', ids);
+        if (error) throw error;
+      }
+      // Delete from ALL listing error tables for these ASINs
+      const asins = [...new Set(selectedItems.map((i: any) => i.asin))];
+      const sellerIds = [...new Set(selectedItems.map((i: any) => i._sellerId))];
+      for (const sid of sellerIds) {
+        for (const suffix of ['pending', 'high_demand', 'dropshipping', 'error']) {
+          await supabase.from(`india_listing_error_seller_${sid}_${suffix}`).delete().in('asin', asins);
+        }
+      }
+      // Clean up pending_restock rows
+      await supabase.from('india_box_checking').delete().in('asin', asins).eq('action_status', 'pending_restock');
+
+      setToast({ message: `✅ ${selectedItems.length} item(s) rolled back to Checking (restock + listing errors cleaned)`, type: 'success' });
+      setTimeout(() => setToast(null), 4000);
+      setRollbackOpen(false);
+      fetchCheckingData();
+      if (onCountsChange) onCountsChange();
+    } catch (err: any) {
+      alert('Rollback failed: ' + err.message);
+    }
+  };
+
+  const checkingCount = new Set(items.filter(i => !i.action_status).map(i => i.asin)).size;
+  const damagedCount = new Set(items.filter(i => i.action_status === 'damaged').map(i => i.asin)).size;
+  const offlineSellCount = new Set(items.filter(i => i.action_status === 'offline_sell').map(i => i.asin)).size;
 
   return (
     <div className="h-full flex flex-col">
@@ -874,6 +991,49 @@ export default function CheckingTable({
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1 min-w-0 max-w-sm px-3 sm:px-4 py-2 sm:py-2.5 text-sm bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
         />
+
+        {checkingTab === 'offline_sell' && (
+          <>
+            <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
+              {(['all', 'today', 'week', 'month'] as const).map(opt => (
+                <button key={opt} onClick={() => setOfflineDateFilter(opt)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${offlineDateFilter === opt ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                  {opt === 'all' ? 'All' : opt === 'today' ? 'Today' : opt === 'week' ? 'This Week' : 'This Month'}
+                </button>
+              ))}
+            </div>
+            {offlineDateFilter === 'all' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={offlineDateStart}
+                  onChange={(e) => setOfflineDateStart(e.target.value)}
+                  className="px-2 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-cyan-500 text-slate-200"
+                />
+                <span className="text-slate-500 text-xs">to</span>
+                <input
+                  type="date"
+                  value={offlineDateEnd}
+                  onChange={(e) => setOfflineDateEnd(e.target.value)}
+                  className="px-2 py-1.5 text-xs bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-cyan-500 text-slate-200"
+                />
+                {(offlineDateStart || offlineDateEnd) && (
+                  <button
+                    onClick={() => { setOfflineDateStart(''); setOfflineDateEnd(''); }}
+                    className="text-slate-500 hover:text-cyan-400 text-xs px-1"
+                  >✕</button>
+                )}
+              </div>
+            )}
+            <input
+              type="text"
+              placeholder="Filter by party..."
+              value={partyFilter}
+              onChange={(e) => setPartyFilter(e.target.value)}
+              className="max-w-[180px] px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-cyan-500 text-slate-200 placeholder:text-slate-500"
+            />
+          </>
+        )}
 
         {/* Hide Columns Button */}
         <div className="relative">
@@ -966,22 +1126,12 @@ export default function CheckingTable({
         </div>
         {/* ⏪ Rollback from Distribution */}
         {checkingTab === 'checking' && (
-        <>
         <button
           onClick={() => setRollbackOpen(true)}
           className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
         >
-          <span className="sm:hidden">⏪ Restock</span>
-          <span className="hidden sm:inline">⏪ Rollback from Restock</span>
+          ⏪ Rollback from Restock & Listing Errors
         </button>
-        <button
-          onClick={() => setListingErrorRollbackOpen(true)}
-          className="px-3 sm:px-4 py-2 sm:py-2.5 bg-rose-600/20 text-rose-400 border border-rose-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
-        >
-          <span className="sm:hidden">⏪ Errors</span>
-          <span className="hidden sm:inline">⏪ Rollback from Listing Errors</span>
-        </button>
-        </>
         )}
       </div>
 
@@ -1082,6 +1232,16 @@ export default function CheckingTable({
                   {checkingTab !== 'checking' && (
                   <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                     Quantity
+                  </th>
+                  )}
+                  {checkingTab === 'offline_sell' && (
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-slate-800">
+                    Party
+                  </th>
+                  )}
+                  {checkingTab === 'offline_sell' && (
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
+                    Date
                   </th>
                   )}
 
@@ -1300,6 +1460,22 @@ export default function CheckingTable({
                         </span>
                       </td>
                       )}
+                      {checkingTab === 'offline_sell' && (
+                      <td className="px-3 py-2 text-center border-r border-slate-800">
+                        <input
+                          type="text"
+                          value={(item as any).party || ''}
+                          onChange={(e) => handlePartyChange(merged.allIds[0], e.target.value)}
+                          placeholder="Enter party..."
+                          className="w-32 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-slate-600"
+                        />
+                      </td>
+                      )}
+                      {checkingTab === 'offline_sell' && (
+                      <td className="px-3 py-2 text-center border-r border-slate-800 text-xs text-slate-400">
+                        {(item as any).offline_sold_at ? new Date((item as any).offline_sold_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                      </td>
+                      )}
 
                       {checkingTab !== 'checking' && (
                       <td className="px-3 py-2 text-center">
@@ -1340,7 +1516,7 @@ export default function CheckingTable({
           {/* Footer Count - STICKY AT BOTTOM */}
           <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
             <div className="text-xs sm:text-sm text-slate-400">
-              Showing {filteredItems.length} of {items.length} items
+              Showing {mergedItems.length} items
             </div>
           </div>
         </div>
@@ -1387,26 +1563,61 @@ export default function CheckingTable({
         </div>
       )}
 
-      <GenericRollbackModal
-        open={rollbackOpen}
-        onClose={() => setRollbackOpen(false)}
-        onSuccess={() => { fetchCheckingData(); if (onCountsChange) onCountsChange(); }}
-        direction="DISTRIBUTION_TO_CHECKING"
-        sellerId={sellerId}
-        sellerTag=""
-        sourceTableName={getIndiaTrackingTableName('RESTOCK', sellerId)}
-        targetTableName="india_box_checking"
-      />
-      <GenericRollbackModal
-        open={listingErrorRollbackOpen}
-        onClose={() => setListingErrorRollbackOpen(false)}
-        onSuccess={() => { fetchCheckingData(); if (onCountsChange) onCountsChange(); }}
-        direction="LISTING_ERROR_TO_CHECKING"
-        sellerId={sellerId}
-        sellerTag=""
-        sourceTableName={`india_listing_error_seller_${sellerId}_error`}
-        targetTableName="india_box_checking"
-      />
+      {rollbackOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">Rollback: Restock → Checking</h2>
+                <p className="text-sm text-slate-400">Items from <span className="text-amber-400">all sellers</span> — also removes from listing errors</p>
+                {recentlySentAsins.size > 0 && (
+                  <p className="text-xs text-amber-400 mt-1">⚡ Recently sent items are highlighted</p>
+                )}
+              </div>
+              <button onClick={() => setRollbackOpen(false)} className="text-slate-400 hover:text-white p-2 hover:bg-slate-800 rounded-lg text-xl">✕</button>
+            </div>
+            <div className="px-6 py-4 border-b border-slate-800">
+              <input type="text" placeholder="Search by ASIN, Product Name, Seller Tag..." value={restockRollbackSearch} onChange={(e) => setRestockRollbackSearch(e.target.value)} className="w-full pl-4 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-200 placeholder:text-slate-500" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {restockRollbackLoading ? (
+                <div className="flex items-center justify-center h-64 text-slate-400">Loading from all restock tables...</div>
+              ) : (() => {
+                const filtered = restockRollbackItems.filter(i => { if (!restockRollbackSearch) return true; const q = restockRollbackSearch.toLowerCase(); return i.asin?.toLowerCase().includes(q) || i.product_name?.toLowerCase().includes(q) || i.seller_tag?.toLowerCase().includes(q); }).sort((a, b) => { const aRecent = recentlySentAsins.has(a.asin) ? 0 : 1; const bRecent = recentlySentAsins.has(b.asin) ? 0 : 1; return aRecent - bRecent; });
+                return filtered.length === 0 ? (
+                  <div className="flex items-center justify-center h-64 text-slate-500">No items found in Restock</div>
+                ) : (
+                  <table className="w-full"><thead className="bg-slate-950 border-b border-slate-800 sticky top-0"><tr>
+                    <th className="px-4 py-3 text-left w-12"><input type="checkbox" checked={filtered.length > 0 && filtered.every(i => restockRollbackSelected.has(i.id))} onChange={(e) => { if (e.target.checked) setRestockRollbackSelected(new Set(filtered.map(i => i.id))); else setRestockRollbackSelected(new Set()); }} className="w-5 h-5 accent-indigo-600" /></th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">ASIN</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Product Name</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400">Seller</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400">Qty</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400">Status</th>
+                  </tr></thead><tbody className="divide-y divide-slate-800">
+                    {filtered.map(item => (
+                      <tr key={item.id} className={`cursor-pointer ${recentlySentAsins.has(item.asin) ? 'bg-amber-900/30 hover:bg-amber-900/50 border-l-2 border-l-amber-500' : 'hover:bg-slate-800/40'}`} onClick={() => { const s = new Set(restockRollbackSelected); if (s.has(item.id)) s.delete(item.id); else s.add(item.id); setRestockRollbackSelected(s); }}>
+                        <td className="px-4 py-3"><input type="checkbox" checked={restockRollbackSelected.has(item.id)} readOnly className="w-5 h-5 accent-indigo-600" /></td>
+                        <td className="px-4 py-3 font-mono text-sm text-slate-200">{item.asin}</td>
+                        <td className="px-4 py-3 text-sm text-slate-300"><div className="truncate max-w-[250px]">{item.product_name || '-'}</div></td>
+                        <td className="px-4 py-3 text-center text-sm text-slate-400">{item.seller_tag || '-'}</td>
+                        <td className="px-4 py-3 text-center text-sm text-slate-300">{item.buying_quantity || '-'}</td>
+                        <td className="px-4 py-3 text-center text-sm text-slate-400">{item.status || '-'}</td>
+                      </tr>))}
+                  </tbody></table>
+                );
+              })()}
+            </div>
+            <div className="bg-slate-950 border-t border-slate-800 px-6 py-4 flex items-center justify-between">
+              <div className="text-sm text-slate-400">{restockRollbackSelected.size > 0 ? <span className="text-amber-400 font-semibold">{restockRollbackSelected.size} selected</span> : `${restockRollbackItems.length} items available`}</div>
+              <div className="flex gap-3">
+                <button onClick={() => setRollbackOpen(false)} className="px-6 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700">Cancel</button>
+                <button onClick={handleRestockRollback} disabled={restockRollbackSelected.size === 0} className={`px-8 py-2.5 rounded-lg font-semibold text-white ${restockRollbackSelected.size === 0 ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-500'}`}>⏪ Rollback {restockRollbackSelected.size > 0 ? `(${restockRollbackSelected.size})` : ''}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

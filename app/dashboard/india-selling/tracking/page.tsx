@@ -40,13 +40,13 @@ export default function TrackingPage() {
             const [inboundRes, boxesRes, checkingRes] = await Promise.all([
                 supabase.from("india_inbound_tracking").select("asin").gt("pending_quantity", 0),
                 supabase.from("india_inbound_boxes").select("box_number"),
-                supabase.from("india_box_checking").select("*", { count: "exact", head: true }),
+                supabase.from("india_box_checking").select("asin").is('action_status', null),
             ]);
 
             setCounts({
                 inbound: new Set((inboundRes.data || []).map((r: any) => r.asin)).size,
                 boxes: new Set((boxesRes.data || []).map((r: any) => r.box_number)).size,
-                checking: checkingRes.count ?? 0,
+                checking: new Set((checkingRes.data || []).map((r: any) => r.asin)).size,
             });
         } catch (error) {
             console.error("Error fetching tab counts:", error);
