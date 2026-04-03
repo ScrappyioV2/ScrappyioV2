@@ -430,7 +430,7 @@ export default function IndiaSellersPage() {
 
       console.log(`✅ [INDIA] After deduplication: ${allNewProducts.length} unique products`);
 
-      const batchSize = 200;
+      const batchSize = 1000;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
       let successCount = 0;
       let failedBatches = 0;

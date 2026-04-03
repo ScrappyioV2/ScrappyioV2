@@ -337,7 +337,7 @@ export default function RestockPage() {
     });
     // const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [rollbackSource, setRollbackSource] = useState<'relisted' | 'disposed' | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'pending' | 'relisted' | 'disposed' | 'removed' | 'offline_sell'>('pending');
+    const [statusFilter, setStatusFilter] = useState<'pending' | 'relisted' | 'removed'>('pending');
     const [restockDateFilter, setRestockDateFilter] = useState<string>('');
     const [restockStartDate, setRestockStartDate] = useState<string>('');
     const [restockEndDate, setRestockEndDate] = useState<string>('');
@@ -713,9 +713,7 @@ export default function RestockPage() {
         total: items.length,
         pending: new Set(items.filter(i => !i.status || i.status === 'pending').map(i => i.asin)).size,
         relisted: new Set(items.filter(i => i.status === 'relisted').map(i => i.asin)).size,
-        disposed: new Set(items.filter(i => i.status === 'disposed').map(i => i.asin)).size,
         removed: new Set(items.filter(i => i.status === 'removed').map(i => i.asin)).size,
-        offline_sell: new Set(items.filter(i => i.status === 'offline_sell').map(i => i.asin)).size,
     }), [items])
 
     if (loading) {
@@ -764,14 +762,12 @@ export default function RestockPage() {
 
                     {/* Status Filter Pills */}
                     <div className="flex gap-2 sm:gap-3 mb-4 overflow-x-auto scrollbar-none">
-                        {(['pending', 'relisted', 'disposed', 'removed', 'offline_sell'] as const).map(opt => {
+                        {(['pending', 'relisted', 'removed'] as const).map(opt => {
                             const count = counts[opt];
                             const colors: Record<string, string> = {
                                 pending: 'bg-amber-500/20 text-amber-400',
                                 relisted: 'bg-emerald-500/20 text-emerald-400',
-                                disposed: 'bg-red-500/20 text-red-400',
                                 removed: 'bg-rose-500/20 text-rose-400',
-                                offline_sell: 'bg-cyan-500/20 text-cyan-400',
                             };
                             return (
                                 <button
@@ -782,7 +778,7 @@ export default function RestockPage() {
                                         : 'bg-slate-800 text-slate-500 hover:text-slate-300'
                                         }`}
                                 >
-                                    {opt === 'offline_sell' ? 'Offline Sell' : opt === 'relisted' ? 'Restocked' : opt.charAt(0).toUpperCase() + opt.slice(1)} ({count})
+                                    {opt === 'relisted' ? 'Restocked' : opt.charAt(0).toUpperCase() + opt.slice(1)} ({count})
                                 </button>
                             );
                         })}
@@ -810,14 +806,6 @@ export default function RestockPage() {
                                     <RotateCcw className="w-4 h-4 shrink-0" />
                                     <span className="hidden sm:inline">Rollback from Restocked</span>
                                     <span className="sm:hidden">Restocked</span>
-                                </button>
-                                <button
-                                    onClick={() => setRollbackSource('disposed')}
-                                    className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600 hover:text-white"
-                                >
-                                    <RotateCcw className="w-4 h-4 shrink-0" />
-                                    <span className="hidden sm:inline">Rollback from Disposed</span>
-                                    <span className="sm:hidden">Disposed</span>
                                 </button>
                             </>
                         )}

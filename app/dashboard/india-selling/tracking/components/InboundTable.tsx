@@ -95,6 +95,15 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'pending' | 'in_transit' | 'delivered'>('ALL');
     const [originFilter, setOriginFilter] = useState<'ALL' | 'India' | 'China' | 'US'>('ALL');
+    const [overdueDays, setOverdueDays] = useState<number | null>(() => {
+        if (typeof window === 'undefined') return null;
+        const saved = localStorage.getItem('inbound-overdue-days');
+        return saved ? parseInt(saved, 10) : null;
+    });
+    useEffect(() => {
+        if (overdueDays !== null) localStorage.setItem('inbound-overdue-days', String(overdueDays));
+        else localStorage.removeItem('inbound-overdue-days');
+    }, [overdueDays]);
     const [rollbackOpen, setRollbackOpen] = useState(false);
     const [boxModalOpen, setBoxModalOpen] = useState(false);
     const [boxes, setBoxes] = useState<BoxSummary[]>([]);
@@ -911,6 +920,19 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     }
 
     // ============================================
+    // OVERDUE CHECK
+    // ============================================
+    const isRowOverdue = (deliveryDate: string | null): boolean => {
+        if (!overdueDays || overdueDays <= 0 || !deliveryDate) return false;
+        const delivered = new Date(deliveryDate);
+        if (isNaN(delivered.getTime())) return false;
+        const now = new Date();
+        const diffMs = now.getTime() - delivered.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        return diffDays > overdueDays;
+    };
+
+    // ============================================
     // RENDER
     // ============================================
     return (
@@ -963,9 +985,30 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                         </button>
                     ))}
                 </div>
-            </div>
 
-            {/* Table */}
+                {/* Overdue Highlight */}
+                <div className="flex items-center gap-2 bg-slate-800/50 rounded-xl border border-slate-700 px-3 py-1.5">
+                    <span className="text-xs font-bold text-red-400 whitespace-nowrap">🔴 Overdue</span>
+                    <input
+                        type="number"
+                        min={0}
+                        placeholder="Days"
+                        value={overdueDays ?? ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setOverdueDays(val === '' ? null : parseInt(val, 10));
+                        }}
+                        className="w-14 px-2 py-1 text-xs text-center bg-slate-900 border border-slate-600 rounded-lg focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-slate-200 placeholder:text-slate-600"
+                    />
+                    {overdueDays !== null && overdueDays > 0 && (
+                        <button
+                            onClick={() => setOverdueDays(null)}
+                            className="text-slate-500 hover:text-red-400 text-xs transition-colors"
+                            title="Clear overdue filter"
+                        >✕</button>
+                    )}
+                </div>
+            </div>
             <div className="flex-1 overflow-hidden">
                 <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
                     <div className="flex-1 overflow-auto">
@@ -1018,9 +1061,10 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                             DE: 'bg-cyan-500 text-black border border-cyan-600',
                                             CV: 'bg-teal-500 text-white border border-teal-600',
                                         };
+                                        const overdue = isRowOverdue(merged.delivery_date);
                                         return (
                                             <Fragment key={merged.asin}>
-                                                <tr className="hover:bg-slate-800/40 group transition-colors">
+                                                <tr className={`group transition-colors ${overdue ? 'bg-red-950/60 hover:bg-red-900/50 border-l-2 border-l-red-500' : 'hover:bg-slate-800/40'}`}>
                                                     {columnOrder.map(key => {
                                                         const col = DEFAULT_COLUMNS.find(c => c.key === key);
                                                         if (!col) return null;

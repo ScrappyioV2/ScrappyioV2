@@ -581,8 +581,9 @@ export default function ReorderPage() {
       {
         const { data, error } = await supabase
           .from('india_box_checking')
-          .select('asin, buying_quantity, seller_tag')
+          .select('asin, buying_quantity, seller_tag, action_status')
           .like('seller_tag', `%${sellerTag}%`)
+          .is('action_status', null)
 
         if (error) console.warn('⚠️ Error querying india_box_checking:', error.message)
         else {

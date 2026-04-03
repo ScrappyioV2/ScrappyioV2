@@ -91,6 +91,7 @@ export default function CheckingTable({
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [listingErrorRollbackOpen, setListingErrorRollbackOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [checkingTab, setCheckingTab] = useState<'checking' | 'damaged' | 'offline_sell'>('checking');
 
   const [visibleColumns, setVisibleColumns] = useState({
     sr: true,
@@ -202,8 +203,14 @@ export default function CheckingTable({
     }
   };
 
-  // ✅ Filter by search query
+  // ✅ Filter by search query AND tab
   const filteredItems = items.filter((item) => {
+    // Tab filter: action_status
+    const status = item.action_status;
+    if (checkingTab === 'checking' && (status === 'damaged' || status === 'offline_sell' || status === 'pending_restock')) return false;
+    if (checkingTab === 'damaged' && status !== 'damaged') return false;
+    if (checkingTab === 'offline_sell' && status !== 'offline_sell') return false;
+
     const q = searchQuery.toLowerCase();
     if (!q) return true;
 
@@ -279,10 +286,14 @@ export default function CheckingTable({
         return;
       }
 
-      // Resolve sellerId using seller_tag if present, otherwise prop
       const now = new Date().toISOString();
 
-      // Group items by seller_tag so each goes to the correct restock + listing error table
+      // Get damaged & offline from representative item (set at ASIN level)
+      const representative = itemsToMove[0];
+      const damagedQty = representative.damaged_quantity || 0;
+      const offlineSellQty = representative.offline_sell_qty || 0;
+
+      // Group items by seller_tag
       const bySeller: Record<string, any[]> = {};
       itemsToMove.forEach((item: any) => {
         const tag = (item.seller_tag as SellerTag) || 'GR';
@@ -290,116 +301,140 @@ export default function CheckingTable({
         bySeller[tag].push(item);
       });
 
-      for (const [tag, sellerItems] of Object.entries(bySeller)) {
-        const resolvedSellerId = SELLER_TAG_MAPPING[tag as SellerTag] || sellerId;
+      // Calculate total qty across all sellers
+      const sellerEntries = Object.entries(bySeller).map(([tag, items]) => {
+        const qty = items.reduce((sum: number, i: any) => sum + (i.actual_quantity ?? i.buying_quantity ?? 0), 0);
+        return { tag, items, qty };
+      });
+      const totalQty = sellerEntries.reduce((sum, s) => sum + s.qty, 0);
+      const remaining = Math.max(totalQty - damagedQty - offlineSellQty, 0);
+
+      // Proportionally distribute remaining among sellers
+      let distributed = 0;
+      const sellerAllocations = sellerEntries.map((s, idx) => {
+        if (totalQty === 0) return { ...s, allocated: 0 };
+        const share = Math.floor((s.qty / totalQty) * remaining);
+        distributed += share;
+        return { ...s, allocated: share };
+      });
+      // Distribute rounding remainder to sellers with largest qty first
+      let leftover = remaining - distributed;
+      const sortedByQty = [...sellerAllocations].sort((a, b) => b.qty - a.qty);
+      for (let i = 0; leftover > 0 && i < sortedByQty.length; i++) {
+        sortedByQty[i].allocated += 1;
+        leftover--;
+      }
+
+      // Insert proportional pending rows to restock per seller
+      for (const seller of sellerAllocations) {
+        const resolvedSellerId = SELLER_TAG_MAPPING[seller.tag as SellerTag] || sellerId;
         const restockTableName = getIndiaTrackingTableName('RESTOCK', resolvedSellerId);
 
-        const restockRows: any[] = [];
-        sellerItems.forEach((item: any) => {
-          const totalQty = item.actual_quantity ?? item.buying_quantity ?? 0;
-          const damagedQty = item.damaged_quantity || 0;
-          const offlineSellQty = item.offline_sell_qty || 0;
-          const goodQty = Math.max(totalQty - damagedQty - offlineSellQty, 0);
-
-          const base = {
-            asin: item.asin,
-            sku: item.sku,
-            product_name: item.product_name,
-            origin_india: item.origin_india ?? false,
-            origin_china: item.origin_china ?? false,
-            origin_us: item.origin_us ?? false,
-            funnel: item.funnel,
-            buying_price: item.buying_price,
-            product_weight: item.product_weight,
-            invoice_number: item.invoice_number,
-            tracking_details: item.tracking_details,
-            delivery_date: item.delivery_date,
-            seller_tag: item.seller_tag,
-            moved_from: 'checking',
-            checking_id: item.id,
-            moved_at: now,
-          };
-
-          // Always send to pending (even with 0 qty so it follows normal flow)
-          restockRows.push({
-            ...base,
-            buying_quantity: goodQty,
-            status: 'pending',
-          });
-
-          if (damagedQty > 0) {
-            restockRows.push({
-              ...base,
-              buying_quantity: damagedQty,
-              status: 'disposed',
-            });
-          }
-
-          if (offlineSellQty > 0) {
-            restockRows.push({
-              ...base,
-              buying_quantity: offlineSellQty,
-              status: 'offline_sell',
-            });
-          }
-        });
-
-        if (restockRows.length === 0) continue;
+        const item = seller.items[0]; // representative for this seller
+        const restockRow = {
+          asin: item.asin,
+          sku: item.sku,
+          product_name: item.product_name,
+          origin_india: item.origin_india ?? false,
+          origin_china: item.origin_china ?? false,
+          origin_us: item.origin_us ?? false,
+          funnel: item.funnel,
+          buying_price: item.buying_price,
+          product_weight: item.product_weight,
+          invoice_number: item.invoice_number,
+          tracking_details: item.tracking_details,
+          delivery_date: item.delivery_date,
+          seller_tag: item.seller_tag,
+          moved_from: 'checking',
+          checking_id: item.id,
+          moved_at: now,
+          buying_quantity: seller.allocated,
+          status: 'pending',
+        };
 
         const { error: insertError } = await supabase
           .from(restockTableName)
-          .insert(restockRows);
-
+          .insert([restockRow]);
         if (insertError) throw insertError;
 
-        // ✅ FIX: Copy to correct Listing Error tables (pending + funnel-based)
-        for (const item of sellerItems) {
-          const salesPrice = item.buying_price ?? 0;
-          const funnelStr = String(item.funnel || '').toUpperCase();
-          const listingPayload = {
-            asin: item.asin,
-            product_name: item.product_name,
-            sku: item.sku,
-            seller_tag: item.seller_tag,
-            selling_price: salesPrice,
-            min_price: Math.round(salesPrice * 0.95 * 100) / 100,
-            max_price: Math.round(salesPrice * 1.20 * 100) / 100,
-            remark: item.remark ?? null,
-          };
+        // Copy to Listing Error tables (unchanged)
+        const salesPrice = item.buying_price ?? 0;
+        const funnelStr = String(item.funnel || '').toUpperCase();
+        const listingPayload = {
+          asin: item.asin,
+          product_name: item.product_name,
+          sku: item.sku,
+          seller_tag: item.seller_tag,
+          selling_price: salesPrice,
+          min_price: Math.round(salesPrice * 0.95 * 100) / 100,
+          max_price: Math.round(salesPrice * 1.20 * 100) / 100,
+          remark: item.remark ?? null,
+        };
 
-          // Always insert into pending
-          const tablesToInsert = [`india_listing_error_seller_${resolvedSellerId}_pending`];
+        const tablesToInsert = [`india_listing_error_seller_${resolvedSellerId}_pending`];
+        if (funnelStr === 'RS' || funnelStr === 'HD' || funnelStr === 'LD' || funnelStr === '1' || funnelStr === '2') {
+          tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_high_demand`);
+        } else if (funnelStr === 'DP' || funnelStr === '3') {
+          tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_dropshipping`);
+        }
 
-          // Also insert into funnel-specific table
-          if (funnelStr === 'RS' || funnelStr === 'HD' || funnelStr === 'LD' || funnelStr === '1' || funnelStr === '2') {
-            tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_high_demand`);
-          } else if (funnelStr === 'DP' || funnelStr === '3') {
-            tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_dropshipping`);
-          }
-
-          for (const table of tablesToInsert) {
-            const { error: listingError } = await supabase
-              .from(table)
-              .upsert(listingPayload, { onConflict: 'asin' });
-            if (listingError) console.error(`Failed to copy to ${table}:`, listingError);
-          }
+        for (const table of tablesToInsert) {
+          const { error: listingError } = await supabase
+            .from(table)
+            .upsert(listingPayload, { onConflict: 'asin' });
+          if (listingError) console.error(`Failed to copy to ${table}:`, listingError);
         }
       }
 
-      // Only delete from checking AFTER all inserts succeeded
+      // Mark original checking rows as pending_restock (preserve them)
       const { error: deleteError } = await supabase
         .from(checkingTableName)
-        .delete()
+        .update({ action_status: 'pending_restock' })
         .in('id', itemIds);
-
       if (deleteError) throw deleteError;
 
-      setItems(prev => prev.filter(i => !itemIds.includes(i.id)));
-      await onCountsChange?.();
+      // Insert back damaged/offline rows into checking
+      const baseKeep = {
+        asin: representative.asin,
+        sku: representative.sku,
+        product_name: representative.product_name,
+        brand: representative.brand,
+        origin_india: representative.origin_india ?? false,
+        origin_china: representative.origin_china ?? false,
+        origin_us: representative.origin_us ?? false,
+        funnel: representative.funnel,
+        buying_price: representative.buying_price,
+        product_weight: representative.product_weight,
+        seller_tag: representative.seller_tag,
+        tracking_details: representative.tracking_details,
+        delivery_date: representative.delivery_date,
+      };
 
-      const sellerTags = Object.keys(bySeller).join(', ');
-      const asinList = itemsToMove.map((item: any) => item.asin).join(', ');
-      const msg = `✅ ${itemsToMove.length} ASIN(s) [${asinList}] sent to Restock & Listing Errors for sellers: ${sellerTags}`;
+      const keepRows: any[] = [];
+      if (damagedQty > 0) {
+        keepRows.push({ ...baseKeep, buying_quantity: damagedQty, actual_quantity: damagedQty, action_status: 'damaged' });
+      }
+      if (offlineSellQty > 0) {
+        keepRows.push({ ...baseKeep, buying_quantity: offlineSellQty, actual_quantity: offlineSellQty, action_status: 'offline_sell' });
+      }
+      if (keepRows.length > 0) {
+        const { error: keepError } = await supabase.from(checkingTableName).insert(keepRows);
+        if (keepError) console.error('Failed to keep damaged/offline in checking:', keepError);
+      }
+
+      // Update local state
+      setItems(prev => {
+        const filtered = prev.filter(i => !itemIds.includes(i.id));
+        // Add the kept rows to local state
+        const newLocalRows = keepRows.map((r, idx) => ({ ...r, id: `temp-${Date.now()}-${idx}` }));
+        return [...filtered, ...newLocalRows];
+      });
+      await onCountsChange?.();
+      // Re-fetch to get proper IDs from DB
+      fetchCheckingData();
+
+      const sellerTags = sellerAllocations.map(s => s.tag).join(', ');
+      const msg = `✅ ${representative.asin} → Restock (${remaining} qty distributed to ${sellerTags})${damagedQty > 0 ? ` | ${damagedQty} damaged kept` : ''}${offlineSellQty > 0 ? ` | ${offlineSellQty} offline kept` : ''}`;
       setToast({ message: msg, type: 'success' });
       setTimeout(() => setToast(null), 5000);
 
@@ -418,6 +453,106 @@ export default function CheckingTable({
     } catch (error: any) {
       console.error('Error moving to restock:', error);
       alert('Failed to move items: ' + error.message);
+    }
+  };
+
+  const handleSendToRechecking = async (itemIds: string[]) => {
+    try {
+      if (itemIds.length === 0) return;
+      const itemsToRecheck = items.filter(i => itemIds.includes(i.id));
+      const asins = [...new Set(itemsToRecheck.map(i => i.asin))];
+
+      for (const asin of asins) {
+        const recheckedItem = itemsToRecheck.find(i => i.asin === asin);
+        if (!recheckedItem) continue;
+        const recheckedQty = recheckedItem.buying_quantity ?? recheckedItem.actual_quantity ?? 0;
+
+        // Check if there are already restored rows (action_status = null) for this ASIN
+        const { data: existingRows } = await supabase
+          .from('india_box_checking')
+          .select('*')
+          .eq('asin', asin)
+          .is('action_status', null);
+
+        // Also check for pending_restock rows
+        const { data: pendingRows } = await supabase
+          .from('india_box_checking')
+          .select('*')
+          .eq('asin', asin)
+          .eq('action_status', 'pending_restock');
+
+        if (existingRows && existingRows.length > 0) {
+          // Rows already restored (other tab was rechecked first) — add qty proportionally
+          const currentTotal = existingRows.reduce((sum: number, r: any) => sum + (r.actual_quantity ?? r.buying_quantity ?? 0), 0);
+          let distributed = 0;
+          const allocations = existingRows.map((row: any) => {
+            const sellerQty = row.actual_quantity ?? row.buying_quantity ?? 0;
+            const share = Math.floor((sellerQty / currentTotal) * recheckedQty);
+            distributed += share;
+            return { id: row.id, currentQty: sellerQty, share };
+          });
+          let leftover = recheckedQty - distributed;
+          allocations.sort((a, b) => b.currentQty - a.currentQty);
+          for (let i = 0; leftover > 0 && i < allocations.length; i++) {
+            allocations[i].share += 1;
+            leftover--;
+          }
+
+          for (const alloc of allocations) {
+            const newQty = alloc.currentQty + alloc.share;
+            await supabase
+              .from('india_box_checking')
+              .update({ buying_quantity: newQty, actual_quantity: newQty, damaged_quantity: null, offline_sell_qty: null })
+              .eq('id', alloc.id);
+          }
+
+          // Also restore pending_restock rows if any still exist (cleanup)
+          if (pendingRows && pendingRows.length > 0) {
+            await supabase.from('india_box_checking').delete().in('id', pendingRows.map((r: any) => r.id));
+          }
+        } else if (pendingRows && pendingRows.length > 0) {
+          // First recheck — restore pending_restock rows with proportional quantities
+          const originalTotal = pendingRows.reduce((sum: number, r: any) => sum + (r.actual_quantity ?? r.buying_quantity ?? 0), 0);
+          let distributed = 0;
+          const allocations = pendingRows.map((row: any) => {
+            const sellerQty = row.actual_quantity ?? row.buying_quantity ?? 0;
+            const share = Math.floor((sellerQty / originalTotal) * recheckedQty);
+            distributed += share;
+            return { id: row.id, originalQty: sellerQty, share };
+          });
+          let leftover = recheckedQty - distributed;
+          allocations.sort((a, b) => b.originalQty - a.originalQty);
+          for (let i = 0; leftover > 0 && i < allocations.length; i++) {
+            allocations[i].share += 1;
+            leftover--;
+          }
+
+          for (const alloc of allocations) {
+            await supabase
+              .from('india_box_checking')
+              .update({
+                action_status: null,
+                buying_quantity: alloc.share,
+                actual_quantity: alloc.share,
+                damaged_quantity: recheckedItem.action_status === 'damaged' ? alloc.share : null,
+                offline_sell_qty: recheckedItem.action_status === 'offline_sell' ? alloc.share : null,
+              })
+              .eq('id', alloc.id);
+          }
+        }
+
+        // Delete the damaged/offline row
+        await supabase
+          .from('india_box_checking')
+          .delete()
+          .in('id', itemIds.filter(id => items.find(i => i.id === id)?.asin === asin));
+      }
+
+      setToast({ message: `✅ ${asins.join(', ')} sent back to Checking with all sellers`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
+      fetchCheckingData();
+    } catch (error: any) {
+      alert('Failed: ' + error.message);
     }
   };
 
@@ -705,10 +840,33 @@ export default function CheckingTable({
     6: 'CV',
   };
 
+  const checkingCount = items.filter(i => !i.action_status).length;
+  const damagedCount = items.filter(i => i.action_status === 'damaged').length;
+  const offlineSellCount = items.filter(i => i.action_status === 'offline_sell').length;
+
   return (
     <div className="h-full flex flex-col">
       {/* Search Bar & Hide Columns */}
       <div className="flex-none px-2 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
+
+        {/* Tabs */}
+        <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
+          {([
+            { id: 'checking' as const, label: 'Checking', count: checkingCount },
+            { id: 'damaged' as const, label: 'Damaged', count: damagedCount },
+            { id: 'offline_sell' as const, label: 'Offline Sell', count: offlineSellCount },
+          ]).map(tab => (
+            <button key={tab.id} onClick={() => setCheckingTab(tab.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${checkingTab === tab.id
+                ? tab.id === 'damaged' ? 'bg-rose-600 text-white shadow-lg'
+                  : tab.id === 'offline_sell' ? 'bg-cyan-600 text-white shadow-lg'
+                    : 'bg-indigo-600 text-white shadow-lg'
+                : 'text-slate-500 hover:text-slate-300'}`}>
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
         <input
           type="text"
           placeholder="Search by Box, Invoice, ASIN or Product..."
@@ -807,6 +965,8 @@ export default function CheckingTable({
           )}
         </div>
         {/* ⏪ Rollback from Distribution */}
+        {checkingTab === 'checking' && (
+        <>
         <button
           onClick={() => setRollbackOpen(true)}
           className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
@@ -821,6 +981,8 @@ export default function CheckingTable({
           <span className="sm:hidden">⏪ Errors</span>
           <span className="hidden sm:inline">⏪ Rollback from Listing Errors</span>
         </button>
+        </>
+        )}
       </div>
 
       {/* Table Wrapper - Same as page.tsx */}
@@ -896,21 +1058,38 @@ export default function CheckingTable({
                   )}
 
                   {/* Checklist column */}
+                  {checkingTab === 'checking' && (
                   <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                     Checklist
                   </th>
+                  )}
 
                   {/* Damaged Qty column */}
+                  {checkingTab === 'checking' && (
                   <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
                     Damaged Qty
                   </th>
+                  )}
 
                   {/* Offline Sell column */}
+                  {checkingTab === 'checking' && (
                   <th className="px-3 py-3 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-slate-800">
                     Offline Sell
                   </th>
+                  )}
 
-                  {visibleColumns.action && (
+                  {/* Qty column for damaged/offline tabs */}
+                  {checkingTab !== 'checking' && (
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
+                    Quantity
+                  </th>
+                  )}
+
+                  {checkingTab !== 'checking' && (
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Action</th>
+                  )}
+
+                  {visibleColumns.action && checkingTab === 'checking' && (
                     <th
                       style={{ width: columnWidths.action }}
                       className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase"
@@ -1027,6 +1206,7 @@ export default function CheckingTable({
                       )}
 
                       {/* Checklist — applies to ALL underlying rows */}
+                      {checkingTab === 'checking' && (
                       <td className="px-3 py-2 text-center border-r border-slate-800">
                         <div className="inline-flex flex-wrap items-center justify-center gap-2">
                           <label className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-200 border border-emerald-500/60 hover:bg-emerald-500/20 hover:border-emerald-400 transition-colors">
@@ -1078,8 +1258,10 @@ export default function CheckingTable({
                           </label>
                         </div>
                       </td>
+                      )}
 
                       {/* Damaged quantity — applies to ALL underlying rows */}
+                      {checkingTab === 'checking' && (
                       <td className="px-3 py-2 text-center border-r border-slate-800">
                         <input
                           type="number"
@@ -1092,8 +1274,10 @@ export default function CheckingTable({
                           className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-rose-500"
                         />
                       </td>
+                      )}
 
                       {/* Offline Sell quantity */}
+                      {checkingTab === 'checking' && (
                       <td className="px-3 py-2 text-center border-r border-slate-800">
                         <input
                           type="number"
@@ -1106,9 +1290,30 @@ export default function CheckingTable({
                           className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </td>
+                      )}
+
+                      {/* Quantity for damaged/offline tabs */}
+                      {checkingTab !== 'checking' && (
+                      <td className="px-3 py-2 text-center border-r border-slate-800">
+                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${checkingTab === 'damaged' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'}`}>
+                          {item.buying_quantity ?? item.actual_quantity ?? 0}
+                        </span>
+                      </td>
+                      )}
+
+                      {checkingTab !== 'checking' && (
+                      <td className="px-3 py-2 text-center">
+                        <button
+                          onClick={() => handleSendToRechecking(merged.allIds)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors"
+                        >
+                          ↩ Recheck
+                        </button>
+                      </td>
+                      )}
 
                       {/* Action — sends ALL underlying seller rows to restock */}
-                      {visibleColumns.action && (
+                      {visibleColumns.action && checkingTab === 'checking' && (
                         <td
                           style={{ width: columnWidths.action }}
                           className="px-3 py-2 text-center"
