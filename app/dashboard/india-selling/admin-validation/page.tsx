@@ -135,6 +135,8 @@ export default function AdminValidationPage() {
   const [editingLinkValue, setEditingLinkValue] = useState<string>('');
   const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
   const [editingSkuValue, setEditingSkuValue] = useState<string>('');
+  const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
+  const [editingRemarkText, setEditingRemarkText] = useState('');
   const [skuUploading, setSkuUploading] = useState(false);
   const [skuUploadProgress, setSkuUploadProgress] = useState(0);
   const skuFileInputRef = useRef<HTMLInputElement>(null);
@@ -728,6 +730,48 @@ export default function AdminValidationPage() {
     } catch { }
     return DEFAULT_COLUMN_ORDER;
   });
+
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const saved = localStorage.getItem('adminValidationHiddenColumns');
+      if (saved) return new Set(JSON.parse(saved));
+    } catch { }
+    return new Set();
+  });
+
+  const [isColumnsDropdownOpen, setIsColumnsDropdownOpen] = useState(false);
+
+  const toggleColumnVisibility = (col_key: string) => {
+    setHiddenColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(col_key)) next.delete(col_key);
+      else next.add(col_key);
+      localStorage.setItem('adminValidationHiddenColumns', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const COLUMN_LABELS: Record<string, string> = {
+    asin: 'ASIN',
+    sku: 'SKU',
+    history: 'Journey #',
+    remark: 'Remark',
+    product_name: 'Product Name',
+    product_link: 'Product Link',
+    target_price: 'Sales Price INR',
+    admin_target_price: 'Admin Target Price',
+    funnel_qty: 'Funnel',
+    funnel_seller: 'Seller Tag',
+    product_weight: 'Product Weight',
+    profit: 'Profit',
+    buying_price: 'Purchase Price',
+    buying_qty: 'Buying Qty',
+    seller_link: 'Purchase Link',
+    seller_phone: 'Seller Ph No.',
+    payment_method: 'Payment Method',
+    actions: 'Actions',
+  };
 
   const dragColumnRef = useRef<string | null>(null);
   const dragOverColumnRef = useRef<string | null>(null);
@@ -1365,13 +1409,17 @@ export default function AdminValidationPage() {
       if (toStatus === 'confirmed') {
         // Rolling back from Confirm
         // 1. Revert india_purchases
-        const { error: updatePurchaseError } = await supabase
+        let purchaseRollbackQuery = supabase
           .from('india_purchases')
           .update({
             admin_confirmed: false,
             admin_confirmed_at: null,
           })
           .eq('asin', product.asin);
+        if (product.journey_id) {
+          purchaseRollbackQuery = purchaseRollbackQuery.eq('journey_id', product.journey_id);
+        }
+        const { error: updatePurchaseError } = await purchaseRollbackQuery;
 
         if (updatePurchaseError) {
           console.error('Error rolling back india_purchases:', updatePurchaseError);
@@ -1380,25 +1428,33 @@ export default function AdminValidationPage() {
         // ✅ No listing error cleanup needed — admin confirm no longer inserts there
 
         // 2. Revert india_admin_validation status
-        const { error: updateAdminError } = await supabase
+        let adminRollbackQuery = supabase
           .from('india_admin_validation')
           .update({
             admin_status: fromStatus || 'pending',
             confirmed_at: null,
           })
           .eq('asin', product.asin);
+        if (product.journey_id) {
+          adminRollbackQuery = adminRollbackQuery.eq('journey_id', product.journey_id);
+        }
+        const { error: updateAdminError } = await adminRollbackQuery;
 
         if (updateAdminError) throw updateAdminError;
 
       } else if (toStatus === 'rejected') {
         // Rolling back from Reject
-        const { error: updateAdminError } = await supabase
+        let adminRejectQuery = supabase
           .from('india_admin_validation')
           .update({
             admin_status: fromStatus || 'pending',
             rejected_at: null,
           })
           .eq('asin', product.asin);
+        if (product.journey_id) {
+          adminRejectQuery = adminRejectQuery.eq('journey_id', product.journey_id);
+        }
+        const { error: updateAdminError } = await adminRejectQuery;
 
         if (updateAdminError) throw updateAdminError;
       }
@@ -1777,13 +1833,13 @@ export default function AdminValidationPage() {
       case 'remark':
         return (
           <td key={col_key} className="px-4 py-2" style={{ width: columnWidths.remark }}>
-            <div className="flex items-center gap-2">
-              {product.remark ? (
-                <button onClick={() => setSelectedRemark(product.remark)} className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
-                  View
-                </button>
-              ) : null}
-            </div>
+            {product.remark ? (
+              <button onClick={() => { setSelectedRemark(product.remark); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
+                View
+              </button>
+            ) : (
+              <button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>
+            )}
           </td>
         );
 
@@ -2317,6 +2373,64 @@ export default function AdminValidationPage() {
               )}
             </div>
 
+            {/* Hide Columns Button + Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsColumnsDropdownOpen(!isColumnsDropdownOpen)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg ${hiddenColumns.size > 0
+                  ? 'bg-indigo-600 text-white border-indigo-500/50 shadow-indigo-900/20'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+                  }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
+                </svg>
+                <span className="hidden sm:inline">Columns</span>
+                {hiddenColumns.size > 0 && (
+                  <span className="w-5 h-5 bg-white/20 rounded-full text-[10px] flex items-center justify-center font-bold">
+                    {hiddenColumns.size}
+                  </span>
+                )}
+              </button>
+
+              {isColumnsDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
+                  <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 z-20 w-64 max-h-80 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-slate-200 text-sm">Toggle Columns</h3>
+                      {hiddenColumns.size > 0 && (
+                        <button
+                          onClick={() => { setHiddenColumns(new Set()); localStorage.removeItem('adminValidationHiddenColumns'); }}
+                          className="text-[10px] text-indigo-400 hover:text-indigo-300"
+                        >
+                          Show All
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {DEFAULT_COLUMN_ORDER.filter(k => k !== 'actions').map(col_key => (
+                        <label
+                          key={col_key}
+                          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!hiddenColumns.has(col_key)}
+                            onChange={() => toggleColumnVisibility(col_key)}
+                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer w-3.5 h-3.5"
+                          />
+                          <span className={`text-xs font-medium ${hiddenColumns.has(col_key) ? 'text-slate-500' : 'text-slate-200'}`}>
+                            {COLUMN_LABELS[col_key] || col_key}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Roll Back Button */}
             <button
               onClick={handleRollBack}
@@ -2464,7 +2578,7 @@ export default function AdminValidationPage() {
                     />
                   </th>
 
-                  {columnOrder.map((col_key) => {
+                  {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => {
                     // Hide actions on confirm/reject tabs
                     if (col_key === 'actions' && (activeTab === 'confirm' || activeTab === 'reject')) return null;
 
@@ -2545,7 +2659,7 @@ export default function AdminValidationPage() {
                           className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
                         />
                       </td>
-                      {columnOrder.map((col_key) => renderAdminCell(col_key, product))}
+                      {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
                     </tr>
                   ))
                 )}
@@ -2791,7 +2905,7 @@ export default function AdminValidationPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedRemark(null)}
+              onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
               className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
@@ -2806,19 +2920,61 @@ export default function AdminValidationPage() {
               >
                 <div className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700">
                   <h2 className="text-xl font-bold text-white">Remark Details</h2>
-                  <button onClick={() => setSelectedRemark(null)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                  <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
                     <X className="w-5 h-5 text-slate-400" />
                   </button>
                 </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                    <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{selectedRemark}</p>
+                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+                    </div>
+                    <textarea
+                      value={editingRemarkText}
+                      onChange={(e) => setEditingRemarkText(e.target.value)}
+                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      placeholder="Enter remark..."
+                      rows={4}
+                    />
+                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                      <span>{editingRemarkText.length} characters</span>
+                      <span>{editingRemarkText.split('\n').length} lines</span>
+                    </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-slate-800 border-t border-slate-700 flex justify-end">
-                  <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
-                    Close
-                  </button>
+                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
+                  <div className="text-xs text-slate-500">
+                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
+                    >
+                      Copy
+                    </button>
+                    {editingRemarkText.trim() !== (selectedRemark || '').trim() && editingRemarkProductId && (
+                      <button
+                        onClick={async () => {
+                          if (!editingRemarkProductId) return;
+                          await handleCellEdit(editingRemarkProductId, 'remark', editingRemarkText.trim() || null);
+                          setSelectedRemark(null);
+                          setEditingRemarkText('');
+                          setEditingRemarkProductId(null);
+                        }}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                      >
+                        Save
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

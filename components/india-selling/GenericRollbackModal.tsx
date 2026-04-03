@@ -56,29 +56,87 @@ const getFieldMapping = (direction: RollbackDirection) => {
     switch (direction) {
         case 'BOXES_TO_INBOUND':
             return {
-                label: 'Boxes → Inbound',
-                sourceLabel: 'Boxes',
-                targetLabel: 'Inbound (Main File)',
-                // Fields to copy from boxes to inbound
-                mapFields: (item: any) => {
-                    const { id, box_number, box_status, moved_from_inbound_at, ...rest } = item;
-                    return { ...rest };
-                },
+                label: 'Checking → Inbound',
+                sourceLabel: 'Checking',
+                targetLabel: 'Inbound',
+                mapFields: (item: any) => ({
+                    asin: item.asin ?? null,
+                    journey_id: item.journey_id ?? null,
+                    product_name: item.product_name ?? null,
+                    brand: item.brand ?? null,
+                    sku: item.sku ?? null,
+                    seller_tag: item.seller_tag ?? null,
+                    funnel: item.funnel ?? null,
+                    origin: item.origin ?? null,
+                    origin_india: item.origin_india ?? false,
+                    origin_china: item.origin_china ?? false,
+                    origin_us: item.origin_us ?? false,
+                    product_link: item.product_link ?? null,
+                    inr_purchase_link: item.inr_purchase_link ?? null,
+                    usd_price: item.usd_price ?? null,
+                    inr_purchase: item.inr_purchase ?? null,
+                    target_price: item.target_price ?? null,
+                    admin_target_price: item.admin_target_price ?? null,
+                    target_quantity: item.target_quantity ?? null,
+                    funnel_quantity: item.funnel_quantity ?? null,
+                    funnel_seller: item.funnel_seller ?? null,
+                    buying_price: item.buying_price ?? null,
+                    buying_quantity: item.actual_quantity ?? item.buying_quantity ?? null,
+                    pending_quantity: item.actual_quantity ?? item.buying_quantity ?? null,
+                    assigned_quantity: 0,
+                    seller_link: item.seller_link ?? null,
+                    seller_phone: item.seller_phone ?? null,
+                    payment_method: item.payment_method ?? null,
+                    tracking_details: item.tracking_details ?? null,
+                    delivery_date: item.delivery_date ?? null,
+                    order_date: item.order_date ?? null,
+                    product_weight: item.product_weight ?? null,
+                    status: 'delivered',
+                    address: item.address ?? null,
+                }),
             };
         case 'CHECKING_TO_BOXES':
             return {
                 label: 'Checking → Boxes',
                 sourceLabel: 'Checking',
                 targetLabel: 'Boxes',
-                mapFields: (item: any) => {
-                    const { id, check_status, moved_from_boxes_at, invoice_number, invoice_date,
-                        gst_number, amount, tax_amount, seller_company, uploaded_invoice_url,
-                        uploaded_invoice_name, action_status, product_received, moved_at, ...rest } = item;
-                    return {
-                        ...rest,
-                        box_status: 'sealed',  // restore as sealed in boxes
-                    };
-                },
+                mapFields: (item: any) => ({
+                    asin: item.asin ?? null,
+                    journey_id: item.journey_id ?? null,
+                    product_name: item.product_name ?? null,
+                    brand: item.brand ?? null,
+                    sku: item.sku ?? null,
+                    seller_tag: item.seller_tag ?? null,
+                    funnel: item.funnel ?? null,
+                    origin: item.origin ?? null,
+                    origin_india: item.origin_india ?? false,
+                    origin_china: item.origin_china ?? false,
+                    origin_us: item.origin_us ?? false,
+                    product_link: item.product_link ?? null,
+                    inr_purchase_link: item.inr_purchase_link ?? null,
+                    usd_price: item.usd_price ?? null,
+                    inr_purchase: item.inr_purchase ?? null,
+                    target_price: item.target_price ?? null,
+                    admin_target_price: item.admin_target_price ?? null,
+                    target_quantity: item.target_quantity ?? null,
+                    funnel_quantity: item.funnel_quantity ?? null,
+                    funnel_seller: item.funnel_seller ?? null,
+                    buying_price: item.buying_price ?? null,
+                    buying_quantity: item.buying_quantity ?? null,
+                    quantity_assigned: item.actual_quantity ?? item.good_quantity ?? item.buying_quantity ?? null,
+                    ordered_quantity: item.expected_quantity ?? item.buying_quantity ?? null,
+                    seller_link: item.seller_link ?? null,
+                    seller_phone: item.seller_phone ?? null,
+                    payment_method: item.payment_method ?? null,
+                    tracking_details: item.tracking_details ?? null,
+                    delivery_date: item.delivery_date ?? null,
+                    order_date: item.order_date ?? null,
+                    product_weight: item.product_weight ?? null,
+                    box_number: item.box_number ?? null,
+                    box_status: 'sealed',
+                    total_box_weight: item.total_box_weight ?? null,
+                    inbound_tracking_id: item.inbound_tracking_id ?? null,
+                }),
             };
         case 'DISTRIBUTION_TO_CHECKING':
             return {

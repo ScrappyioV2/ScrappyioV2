@@ -160,6 +160,12 @@ export const APP_ROUTES: AppRoute[] = [
     permission: 'india-selling',
     subRoutes: [
       {
+        path: '/dashboard/india-selling/admin-validation',
+        label: 'Admin Approvals',
+        permission: 'admin-access',
+        icon: ShieldCheck
+      },
+      {
         path: '/dashboard/india-selling/brand-checking',
         label: 'Brand Checking',
         permission: 'view-brand-checking',
@@ -180,6 +186,18 @@ export const APP_ROUTES: AppRoute[] = [
         icon: CheckCircle2
       },
       {
+        path: '/dashboard/india-selling/purchases',
+        label: 'Purchases',
+        permission: 'view-purchases',
+        icon: ShoppingBag
+      },
+      {
+        path: '/dashboard/india-selling/tracking',
+        label: 'Tracking',
+        permission: 'view-tracking',
+        icon: Truck
+      },
+      {
         path: '/dashboard/india-selling/listing-error',
         label: 'Listing Errors',
         permission: 'view-listing-errors',
@@ -192,18 +210,6 @@ export const APP_ROUTES: AppRoute[] = [
           { path: '/dashboard/india-selling/listing-error/dropy-ecom', label: 'Dropy Ecom', permission: 'view-listing-errors' },
           { path: '/dashboard/india-selling/listing-error/costech-ventures', label: 'Costech Ventures', permission: 'view-listing-errors' }
         ]
-      },
-      {
-        path: '/dashboard/india-selling/purchases',
-        label: 'Purchases',
-        permission: 'view-purchases',
-        icon: ShoppingBag
-      },
-      {
-        path: '/dashboard/india-selling/tracking',
-        label: 'Tracking',
-        permission: 'view-tracking',
-        icon: Truck
       },
       // ✅ NEW — Restock (Inbound pipeline final stage, seller-wise)
       {
@@ -225,12 +231,6 @@ export const APP_ROUTES: AppRoute[] = [
         label: 'Reorder',
         permission: 'view-reorder',
         icon: RotateCcw
-      },
-      {
-        path: '/dashboard/india-selling/admin-validation',
-        label: 'Admin Approvals',
-        permission: 'admin-access',
-        icon: ShieldCheck
       },
     ]
   },

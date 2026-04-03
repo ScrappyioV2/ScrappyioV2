@@ -135,6 +135,8 @@ export default function ReorderPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [remarkModalOpen, setRemarkModalOpen] = useState(false);  // ✅ ADD THIS
   const [selectedRemark, setSelectedRemark] = useState<{ id: string; asin: string; remark: string | null } | null>(null);
+  const [editingRemarkText, setEditingRemarkText] = useState('');
+  const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
     message: string;
@@ -740,6 +742,14 @@ export default function ReorderPage() {
       .eq('id', id)
   }
 
+  const handleRemarkSave = async (productId: string, newRemark: string | null) => {
+    try {
+      const { error } = await supabase.from(`india_reorder_${activeSeller.table_suffix}`).update({ remark: newRemark }).eq('id', productId);
+      if (error) throw error;
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, remark: newRemark } : p));
+    } catch (err: any) { console.error('Failed to update remark:', err); }
+  };
+
   // --- 6. Fetch History (The Sidebar Logic) ---
   const fetchHistory = async (asin: string) => {
     setSelectedHistoryAsin(asin)
@@ -813,7 +823,7 @@ export default function ReorderPage() {
           // 4. Insert into Validation Main File with RESTORED DATA
           const { error: insertError } = await supabase
             .from('india_validation_main_file')
-            .insert({
+            .upsert({
               asin: product.asin,
 
               // Use master data name if available, otherwise current reorder name
@@ -834,8 +844,19 @@ export default function ReorderPage() {
               // Reset operational fields
               no_of_seller: 1,
               sent_to_purchases: false,
-              admin_status: 'pending'
-            })
+              admin_status: 'pending',
+              // Reset work fields for new journey
+              judgement: 'PENDING',
+              calculated_judgement: null,
+              is_new: true,
+              usd_price: null,
+              product_weight: null,
+              inr_purchase: null,
+              inr_purchase_link: null,
+              total_cost: null,
+              total_revenue: null,
+              profit: null,
+            }, { onConflict: 'asin' })
 
           if (insertError) throw insertError
 
@@ -1156,6 +1177,8 @@ export default function ReorderPage() {
                                   asin: product.asin,
                                   remark: product.remark,
                                 });
+                                setEditingRemarkText(product.remark || '');
+                                setEditingRemarkProductId(product.id);
                                 setRemarkModalOpen(true);
                               }}
                               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium transition-colors"
@@ -1163,7 +1186,7 @@ export default function ReorderPage() {
                               View
                             </button>
                           ) : (
-                            <span className="text-xs text-slate-600 italic">-</span>
+                            <button onClick={() => { setSelectedRemark({ id: product.id, asin: product.asin, remark: null }); setEditingRemarkText(''); setEditingRemarkProductId(product.id); setRemarkModalOpen(true); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>
                           )}
                         </td>
 
@@ -1347,6 +1370,8 @@ export default function ReorderPage() {
               onClick={() => {
                 setRemarkModalOpen(false);
                 setSelectedRemark(null);
+                setEditingRemarkText('');
+                setEditingRemarkProductId(null);
               }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
             />
@@ -1357,9 +1382,9 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col"
             >
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between p-4 sm:p-6 pb-0 mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-white">Remark</h2>
                   <p className="text-sm text-slate-400 font-mono mt-1">{selectedRemark.asin}</p>
@@ -1368,6 +1393,8 @@ export default function ReorderPage() {
                   onClick={() => {
                     setRemarkModalOpen(false);
                     setSelectedRemark(null);
+                    setEditingRemarkText('');
+                    setEditingRemarkProductId(null);
                   }}
                   className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
                 >
@@ -1375,53 +1402,61 @@ export default function ReorderPage() {
                 </button>
               </div>
 
-              <div className="flex-1 flex flex-col gap-4">
-                <textarea
-                  value={selectedRemark.remark || ''}
-                  onChange={(e) =>
-                    setSelectedRemark({
-                      ...selectedRemark,
-                      remark: e.target.value,
-                    })
-                  }
-                  placeholder="Enter remark..."
-                  rows={10}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
-                />
+              <div className="flex-1 flex flex-col">
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+                    </div>
+                    <textarea
+                      value={editingRemarkText}
+                      onChange={(e) => setEditingRemarkText(e.target.value)}
+                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      placeholder="Enter remark..."
+                      rows={4}
+                    />
+                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                      <span>{editingRemarkText.length} characters</span>
+                      <span>{editingRemarkText.split('\n').length} lines</span>
+                    </div>
+                  </div>
+                </div>
 
-                {/* Save Button */}
-                <button
-                  onClick={async () => {
-                    try {
-                      const tableName = `india_reorder_${activeSeller.table_suffix}`;
-                      const { error } = await supabase
-                        .from(tableName)
-                        .update({ remark: selectedRemark.remark })
-                        .eq('id', selectedRemark.id);
-
-                      if (error) throw error;
-
-                      // Update local state
-                      setProducts((prev) =>
-                        prev.map((item) =>
-                          item.id === selectedRemark.id
-                            ? { ...item, remark: selectedRemark.remark }
-                            : item
-                        )
-                      );
-
-                      alert('Remark saved successfully!');
-                      setRemarkModalOpen(false);
-                      setSelectedRemark(null);
-                    } catch (error: any) {
-                      alert('Error: ' + error.message);
-                    }
-                  }}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold transition-all shadow-lg"
-                >
-                  <Save className="w-4 h-4 inline mr-2" />
-                  Save Remark
-                </button>
+                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between mt-auto">
+                  <div className="text-xs text-slate-500">
+                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Copy
+                    </button>
+                    {editingRemarkText.trim() !== (selectedRemark.remark || '').trim() && editingRemarkProductId && (
+                      <button
+                        onClick={async () => {
+                          if (!editingRemarkProductId) return;
+                          await handleRemarkSave(editingRemarkProductId, editingRemarkText.trim() || null);
+                          setRemarkModalOpen(false);
+                          setSelectedRemark(null);
+                          setEditingRemarkText('');
+                          setEditingRemarkProductId(null);
+                        }}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                      >
+                        Save
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setRemarkModalOpen(false); setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </>

@@ -590,7 +590,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                     if (trackData) {
                         const newPending = Math.max(0, (trackData.pending_quantity || 0) - delta);
                         const newAssigned = Math.max(0, (trackData.assigned_quantity || 0) + delta);
-                        if (newPending <= 0 && newAssigned <= 0) {
+                        if (newPending <= 0) {
                             // Nothing left — delete from inbound tracking
                             await supabase.from('india_inbound_tracking').delete().eq('id', trackingId);
                         } else {
@@ -2262,11 +2262,11 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     onCountsChange();
                     setRollbackOpen(false);
                 }}
-                direction="BOXES_TO_INBOUND"
+                direction="CHECKING_TO_BOXES"
                 sellerId={0}
-                sellerTag={null}               // no filter → show ALL sellers
+                sellerTag={null}
                 sourceTableName="india_box_checking"
-                targetTableName="india_inbound_tracking"
+                targetTableName="india_inbound_boxes"
             />
         </div>
     );

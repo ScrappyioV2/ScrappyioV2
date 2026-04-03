@@ -517,7 +517,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                         if (trackData) {
                             const newPending = Math.max(0, (trackData.pending_quantity || 0) - delta);
                             const newAssigned = Math.max(0, (trackData.assigned_quantity || 0) + delta);
-                            if (newPending <= 0 && newAssigned <= 0) {
+                            if (newPending <= 0) {
                                 await supabase.from("india_inbound_tracking").delete().eq("id", trackingId);
                             } else {
                                 await supabase.from("india_inbound_tracking").update({
@@ -870,7 +870,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={onCancel}
+                        onClick={() => { clearSessionState(); onCancel(); }}
                         className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
                     >
                         Cancel

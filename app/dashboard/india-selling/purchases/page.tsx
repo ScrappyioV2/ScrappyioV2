@@ -137,7 +137,8 @@ export default function PurchasesPage() {
   const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   // Remark Modal State
-  const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+  const [selectedRemark, setSelectedRemark] = useState<{ id: string; remark: string } | null>(null);
+  const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
   const [editingSellerLinkId, setEditingSellerLinkId] = useState<string | null>(null);
   const [editingSellerLinkValue, setEditingSellerLinkValue] = useState<string>('');
@@ -318,8 +319,10 @@ export default function PurchasesPage() {
         return (
           <td key={colkey} className="px-3 py-2 text-center" style={{ width: columnWidths.remark }}>
             {product.remark ? (
-              <button onClick={() => setSelectedRemark(product.remark)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
-            ) : <span className="text-slate-600">-</span>}
+              <button onClick={() => { setSelectedRemark({ id: product.id, remark: product.remark || '' }); setEditingRemarkText(product.remark || ''); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
+            ) : (
+              <button onClick={() => { setSelectedRemark({ id: product.id, remark: '' }); setEditingRemarkText(''); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>
+            )}
           </td>
         );
 
@@ -982,7 +985,7 @@ export default function PurchasesPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (selectedRemark) setSelectedRemark(null);
+        if (selectedRemark) { setSelectedRemark(null); setEditingRemarkText(''); }
         if (openFunnelId) { setOpenFunnelId(null); setDropdownPos(null); }
       }
     };
@@ -1025,8 +1028,8 @@ export default function PurchasesPage() {
       // ─────────────────────────────────────────────
       // 🆕 STEP 0: SPLIT SELLER TAGS BY QUANTITY
       // ─────────────────────────────────────────────
-      const allSellerTags: string[] = product.validation_seller_tag
-        ? product.validation_seller_tag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean)
+      const allSellerTags: string[] = (product.seller_tag || product.validation_seller_tag)
+        ? (product.seller_tag || product.validation_seller_tag)!.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean)
         : [];
       const buyingQuantities = (product.buying_quantities || {}) as Record<string, number>;
 
@@ -1367,10 +1370,14 @@ export default function PurchasesPage() {
         updateData['sent_to_admin'] = false
         updateData['sent_to_admin_at'] = null
 
-        const { error: deleteError } = await supabase
+        let adminDeleteQuery = supabase
           .from('india_admin_validation')
           .delete()
-          .eq('asin', product.asin)
+          .eq('asin', product.asin);
+        if (product.journey_id) {
+          adminDeleteQuery = adminDeleteQuery.eq('journey_id', product.journey_id);
+        }
+        const { error: deleteError } = await adminDeleteQuery;
 
         if (deleteError) {
           console.error('Error deleting from admin validation:', deleteError)
@@ -1385,10 +1392,14 @@ export default function PurchasesPage() {
 
         // Delete from each tracking table
          // ✅ FIX: Delete from correct table (india_inbound_tracking)
-        const { error: trackingDeleteError } = await supabase
+        let trackingDeleteQuery = supabase
           .from('india_inbound_tracking')
           .delete()
           .eq('asin', product.asin);
+        if (product.journey_id) {
+          trackingDeleteQuery = trackingDeleteQuery.eq('journey_id', product.journey_id);
+        }
+        const { error: trackingDeleteError } = await trackingDeleteQuery;
 
         if (trackingDeleteError) {
           console.error('Tracking delete error:', trackingDeleteError);
@@ -2878,7 +2889,7 @@ export default function PurchasesPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedRemark(null)}
+              onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); }}
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             />
 
@@ -2908,7 +2919,7 @@ export default function PurchasesPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setSelectedRemark(null)}
+                    onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); }}
                     className="p-2 hover:bg-slate-700 rounded-lg transition-colors group"
                     title="Close"
                   >
@@ -2916,52 +2927,38 @@ export default function PurchasesPage() {
                   </button>
                 </div>
 
-                {/* ========== BODY (Scrollable Content) ========== */}
+                {/* ========== BODY (Editable Content) ========== */}
                 <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                   <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    {/* Remark Label */}
                     <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
                       <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
-
-                    {/* Remark Content */}
-                    <div className="prose prose-invert prose-sm max-w-none">
-                      <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-                        {selectedRemark}
-                      </p>
-                    </div>
-
-                    {/* Metadata Footer (Optional - shows character count) */}
+                    <textarea
+                      value={editingRemarkText}
+                      onChange={(e) => setEditingRemarkText(e.target.value)}
+                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      placeholder="Enter remark..."
+                      rows={4}
+                    />
                     <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        {selectedRemark.length} characters
+                        {editingRemarkText.length} characters
                       </span>
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        {selectedRemark.split('\n').length} lines
+                        {editingRemarkText.split('\n').length} lines
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Info Box (Optional - can be removed if not needed) */}
-                  <div className="mt-4 flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-                    <svg className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="text-xs text-blue-200">
-                      <p className="font-semibold mb-1">About Remarks</p>
-                      <p className="text-blue-300/80">This remark was added during the validation process to provide context or flags for this product.</p>
                     </div>
                   </div>
                 </div>
 
-                {/* ========== FOOTER (Action Buttons) ========== */}
+                {/* ========== FOOTER ========== */}
                 <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
                   <div className="text-xs text-slate-500">
                     Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
@@ -2969,8 +2966,7 @@ export default function PurchasesPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(selectedRemark);
-                        // Optional: Add toast notification here
+                        navigator.clipboard.writeText(editingRemarkText);
                       }}
                       className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
                     >
@@ -2979,8 +2975,24 @@ export default function PurchasesPage() {
                       </svg>
                       Copy
                     </button>
+                    {editingRemarkText !== (selectedRemark?.remark || '') && (
+                      <button
+                        onClick={async () => {
+                          if (!selectedRemark) return;
+                          await handleCellEdit(selectedRemark.id, 'remark', editingRemarkText.trim() || null);
+                          setSelectedRemark(null);
+                          setEditingRemarkText('');
+                        }}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2 shadow-lg shadow-emerald-900/20"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Save
+                      </button>
+                    )}
                     <button
-                      onClick={() => setSelectedRemark(null)}
+                      onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); }}
                       className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-indigo-900/20"
                     >
                       Close

@@ -126,6 +126,9 @@ export default function RudraRetailListingPage() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+  const [editingRemarkText, setEditingRemarkText] = useState('');
+  const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
+
   const SELLER_TAG_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV' };
   const SELLER_NAME_MAP: Record<number, string> = {
     1: 'Golden Aura', 2: 'Rudra Retail', 3: 'UBeauty',
@@ -456,6 +459,15 @@ export default function RudraRetailListingPage() {
     }
   };
 
+  const handleRemarkSave = async (productId: string, newRemark: string | null) => {
+    try {
+      const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
+      const { error } = await supabase.from(currentTable).update({ remark: newRemark }).eq('id', productId);
+      if (error) throw error;
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, remark: newRemark } : p));
+    } catch (err: any) { console.error('Failed to update remark:', err); }
+  };
+
   const handleRollBack = async () => {
     const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
     const lastMovement = movementHistory[currentTable];
@@ -783,13 +795,13 @@ export default function RudraRetailListingPage() {
                           <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
                             {product.remark ? (
                               <button
-                                onClick={() => setSelectedRemark(product.remark)}
+                                onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                               >
                                 View
                               </button>
                             ) : (
-                              <span className="text-slate-600">-</span>
+                              <button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>
                             )}
                           </td>
 
@@ -946,7 +958,7 @@ export default function RudraRetailListingPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  onClick={() => setSelectedRemark(null)}
+                  onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
                   className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
                 />
                 <motion.div
@@ -961,20 +973,62 @@ export default function RudraRetailListingPage() {
                   >
                     <div className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700">
                       <h2 className="text-xl font-bold text-white">Remark Details</h2>
-                      <button onClick={() => setSelectedRemark(null)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                      <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
                         <X className="w-5 h-5 text-slate-400" />
                       </button>
                     </div>
-                    <div className="p-6 max-h-[70vh] overflow-y-auto">
-                      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-                        <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{selectedRemark}</p>
-                      </div>
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
+                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
-                    <div className="px-6 py-4 bg-slate-800 border-t border-slate-700 flex justify-end">
-                      <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
-                        Close
+                    <textarea
+                      value={editingRemarkText}
+                      onChange={(e) => setEditingRemarkText(e.target.value)}
+                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      placeholder="Enter remark..."
+                      rows={4}
+                    />
+                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                      <span>{editingRemarkText.length} characters</span>
+                      <span>{editingRemarkText.split('\n').length} lines</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
+                  <div className="text-xs text-slate-500">
+                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Copy
+                    </button>
+                    {editingRemarkText.trim() !== (selectedRemark || '').trim() && editingRemarkProductId && (
+                      <button
+                        onClick={async () => {
+                          if (!editingRemarkProductId) return;
+                          await handleRemarkSave(editingRemarkProductId, editingRemarkText.trim() || null);
+                          setSelectedRemark(null);
+                          setEditingRemarkText('');
+                          setEditingRemarkProductId(null);
+                        }}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                      >
+                        Save
                       </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
                   </div>
                 </motion.div>
               </>

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import PageGuard from '@/components/PageGuard'
-import { Package, RotateCcw, Trash2, RefreshCw, Search, ArrowUpDown } from 'lucide-react'
+import { Package, RotateCcw, Trash2, RefreshCw, Search, ArrowUpDown, Download } from 'lucide-react'
 
 // ─── Seller Config ───
 const SELLERS = [
@@ -338,6 +338,9 @@ export default function RestockPage() {
     // const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [rollbackSource, setRollbackSource] = useState<'relisted' | 'disposed' | null>(null);
     const [statusFilter, setStatusFilter] = useState<'pending' | 'relisted' | 'disposed' | 'removed' | 'offline_sell'>('pending');
+    const [restockDateFilter, setRestockDateFilter] = useState<string>('');
+    const [restockStartDate, setRestockStartDate] = useState<string>('');
+    const [restockEndDate, setRestockEndDate] = useState<string>('');
     const [sortField, setSortField] = useState<SortField>('created_at')
     const [sortDir, setSortDir] = useState<SortDir>('desc')
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -493,6 +496,33 @@ export default function RestockPage() {
             return true
         })
 
+        // Date filter for restocked tab
+        if (statusFilter === 'relisted') {
+            if (restockDateFilter === 'Today') {
+                const today = new Date().toISOString().split('T')[0];
+                result = result.filter(item => item.moved_at && new Date(item.moved_at).toISOString().split('T')[0] === today);
+            } else if (restockDateFilter === 'Yesterday') {
+                const y = new Date(); y.setDate(y.getDate() - 1);
+                const yesterday = y.toISOString().split('T')[0];
+                result = result.filter(item => item.moved_at && new Date(item.moved_at).toISOString().split('T')[0] === yesterday);
+            } else if (restockDateFilter === 'This Week') {
+                const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+                result = result.filter(item => item.moved_at && new Date(item.moved_at) >= weekAgo);
+            } else if (restockDateFilter === 'This Month') {
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                result = result.filter(item => item.moved_at && new Date(item.moved_at) >= monthStart);
+            } else if (restockStartDate || restockEndDate) {
+                result = result.filter(item => {
+                    if (!item.moved_at) return false;
+                    const itemDate = new Date(item.moved_at).toISOString().split('T')[0];
+                    if (restockStartDate && itemDate < restockStartDate) return false;
+                    if (restockEndDate && itemDate > restockEndDate) return false;
+                    return true;
+                });
+            }
+        }
+
         result.sort((a, b) => {
             const aVal = a[sortField] ?? ''
             const bVal = b[sortField] ?? ''
@@ -502,7 +532,7 @@ export default function RestockPage() {
         })
 
         return result
-    }, [items, searchQuery, statusFilter, sortField, sortDir])
+    }, [items, searchQuery, statusFilter, sortField, sortDir, restockDateFilter, restockStartDate, restockEndDate])
 
     const groupedByAsin = useMemo(() => {
         const map = new Map<string, RestockItem[]>()
@@ -599,11 +629,15 @@ export default function RestockPage() {
     const handleSingleAction = async (itemId: string, action: 'relisted' | 'disposed' | 'pending' | 'removed', reason?: string) => {
         try {
             const updatePayload: Record<string, any> = { status: action }
+            if (action === 'relisted') {
+                updatePayload.moved_at = new Date().toISOString()
+            }
             if (action === 'disposed' && reason) {
                 updatePayload.dispose_reason = reason
             }
             if (action === 'pending') {
                 updatePayload.dispose_reason = null
+                updatePayload.moved_at = null
             }
             const { error } = await supabase
                 .from(tableName)
@@ -612,7 +646,7 @@ export default function RestockPage() {
 
             if (error) throw error
             setItems(prev => prev.map(item =>
-                item.id === itemId ? { ...item, status: action, ...(action === 'disposed' ? { dispose_reason: reason } : {}), ...(action === 'pending' ? { dispose_reason: null } : {}) } : item
+                item.id === itemId ? { ...item, status: action, ...(action === 'relisted' ? { moved_at: new Date().toISOString() } : {}), ...(action === 'disposed' ? { dispose_reason: reason } : {}), ...(action === 'pending' ? { dispose_reason: null, moved_at: null } : {}) } : item
             ))
         } catch (error: any) {
             alert(`Failed: ${error.message}`)
@@ -623,12 +657,12 @@ export default function RestockPage() {
         try {
             const { data, error } = await supabase
                 .from(tableName)
-                .update({ status: 'pending' })
+                .update({ status: 'pending', moved_at: null })
                 .eq('status', 'relisted');
 
             if (error) throw error;
             await fetchItems();
-            setToast({ message: 'Rolled back all Relisted items to Pending', type: 'success' });
+            setToast({ message: 'Rolled back all Restocked items to Pending', type: 'success' });
             setTimeout(() => setToast(null), 2000);
         } catch (error: any) {
             setToast({ message: `Failed: ${error.message}`, type: 'error' });
@@ -640,7 +674,7 @@ export default function RestockPage() {
         try {
             const { data, error } = await supabase
                 .from(tableName)
-                .update({ status: 'pending' })
+                .update({ status: 'pending', moved_at: null })
                 .eq('status', 'disposed');
 
             if (error) throw error;
@@ -661,9 +695,16 @@ export default function RestockPage() {
             disposed: 'bg-red-500/20 text-red-400 border-red-500/30',
             removed: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
         }
+        const displayLabel: Record<string, string> = {
+            pending: 'PENDING',
+            relisted: 'RESTOCKED',
+            disposed: 'DISPOSED',
+            removed: 'REMOVED',
+            offline_sell: 'OFFLINE SELL',
+        }
         return (
             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${styles[s] || styles.pending}`}>
-                {s.toUpperCase()}
+                {displayLabel[s] || s.toUpperCase()}
             </span>
         )
     }
@@ -741,7 +782,7 @@ export default function RestockPage() {
                                         : 'bg-slate-800 text-slate-500 hover:text-slate-300'
                                         }`}
                                 >
-                                    {opt === 'offline_sell' ? 'Offline Sell' : opt.charAt(0).toUpperCase() + opt.slice(1)} ({count})
+                                    {opt === 'offline_sell' ? 'Offline Sell' : opt === 'relisted' ? 'Restocked' : opt.charAt(0).toUpperCase() + opt.slice(1)} ({count})
                                 </button>
                             );
                         })}
@@ -767,8 +808,8 @@ export default function RestockPage() {
                                     className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white"
                                 >
                                     <RotateCcw className="w-4 h-4 shrink-0" />
-                                    <span className="hidden sm:inline">Rollback from Relisted</span>
-                                    <span className="sm:hidden">Relisted</span>
+                                    <span className="hidden sm:inline">Rollback from Restocked</span>
+                                    <span className="sm:hidden">Restocked</span>
                                 </button>
                                 <button
                                     onClick={() => setRollbackSource('disposed')}
@@ -779,6 +820,88 @@ export default function RestockPage() {
                                     <span className="sm:hidden">Disposed</span>
                                 </button>
                             </>
+                        )}
+
+                        {statusFilter === 'relisted' && (
+                            <div className="flex items-center gap-2 bg-slate-900/50 rounded-xl border border-slate-800 px-3 py-1.5">
+                                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Date</span>
+                                {['Today', 'Yesterday', 'This Week', 'This Month'].map(label => {
+                                    const isActive = restockDateFilter === label;
+                                    return (
+                                        <button
+                                            key={label}
+                                            onClick={() => setRestockDateFilter(isActive ? '' : label)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${isActive
+                                                ? 'bg-indigo-600 text-white shadow'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                                <div className="w-px h-5 bg-slate-700 mx-1" />
+                                <input
+                                    type="date"
+                                    max="9999-12-31"
+                                    value={restockStartDate}
+                                    onChange={e => { setRestockStartDate(e.target.value); setRestockDateFilter(''); }}
+                                    title="Start date"
+                                    className="px-2 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-indigo-500 w-[130px] [color-scheme:dark]"
+                                />
+                                <span className="text-slate-600 text-xs">to</span>
+                                <input
+                                    type="date"
+                                    max="9999-12-31"
+                                    value={restockEndDate}
+                                    onChange={e => { setRestockEndDate(e.target.value); setRestockDateFilter(''); }}
+                                    title="End date"
+                                    className="px-2 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-indigo-500 w-[130px] [color-scheme:dark]"
+                                />
+                                {(restockDateFilter || restockStartDate || restockEndDate) && (
+                                    <button onClick={() => { setRestockDateFilter(''); setRestockStartDate(''); setRestockEndDate(''); }} className="text-slate-500 hover:text-white text-xs px-1.5">✕</button>
+                                )}
+                            </div>
+                        )}
+
+                        {statusFilter === 'relisted' && (
+                            <button
+                                onClick={() => {
+                                    const dataToExport = filteredItems.filter(i => i.status === 'relisted');
+                                    if (dataToExport.length === 0) {
+                                        setToast({ message: 'No restocked items to download', type: 'error' });
+                                        setTimeout(() => setToast(null), 2000);
+                                        return;
+                                    }
+                                    const headers = ['ASIN', 'SKU', 'Product Name', 'Funnel', 'Price', 'Qty', 'Weight', 'Restocked Date'];
+                                    const csvRows = [headers.join(',')];
+                                    dataToExport.forEach(item => {
+                                        csvRows.push([
+                                            item.asin,
+                                            item.sku || '',
+                                            `"${(item.product_name || '').replace(/"/g, '""')}"`,
+                                            item.funnel || '',
+                                            item.buying_price || '',
+                                            item.buying_quantity || '',
+                                            item.product_weight || '',
+                                            item.moved_at ? new Date(item.moved_at).toLocaleDateString('en-IN') : '',
+                                        ].join(','));
+                                    });
+                                    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `restocked-${currentSeller.tag}-${restockDateFilter || 'all'}.csv`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                    setToast({ message: `Downloaded ${dataToExport.length} restocked items`, type: 'success' });
+                                    setTimeout(() => setToast(null), 2000);
+                                }}
+                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 flex items-center gap-1.5 shadow transition-all"
+                            >
+                                <Download className="w-3.5 h-3.5" />
+                                CSV
+                            </button>
                         )}
                     </div>
                 </div>
@@ -815,13 +938,16 @@ export default function RestockPage() {
                                         <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase cursor-pointer hover:text-white" onClick={() => toggleSort('status')}>
                                             <div className="flex items-center gap-1 justify-center">Status <ArrowUpDown className="w-3 h-3" /></div>
                                         </th>
+                                        {statusFilter === 'relisted' && (
+                                            <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Restocked On</th>
+                                        )}
                                         <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/50">
                                     {groupedByAsin.length === 0 ? (
                                         <tr>
-                                            <td colSpan={11} className="px-4 py-12 text-center text-slate-500">
+                                            <td colSpan={statusFilter === 'relisted' ? 12 : 11} className="px-4 py-12 text-center text-slate-500">
                                                 No restock items found for {currentSeller.name}
                                             </td>
                                         </tr>
@@ -862,11 +988,16 @@ export default function RestockPage() {
                                                         <td className="px-3 py-2 text-sm text-slate-300 text-center">{item.buying_quantity ?? '-'}</td>
                                                         <td className="px-3 py-2 text-sm text-slate-300 text-center">{item.product_weight ?? '-'}</td>
                                                         <td className="px-3 py-2 text-center"><StatusBadge status={item.status} /></td>
+                                                        {statusFilter === 'relisted' && (
+                                                            <td className="px-3 py-2 text-center text-xs text-slate-400">
+                                                                {item.moved_at ? new Date(item.moved_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                                            </td>
+                                                        )}
                                                         <td className="px-3 py-2 text-center">
                                                             <div className="flex gap-1 justify-center">
                                                                 {(!item.status || item.status === 'pending') && (
                                                                     <>
-                                                                        <button onClick={() => handleSingleAction(item.id, 'relisted')} className="px-2 py-1 bg-emerald-600/20 text-emerald-400 rounded text-xs font-semibold hover:bg-emerald-600 hover:text-white transition-all">Relist</button>
+                                                                        <button onClick={() => handleSingleAction(item.id, 'relisted')} className="px-2 py-1 bg-emerald-600/20 text-emerald-400 rounded text-xs font-semibold hover:bg-emerald-600 hover:text-white transition-all">Restock</button>
                                                                         <button onClick={() => handleSingleAction(item.id, 'removed')} className="px-2 py-1 bg-rose-600/20 text-rose-400 rounded text-xs font-semibold hover:bg-rose-600 hover:text-white transition-all">Remove</button>
                                                                         <button onClick={() => { setDisposeModal({ itemId: item.id }); setDisposeReason(''); }} className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs font-semibold hover:bg-red-600 hover:text-white transition-all">Dispose</button>
                                                                     </>
@@ -917,6 +1048,11 @@ export default function RestockPage() {
                                                         <td className="px-3 py-2 text-sm text-slate-300 text-center font-semibold">{asinItems.reduce((s, i) => s + (i.buying_quantity ?? 0), 0)}</td>
                                                         <td className="px-3 py-2 text-sm text-slate-300 text-center">{first.product_weight ?? '-'}</td>
                                                         <td className="px-3 py-2 text-center"><span className="text-xs text-slate-500 italic">{count} entries</span></td>
+                                                        {statusFilter === 'relisted' && (
+                                                            <td className="px-3 py-2 text-center text-xs text-slate-400">
+                                                                {first.moved_at ? new Date(first.moved_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                                            </td>
+                                                        )}
                                                         <td className="px-3 py-2 text-center"><span className="text-xs text-slate-500 italic">Expand ▾</span></td>
                                                     </tr>
 
@@ -945,11 +1081,16 @@ export default function RestockPage() {
                                                             <td className="px-3 py-2 text-sm text-slate-300 text-center">{item.buying_quantity ?? '-'}</td>
                                                             <td className="px-3 py-2 text-sm text-slate-300 text-center">{item.product_weight ?? '-'}</td>
                                                             <td className="px-3 py-2 text-center"><StatusBadge status={item.status} /></td>
+                                                            {statusFilter === 'relisted' && (
+                                                                <td className="px-3 py-2 text-center text-xs text-slate-400">
+                                                                    {item.moved_at ? new Date(item.moved_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                                                </td>
+                                                            )}
                                                             <td className="px-3 py-2 text-center">
                                                                 <div className="flex gap-1 justify-center">
                                                                     {(!item.status || item.status === 'pending') && (
                                                                         <>
-                                                                            <button onClick={() => handleSingleAction(item.id, 'relisted')} className="px-2 py-1 bg-emerald-600/20 text-emerald-400 rounded text-xs font-semibold hover:bg-emerald-600 hover:text-white transition-all">Relist</button>
+                                                                            <button onClick={() => handleSingleAction(item.id, 'relisted')} className="px-2 py-1 bg-emerald-600/20 text-emerald-400 rounded text-xs font-semibold hover:bg-emerald-600 hover:text-white transition-all">Restock</button>
                                                                             <button onClick={() => handleSingleAction(item.id, 'removed')} className="px-2 py-1 bg-rose-600/20 text-rose-400 rounded text-xs font-semibold hover:bg-rose-600 hover:text-white transition-all">Remove</button>
                                                                             <button onClick={() => { setDisposeModal({ itemId: item.id }); setDisposeReason(''); }} className="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs font-semibold hover:bg-red-600 hover:text-white transition-all">Dispose</button>
                                                                         </>

@@ -100,10 +100,48 @@ export default function FloatingChat() {
   const [confirmAction, setConfirmAction] = useState<{ type: 'clear' | 'delete' | 'deleteMsg'; id: string } | null>(null)
   const [actionForm, setActionForm] = useState({ asin: '', message: '', url: '/dashboard/india-selling/purchases', label: 'Go to Product' })
 
+  // ─── Drag state ───
+  const [tabY, setTabY] = useState<number>(() => {
+    if (typeof window === 'undefined') return 300;
+    try {
+      const saved = localStorage.getItem('chatTabY');
+      return saved ? Number(saved) : Math.round(window.innerHeight / 2);
+    } catch { return 300; }
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startY: number; startPos: number } | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
+
+  // ─── Grammarly-style hover open/close ───
+  const handleBtnMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    if (!isOpen) { setIsOpen(true); fetchConversations() }
+  }
+  const handleBtnMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => setIsOpen(false), 400)
+  }
+  const handleWindowMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+  }
+  const handleWindowMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => setIsOpen(false), 400)
+  }
+
+  // ─── Compute chat window position (always fully on-screen) ───
+  const getWindowStyle = () => {
+    if (typeof window === 'undefined') return { top: 20, height: 560 };
+    const maxH = Math.min(560, window.innerHeight - 40);
+    // Center window on tab, but clamp so it never goes off-screen
+    let top = tabY - maxH / 2;
+    if (top < 20) top = 20;
+    if (top + maxH > window.innerHeight - 20) top = window.innerHeight - 20 - maxH;
+    return { top, height: maxH };
+  }
 
   // ─── Auto scroll to bottom ───
   useEffect(() => {
@@ -237,30 +275,73 @@ export default function FloatingChat() {
 
   return (
     <>
-      {/* ─── Floating Button ─── */}
-      <motion.button
-        onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchConversations() }}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-900/40 flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-indigo-500/50"
-        whileTap={{ scale: 0.9 }}
+      {/* ─── Edge Tab (peek from right side, draggable) ─── */}
+      <div
+        onMouseEnter={handleBtnMouseEnter}
+        onMouseLeave={handleBtnMouseLeave}
+        onMouseDown={(e) => {
+          dragRef.current = { startY: e.clientY, startPos: tabY };
+          setIsDragging(false);
+          const onMove = (ev: MouseEvent) => {
+            if (!dragRef.current) return;
+            if (Math.abs(ev.clientY - dragRef.current.startY) > 4) setIsDragging(true);
+            const newY = Math.max(40, Math.min(window.innerHeight - 40, dragRef.current.startPos + (ev.clientY - dragRef.current.startY)));
+            setTabY(newY);
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            localStorage.setItem('chatTabY', String(tabY));
+            setTimeout(() => { dragRef.current = null; }, 50);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        }}
+        className="fixed right-0 z-50 group cursor-grab active:cursor-grabbing select-none"
+        style={{ top: tabY, transform: 'translateY(-50%)' }}
       >
-        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
-        {/* Unread badge */}
-        {totalUnread > 0 && !isOpen && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse border-2 border-slate-950">
-            {totalUnread > 9 ? '9+' : totalUnread}
-          </span>
-        )}
-      </motion.button>
+        <div className={`flex items-center transition-all duration-300 ease-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-[28px] group-hover:translate-x-0'
+        }`}>
+          <div className={`w-5 h-12 flex items-center justify-center rounded-l-lg transition-all duration-300 ${
+            isOpen
+              ? 'bg-slate-800 border border-r-0 border-slate-600'
+              : 'bg-indigo-600/60 group-hover:bg-indigo-600 border border-r-0 border-indigo-500/30'
+          }`}>
+            <svg className={`w-3 h-3 transition-transform duration-300 ${isOpen ? 'text-slate-400 rotate-180' : 'text-white/80 group-hover:text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            </svg>
+          </div>
+          <button
+            onClick={() => { if (isDragging) return; if (isOpen) setIsOpen(false) }}
+            className={`w-10 h-12 flex items-center justify-center transition-all duration-200 rounded-l-lg -ml-px ${
+              isOpen
+                ? 'bg-slate-800 border border-r-0 border-slate-600 text-slate-400 hover:text-white'
+                : 'bg-indigo-600/80 group-hover:bg-indigo-500 border border-r-0 border-indigo-500/40 text-white shadow-lg shadow-indigo-900/30'
+            }`}
+          >
+            {isOpen ? <X className="w-4 h-4" /> : <MessageCircle className="w-5 h-5" />}
+            {totalUnread > 0 && !isOpen && (
+              <span className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center border-2 border-slate-950">
+                {totalUnread > 9 ? '9+' : totalUnread}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* ─── Chat Window ─── */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-24 right-6 z-50 w-[380px] h-[560px] bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 flex flex-col overflow-hidden"
+            onMouseEnter={handleWindowMouseEnter}
+            onMouseLeave={handleWindowMouseLeave}
+            className="fixed right-[54px] z-50 w-[380px] bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 flex flex-col overflow-hidden"
+            style={getWindowStyle()}
           >
             {/* ─── HEADER ─── */}
             <div className="flex-none px-4 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
