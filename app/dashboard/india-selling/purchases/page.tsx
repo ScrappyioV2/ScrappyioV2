@@ -340,7 +340,7 @@ export default function PurchasesPage() {
         if (!visibleColumns.productname) return null;
         return (
           <td key={colkey} className="px-6 py-4 text-sm text-gray-100 overflow-hidden" style={{ width: columnWidths.productname }}>
-            <div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div>
+            <div className="truncate max-w-[250px]" title={product.product_name || '-'}>{product.product_name || '-'}</div>
           </td>
         );
 
@@ -540,7 +540,7 @@ export default function PurchasesPage() {
         return (
           <td key={colkey} className="px-2 py-1.5 overflow-hidden"
             style={{ width: columnWidths.buyingquantity }}>
-            <div className="grid grid-cols-2 gap-x-1.5 gap-y-1">
+            <div className="grid grid-cols-2 gap-1">
               {qtySellerTags.map((tag: string) => (
                 <div key={tag} className="flex items-center gap-0.5">
                   <span
@@ -1009,11 +1009,11 @@ export default function PurchasesPage() {
     // targetquantity: 55,
     admintargetprice: 80,
     funnelquantity: 45,
-    funnelseller: 95,
+    funnelseller: 160,
     inrpurchaselink: 55,
     origin: 60,
     buyingprice: 75,
-    buyingquantity: 140,
+    buyingquantity: 200,
     sellerlink: 120,
     sellerphno: 85,
     paymentmethod: 85,
@@ -2572,7 +2572,7 @@ export default function PurchasesPage() {
       {/* Table Container */}
       <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-          <table className="w-full divide-y divide-white/[0.06] table-fixed" style={{ minWidth: '1600px' }}>
+          <table className="w-full divide-y divide-white/[0.06] table-auto" style={{ minWidth: '1600px' }}>
             <thead className="bg-[#111111] sticky top-0 z-10 shadow-md">
               <tr>
                 {/* Checkbox - always first, NOT draggable */}

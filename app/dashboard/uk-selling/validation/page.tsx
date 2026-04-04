@@ -1957,7 +1957,7 @@ export default function ValidationPage() {
                                         </div>
                                     )}
 
-                                    <table className="w-full table-fixed max-w-full">
+                                    <table className="w-full table-auto max-w-full">
                                         <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
 
                                             <tr>

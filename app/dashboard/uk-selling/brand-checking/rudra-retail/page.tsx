@@ -918,7 +918,7 @@ export default function RudraRetailPage() {
               </div>
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
+                <table className="w-full border-collapse text-left table-auto" ref={tableRef}>
                   <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.1] shadow-md">
                     <tr>
                       <th className="p-4 bg-[#111111] border-r border-white/[0.1] text-center sticky left-0 z-20" style={{ width: '60px' }}>

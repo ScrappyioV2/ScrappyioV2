@@ -329,7 +329,7 @@ useEffect(() => {
     inrpurchaselink: 100,
     origin: 70,  // ✅ ADD THIS LINE
     buyingprice: 100,
-    buyingquantity: 120,
+    buyingquantity: 200,
     sellerlink: 100,
     sellerphno: 120,
     paymentmethod: 120,
@@ -1099,7 +1099,7 @@ useEffect(() => {
       {/* Table Container */}
       <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-          <table className="w-full divide-y divide-white/[0.06] table-fixed" style={{ minWidth: '2500px' }}>
+          <table className="w-full divide-y divide-white/[0.06] table-auto" style={{ minWidth: '2500px' }}>
             <thead className="bg-[#111111] sticky top-0 z-10 shadow-md">
               <tr>
                 {visibleColumns.checkbox && (
@@ -1244,7 +1244,7 @@ useEffect(() => {
                       </td>}
 
                       {/* Product Name */}
-                      {visibleColumns.productname && <td className="px-6 py-4 text-sm text-gray-100 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
+                      {visibleColumns.productname && <td className="px-6 py-4 text-sm text-gray-100 overflow-hidden" style={{ width: `${columnWidths.productname}px` }}><div className="truncate max-w-[250px]" title={product.product_name || '-'}>{product.product_name || '-'}</div></td>}
 
                       {/* Target Price */}
                       {visibleColumns.targetprice && <td className="px-6 py-4 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.targetprice}px` }}>
