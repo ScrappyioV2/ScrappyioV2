@@ -149,7 +149,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       {/* ✅ Main area wrapper */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ✅ NEW: Mobile top bar — only visible on <md screens */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[#111111] border-b border-white/[0.06]">
+        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[#111111] border-b border-white/[0.1]">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#111111] transition-colors"
@@ -165,7 +165,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
           {/* Right side: role badge or spacer */}
           {userRole ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-500/100/10 text-orange-500 border border-orange-500/20">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
               <ShieldCheck className="w-2.5 h-2.5" />
               {userRole.role}
             </span>

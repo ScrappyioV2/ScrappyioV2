@@ -1548,7 +1548,7 @@ export default function ValidationPage() {
                         </div>
                         {/* Stats Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-white/[0.06]">
+                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-white/[0.1]">
                                 <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Products</div>
                                 <div className="text-3xl font-bold mt-1">{stats.total}</div>
                             </div>
@@ -1574,7 +1574,7 @@ export default function ValidationPage() {
                         </div>
 
                         {/* File Tabs */}
-                        <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit">
+                        <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit">
                             {[
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
@@ -1586,7 +1586,7 @@ export default function ValidationPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as FileTab)}
                                     className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
-                                        ? 'bg-orange-500/100 text-white font-semibold shadow-sm'
+                                        ? 'bg-orange-500 text-white font-semibold shadow-sm'
                                         : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
                                         }`}
                                 >
@@ -1615,7 +1615,7 @@ export default function ValidationPage() {
                                             placeholder="Search by ASIN, Product Name, or Brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2.5 text-sm bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
+                                            className="w-full pl-9 pr-10 py-2.5 text-sm bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
                                         />
                                         {searchQuery && (
                                             <button
@@ -1633,7 +1633,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-3 py-1.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.06] text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                            className="px-3 py-1.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.1] text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -1644,7 +1644,7 @@ export default function ValidationPage() {
                                         {isFilterOpen && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
                                                     <h3 className="font-semibold text-gray-100 mb-3">Filter Products</h3>
                                                     <div className="space-y-3">
                                                         <div>
@@ -1653,7 +1653,7 @@ export default function ValidationPage() {
                                                                 type="text"
                                                                 value={filters.seller_tag}
                                                                 onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter seller name"
                                                             />
                                                         </div>
@@ -1663,7 +1663,7 @@ export default function ValidationPage() {
                                                                 type="text"
                                                                 value={filters.brand}
                                                                 onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter brand"
                                                             />
                                                         </div>
@@ -1673,7 +1673,7 @@ export default function ValidationPage() {
                                                                 type="text"
                                                                 value={filters.funnel}
                                                                 onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter funnel"
                                                             />
                                                         </div>
@@ -1698,8 +1698,8 @@ export default function ValidationPage() {
                                             onClick={handleMoveToMainClick}
                                             disabled={selectedIds.size === 0}
                                             className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-                                                : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.06]'
+                                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                                : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.1]'
                                                 }`}
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1715,8 +1715,8 @@ export default function ValidationPage() {
                                                 onClick={handleMoveToPassClick}
                                                 disabled={selectedIds.size === 0}
                                                 className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
-                                                    ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-                                                    : 'bg-emerald-600 text-white hover:bg-emerald-500/100 border border-emerald-500'
+                                                    ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                                    : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1732,8 +1732,8 @@ export default function ValidationPage() {
                                                 onClick={handleMoveToFailClick}
                                                 disabled={selectedIds.size === 0}
                                                 className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
-                                                    ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-                                                    : 'bg-rose-600 text-white hover:bg-rose-500/100 border border-rose-500'
+                                                    ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                                    : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1748,7 +1748,7 @@ export default function ValidationPage() {
                                             onClick={handleMoveToRejectClick}
                                             disabled={selectedIds.size === 0}
                                             className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
-                                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                                                 : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
                                                 }`}
                                         >
@@ -1763,7 +1763,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500/100 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1777,7 +1777,7 @@ export default function ValidationPage() {
                                         {isDownloadDropdownOpen && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                                                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                                                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
 
                                                     {selectedIds.size > 0 && (
                                                         <button
@@ -1825,7 +1825,7 @@ export default function ValidationPage() {
                                     {/* Bulk USA Price Update */}
                                     <button
                                         onClick={() => usaPriceCSVInputRef.current?.click()}
-                                        className="px-3 py-1.5 bg-orange-500/100 text-white rounded-xl hover:bg-orange-400 text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
+                                        className="px-3 py-1.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
                                     >
                                         Bulk USA Price Update
                                     </button>
@@ -1848,7 +1848,7 @@ export default function ValidationPage() {
                     </div>
 
                     {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                    <div className="flex-1 min-h-0 bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/[0.06]">
+                    <div className="flex-1 min-h-0 bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/[0.1]">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-16">
                                 <div className="relative">
@@ -1880,7 +1880,7 @@ export default function ValidationPage() {
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
                                         <div className="absolute inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">
-                                            <div className="flex items-center gap-3 bg-[#111111] px-6 py-4 rounded-xl shadow-2xl border border-white/[0.06]">
+                                            <div className="flex items-center gap-3 bg-[#111111] px-6 py-4 rounded-xl shadow-2xl border border-white/[0.1]">
                                                 <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
                                                 <span className="text-gray-100 font-semibold">
                                                     Loading {activeTab.replace('_', ' ')}...
@@ -1890,7 +1890,7 @@ export default function ValidationPage() {
                                     )}
 
                                     <table className="w-full table-fixed max-w-full">
-                                        <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10 shadow-md">
+                                        <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
 
                                             <tr>
                                                 {/* ✅ Fixed width for checkbox to prevent overlap */}
@@ -1899,7 +1899,7 @@ export default function ValidationPage() {
                                                         type="checkbox"
                                                         checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                                                         onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                                                        className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                     />
                                                 </th>
 
@@ -1943,7 +1943,7 @@ export default function ValidationPage() {
                                                             type="checkbox"
                                                             checked={selectedIds.has(product.id)}
                                                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                                                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                         />
                                                     </td>
 
@@ -1955,10 +1955,10 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {/* Column 2: History icon only (no ASIN) */}
-                                                    <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                                                    <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                                                         <button
                                                             onClick={() => fetchHistory(product.asin)}
-                                                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
+                                                            className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors"
                                                             title="View Journey History"
                                                         >
                                                             <History className="w-4 h-4" />
@@ -1966,7 +1966,7 @@ export default function ValidationPage() {
                                                     </td>
 
                                                     {visibleColumns.product_name && (
-                                                        <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-white/[0.06]">
+                                                        <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-white/[0.1]">
                                                             {/* ✅ Truncate long names */}
                                                             <div className="truncate max-w-full text-gray-500 text-xs" title={product.product_name || ''}>
                                                                 {product.product_name || '-'}
@@ -2001,17 +2001,17 @@ export default function ValidationPage() {
                                                         <td className="p-3">
                                                             <div className="flex flex-col gap-1 text-sm text-gray-300">
                                                                 <label className="flex items-center gap-2">
-                                                                    <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                    <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                     India
                                                                 </label>
                                                                 <label className="flex items-center gap-2">
-                                                                    <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                    <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                     China
                                                                 </label>
                                                                 <label className="flex items-center gap-2">
                                                                     <input type="checkbox" checked={!!product.origin_us}
                                                                         onChange={(e) => handleOriginToggle(product.id, 'origin_us', e.target.checked)}
-                                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                        className="rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                     US
                                                                 </label>
                                                             </div>
@@ -2028,7 +2028,7 @@ export default function ValidationPage() {
                                                                     onBlur={(e) =>
                                                                         handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)
                                                                     }
-                                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 product.product_weight ?? '-'
@@ -2048,7 +2048,7 @@ export default function ValidationPage() {
                                                                         const parsed = parseCurrency(e.target.value);
                                                                         handleCellEdit(product.id, 'usd_price', parsed);
                                                                     }}
-                                                                    className="w-28 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    className="w-28 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 formatUSD(product.usd_price)
@@ -2068,7 +2068,7 @@ export default function ValidationPage() {
                                                                         const parsed = parseCurrency(e.target.value);
                                                                         handleCellEdit(product.id, 'inr_purchase', parsed);
                                                                     }}
-                                                                    className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 formatINR(product.inr_purchase)
@@ -2119,7 +2119,7 @@ export default function ValidationPage() {
                                                                     }
                                                                 }}
                                                                 placeholder="Enter link + press Enter ↵"
-                                                                className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate"
+                                                                className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate"
                                                             />
                                                         </td>
                                                     )}
@@ -2138,19 +2138,19 @@ export default function ValidationPage() {
                                                                 <div className="flex flex-wrap gap-2 text-xs text-gray-300">
                                                                     {/* ... existing checkboxes ... */}
                                                                     <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Brand Checking">
-                                                                        <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                        <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                         <span>Brand</span>
                                                                     </label>
                                                                     <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Item Expire">
-                                                                        <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                        <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                         <span>Expire</span>
                                                                     </label>
                                                                     <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Small Size">
-                                                                        <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                        <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                         <span>Size</span>
                                                                     </label>
                                                                     <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Multi Sellers">
-                                                                        <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
+                                                                        <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-white/[0.1] bg-[#111111] text-orange-500" />
                                                                         <span>Multi</span>
                                                                     </label>
                                                                 </div>
@@ -2167,13 +2167,13 @@ export default function ValidationPage() {
                                                                 return displayJudgement ? (
                                                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${displayJudgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
                                                                         displayJudgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                                                            displayJudgement === 'PENDING' ? 'bg-orange-500/100/20 text-orange-400 border border-orange-500/30' :
+                                                                            displayJudgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
                                                                                 'bg-[#1a1a1a] text-gray-500'
                                                                         }`}>
                                                                         {displayJudgement}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/100/20 text-orange-400 border border-orange-500/30">PENDING</span>
+                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
                                                                 );
                                                             })()}
                                                         </td>
@@ -2184,7 +2184,7 @@ export default function ValidationPage() {
                                                             {product.remark ? (
                                                                 <button
                                                                     onClick={() => setSelectedRemark(product.remark)}
-                                                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                                                    className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                                                 >
                                                                     View
                                                                 </button>
@@ -2200,7 +2200,7 @@ export default function ValidationPage() {
                                 </div>
 
                                 {allFilteredProducts.length > rowsPerPage && (
-                                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] bg-[#111111]">
+                                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.1] bg-[#111111]">
                                         <div className="text-sm text-gray-300">
                                             Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{allFilteredProducts.length}</span> products
                                             {selectedIds.size > 0 && (
@@ -2214,7 +2214,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(1)}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 First
                                             </button>
@@ -2222,19 +2222,19 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 Previous
                                             </button>
 
-                                            <span className="px-4 py-1.5 bg-orange-500/100 text-white rounded-lg text-sm font-semibold">
+                                            <span className="px-4 py-1.5 bg-orange-500 text-white rounded-lg text-sm font-semibold">
                                                 Page {currentPage} of {totalPages}
                                             </span>
 
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 Next
                                             </button>
@@ -2242,7 +2242,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(totalPages)}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 Last
                                             </button>
@@ -2251,13 +2251,13 @@ export default function ValidationPage() {
                                 )}
 
                                 {/* Footer Stats - Fixed at bottom of table
-                                <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                                <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
                                     <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap gap-2">
                                         <span className="font-medium">
                                             Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{products.length}</span> products
                                         </span>
                                         {selectedIds.size > 0 && (
-                                            <span className="px-3 py-1 bg-orange-500/100/10 text-orange-400 rounded-full font-semibold border border-orange-500/30">
+                                            <span className="px-3 py-1 bg-orange-500/10 text-orange-400 rounded-full font-semibold border border-orange-500/30">
                                                 {selectedIds.size} selected
                                             </span>
                                         )}
@@ -2273,7 +2273,7 @@ export default function ValidationPage() {
                     <>
                         <div className="fixed inset-0 bg-[#111111] z-40" onClick={() => setIsConstantsModalOpen(false)} />
                         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.06] overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.1] overflow-hidden animate-in zoom-in-95 duration-200">
                                 <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6">
                                     <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
                                     <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
@@ -2286,7 +2286,7 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.dollar_rate}
                                             onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
@@ -2296,7 +2296,7 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.bank_conversion_rate * 100}
                                             onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
@@ -2306,16 +2306,16 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.shipping_charge_per_kg}
                                             onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="p-6 border-t border-white/[0.06] bg-[#1a1a1a] flex items-center justify-end gap-3">
+                                <div className="p-6 border-t border-white/[0.1] bg-[#1a1a1a] flex items-center justify-end gap-3">
                                     <button
                                         onClick={() => setIsConstantsModalOpen(false)}
-                                        className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
+                                        className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.1]"
                                     >
                                         Cancel
                                     </button>
@@ -2373,7 +2373,7 @@ export default function ValidationPage() {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-6 flex flex-col"
+                            className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-6 flex flex-col"
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between mb-8">
@@ -2409,7 +2409,7 @@ export default function ValidationPage() {
                                             <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                                             {/* Card */}
-                                            <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                                            <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                                                 {/* Journey Info */}
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
@@ -2469,7 +2469,7 @@ export default function ValidationPage() {
             {/* ✅ REMARK MODAL */}
             {selectedRemark && (
                 <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl p-6">
+                    <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Remark Details</h3>
                             <button
@@ -2479,7 +2479,7 @@ export default function ValidationPage() {
                                 ×
                             </button>
                         </div>
-                        <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06] max-h-96 overflow-y-auto">
+                        <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1] max-h-96 overflow-y-auto">
                             {selectedRemark}
                         </div>
                     </div>

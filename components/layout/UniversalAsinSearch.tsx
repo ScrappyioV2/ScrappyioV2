@@ -91,13 +91,13 @@ const SC: Record<string, { dot: string; text: string; bg: string; border: string
     'listed-bc': { dot: 'bg-indigo-400', text: 'text-orange-400', bg: 'bg-orange-400/15', border: 'border-orange-500/30' },
     'not-listed-bc': { dot: 'bg-violet-400', text: 'text-violet-300', bg: 'bg-violet-500/15', border: 'border-violet-500/30' },
     'validation': { dot: 'bg-blue-400', text: 'text-blue-300', bg: 'bg-blue-500/15', border: 'border-blue-500/30' },
-    'admin-validation': { dot: 'bg-amber-400', text: 'text-amber-300', bg: 'bg-amber-500/100/15', border: 'border-amber-500/30' },
+    'admin-validation': { dot: 'bg-amber-400', text: 'text-amber-300', bg: 'bg-amber-500/15', border: 'border-amber-500/30' },
     'purchases': { dot: 'bg-cyan-400', text: 'text-cyan-300', bg: 'bg-cyan-500/15', border: 'border-cyan-500/30' },
-    'tracking': { dot: 'bg-emerald-400', text: 'text-emerald-300', bg: 'bg-emerald-500/100/15', border: 'border-emerald-500/30' },
-    'listing-error': { dot: 'bg-orange-400', text: 'text-orange-300', bg: 'bg-orange-500/100/15', border: 'border-orange-500/30' },
+    'tracking': { dot: 'bg-emerald-400', text: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
+    'listing-error': { dot: 'bg-orange-400', text: 'text-orange-300', bg: 'bg-orange-500/15', border: 'border-orange-500/30' },
     'restock': { dot: 'bg-sky-400', text: 'text-sky-300', bg: 'bg-sky-500/15', border: 'border-sky-500/30' },
     'reorder': { dot: 'bg-pink-400', text: 'text-pink-300', bg: 'bg-pink-500/15', border: 'border-pink-500/30' },
-    'manage-sellers': { dot: 'bg-rose-400', text: 'text-rose-300', bg: 'bg-rose-500/100/15', border: 'border-rose-500/30' },
+    'manage-sellers': { dot: 'bg-rose-400', text: 'text-rose-300', bg: 'bg-rose-500/15', border: 'border-rose-500/30' },
     'master': { dot: 'bg-slate-400', text: 'text-gray-500', bg: 'bg-slate-500/15', border: 'border-slate-500/30' },
 }
 function sc(key: string) { return SC[key] || SC['master'] }
@@ -367,14 +367,14 @@ export default function UniversalAsinSearch() {
             {/* Trigger */}
             <button
                 onClick={() => { setIsOpen(true); setTimeout(() => inputRef.current?.focus(), 100) }}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-[#1a1a1a] border border-white/[0.06]
-                    rounded-lg text-gray-500 hover:text-gray-200 hover:border-white/[0.06]
+                className="w-full flex items-center gap-2 px-3 py-2 bg-[#1a1a1a] border border-white/[0.1]
+                    rounded-lg text-gray-500 hover:text-gray-200 hover:border-white/[0.1]
                     hover:bg-[#111111] transition-all text-xs group"
             >
                 <Search className="w-3.5 h-3.5" />
                 <span className="flex-1 text-left">Find ASIN...</span>
-                <kbd className="px-1.5 py-0.5 bg-[#111111] rounded text-[10px] font-mono border border-white/[0.06]
-                    group-hover:border-white/[0.06]">⌘K</kbd>
+                <kbd className="px-1.5 py-0.5 bg-[#111111] rounded text-[10px] font-mono border border-white/[0.1]
+                    group-hover:border-white/[0.1]">⌘K</kbd>
             </button>
 
             {/* Panel */}
@@ -382,10 +382,10 @@ export default function UniversalAsinSearch() {
                 <>
                     <div className="fixed inset-0 bg-[#111111]/60 z-[9999]" onClick={() => setIsOpen(false)} />
                     <div ref={panelRef} className="fixed top-[10%] left-1/2 -translate-x-1/2 w-full max-w-2xl z-[9999] px-4">
-                        <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden">
 
                             {/* Input */}
-                            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+                            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.1]">
                                 <Search className="w-5 h-5 text-orange-500 flex-shrink-0" />
                                 <input
                                     ref={inputRef}
@@ -405,7 +405,7 @@ export default function UniversalAsinSearch() {
                                         <X className="w-4 h-4" />
                                     </button>
                                 ) : null}
-                                <button onClick={handleSearch} className="px-3 py-1 bg-orange-500/100 hover:bg-orange-400 text-white text-xs rounded-lg font-medium transition-colors">
+                                <button onClick={handleSearch} className="px-3 py-1 bg-orange-500 hover:bg-orange-400 text-white text-xs rounded-lg font-medium transition-colors">
                                     Search
                                 </button>
                             </div>
@@ -434,7 +434,7 @@ export default function UniversalAsinSearch() {
                                 {searched && !loading && results.length > 0 && (
                                     <div className="divide-y divide-white/[0.06]">
                                         {/* Summary bar */}
-                                        <div className="px-4 py-2.5 bg-orange-500/100/5 flex items-center gap-2">
+                                        <div className="px-4 py-2.5 bg-orange-500/5 flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                             <span className="text-xs text-gray-500">
                                                 Found in <span className="text-orange-500 font-bold">{Object.keys(grouped).length + (adminHits.length > 0 ? 1 : 0)}</span> section{(Object.keys(grouped).length + (adminHits.length > 0 ? 1 : 0)) !== 1 ? 's' : ''},
@@ -518,7 +518,7 @@ export default function UniversalAsinSearch() {
                                                                             </>
                                                                         )}
                                                                         {h.status && (
-                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/100/15 text-amber-400 rounded ml-1 border border-amber-500/20">
+                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 rounded ml-1 border border-amber-500/20">
                                                                                 {h.status}
                                                                             </span>
                                                                         )}
@@ -565,11 +565,11 @@ export default function UniversalAsinSearch() {
                             </div>
 
                             {/* Footer */}
-                            <div className="px-4 py-2 border-t border-white/[0.06] flex items-center justify-between bg-[#1a1a1a]">
+                            <div className="px-4 py-2 border-t border-white/[0.1] flex items-center justify-between bg-[#1a1a1a]">
                                 <span className="text-[10px] text-gray-500">{Object.keys(MARKETPLACE_MAP).length} marketplaces</span>
                                 <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                                    <span><kbd className="px-1 py-0.5 bg-[#111111] rounded border border-white/[0.06] text-gray-500">Enter</kbd> Search</span>
-                                    <span><kbd className="px-1 py-0.5 bg-[#111111] rounded border border-white/[0.06] text-gray-500">Esc</kbd> Close</span>
+                                    <span><kbd className="px-1 py-0.5 bg-[#111111] rounded border border-white/[0.1] text-gray-500">Enter</kbd> Search</span>
+                                    <span><kbd className="px-1 py-0.5 bg-[#111111] rounded border border-white/[0.1] text-gray-500">Esc</kbd> Close</span>
                                 </div>
                             </div>
                         </div>

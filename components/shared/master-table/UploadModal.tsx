@@ -75,7 +75,7 @@ export default function UploadModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div 
             className={`border-2 border-dashed p-12 rounded-xl text-center transition-all cursor-pointer hover:shadow-lg ${
-              dragActive ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-200' : 'border-white/[0.06] hover:border-gray-400'
+              dragActive ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-200' : 'border-white/[0.1] hover:border-gray-400'
             }`}
             onDragOver={e => handleDrag(e, true)}
             onDragEnter={e => handleDrag(e, true)}
@@ -132,7 +132,7 @@ export default function UploadModal({
         <div className="p-6 border-t bg-[#111111] flex justify-end gap-3">
           <button 
             onClick={onClose}
-            className="px-6 py-2.5 border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#111111] font-medium transition-colors"
+            className="px-6 py-2.5 border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#111111] font-medium transition-colors"
           >
             Cancel
           </button>

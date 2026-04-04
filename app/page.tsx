@@ -97,11 +97,11 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-500 mb-2">Email Address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-white/[0.06] rounded-lg" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-white/[0.1] rounded-lg" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-500 mb-2">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-white/[0.06] rounded-lg" />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-white/[0.1] rounded-lg" />
             </div>
             <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
               {loading ? 'Signing In...' : 'Sign In'}

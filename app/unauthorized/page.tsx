@@ -9,7 +9,7 @@ export default function UnauthorizedPage() {
       <p className="text-gray-400 mb-8">You do not have permission to view this page.</p>
       <Link 
         href="/dashboard" 
-        className="px-6 py-3 bg-orange-500/100 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
       >
         Return to Dashboard
       </Link>

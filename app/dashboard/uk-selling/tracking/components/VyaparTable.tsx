@@ -116,18 +116,18 @@ export default function VyaparTable({
                     placeholder="Search by Invoice or ASIN..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100"
+                    className="w-full max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100"
                 />
             </div>
 
             {/* Table */}
             <div className="flex-1 overflow-hidden">
-                <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+                <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
 
                     {/* Scrollable Table */}
                     <div className="flex-1 overflow-y-auto">
                         <table className="w-full">
-                            <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10">
+                            <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10">
                                 <tr>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice No</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice Date</th>
@@ -160,7 +160,7 @@ export default function VyaparTable({
                                             key={item.id}
                                             className={`transition-colors ${item.action_status === 'done'
                                                     ? 'bg-green-900/30 hover:bg-green-900/40'
-                                                    : 'hover:bg-white/[0.05]0/100/5'
+                                                    : 'hover:bg-white/[0.05]'
                                                 }`}
                                         >
                                             {/* 1. Invoice No */}
@@ -216,7 +216,7 @@ export default function VyaparTable({
                                                 {item.seller_company ? (
                                                     <button
                                                         onClick={() => setSelectedCompany(item.seller_company!)}
-                                                        className="bg-orange-500/100 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                                        className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                                                     >
                                                         View
                                                     </button>
@@ -272,7 +272,7 @@ export default function VyaparTable({
                     </div>
 
                     {/* Footer - FIXED at bottom */}
-                    <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                    <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
                         <div className="text-sm text-gray-300">
                             Showing {filteredItems.length} of {items.length} Vyapar records
                         </div>
@@ -284,7 +284,7 @@ export default function VyaparTable({
             {/* Company Modal */}
             {selectedCompany && (
                 <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-6">
+                    <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-md p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
                             <button
@@ -294,7 +294,7 @@ export default function VyaparTable({
                                 ×
                             </button>
                         </div>
-                        <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06]">
+                        <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1]">
                             {selectedCompany}
                         </div>
                     </div>

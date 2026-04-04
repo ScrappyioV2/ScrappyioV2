@@ -892,19 +892,19 @@ export default function PurchasesPage() {
             <h1 className="text-3xl font-bold text-white">Purchases</h1>
             <p className="text-gray-400 mt-1">Manage purchase orders and track confirmations</p>
           </div>
-          <div className="text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
+          <div className="text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.1]">
             TOTAL: <span className="text-white font-bold">{products.length}</span>
           </div>
         </div>
       </div>
 
       {/* Tabs - Midnight Theme Pills */}
-      <div className="flex-none flex gap-2 mb-6 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit overflow-x-auto">
+      <div className="flex-none flex gap-2 mb-6 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit overflow-x-auto">
         {/* 1. Main File */}
         <button
           onClick={() => setActiveTab('main_file')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-blue-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -916,42 +916,42 @@ export default function PurchasesPage() {
         <button
           onClick={() => setActiveTab('order_confirmed')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-emerald-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-emerald-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
-          {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500/100" />}
+          {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
         </button>
 
         {/* 3. India */}
         <button
           onClick={() => setActiveTab('india')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'india'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-orange-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-orange-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">India ({products.filter(p => p.origin_india).length})</span>
-          {activeTab === 'india' && <div className="absolute inset-0 opacity-10 bg-orange-500/100" />}
+          {activeTab === 'india' && <div className="absolute inset-0 opacity-10 bg-orange-500" />}
         </button>
 
         {/* 4. China */}
         <button
           onClick={() => setActiveTab('china')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'china'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-rose-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-rose-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">China ({products.filter(p => p.origin_china).length})</span>
-          {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500/100" />}
+          {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500" />}
         </button>
 
         {/* 5. US */}
         <button onClick={() => setActiveTab('us')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'us'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-sky-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-sky-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'}`}>
           <span className="relative z-10">US {products.filter(p => p.origin_us).length}</span>
           {activeTab === 'us' && <div className="absolute inset-0 opacity-10 bg-sky-500" />}
@@ -961,7 +961,7 @@ export default function PurchasesPage() {
         <button
           onClick={() => setActiveTab('pending')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'pending'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-purple-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-purple-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -973,19 +973,19 @@ export default function PurchasesPage() {
         <button
           onClick={() => setActiveTab('price_wait')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'price_wait'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-amber-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-amber-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">Price Wait ({products.filter(p => p.move_to === 'pricewait').length})</span>
-          {activeTab === 'price_wait' && <div className="absolute inset-0 opacity-10 bg-amber-500/100" />}
+          {activeTab === 'price_wait' && <div className="absolute inset-0 opacity-10 bg-amber-500" />}
         </button>
 
         {/* 7. Not Found */}
         <button
           onClick={() => setActiveTab('not_found')}
           className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'not_found'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-gray-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-gray-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -1006,7 +1006,7 @@ export default function PurchasesPage() {
             placeholder="Search by ASIN, Product Name, or Funnel..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
           />
         </div>
 
@@ -1015,7 +1015,7 @@ export default function PurchasesPage() {
           <button
             onClick={handleRollBack}
             disabled={!movementHistory[activeTab]}
-            className="px-4 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-white/[0.05]0/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-orange-900/20 transition-all border border-orange-500/50"
+            className="px-4 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-white/[0.05]/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-orange-900/20 transition-all border border-orange-500/50"
             title="Roll Back last action from this tab (Ctrl+Z)"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1028,8 +1028,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setShowAllJourneys(!showAllJourneys)}
             className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
-              ? 'bg-orange-500/100 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
-              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+              ? 'bg-orange-500 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
+              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
               }`}
             title={`Currently showing ${showAllJourneys ? 'ALL journey cycles' : 'latest journey only'}`}
           >
@@ -1042,7 +1042,7 @@ export default function PurchasesPage() {
           <div className="relative">
             <button
               onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-              className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.06] flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
+              className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.1] flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -1053,7 +1053,7 @@ export default function PurchasesPage() {
             {isColumnMenuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsColumnMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
                   <h3 className="font-semibold text-gray-100 mb-3 text-sm">Toggle Columns</h3>
                   <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
                     {Object.keys(visibleColumns).map((col) => {
@@ -1085,23 +1085,23 @@ export default function PurchasesPage() {
                             type="checkbox"
                             checked={visibleColumns[col as keyof typeof visibleColumns]}
                             onChange={(e) => setVisibleColumns({ ...visibleColumns, [col]: e.target.checked })}
-                            className="w-4 h-4 text-orange-500 rounded border-white/[0.06] bg-[#111111] focus:ring-orange-500/50"
+                            className="w-4 h-4 text-orange-500 rounded border-white/[0.1] bg-[#111111] focus:ring-orange-500/50"
                           />
                           <span className="text-sm text-gray-300">{columnDisplayNames[col] || col}</span>
                         </label>
                       );
                     })}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
+                  <div className="mt-3 pt-3 border-t border-white/[0.1] flex gap-2">
                     <button
                       onClick={() => setVisibleColumns(Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns))}
-                      className="flex-1 px-3 py-1.5 bg-orange-500/100/10 text-orange-500 rounded hover:bg-orange-400 hover:text-white text-xs font-medium transition-colors"
+                      className="flex-1 px-3 py-1.5 bg-orange-500/10 text-orange-500 rounded hover:bg-orange-400 hover:text-white text-xs font-medium transition-colors"
                     >
                       Show All
                     </button>
                     <button
                       onClick={() => setVisibleColumns(Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns))}
-                      className="flex-1 px-3 py-1.5 bg-[#111111] text-gray-400 rounded hover:bg-[#1a1a1a] text-xs font-medium transition-colors border border-white/[0.06]"
+                      className="flex-1 px-3 py-1.5 bg-[#111111] text-gray-400 rounded hover:bg-[#1a1a1a] text-xs font-medium transition-colors border border-white/[0.1]"
                     >
                       Reset
                     </button>
@@ -1114,7 +1114,7 @@ export default function PurchasesPage() {
       </div>
 
       {/* Table Container */}
-      <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.06]">
+      <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
           <table className="w-full divide-y divide-white/[0.06] table-fixed" style={{ minWidth: '2500px' }}>
             <thead className="bg-[#111111] sticky top-0 z-10 shadow-md">
@@ -1125,7 +1125,7 @@ export default function PurchasesPage() {
                       type="checkbox"
                       checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                      className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                     />
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('checkbox', e)} />
                   </th>
@@ -1211,12 +1211,12 @@ export default function PurchasesPage() {
               ) : (
                 filteredProducts.map((product) => {
                   return (
-                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.06] group">
+                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] group">
 
                       {/* ✅ Checkbox */}
                       {visibleColumns.checkbox && (
                         <td className="px-6 py-4 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
-                          <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer" />
+                          <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer" />
                         </td>
                       )}
 
@@ -1231,7 +1231,7 @@ export default function PurchasesPage() {
                       <td className="px-6 py-4 text-center" style={{ width: `${columnWidths.history}px` }}>
                         <button
                           onClick={() => fetchHistory(product.asin)}
-                          className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
+                          className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors"
                           title="View Journey History"
                         >
                           <History className="w-4 h-4" />
@@ -1243,7 +1243,7 @@ export default function PurchasesPage() {
                           {product.remark ? (
                             <button
                               onClick={() => setSelectedRemark(product.remark)}
-                              className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                             >
                               View
                             </button>
@@ -1287,9 +1287,9 @@ export default function PurchasesPage() {
                       {/* Funnel Qty */}
                       {visibleColumns.funnelquantity && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
                         {product.validation_funnel ? (
-                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30' :
+                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                             product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                              product.validation_funnel === 'DP' ? 'bg-amber-500/100/20 text-amber-400 border border-amber-500/30' :
+                              product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
                                 'bg-[#1a1a1a] text-gray-500'
                             }`}>{product.validation_funnel}</span>
                         ) : <span className="text-xs text-gray-300">-</span>}
@@ -1322,8 +1322,8 @@ export default function PurchasesPage() {
                       {/* Origin */}
                       {visibleColumns.origin && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.origin}px` }}>
                         <div className="flex gap-1">
-                          {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/100/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
-                          {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/100/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
+                          {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded text-xs">India</span>}
+                          {product.origin_china && <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-xs">China</span>}
                           {product.origin_us && <span className="px-2 py-0.5 bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded text-xs">US</span>}
                           {!product.origin_india && !product.origin_china && <span className="text-xs text-gray-300">-</span>}
                         </div>
@@ -1331,27 +1331,27 @@ export default function PurchasesPage() {
 
                       {/* Buying Price - Input */}
                       {visibleColumns.buyingprice && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
-                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Price" />
+                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Price" />
                       </td>}
 
                       {/* Buying Qty - Input */}
                       {visibleColumns.buyingquantity && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
-                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Qty" />
+                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Qty" />
                       </td>}
 
                       {/* Seller Link - Input */}
                       {visibleColumns.sellerlink && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
-                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Link" />
+                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Link" />
                       </td>}
 
                       {/* Seller Phone - Input */}
                       {visibleColumns.sellerphno && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
-                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Phone" />
+                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Phone" />
                       </td>}
 
                       {/* Payment Method - Input */}
                       {visibleColumns.paymentmethod && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
-                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Method" />
+                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Method" />
                       </td>}
 
                       {/* Tracking Details - Input */}
@@ -1402,7 +1402,7 @@ export default function PurchasesPage() {
           </table>
         </div>
         {/* Footer Stats */}
-        <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+        <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
           <div className="text-sm text-gray-300">
             Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
             {selectedIds.size > 0 && <span className="ml-2 text-orange-500 font-semibold">| {selectedIds.size} selected</span>}
@@ -1428,7 +1428,7 @@ export default function PurchasesPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
+              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
@@ -1464,7 +1464,7 @@ export default function PurchasesPage() {
                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                       {/* Card */}
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                         {/* Journey Info */}
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
@@ -1483,7 +1483,7 @@ export default function PurchasesPage() {
                         {/* Snapshot Details */}
                         <div className="space-y-1.5 text-xs">
                           {snapshot.profit !== null && snapshot.profit !== undefined && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Profit:</span>
                               <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                                 ₹{snapshot.profit.toFixed(2)}
@@ -1491,19 +1491,19 @@ export default function PurchasesPage() {
                             </div>
                           )}
                           {snapshot.totalcost && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Total Cost:</span>
                               <span className="text-gray-100">₹{snapshot.totalcost.toFixed(2)}</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.productweight && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Weight:</span>
                               <span className="text-gray-100">{snapshot.snapshotdata.productweight}g</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.usdprice && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">USD Price:</span>
                               <span className="text-gray-100">${snapshot.snapshotdata.usdprice}</span>
                             </div>
@@ -1544,12 +1544,12 @@ export default function PurchasesPage() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-[#111111] rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-white/[0.06] overflow-hidden pointer-events-auto"
+                className="bg-[#111111] rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
               >
                 {/* ========== HEADER ========== */}
-                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-white/[0.1]">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-orange-500/100/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
                       <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                       </svg>
@@ -1570,9 +1570,9 @@ export default function PurchasesPage() {
 
                 {/* ========== BODY (Scrollable Content) ========== */}
                 <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
                     {/* Remark Label */}
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
                       <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
@@ -1585,7 +1585,7 @@ export default function PurchasesPage() {
                     </div>
 
                     {/* Metadata Footer (Optional - shows character count) */}
-                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1614,7 +1614,7 @@ export default function PurchasesPage() {
                 </div>
 
                 {/* ========== FOOTER (Action Buttons) ========== */}
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
                   <div className="text-xs text-gray-300">
                     Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
@@ -1633,7 +1633,7 @@ export default function PurchasesPage() {
                     </button>
                     <button
                       onClick={() => setSelectedRemark(null)}
-                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-orange-500/10"
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-orange-500/10"
                     >
                       Close
                     </button>

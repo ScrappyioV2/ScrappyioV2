@@ -42,9 +42,9 @@ export default function ManageSellersPage() {
   // Config for UI Mapping
   const countryConfig = {
     usa: { label: 'United States', code: 'US', flag: '🇺🇸', color: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500/20', glow: 'shadow-blue-500/20' },
-    india: { label: 'India', code: 'IN', flag: '🇮🇳', color: 'text-orange-400', bg: 'bg-orange-500/100', border: 'border-orange-500/20', glow: 'shadow-orange-500/20' },
-    uae: { label: 'UAE', code: 'AE', flag: '🇦🇪', color: 'text-emerald-400', bg: 'bg-emerald-500/100', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/20' },
-    uk: { label: 'United Kingdom', code: 'GB', flag: '🇬🇧', color: 'text-rose-400', bg: 'bg-rose-500/100', border: 'border-rose-500/20', glow: 'shadow-rose-500/20' },
+    india: { label: 'India', code: 'IN', flag: '🇮🇳', color: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500/20', glow: 'shadow-orange-500/20' },
+    uae: { label: 'UAE', code: 'AE', flag: '🇦🇪', color: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/20' },
+    uk: { label: 'United Kingdom', code: 'GB', flag: '🇬🇧', color: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500/20', glow: 'shadow-rose-500/20' },
   };
 
   const debouncedFetchProgressRef = useRef<NodeJS.Timeout | null>(null);
@@ -177,10 +177,10 @@ export default function ManageSellersPage() {
       <motion.div variants={container} initial="hidden" animate="show" className="max-w-7xl mx-auto space-y-8">
 
         {/* === HEADER === */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-white/[0.06]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-white/[0.1]">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+              <div className="p-2 bg-orange-500/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
                 <Globe className="w-6 h-6 text-orange-500" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Seller Management</h1>
@@ -190,8 +190,8 @@ export default function ManageSellersPage() {
             </p>
           </div>
           {user && userRole && (
-            <div className="px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.06] text-xs font-mono text-gray-400 flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse`} />
+            <div className="px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.1] text-xs font-mono text-gray-400 flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
               {userRole.full_name || user.email}
             </div>
           )}
@@ -199,7 +199,7 @@ export default function ManageSellersPage() {
 
         {/* === AUTH MESSAGE === */}
         {authMessage && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl border ${authMessage.type === 'success' ? 'bg-emerald-500/100/20 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/100/20 border-rose-500/20 text-rose-400'} flex items-center gap-3`}>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl border ${authMessage.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 border-rose-500/20 text-rose-400'} flex items-center gap-3`}>
             {authMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <Loader2 className="w-5 h-5" />}
             {authMessage.text}
           </motion.div>
@@ -217,7 +217,7 @@ export default function ManageSellersPage() {
               <motion.div
                 key={country}
                 variants={item}
-                className={`group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-white/[0.06] p-6 rounded-2xl transition-all duration-300 overflow-hidden hover:shadow-2xl hover:shadow-black/30`}
+                className={`group relative bg-[#1a1a1a] border border-white/[0.1] hover:border-white/[0.1] p-6 rounded-2xl transition-all duration-300 overflow-hidden hover:shadow-2xl hover:shadow-black/30`}
               >
                 {/* Background Glow */}
                 <div className={`absolute -right-20 -top-20 w-64 h-64 bg-gradient-to-br ${config.color.replace('text-', 'from-')}/10 to-transparent rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
@@ -252,7 +252,7 @@ export default function ManageSellersPage() {
                       {data.copiedLinks.toLocaleString()} / {data.totalLinks.toLocaleString()}
                     </span>
                   </div>
-                  <div className="h-3 w-full bg-[#111111] rounded-full overflow-hidden border border-white/[0.06]">
+                  <div className="h-3 w-full bg-[#111111] rounded-full overflow-hidden border border-white/[0.1]">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
@@ -279,7 +279,7 @@ export default function ManageSellersPage() {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06] relative z-10">
+                <div className="flex items-center gap-3 pt-4 border-t border-white/[0.1] relative z-10">
                   <button
                     onClick={() => handleCardClick(country)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#111111] hover:bg-[#1a1a1a] text-white font-medium transition-all group-hover:ring-1 ring-inset ring-slate-700`}
@@ -291,7 +291,7 @@ export default function ManageSellersPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); resetAllCopied(country); }}
                     disabled={data.copiedLinks === 0}
-                    className="px-4 py-2.5 rounded-lg border border-white/[0.06] text-gray-500 hover:text-white hover:bg-rose-500/100/20 hover:border-rose-500/50 hover:shadow-[0_0_15px_-5px_rgba(244,63,94,0.3)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    className="px-4 py-2.5 rounded-lg border border-white/[0.1] text-gray-500 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/50 hover:shadow-[0_0_15px_-5px_rgba(244,63,94,0.3)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     title="Reset Copy Progress"
                   >
                     <RefreshCw className={`w-4 h-4 ${data.copiedLinks > 0 ? '' : ''}`} />

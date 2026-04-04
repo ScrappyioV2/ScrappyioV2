@@ -84,7 +84,7 @@ function ConfirmModal({
 
     return (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#111111]/60 p-3 sm:p-4">
-            <div className="w-full max-w-md bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="w-full max-w-md bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div className="px-6 pt-5 pb-2">
                     <h3 className="text-lg font-bold text-white">{title}</h3>
@@ -105,7 +105,7 @@ function ConfirmModal({
                                 onChange={e => setReason(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Enter' && reason.trim()) { onConfirm(reason); } }}
                                 placeholder="e.g. Wrong items, duplicate box..."
-                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                                 autoFocus
                             />
                         </div>
@@ -113,7 +113,7 @@ function ConfirmModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 px-6 py-4 bg-[#1a1a1a] border-t border-white/[0.06]">
+                <div className="flex items-center justify-end gap-3 px-6 py-4 bg-[#1a1a1a] border-t border-white/[0.1]">
                     <button
                         onClick={onCancel}
                         className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-[#111111] transition-all"
@@ -123,7 +123,7 @@ function ConfirmModal({
                     <button
                         onClick={() => onConfirm(reason || undefined)}
                         disabled={showReason && !reason.trim()}
-                        className={`px-5 py-2 rounded-lg text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed ${confirmColor || "bg-orange-500/100 hover:bg-orange-400"
+                        className={`px-5 py-2 rounded-lg text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed ${confirmColor || "bg-orange-500 hover:bg-orange-400"
                             }`}
                     >
                         {confirmLabel || "Confirm"}
@@ -172,9 +172,9 @@ function BoxSummaryModal({
 
     return (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#111111]/60 p-2 sm:p-4">
-            <div className="w-full max-w-5xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col">
+            <div className="w-full max-w-5xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl flex flex-col">
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="px-5 py-4 border-b border-white/[0.1] flex items-center justify-between">
                     <div>
                         <h2 className="text-lg font-semibold text-white">
                             📦 Box Summary — {boxId}
@@ -225,7 +225,7 @@ function BoxSummaryModal({
                                 return (
                                     <tr
                                         key={item.id}
-                                        className="hover:bg-white/[0.05]0/100/5"
+                                        className="hover:bg-white/[0.05]"
                                     >
                                         <td className="px-6 py-4 font-mono text-gray-300">
                                             {item.asin}
@@ -257,7 +257,7 @@ function BoxSummaryModal({
                                                         ),
                                                     )
                                                 }
-                                                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white"
+                                                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white"
                                             />
                                         </td>
                                         <td className="px-6 py-4 text-center">
@@ -274,7 +274,7 @@ function BoxSummaryModal({
                                                         ) || 0,
                                                     )
                                                 }
-                                                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white"
+                                                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white"
                                             />
                                         </td>
                                         <td className="px-6 py-4 text-center">
@@ -295,7 +295,7 @@ function BoxSummaryModal({
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-5 py-3 border-t border-white/[0.1] flex items-center justify-between">
                     <button
                         onClick={onCancel}
                         className="px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-[#111111]"
@@ -305,7 +305,7 @@ function BoxSummaryModal({
                     <button
                         onClick={onConfirm}
                         disabled={submitting || items.length === 0}
-                        className="px-5 py-2.5 rounded-lg text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500/100 disabled:opacity-50"
+                        className="px-5 py-2.5 rounded-lg text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
                     >
                         {submitting
                             ? "Saving..."
@@ -382,7 +382,7 @@ const SELLER_TAG_COLORS: Record<string, string> = {
     RR: 'bg-gray-400 text-black',
     UB: 'bg-pink-500 text-white',
     VV: 'bg-purple-600 text-white',
-    DE: 'bg-orange-500/100 text-white',
+    DE: 'bg-orange-500 text-white',
     CV: 'bg-green-600 text-white',
 };
 
@@ -613,8 +613,8 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#111111] p-2 sm:p-4">
-            <div className="w-full max-w-7xl bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+            <div className="w-full max-w-7xl bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+                <div className="px-5 py-4 border-b border-white/[0.1] flex items-center justify-between">
                     <div>
                         <h2 className="text-xl font-bold text-white">✏️ Edit Box Details</h2>
                         <p className="text-sm text-gray-300 mt-1">Modify box metadata or item quantities. Removed items will return to the Inbound queue.</p>
@@ -622,18 +622,18 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
                 </div>
 
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] bg-[#1a1a1a] flex flex-wrap gap-3 sm:gap-6">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.1] bg-[#1a1a1a] flex flex-wrap gap-3 sm:gap-6">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-gray-400 uppercase">Box ID</label>
-                        <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
+                        <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-gray-400 uppercase">Booking Date</label>
-                        <input type="date" max="9999-12-31" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
+                        <input type="date" max="9999-12-31" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-semibold text-gray-400 uppercase">Total Weight (kg)</label>
-                        <input type="number" step="0.01" value={totalWeight} onChange={e => setTotalWeight(e.target.value ? Number(e.target.value) : "")} className="w-32 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
+                        <input type="number" step="0.01" value={totalWeight} onChange={e => setTotalWeight(e.target.value ? Number(e.target.value) : "")} className="w-32 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
                     </div>
                     <div className="flex flex-col gap-1.5" ref={editSearchRef}>
                         <label className="text-xs font-semibold text-gray-400 uppercase">Add ASIN</label>
@@ -647,16 +647,16 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                 className="w-full sm:w-80 px-3 py-2 bg-[#111111] border border-orange-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500 placeholder:text-gray-500"
                             />
                             {editShowDropdown && editDropdownCandidates.length > 0 && (
-                                <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-2xl z-50 max-h-[300px] overflow-y-auto w-full sm:w-[600px]">
+                                <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-2xl z-50 max-h-[300px] overflow-y-auto w-full sm:w-[600px]">
                                     {editDropdownCandidates.map((group: any) => {
                                         const item = group.representative;
                                         const totalPending = group.sellers.reduce((s: number, x: any) => s + x.pending, 0);
                                         return (
-                                            <div key={item.asin} className="flex items-start justify-between px-5 py-3 hover:bg-[#111111] transition-colors border-b border-white/[0.06] last:border-0 cursor-pointer" onClick={() => handleAddToEditBox(group)}>
+                                            <div key={item.asin} className="flex items-start justify-between px-5 py-3 hover:bg-[#111111] transition-colors border-b border-white/[0.1] last:border-0 cursor-pointer" onClick={() => handleAddToEditBox(group)}>
                                                 <div className="flex-1 min-w-0 pr-4">
                                                     <div className="flex items-center gap-3 mb-1 flex-wrap">
                                                         <span className="font-mono text-base font-bold text-white">{item.asin}</span>
-                                                        {item.sku && <span className="text-xs text-gray-100 bg-[#111111] px-2.5 py-0.5 rounded border border-white/[0.06] font-medium">SKU: {item.sku}</span>}
+                                                        {item.sku && <span className="text-xs text-gray-100 bg-[#111111] px-2.5 py-0.5 rounded border border-white/[0.1] font-medium">SKU: {item.sku}</span>}
                                                     </div>
                                                     <div className="text-sm font-medium text-gray-100 mb-1.5">{item.product_name || '-'}</div>
                                                     <div className="flex flex-wrap items-center gap-2">
@@ -669,8 +669,8 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-2 shrink-0">
-                                                    <span className="bg-amber-500/100/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{totalPending} total</span>
-                                                    <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500/100 shrink-0">+ Add</button>
+                                                    <span className="bg-amber-500/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{totalPending} total</span>
+                                                    <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 shrink-0">+ Add</button>
                                                 </div>
                                             </div>
                                         );
@@ -700,7 +700,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                     const item = group.representative;
                                     const totalQty = group.sellerRows.reduce((sum: number, r: any) => sum + (quantities[r.id] ?? 0), 0);
                                     return (
-                                        <tr key={item.asin} className="hover:bg-white/[0.05]0/100/5">
+                                        <tr key={item.asin} className="hover:bg-white/[0.05]">
                                             <td className="px-6 py-4 font-mono text-gray-100 align-top">
                                                 <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline flex items-center gap-1">
                                                     {item.asin} <span className="text-[10px]">↗</span>
@@ -719,13 +719,13 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                                 <span className={`px-2 py-0.5 rounded text-[11px] font-bold min-w-[28px] text-center ${SELLER_TAG_COLORS[sellerTag] || 'bg-[#1a1a1a] text-white'}`}>{sellerTag}</span>
                                                                 <input type="number" min={1} max={maxAllowed} value={quantities[sellerItem.id] ?? 0}
                                                                     onChange={e => { const val = Number(e.target.value); if (val >= 0) setQuantities(prev => ({ ...prev, [sellerItem.id]: Math.min(val, maxAllowed) })); }}
-                                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-center text-white" />
+                                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
                                                                 <button onClick={() => handleRemoveSellerFromEditBox(sellerItem.id)} className="text-rose-400 hover:text-rose-300 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-400/10" title={`Remove ${sellerTag}`}>✕</button>
                                                             </div>
                                                         );
                                                     })}
                                                     {group.sellerRows.length > 1 && (
-                                                        <div className="text-[10px] text-gray-400 font-semibold border-t border-white/[0.06] pt-1 mt-1">Total: {totalQty}</div>
+                                                        <div className="text-[10px] text-gray-400 font-semibold border-t border-white/[0.1] pt-1 mt-1">Total: {totalQty}</div>
                                                     )}
                                                 </div>
                                             </td>
@@ -739,7 +739,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                             return updated;
                                                         });
                                                     }}
-                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-center text-white" />
+                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
                                             </td>
                                             <td className="px-6 py-4 text-center align-top">
                                                 <button onClick={() => handleRemoveAsinFromEditBox(item.asin)} className="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded bg-rose-400/10">✕ Remove All</button>
@@ -752,9 +752,9 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                     )}
                 </div>
 
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-white/[0.06] flex justify-end gap-2 sm:gap-3 bg-[#111111]/30">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-white/[0.1] flex justify-end gap-2 sm:gap-3 bg-[#111111]/30">
                     <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-[#111111]">Cancel</button>
-                    <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-orange-500/100 text-white hover:bg-orange-400 disabled:opacity-50 flex items-center gap-2">
+                    <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-50 flex items-center gap-2">
                         {saving ? "Saving..." : "💾 Save Changes"}
                     </button>
                 </div>
@@ -1140,7 +1140,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
             title: "✅ Move to Checking",
             message: `Move box "${boxNumber}" (${boxItems.length} items) to Checking? Items will be removed from Boxes and added to the Checking stage.`,
             confirmLabel: "Move to Checking",
-            confirmColor: "bg-emerald-600 hover:bg-emerald-500/100",
+            confirmColor: "bg-emerald-600 hover:bg-emerald-500",
             onConfirm: async () => {
                 setConfirmModal(null);
                 setMoving(true);
@@ -1684,14 +1684,14 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     placeholder="Search by ASIN, Name, SKU, or Box Number..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="flex-1 min-w-0 max-w-md px-4 sm:px-6 py-2 sm:py-2.5 text-sm bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
+                    className="flex-1 min-w-0 max-w-md px-4 sm:px-6 py-2 sm:py-2.5 text-sm bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
                 />
 
-                <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
+                <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
                     <button
                         onClick={() => setViewMode("grouped")}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "grouped"
-                            ? "bg-orange-500/100 text-white"
+                            ? "bg-orange-500 text-white"
                             : "text-gray-500 hover:text-gray-200"
                             }`}
                     >
@@ -1700,7 +1700,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     <button
                         onClick={() => setViewMode("list")}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "list"
-                            ? "bg-orange-500/100 text-white"
+                            ? "bg-orange-500 text-white"
                             : "text-gray-500 hover:text-gray-200"
                             }`}
                     >
@@ -1715,7 +1715,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                         setIsAddingBox(true);
                         fetchInboundDelivered(); // ← refresh delivered items
                     }}
-                    className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-500/100 shadow-lg"
+                    className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg"
                 >
                     <span className="sm:hidden">+ Add</span>
                     <span className="hidden sm:inline">+ Add Box Details</span>
@@ -1730,7 +1730,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                 </button>
                 <button
                     onClick={() => { setHistoryOpen(true); fetchHistory(); }}
-                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#1a1a1a]/30 text-gray-500 border border-white/[0.06]/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-[#1a1a1a] hover:text-white transition-all flex items-center gap-2"
+                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#1a1a1a]/30 text-gray-500 border border-white/[0.1]/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-[#1a1a1a] hover:text-white transition-all flex items-center gap-2"
                 >
                     <span className="sm:hidden">📜 History</span>
                     <span className="hidden sm:inline">📜 Box History</span>
@@ -1747,7 +1747,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                         showToast={showToast}
                     />
                 ) : (
-                    <div className="bg-[#1a1a1a] rounded-lg border border-white/[0.06] h-full flex flex-col">
+                    <div className="bg-[#1a1a1a] rounded-lg border border-white/[0.1] h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto">
                             {/* GROUPED VIEW */}
                             {viewMode === "grouped" && (
@@ -1766,7 +1766,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                     className="border rounded-xl overflow-hidden transition-all border-blue-500/30 bg-blue-500/5"
                                                 >
                                                     <div
-                                                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.05]0/100/5 transition-colors"
+                                                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.05] transition-colors"
                                                         onClick={() => toggleExpand(group.box_number)}
                                                     >
                                                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1857,14 +1857,14 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                             </button>
                                                             <button
                                                                 onClick={() => setEditBoxData(group)}
-                                                                className="px-4 sm:px-6 py-1.5 sm:py-2 bg-orange-500/100/10 text-orange-500 border border-orange-500/30 rounded-lg text-xs font-bold hover:bg-white/[0.05]0/100 hover:text-white transition-all shadow"
+                                                                className="px-4 sm:px-6 py-1.5 sm:py-2 bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded-lg text-xs font-bold hover:bg-white/[0.05]/100 hover:text-white transition-all shadow"
                                                             >
                                                                 <span className="hidden sm:inline">✏️ Edit</span><span className="sm:hidden">✏️</span>
                                                             </button>
                                                             <button
                                                                 disabled={moving}
                                                                 onClick={() => handleMoveToChecking(group.box_number)}
-                                                                className="px-4 sm:px-6 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500/100 transition-all disabled:opacity-50 shadow"
+                                                                className="px-4 sm:px-6 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50 shadow"
                                                             >
                                                                 {moving ? '⏳' : '✅'}<span className="hidden sm:inline"> {moving ? 'Moving...' : 'Move to Checking'}</span>
                                                             </button>
@@ -1878,7 +1878,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                     </div>
 
                                                     {isExpanded && (
-                                                        <div className="border-t border-white/[0.06]">
+                                                        <div className="border-t border-white/[0.1]">
                                                             <table className="w-full">
                                                                 <thead className="bg-[#1a1a1a]">
                                                                     <tr>
@@ -1915,7 +1915,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                         return (
                                                                             <tr
                                                                                 key={item.asin + '-' + idx}
-                                                                                className="hover:bg-white/[0.05]0/100/5 transition-colors"
+                                                                                className="hover:bg-white/[0.05] transition-colors"
                                                                             >
                                                                                 <td className="px-6 py-4 text-sm text-gray-300 text-center font-bold">
                                                                                     {idx + 1}
@@ -1962,7 +1962,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                                 <td className="px-6 py-4 text-center">
                                                                                     <div className="flex flex-col gap-0.5 items-center">
                                                                                         {item.origin_india && (
-                                                                                            <span className="px-1.5 py-0.5 bg-orange-500/100 text-white rounded text-[10px] font-bold">
+                                                                                            <span className="px-1.5 py-0.5 bg-orange-500 text-white rounded text-[10px] font-bold">
                                                                                                 IN
                                                                                             </span>
                                                                                         )}
@@ -2015,19 +2015,19 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                 >
                                     <thead className="bg-[#111111] sticky top-0 z-10">
                                         <tr>
-                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                 Box ID
                                             </th>
-                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                 Total weight (kg)
                                             </th>
-                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                 Items
                                             </th>
-                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                 ASINs
                                             </th>
-                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                 Status
                                             </th>
                                             <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
@@ -2040,7 +2040,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                             return (
                                                 <tr
                                                     key={group.box_number}
-                                                    className="hover:bg-white/[0.05]0/100/5"
+                                                    className="hover:bg-white/[0.05]"
                                                 >
                                                     <td className="px-6 py-4 text-sm text-gray-100 text-center">
                                                         {group.box_number}
@@ -2103,14 +2103,14 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                             </button>
                                                             <button
                                                                 onClick={() => setEditBoxData(group)}
-                                                                className="px-3 py-1.5 bg-orange-500/100/10 text-orange-500 border border-orange-500/30 rounded-lg text-xs font-bold hover:bg-white/[0.05]0/100 hover:text-white transition-all"
+                                                                className="px-3 py-1.5 bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded-lg text-xs font-bold hover:bg-white/[0.05]/100 hover:text-white transition-all"
                                                             >
                                                                 ✏️
                                                             </button>
                                                             <button
                                                                 disabled={moving}
                                                                 onClick={() => handleMoveToChecking(group.box_number)}
-                                                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500/100 transition-all disabled:opacity-50"
+                                                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50"
                                                             >
                                                                 {moving ? '⏳' : '✅'}
                                                             </button>
@@ -2135,8 +2135,8 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
             {/* Box History Modal */}
             {historyOpen && (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#1a1a1a] p-3">
-                    <div className="w-full max-w-6xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col">
-                        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+                    <div className="w-full max-w-6xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl flex flex-col">
+                        <div className="px-5 py-4 border-b border-white/[0.1] flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-bold text-white">📜 Box History</h2>
                                 <p className="text-xs text-gray-400 mt-1">All deleted and moved boxes are archived here</p>
@@ -2174,20 +2174,20 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                 ? 'bg-red-500/20 text-red-400 border-red-500/30'
                                                 : group.action === 'created'
                                                     ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                                                    : 'bg-emerald-500/100/20 text-emerald-400 border-emerald-500/30';
+                                                    : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
                                             const actionLabel = group.action === 'deleted' ? '🗑 Deleted'
                                                 : group.action === 'created' ? '📦 Created'
                                                     : '✅ Moved to Checking';
 
                                             return (
-                                                <div key={idx} className="border border-white/[0.06] rounded-xl overflow-hidden bg-[#111111]/30">
+                                                <div key={idx} className="border border-white/[0.1] rounded-xl overflow-hidden bg-[#111111]/30">
                                                     <div className="px-4 py-3 flex items-center justify-between flex-wrap gap-2 bg-[#1a1a1a]">
                                                         <div className="flex items-center gap-3 flex-wrap">
                                                             <span className="font-bold text-white text-base">📦 {group.box_number}</span>
                                                             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${actionColor}`}>{actionLabel}</span>
                                                             <span className="text-xs text-gray-400">{uniqueAsins} ASINs · {totalQty} qty</span>
                                                             {group.reason && (
-                                                                <span className="text-xs text-amber-400 bg-amber-500/100/20 px-2 py-0.5 rounded">Reason: {group.reason}</span>
+                                                                <span className="text-xs text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded">Reason: {group.reason}</span>
                                                             )}
                                                         </div>
                                                         <span className="text-xs text-gray-300">
@@ -2210,7 +2210,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                         </thead>
                                                         <tbody className="divide-y divide-white/[0.06]/40">
                                                             {group.items.map((item, i) => (
-                                                                <tr key={i} className="hover:bg-white/[0.05]0/100/5">
+                                                                <tr key={i} className="hover:bg-white/[0.05]">
                                                                     <td className="px-6 py-4 font-mono text-gray-100">{item.asin}</td>
                                                                     <td className="px-6 py-4 text-gray-300"><div className="truncate max-w-[200px]">{item.product_name || '-'}</div></td>
                                                                     <td className="px-6 py-4 text-center">
@@ -2229,7 +2229,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                     <td className="px-6 py-4 text-center text-gray-300">{item.product_weight ? `${item.product_weight} kg` : '-'}</td>
                                                                     <td className="px-6 py-4 text-center">
                                                                         <div className="flex gap-0.5 justify-center">
-                                                                            {item.origin_india && <span className="px-1 py-0.5 bg-orange-500/100 text-white rounded text-[9px] font-bold">IN</span>}
+                                                                            {item.origin_india && <span className="px-1 py-0.5 bg-orange-500 text-white rounded text-[9px] font-bold">IN</span>}
                                                                             {item.origin_china && <span className="px-1 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold">CN</span>}
                                                                             {item.origin_us && <span className="px-1 py-0.5 bg-sky-500 text-white rounded text-[9px] font-bold">US</span>}
                                                                             {!item.origin_india && !item.origin_china && !item.origin_us && <span className="text-gray-500">-</span>}
@@ -2247,7 +2247,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                             })()}
                         </div>
 
-                        <div className="px-5 py-3 border-t border-white/[0.06] flex justify-end">
+                        <div className="px-5 py-3 border-t border-white/[0.1] flex justify-end">
                             <button onClick={() => setHistoryOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-white hover:bg-[#111111]">Close</button>
                         </div>
                     </div>

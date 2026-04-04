@@ -308,7 +308,7 @@ export default function PurchasesPage() {
       case 'history':
         return (
           <td key={colkey} className="px-6 py-4 text-center" style={{ width: columnWidths.history }}>
-            <button onClick={() => fetchHistory(product.asin)} className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors" title="View Journey History">
+            <button onClick={() => fetchHistory(product.asin)} className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors" title="View Journey History">
               <History className="w-4 h-4" />
             </button>
           </td>
@@ -319,7 +319,7 @@ export default function PurchasesPage() {
         return (
           <td key={colkey} className="px-6 py-4 text-center" style={{ width: columnWidths.remark }}>
             {product.remark ? (
-              <button onClick={() => { setSelectedRemark({ id: product.id, remark: product.remark || '' }); setEditingRemarkText(product.remark || ''); }} className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
+              <button onClick={() => { setSelectedRemark({ id: product.id, remark: product.remark || '' }); setEditingRemarkText(product.remark || ''); }} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
             ) : (
               <button onClick={() => { setSelectedRemark({ id: product.id, remark: '' }); setEditingRemarkText(''); }} className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer">+ Add</button>
             )}
@@ -408,7 +408,7 @@ export default function PurchasesPage() {
               <>
                 <div className="fixed inset-0 z-30" onClick={() => { setOpenFunnelId(null); setDropdownPos(null); }} />
                 <div
-                  className="fixed z-40 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-2 min-w-[100px] animate-in fade-in zoom-in-95 duration-150"
+                  className="fixed z-40 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-2 min-w-[100px] animate-in fade-in zoom-in-95 duration-150"
                   style={{ top: dropdownPos.top, left: dropdownPos.left }}
                 >
                   <p className="text-[10px] text-gray-500 px-2 py-1 font-semibold uppercase tracking-wider">Change Funnel</p>
@@ -416,7 +416,7 @@ export default function PurchasesPage() {
                     <button
                       key={f}
                       onClick={() => handleFunnelChange(product.id, f)}
-                      className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors flex items-center gap-2 ${product.validation_funnel === f ? 'bg-orange-500/100/10 text-orange-400' : 'text-gray-100 hover:bg-[#111111]'}`}
+                      className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors flex items-center gap-2 ${product.validation_funnel === f ? 'bg-orange-500/10 text-orange-400' : 'text-gray-100 hover:bg-[#111111]'}`}
                     >
                       <span className={`w-6 h-6 inline-flex items-center justify-center rounded-md font-bold text-xs ${FUNNEL_STYLES[f] ?? 'bg-slate-600 text-white'}`}>{f}</span>
                       <span>{f === 'RS' ? 'Restock' : 'Dropshipping'}</span>
@@ -441,7 +441,7 @@ export default function PurchasesPage() {
                   const cleanTag = tag.trim();
                   let badgeColor = 'bg-[#1a1a1a] text-white';
                   if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black border border-yellow-600';
-                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-white/[0.06]';
+                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-white/[0.1]';
                   else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white border border-pink-600';
                   else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
                   else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black border border-cyan-600';
@@ -471,8 +471,8 @@ export default function PurchasesPage() {
         return (
           <td key={colkey} className="px-6 py-4 overflow-hidden" style={{ width: columnWidths.origin }}>
             <div className="flex flex-wrap gap-0.5">
-              {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500/100 text-white border border-orange-600 rounded text-[10px] font-medium leading-none">IN</span>}
-              {product.origin_china && <span className="px-1.5 py-0.5 bg-rose-500/100 text-white border border-rose-600 rounded text-[10px] font-medium leading-none">CN</span>}
+              {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500 text-white border border-orange-600 rounded text-[10px] font-medium leading-none">IN</span>}
+              {product.origin_china && <span className="px-1.5 py-0.5 bg-rose-500 text-white border border-rose-600 rounded text-[10px] font-medium leading-none">CN</span>}
               {product.origin_us && <span className="px-1.5 py-0.5 bg-sky-500 text-white border border-sky-600 rounded text-[10px] font-medium leading-none">US</span>}
               {!product.origin_india && !product.origin_china && !product.origin_us && <span className="text-xs text-gray-300">-</span>}
             </div>
@@ -487,7 +487,7 @@ export default function PurchasesPage() {
               type="number"
               defaultValue={product.buying_price ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Price"
             />
           </td>
@@ -515,7 +515,7 @@ export default function PurchasesPage() {
                 onBlur={(e) =>
                   handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))
                 }
-                className="w-14 min-w-[3rem] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                className="w-14 min-w-[3rem] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 placeholder="Qty"
               />
             </td>
@@ -528,7 +528,7 @@ export default function PurchasesPage() {
 
         const qtyTagColors: Record<string, string> = {
           GR: 'bg-yellow-500 text-black border border-yellow-600',
-          RR: 'bg-slate-500 text-white border border-white/[0.06]',
+          RR: 'bg-slate-500 text-white border border-white/[0.1]',
           UB: 'bg-pink-500 text-white border border-pink-600',
           VV: 'bg-purple-500 text-white border border-purple-600',
           DE: 'bg-cyan-500 text-black border border-cyan-600',
@@ -574,7 +574,7 @@ export default function PurchasesPage() {
                         product
                       )
                     }
-                    className="w-full px-1 py-0.5 bg-[#111111] border border-white/[0.06] rounded text-[11px] text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full px-1 py-0.5 bg-[#111111] border border-white/[0.1] rounded text-[11px] text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                   />
                 </div>
@@ -641,7 +641,7 @@ export default function PurchasesPage() {
               type="text"
               defaultValue={product.seller_phone ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Phone"
             />
           </td>
@@ -655,7 +655,7 @@ export default function PurchasesPage() {
               type="text"
               defaultValue={product.payment_method ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Method"
             />
           </td>
@@ -2198,19 +2198,19 @@ export default function PurchasesPage() {
             <h1 className="text-xl sm:text-3xl font-bold text-white">Purchases</h1>
             <p className="text-gray-400 mt-1 text-xs sm:text-sm">Manage purchase orders and track confirmations</p>
           </div>
-          <div className="text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
+          <div className="text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.1]">
             TOTAL: <span className="text-white font-bold">{products.length}</span>
           </div>
         </div>
       </div>
 
       {/* Tabs - Midnight Theme Pills */}
-      <div className="flex-none flex gap-1.5 sm:gap-2 mb-3 sm:mb-6 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
+      <div className="flex-none flex gap-1.5 sm:gap-2 mb-3 sm:mb-6 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
         {/* 1. Main File */}
         <button
           onClick={() => setActiveTab('main_file')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-blue-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -2222,43 +2222,43 @@ export default function PurchasesPage() {
         <button
           onClick={() => setActiveTab('order_confirmed')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-emerald-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-emerald-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
-          {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500/100" />}
+          {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
         </button>
 
         {/* 3. India */}
         <button
           onClick={() => setActiveTab('india')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'india'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-orange-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-orange-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">India ({products.filter(p => p.origin_india && !p.sent_to_admin && !p.move_to).length})</span>
-          {activeTab === 'india' && <div className="absolute inset-0 opacity-10 bg-orange-500/100" />}
+          {activeTab === 'india' && <div className="absolute inset-0 opacity-10 bg-orange-500" />}
         </button>
 
         {/* 4. China */}
         <button
           onClick={() => setActiveTab('china')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'china'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-rose-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-rose-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">China ({products.filter(p => p.origin_china && !p.sent_to_admin && !p.move_to).length})</span>
-          {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500/100" />}
+          {activeTab === 'china' && <div className="absolute inset-0 opacity-10 bg-rose-500" />}
         </button>
 
         {/* 5. US */}
         <button
           onClick={() => setActiveTab('us')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'us'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-sky-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-sky-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -2270,7 +2270,7 @@ export default function PurchasesPage() {
         <button
           onClick={() => setActiveTab('pending')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'pending'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-purple-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-purple-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -2282,19 +2282,19 @@ export default function PurchasesPage() {
         <button
           onClick={() => setActiveTab('price_wait')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'price_wait'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-amber-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-amber-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
           <span className="relative z-10">Price Wait ({products.filter(p => p.move_to === 'pricewait').length})</span>
-          {activeTab === 'price_wait' && <div className="absolute inset-0 opacity-10 bg-amber-500/100" />}
+          {activeTab === 'price_wait' && <div className="absolute inset-0 opacity-10 bg-amber-500" />}
         </button>
 
         {/* 8. Not Found */}
         <button
           onClick={() => setActiveTab('not_found')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'not_found'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.06] text-gray-400'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-gray-400'
             : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
             }`}
         >
@@ -2315,14 +2315,14 @@ export default function PurchasesPage() {
             placeholder="Search by ASIN, Product Name, SKU, or Funnel..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
           />
         </div>
 
         {/* Buttons Group */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Funnel Quick Filters */}
-          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.06]">
+          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
             <button
               onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
@@ -2344,7 +2344,7 @@ export default function PurchasesPage() {
           </div>
 
           {/* Seller Tag Filter */}
-          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.06]">
+          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
             <button
               onClick={() => setSellerTagFilter('ALL')}
               className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === 'ALL'
@@ -2384,7 +2384,7 @@ export default function PurchasesPage() {
           <div className="relative">
             <button
               onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500/100 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -2398,7 +2398,7 @@ export default function PurchasesPage() {
             {isDownloadDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-2 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-2 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
                   <p className="text-xs text-gray-300 px-3 py-1.5 font-semibold uppercase tracking-wider">CSV</p>
 
                   {/* Download Selected */}
@@ -2430,7 +2430,7 @@ export default function PurchasesPage() {
                     <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{products.length}</span>
                   </button>
 
-                  <div className="border-t border-white/[0.06] my-1.5" />
+                  <div className="border-t border-white/[0.1] my-1.5" />
                   <p className="text-xs text-gray-300 px-3 py-1.5 font-semibold uppercase tracking-wider">Excel</p>
 
                   {/* Excel Selected */}
@@ -2469,7 +2469,7 @@ export default function PurchasesPage() {
           <button
             onClick={handleRollBack}
             disabled={!movementHistory[activeTab]}
-            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-600 text-white rounded-xl hover:bg-white/[0.05]0/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-orange-900/20 transition-all border border-orange-500/50"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-600 text-white rounded-xl hover:bg-white/[0.05]/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-orange-900/20 transition-all border border-orange-500/50"
             title="Roll Back last action from this tab (Ctrl+Z)"
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2482,8 +2482,8 @@ export default function PurchasesPage() {
           <button
             onClick={() => setShowAllJourneys(!showAllJourneys)}
             className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
-              ? 'bg-orange-500/100 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
-              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+              ? 'bg-orange-500 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
+              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
               }`}
             title={`Currently showing ${showAllJourneys ? 'ALL journey cycles' : 'latest journey only'}`}
           >
@@ -2496,7 +2496,7 @@ export default function PurchasesPage() {
           <div className="relative">
             <button
               onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.06] flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors shadow-sm"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.1] flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors shadow-sm"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -2507,7 +2507,7 @@ export default function PurchasesPage() {
             {isColumnMenuOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsColumnMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-64 animate-in fade-in zoom-in-95 duration-200">
                   <h3 className="font-semibold text-gray-100 mb-3 text-sm">Toggle Columns</h3>
                   <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
                     {Object.keys(visibleColumns).map((col) => {
@@ -2541,23 +2541,23 @@ export default function PurchasesPage() {
                             type="checkbox"
                             checked={visibleColumns[col as keyof typeof visibleColumns]}
                             onChange={(e) => setVisibleColumns({ ...visibleColumns, [col]: e.target.checked })}
-                            className="w-4 h-4 text-orange-500 rounded border-white/[0.06] bg-[#111111] focus:ring-orange-500/50"
+                            className="w-4 h-4 text-orange-500 rounded border-white/[0.1] bg-[#111111] focus:ring-orange-500/50"
                           />
                           <span className="text-sm text-gray-300">{columnDisplayNames[col] || col}</span>
                         </label>
                       );
                     })}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
+                  <div className="mt-3 pt-3 border-t border-white/[0.1] flex gap-2">
                     <button
                       onClick={() => setVisibleColumns(Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns))}
-                      className="flex-1 px-3 py-1.5 bg-orange-500/100/10 text-orange-500 rounded hover:bg-orange-400 hover:text-white text-xs font-medium transition-colors"
+                      className="flex-1 px-3 py-1.5 bg-orange-500/10 text-orange-500 rounded hover:bg-orange-400 hover:text-white text-xs font-medium transition-colors"
                     >
                       Show All
                     </button>
                     <button
                       onClick={() => setVisibleColumns(Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'checkbox' || key === 'asin' }), {} as typeof visibleColumns))}
-                      className="flex-1 px-3 py-1.5 bg-[#111111] text-gray-400 rounded hover:bg-[#1a1a1a] text-xs font-medium transition-colors border border-white/[0.06]"
+                      className="flex-1 px-3 py-1.5 bg-[#111111] text-gray-400 rounded hover:bg-[#1a1a1a] text-xs font-medium transition-colors border border-white/[0.1]"
                     >
                       Reset
                     </button>
@@ -2570,7 +2570,7 @@ export default function PurchasesPage() {
       </div>
 
       {/* Table Container */}
-      <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.06]">
+      <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
           <table className="w-full divide-y divide-white/[0.06] table-fixed" style={{ minWidth: '1600px' }}>
             <thead className="bg-[#111111] sticky top-0 z-10 shadow-md">
@@ -2582,7 +2582,7 @@ export default function PurchasesPage() {
                       type="checkbox"
                       checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                      className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                     />
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('checkbox', e)} />
                   </th>
@@ -2659,7 +2659,7 @@ export default function PurchasesPage() {
                 </tr>
               ) : (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.06] group">
+                  <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] group">
                     {/* Checkbox */}
                     {visibleColumns.checkbox && (
                       <td className="px-6 py-4 text-center" style={{ width: columnWidths.checkbox }}>
@@ -2667,7 +2667,7 @@ export default function PurchasesPage() {
                           type="checkbox"
                           checked={selectedIds.has(product.id)}
                           onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </td>
                     )}
@@ -2680,7 +2680,7 @@ export default function PurchasesPage() {
           </table>
         </div>
         {/* Footer Stats + Pagination */}
-        <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+        <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             {/* Left: Showing info */}
             <div className="text-xs sm:text-sm text-gray-300">
@@ -2742,7 +2742,7 @@ export default function PurchasesPage() {
                       <button key={page} onClick={() => setCurrentPage(page)}
                         className={`w-8 h-8 text-xs font-medium rounded-lg
                   transition-all ${currentPage === page
-                            ? 'bg-orange-500/100 text-white shadow-lg shadow-indigo-900/30'
+                            ? 'bg-orange-500 text-white shadow-lg shadow-indigo-900/30'
                             : 'text-gray-400 hover:text-white hover:bg-[#111111]'
                           }`}>{page}</button>
                     ))}
@@ -2795,7 +2795,7 @@ export default function PurchasesPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
@@ -2831,7 +2831,7 @@ export default function PurchasesPage() {
                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                       {/* Card */}
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                         {/* Journey Info */}
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
@@ -2850,7 +2850,7 @@ export default function PurchasesPage() {
                         {/* Snapshot Details */}
                         <div className="space-y-1.5 text-xs">
                           {snapshot.profit !== null && snapshot.profit !== undefined && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Profit:</span>
                               <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                                 ₹{snapshot.profit.toFixed(2)}
@@ -2858,19 +2858,19 @@ export default function PurchasesPage() {
                             </div>
                           )}
                           {snapshot.totalcost && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Total Cost:</span>
                               <span className="text-gray-100">₹{snapshot.totalcost.toFixed(2)}</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.productweight && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Weight:</span>
                               <span className="text-gray-100">{snapshot.snapshotdata.productweight}g</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.usdprice && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">USD Price:</span>
                               <span className="text-gray-100">${snapshot.snapshotdata.usdprice}</span>
                             </div>
@@ -2911,12 +2911,12 @@ export default function PurchasesPage() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-[#111111] rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-white/[0.06] overflow-hidden pointer-events-auto"
+                className="bg-[#111111] rounded-2xl shadow-2xl max-w-3xl w-full mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
               >
                 {/* ========== HEADER ========== */}
-                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-850 border-b border-white/[0.1]">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-orange-500/100/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
                       <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                       </svg>
@@ -2937,8 +2937,8 @@ export default function PurchasesPage() {
 
                 {/* ========== BODY (Editable Content) ========== */}
                 <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
                       <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
@@ -2949,7 +2949,7 @@ export default function PurchasesPage() {
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2967,7 +2967,7 @@ export default function PurchasesPage() {
                 </div>
 
                 {/* ========== FOOTER ========== */}
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
                   <div className="text-xs text-gray-300">
                     Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
@@ -2991,7 +2991,7 @@ export default function PurchasesPage() {
                           setSelectedRemark(null);
                           setEditingRemarkText('');
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2 shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2 shadow-lg shadow-emerald-900/20"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -3001,7 +3001,7 @@ export default function PurchasesPage() {
                     )}
                     <button
                       onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); }}
-                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-orange-500/10"
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-orange-500/10"
                     >
                       Close
                     </button>
@@ -3027,7 +3027,7 @@ export default function PurchasesPage() {
                 ? 'bg-emerald-900/90 border-emerald-500/40 text-emerald-100'
                 : toast.type === 'error'
                   ? 'bg-red-900/90 border-red-500/40 text-red-100'
-                  : 'bg-[#1a1a1a] border-white/[0.06]/40 text-white'
+                  : 'bg-[#1a1a1a] border-white/[0.1]/40 text-white'
                 }`}
             >
               <span>{toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}</span>

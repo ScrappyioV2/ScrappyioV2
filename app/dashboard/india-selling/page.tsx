@@ -19,10 +19,10 @@ import {
 
 /* ================= CONFIGURATION ================= */
 const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; border: string }> = {
-  1: { name: "Golden Aura", color: "#f59e0b", bg: "bg-amber-500/100/20", border: "border-amber-500/20" },
-  2: { name: "Rudra Retail", color: "#6366f1", bg: "bg-orange-500/100/10", border: "border-orange-500/20" },
+  1: { name: "Golden Aura", color: "#f59e0b", bg: "bg-amber-500/20", border: "border-amber-500/20" },
+  2: { name: "Rudra Retail", color: "#6366f1", bg: "bg-orange-500/10", border: "border-orange-500/20" },
   3: { name: "UBeauty", color: "#ec4899", bg: "bg-pink-500/10", border: "border-pink-500/20" },
-  4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/100/20", border: "border-emerald-500/20" }
+  4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/20", border: "border-emerald-500/20" }
 };
 
 
@@ -30,7 +30,7 @@ const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; b
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#111111] border border-white/[0.06] p-3 sm:p-4 rounded-xl shadow-2xl">
+      <div className="bg-[#111111] border border-white/[0.1] p-3 sm:p-4 rounded-xl shadow-2xl">
         <p className="text-gray-500 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           {payload.map((entry: any, index: number) => (
@@ -107,10 +107,10 @@ export default function IndiaSellingPage() {
 
 
         {/* === HEADER — COMPACT === */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-0 mb-6 border-b border-white/[0.06] pb-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-0 mb-6 border-b border-white/[0.1] pb-3 shrink-0">
           <div>
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+              <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
                 <TrendingUp className="w-5 h-5 text-orange-500" />
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">INDIA Overview</h1>
@@ -121,7 +121,7 @@ export default function IndiaSellingPage() {
           </div>
 
 
-          <div className="bg-[#111111] px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-white/[0.06] shadow-xl flex flex-col items-center min-w-0 sm:min-w-[140px] self-end sm:self-auto">
+          <div className="bg-[#111111] px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-white/[0.1] shadow-xl flex flex-col items-center min-w-0 sm:min-w-[140px] self-end sm:self-auto">
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Total Active</span>
             <span className="text-xl sm:text-2xl font-mono font-bold text-white">{totalActive.toLocaleString()}</span>
           </div>
@@ -140,7 +140,7 @@ export default function IndiaSellingPage() {
 
             {/* === LEFT: PIPELINE CHART + STATS === */}
             <div className="xl:col-span-2 flex flex-col gap-3 sm:gap-4 xl:min-h-0">
-              <div className="bg-[#1a1a1a] border border-white/[0.06] p-3 sm:p-4 rounded-2xl shadow-xl xl:flex-1 min-h-[250px] flex flex-col">
+              <div className="bg-[#1a1a1a] border border-white/[0.1] p-3 sm:p-4 rounded-2xl shadow-xl xl:flex-1 min-h-[250px] flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-orange-500" />
@@ -184,16 +184,16 @@ export default function IndiaSellingPage() {
 
 
               {/* LISTING ERRORS */}
-              <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl shrink-0">
-                <div className="px-4 py-2.5 bg-rose-500/100/5 border-b border-rose-500/10 flex justify-between items-center">
+              <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-2xl shrink-0">
+                <div className="px-4 py-2.5 bg-rose-500/5 border-b border-rose-500/10 flex justify-between items-center">
                   <h2 className="font-bold text-sm text-rose-200 flex items-center gap-2">
                     <LayoutList className="w-4 h-4 text-rose-500" /> Listing Errors
                   </h2>
-                  <span className="animate-pulse w-2 h-2 bg-rose-500/100 rounded-full shadow-[0_0_10px_#f43f5e]"></span>
+                  <span className="animate-pulse w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_10px_#f43f5e]"></span>
                 </div>
                 <div className="divide-y divide-white/[0.06] p-1.5">
                   {stats.listing.sellers.map((seller: any) => (
-                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between hover:bg-white/[0.05]0/100/5 rounded-lg transition-colors">
+                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between hover:bg-white/[0.05] rounded-lg transition-colors">
                       <div className="flex items-center gap-2.5">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SELLER_CONFIG[seller.id].color }}></div>
                         <span className="text-xs text-gray-500 font-medium">{SELLER_CONFIG[seller.id].name}</span>
@@ -212,14 +212,14 @@ export default function IndiaSellingPage() {
 
 
               {/* PURCHASING QUEUE */}
-              <div className="bg-[#111111]/60 border border-white/[0.06] rounded-2xl overflow-hidden shadow-xl xl:flex-1 min-h-0">
-                <div className="px-4 py-2.5 border-b border-white/[0.06] flex items-center gap-2">
+              <div className="bg-[#111111]/60 border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl xl:flex-1 min-h-0">
+                <div className="px-4 py-2.5 border-b border-white/[0.1] flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4 text-emerald-400" />
                   <h2 className="font-bold text-sm text-white">Ready to Buy</h2>
                 </div>
                 <div className="p-1.5 space-y-1">
                   {stats.purchasing.sellers.map((seller: any) => (
-                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between rounded-lg bg-[#1a1a1a] border border-white/[0.06]">
+                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between rounded-lg bg-[#1a1a1a] border border-white/[0.1]">
                       <span className="text-xs text-gray-500 font-medium">{SELLER_CONFIG[seller.id].name}</span>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
@@ -252,7 +252,7 @@ export default function IndiaSellingPage() {
 // === HELPER COMPONENT ===
 function StatCard({ title, icon, data, type }: { title: string, icon: any, data: any[], type: 'pending' | 'mixed' }) {
   return (
-    <div className="bg-[#1a1a1a] border border-white/[0.06] p-3 sm:p-3.5 rounded-2xl shadow-lg">
+    <div className="bg-[#1a1a1a] border border-white/[0.1] p-3 sm:p-3.5 rounded-2xl shadow-lg">
       <div className="flex items-center gap-2 mb-2.5">
         <div className="p-1.5 bg-[#111111] rounded-lg">{icon}</div>
         <h3 className="font-bold text-sm text-gray-100">{title}</h3>
@@ -261,7 +261,7 @@ function StatCard({ title, icon, data, type }: { title: string, icon: any, data:
         {data.map((item: any) => {
           const cfg = SELLER_CONFIG[item.id];
           return (
-            <div key={item.id} className="flex items-center justify-between px-2 sm:px-2.5 py-2 bg-[#1a1a1a] border border-white/[0.06] rounded-lg gap-2">
+            <div key={item.id} className="flex items-center justify-between px-2 sm:px-2.5 py-2 bg-[#1a1a1a] border border-white/[0.1] rounded-lg gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
                 <span className="text-[11px] text-gray-400 font-medium truncate">{cfg.name}</span>

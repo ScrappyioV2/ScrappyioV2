@@ -556,7 +556,7 @@ export default function GoldenAuraPage() {
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
     return (
-      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.06] p-4">
+      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.1] p-4">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-300">
             Showing <span className="text-gray-100 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
@@ -567,17 +567,17 @@ export default function GoldenAuraPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
-            <span className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg font-mono flex items-center">
+            <span className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg font-mono flex items-center">
               Page {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
@@ -626,7 +626,7 @@ export default function GoldenAuraPage() {
         onDragStart={() => handleDragStart(columnKey)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
-        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.06] cursor-move hover:bg-[#111111] transition-colors select-none group"
+        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.1] cursor-move hover:bg-[#111111] transition-colors select-none group"
         style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
         <div className="flex items-center justify-center gap-2">
@@ -634,7 +634,7 @@ export default function GoldenAuraPage() {
         </div>
         <div
           onMouseDown={(e) => startResize(columnKey, e)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.05]0/100/50 z-10"
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.08] z-10"
           onClick={(e) => e.stopPropagation()}
         />
       </th>
@@ -653,7 +653,7 @@ export default function GoldenAuraPage() {
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
-        ? `bg-orange-500/100 text-white font-semibold shadow-sm`
+        ? `bg-orange-500 text-white font-semibold shadow-sm`
         : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
         }`}
     >
@@ -670,12 +670,12 @@ export default function GoldenAuraPage() {
     <PageTransition>
       <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30">
         {/* HEADER */}
-        <div className="sticky top-0 z-50 bg-[#1a1a1a] border-b border-white/[0.06] pb-4 pt-6 px-6">
+        <div className="sticky top-0 z-50 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-6 px-6">
           <div className="max-w-[1920px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                  <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
                     <LayoutList className="w-6 h-6 text-orange-500" />
                   </div>
                   <h1 className="text-2xl font-bold tracking-tight text-white">Golden Aura - Brand Checking</h1>
@@ -685,7 +685,7 @@ export default function GoldenAuraPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
+              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.1]">
                 <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
                 <span className="w-px h-3 bg-[#1a1a1a] mx-2" />
                 <span>SELECTED: <span className="text-orange-500 font-bold">{selectedIds.size}</span></span>
@@ -693,33 +693,33 @@ export default function GoldenAuraPage() {
             </div>
 
             {/* TABS */}
-            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit">
+            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit">
               {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
               {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
             </div>
 
             {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.06] mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.1] mb-2">
               <div className="flex gap-3 w-full md:w-auto">
                 <div className="relative">
                   <button
                     onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] flex items-center gap-2 text-sm font-medium transition-colors"
+                    className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] flex items-center gap-2 text-sm font-medium transition-colors"
                   >
                     <Columns className="w-4 h-4" /> Columns
                   </button>
                   {isColumnDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
-                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
                         {Object.keys(visibleColumns).map((col) => (
                           <label key={col} className="flex items-center gap-3 p-2 hover:bg-[#111111] rounded-lg cursor-pointer transition-colors">
                             <input
                               type="checkbox"
                               checked={visibleColumns[col as keyof typeof visibleColumns]}
                               onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
-                              className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                              className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                             />
                             <span className="text-sm text-gray-300 capitalize">{col.replace('_', ' ')}</span>
                           </label>
@@ -748,7 +748,7 @@ export default function GoldenAuraPage() {
                       }
                       setSearchQuery(value);
                     }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-100 placeholder:text-gray-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-gray-100 placeholder:text-gray-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
                   />
                 </div>
 
@@ -756,8 +756,8 @@ export default function GoldenAuraPage() {
                   onClick={handleRollBack}
                   disabled={!hasRollback}
                   className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
-                    ? 'bg-orange-500/100 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
-                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                    ? 'bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
+                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                     }`}
                 >
                   <RotateCcw className="w-4 h-4" /> Undo
@@ -769,7 +769,7 @@ export default function GoldenAuraPage() {
 
         {/* TABLE */}
         <div className="max-w-[1920px] mx-auto px-6 pb-6">
-          <div className="bg-[#111111] rounded-2xl border border-white/[0.06] overflow-hidden shadow-xl shadow-black/20">
+          <div className="bg-[#111111] rounded-2xl border border-white/[0.1] overflow-hidden shadow-xl shadow-black/20">
             {loading ? (
               <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
                 <div className="w-10 h-10 border-4 border-orange-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -784,14 +784,14 @@ export default function GoldenAuraPage() {
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                 <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
-                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.06] shadow-md">
+                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.1] shadow-md">
                     <tr>
-                      <th className="p-4 bg-[#111111] border-r border-white/[0.06] text-center sticky left-0 z-20" style={{ width: '60px' }}>
+                      <th className="p-4 bg-[#111111] border-r border-white/[0.1] text-center sticky left-0 z-20" style={{ width: '60px' }}>
                         <input
                           type="checkbox"
                           checked={selectedIds.size === products.length && products.length > 0}
                           onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </th>
                       {columnOrder.map((col) => {
@@ -813,13 +813,13 @@ export default function GoldenAuraPage() {
                   </thead>
                   <tbody className="divide-y divide-white/[0.06]">
                     {products.map((product) => (
-                      <tr key={product.id} className={`group hover:bg-white/[0.05]0/100/5 transition-colors ${selectedIds.has(product.id) ? 'bg-orange-500/100/10' : ''}`}>
-                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.06] group-hover:bg-[#111111] transition-colors" style={{ width: '60px' }}>
+                      <tr key={product.id} className={`group hover:bg-white/[0.05] transition-colors ${selectedIds.has(product.id) ? 'bg-orange-500/10' : ''}`}>
+                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.1] group-hover:bg-[#111111] transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(product.id)}
                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
+                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
                           />
                         </td>
                         {columnOrder.map((col) => {
@@ -827,7 +827,7 @@ export default function GoldenAuraPage() {
 
                           return (
                             <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-white/[0.06] truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                              className={`px-4 py-3 text-sm border-r border-white/[0.1] truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
@@ -836,10 +836,10 @@ export default function GoldenAuraPage() {
                                   if (!product.funnel) return <span className="text-gray-500">-</span>;
 
                                   const funnelDisplay: Record<string, { tag: string; bgColor: string }> = {
-                                    'high_demand': { tag: 'HD', bgColor: 'bg-emerald-500/100' },
-                                    'hd': { tag: 'HD', bgColor: 'bg-emerald-500/100' },
-                                    'dropshipping': { tag: 'DP', bgColor: 'bg-amber-500/100' },
-                                    'dp': { tag: 'DP', bgColor: 'bg-amber-500/100' },
+                                    'high_demand': { tag: 'HD', bgColor: 'bg-emerald-500' },
+                                    'hd': { tag: 'HD', bgColor: 'bg-emerald-500' },
+                                    'dropshipping': { tag: 'DP', bgColor: 'bg-amber-500' },
+                                    'dp': { tag: 'DP', bgColor: 'bg-amber-500' },
                                     'low_demand': { tag: 'LD', bgColor: 'bg-blue-500' },
                                     'ld': { tag: 'LD', bgColor: 'bg-blue-500' },
                                   };
@@ -860,7 +860,7 @@ export default function GoldenAuraPage() {
                                 product.remark ? (
                                   <button
                                     onClick={() => setSelectedRemark(product.remark || '')}
-                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                   >
                                     View
                                   </button>
@@ -885,7 +885,7 @@ export default function GoldenAuraPage() {
                                     href={formatUrl(product.amz_link) || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/100/20 text-emerald-400 hover:bg-emerald-500/100 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
+                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
                                   >
                                     Seller
                                   </a>
@@ -898,7 +898,7 @@ export default function GoldenAuraPage() {
                                 product.remark ? (
                                   <button
                                     onClick={() => setSelectedRemark(product.remark || '')}
-                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                   >
                                     View
                                   </button>
@@ -918,14 +918,14 @@ export default function GoldenAuraPage() {
                             <button
                               onClick={() => handleListingAction(product, 'listed')}
                               disabled={processingId === product.id}
-                              className="px-3 py-1.5 bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                              className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                             >
                               {processingId === product.id ? '...' : '✓ List'}
                             </button>
                             <button
                               onClick={() => handleListingAction(product, 'not_listed')}
                               disabled={processingId === product.id}
-                              className="px-3 py-1.5 bg-rose-500/100/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                              className="px-3 py-1.5 bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                             >
                               {processingId === product.id ? '...' : '✗ Not List'}
                             </button>
@@ -946,7 +946,7 @@ export default function GoldenAuraPage() {
         )}
         {selectedRemark && (
           <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl p-6">
+            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-white">Remark Details</h3>
                 <button
@@ -956,7 +956,7 @@ export default function GoldenAuraPage() {
                   ×
                 </button>
               </div>
-              <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06] max-h-96 overflow-y-auto">
+              <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1] max-h-96 overflow-y-auto">
                 {selectedRemark}
               </div>
             </div>

@@ -157,10 +157,10 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden z-50"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-white/[0.1] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-orange-500" />
                 <span className="text-sm font-bold text-white">Notifications</span>
@@ -187,12 +187,12 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
                   <button
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-[#111111]/60 transition-colors text-left border-b border-white/[0.06] ${!notif.read ? 'bg-orange-500/100/5' : ''}`}
+                    className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-[#111111]/60 transition-colors text-left border-b border-white/[0.1] ${!notif.read ? 'bg-orange-500/5' : ''}`}
                   >
                     {/* Icon */}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'broadcast' ? 'bg-amber-500/100/20' :
-                      notif.type === 'pinned' ? 'bg-amber-500/100/20' :
-                        'bg-orange-500/100/10'
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'broadcast' ? 'bg-amber-500/20' :
+                      notif.type === 'pinned' ? 'bg-amber-500/20' :
+                        'bg-orange-500/10'
                       }`}>
                       {notif.type === 'broadcast' ? <Megaphone className="w-4 h-4 text-amber-400" /> :
                         notif.type === 'pinned' ? <Pin className="w-4 h-4 text-amber-400" /> :

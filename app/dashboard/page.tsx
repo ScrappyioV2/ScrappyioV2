@@ -246,9 +246,9 @@ export default function DashboardPage() {
     <div className="h-full bg-[#111111] text-gray-100 p-3 sm:p-4 lg:p-6 font-sans flex flex-col overflow-hidden">
 
       {/* === HEADER === */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-3 border-b border-white/[0.06] shrink-0 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-3 border-b border-white/[0.1] shrink-0 gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+          <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
             <LayoutDashboard className="w-5 h-5 text-orange-500" />
           </div>
           <div>
@@ -261,24 +261,24 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex gap-2">
-            <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.06] text-xs font-mono flex items-center gap-1.5">
+            <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-xs font-mono flex items-center gap-1.5">
               <Users className="w-3 h-3 text-orange-500" />
               {users.length}
             </span>
-            <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.06] text-xs font-mono flex items-center gap-1.5">
+            <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-xs font-mono flex items-center gap-1.5">
               <UserCheck className="w-3 h-3 text-emerald-400" />
               {activeUsers}
             </span>
           </div>
 
-          <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-orange-500/100/10 border border-orange-500/20 text-orange-500 text-xs font-bold flex items-center gap-1.5">
+          <span className="px-2 sm:px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-500 text-xs font-bold flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5" />
             ADMIN
           </span>
 
           <button
             onClick={logout}
-            className="px-2 sm:px-3 py-1.5 bg-rose-500/100/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/100 hover:text-white transition-all text-xs flex items-center gap-1.5 font-medium"
+            className="px-2 sm:px-3 py-1.5 bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white transition-all text-xs flex items-center gap-1.5 font-medium"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Logout</span>
@@ -298,7 +298,7 @@ export default function DashboardPage() {
             </h2>
             <button
               onClick={() => setShowCreateUser(true)}
-              className="px-2.5 py-1.5 bg-orange-500/100/10 text-orange-500 border border-orange-500/20 rounded-lg hover:bg-orange-400 hover:text-white transition-all text-[10px] flex items-center gap-1.5 font-bold"
+              className="px-2.5 py-1.5 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-lg hover:bg-orange-400 hover:text-white transition-all text-[10px] flex items-center gap-1.5 font-bold"
             >
               <UserPlus className="w-3 h-3" />
               Add User
@@ -322,7 +322,7 @@ export default function DashboardPage() {
               value={selectedDate}
               max={new Date().toISOString().split('T')[0]}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 bg-[#111111] border border-white/[0.06] rounded-lg text-xs text-gray-300 focus:outline-none focus:border-orange-500/50 [color-scheme:dark]"
+              className="flex-1 px-2.5 py-1.5 bg-[#111111] border border-white/[0.1] rounded-lg text-xs text-gray-300 focus:outline-none focus:border-orange-500/50 [color-scheme:dark]"
             />
             <button
               onClick={() => {
@@ -339,7 +339,7 @@ export default function DashboardPage() {
             {!isToday && (
               <button
                 onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                className="px-2 py-1.5 bg-orange-500/100/10 text-orange-500 border border-orange-500/20 rounded-lg text-[10px] font-bold hover:bg-white/[0.05]0/100/10 transition-colors"
+                className="px-2 py-1.5 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-lg text-[10px] font-bold hover:bg-white/[0.08] transition-colors"
               >
                 Today
               </button>
@@ -359,13 +359,13 @@ export default function DashboardPage() {
                   key={u.id}
                   onClick={() => handleSelectUser(u)}
                   className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedUser?.id === u.id
-                    ? 'bg-orange-500/100/10 border-orange-500/30'
-                    : 'bg-[#1a1a1a] border-white/[0.06] hover:border-white/[0.06]'
+                    ? 'bg-orange-500/10 border-orange-500/30'
+                    : 'bg-[#1a1a1a] border-white/[0.1] hover:border-white/[0.1]'
                     }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${u.is_active ? 'bg-orange-500/100/10 text-orange-500' : 'bg-[#111111] text-gray-500'
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${u.is_active ? 'bg-orange-500/10 text-orange-500' : 'bg-[#111111] text-gray-500'
                         }`}>
                         {(u.full_name || u.email).charAt(0).toUpperCase()}
                       </div>
@@ -375,26 +375,26 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${u.role === 'admin' ? 'bg-amber-500/100/20 text-amber-400'
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${u.role === 'admin' ? 'bg-amber-500/20 text-amber-400'
                         : u.role === 'validation' ? 'bg-purple-500/10 text-purple-400'
-                          : u.role === 'purchase' ? 'bg-emerald-500/100/20 text-emerald-400'
+                          : u.role === 'purchase' ? 'bg-emerald-500/20 text-emerald-400'
                             : u.role === 'brand-checking' ? 'bg-blue-500/10 text-blue-400'
-                              : u.role === 'listing-error' ? 'bg-rose-500/100/20 text-rose-400'
+                              : u.role === 'listing-error' ? 'bg-rose-500/20 text-rose-400'
                                 : u.role === 'tracking' ? 'bg-cyan-500/20 text-cyan-400'
-                                  : u.role === 'reorder' ? 'bg-orange-500/100/10 text-orange-400'
+                                  : u.role === 'reorder' ? 'bg-orange-500/10 text-orange-400'
                                     : 'bg-[#111111] text-gray-400'
                         }`}>
                         {formatRole(u.role)}
                       </span>
                       <div className="flex items-center gap-1">
-                        <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500/100' : 'bg-slate-600'}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-slate-600'}`} />
                         <span className="text-[9px] text-gray-500">{u.is_active ? 'Active' : 'Inactive'}</span>
                       </div>
                     </div>
                   </div>
 
                   {(todayStats[u.user_id] || 0) > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                    <div className="mt-2 pt-2 border-t border-white/[0.1]">
                       <span className="text-[10px] text-emerald-400 flex items-center gap-1">
                         <Activity className="w-3 h-3" />
                         {todayStats[u.user_id]} actions
@@ -421,10 +421,10 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
-                className="h-full flex flex-col bg-[#1a1a1a] border border-white/[0.06] rounded-xl overflow-hidden"
+                className="h-full flex flex-col bg-[#1a1a1a] border border-white/[0.1] rounded-xl overflow-hidden"
               >
                 {/* User Header */}
-                <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] shrink-0">
+                <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-white/[0.1] shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* ✅ NEW: Mobile back button */}
@@ -435,7 +435,7 @@ export default function DashboardPage() {
                       >
                         <ArrowLeft className="w-4 h-4" />
                       </button>
-                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${selectedUser.is_active ? 'bg-orange-500/100/10 text-orange-500' : 'bg-[#111111] text-gray-500'
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${selectedUser.is_active ? 'bg-orange-500/10 text-orange-500' : 'bg-[#111111] text-gray-500'
                         }`}>
                         {(selectedUser.full_name || selectedUser.email).charAt(0).toUpperCase()}
                       </div>
@@ -455,8 +455,8 @@ export default function DashboardPage() {
                           <button
                             onClick={() => toggleActive(selectedUser)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${selectedUser.is_active
-                              ? 'bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20 hover:bg-rose-500/100/20 hover:text-rose-400 hover:border-rose-500/20'
-                              : 'bg-rose-500/100/20 text-rose-400 border border-rose-500/20 hover:bg-emerald-500/100/20 hover:text-emerald-400 hover:border-emerald-500/20'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/20'
+                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/20'
                               }`}
                           >
                             {selectedUser.is_active ? (
@@ -478,7 +478,7 @@ export default function DashboardPage() {
                         value={editedRole}
                         onChange={(e) => { setEditedRole(e.target.value); setSaveSuccess(false); }}
                         disabled={isCurrentUser}
-                        className="bg-[#111111] border border-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-[#111111] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {ROLE_OPTIONS.map(r => (
                           <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -488,12 +488,12 @@ export default function DashboardPage() {
                   </div>
 
                   {/* ✅ NEW: Mobile action row — only on <sm */}
-                  <div className="sm:hidden flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.06]">
+                  <div className="sm:hidden flex items-center gap-2 mt-3 pt-3 border-t border-white/[0.1]">
                     <select
                       value={editedRole}
                       onChange={(e) => { setEditedRole(e.target.value); setSaveSuccess(false); }}
                       disabled={isCurrentUser}
-                      className="flex-1 bg-[#111111] border border-white/[0.06] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-[#111111] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {ROLE_OPTIONS.map(r => (
                         <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
@@ -504,8 +504,8 @@ export default function DashboardPage() {
                         <button
                           onClick={() => toggleActive(selectedUser)}
                           className={`p-1.5 rounded-lg text-xs transition-all ${selectedUser.is_active
-                            ? 'bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/100/20 text-rose-400 border border-rose-500/20'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/20 text-rose-400 border border-rose-500/20'
                             }`}
                           title={selectedUser.is_active ? 'Deactivate' : 'Activate'}
                         >
@@ -526,7 +526,7 @@ export default function DashboardPage() {
                 {/* Permission Toggles */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5">
                   {isCurrentUser && editedRole === 'admin' && (
-                    <div className="mb-4 px-3 py-2 bg-amber-500/100/5 border border-amber-500/20 rounded-lg flex items-center gap-2 text-xs text-amber-400">
+                    <div className="mb-4 px-3 py-2 bg-amber-500/5 border border-amber-500/20 rounded-lg flex items-center gap-2 text-xs text-amber-400">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                       Admin role bypasses all permissions. Toggles below only apply to non-admin roles.
                     </div>
@@ -545,8 +545,8 @@ export default function DashboardPage() {
                             key={p.key}
                             onClick={() => togglePermission(p.key)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${editedPages.includes(p.key)
-                              ? 'bg-orange-500/100/10 border border-orange-500/20 text-orange-400'
-                              : 'bg-[#1a1a1a] border border-white/[0.06] text-gray-500 hover:text-gray-200'
+                              ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400'
+                              : 'bg-[#1a1a1a] border border-white/[0.1] text-gray-500 hover:text-gray-200'
                               }`}
                           >
                             <span>{p.label}</span>
@@ -572,7 +572,7 @@ export default function DashboardPage() {
                             onClick={() => togglePermission(p.key)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${editedPages.includes(p.key)
                               ? 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
-                              : 'bg-[#1a1a1a] border border-white/[0.06] text-gray-500 hover:text-gray-200'
+                              : 'bg-[#1a1a1a] border border-white/[0.1] text-gray-500 hover:text-gray-200'
                               }`}
                           >
                             <span>{p.label}</span>
@@ -588,7 +588,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="px-4 sm:px-5 py-3 border-t border-white/[0.06] flex items-center justify-between shrink-0">
+                <div className="px-4 sm:px-5 py-3 border-t border-white/[0.1] flex items-center justify-between shrink-0">
                   <button
                     onClick={() => router.push(`/dashboard/user-activity/${selectedUser.user_id}`)}
                     className="text-xs text-orange-500 hover:text-orange-400 flex items-center gap-1.5 font-medium transition-colors"
@@ -603,9 +603,9 @@ export default function DashboardPage() {
                     onClick={handleSave}
                     disabled={!hasChanges || saving}
                     className={`px-4 sm:px-6 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${saveSuccess
-                      ? 'bg-emerald-500/100 text-white'
+                      ? 'bg-emerald-500 text-white'
                       : hasChanges
-                        ? 'bg-orange-400 text-white hover:bg-white/[0.05]0/100'
+                        ? 'bg-orange-400 text-white hover:bg-white/[0.05]'
                         : 'bg-[#111111] text-gray-500 cursor-not-allowed'
                       }`}
                   >

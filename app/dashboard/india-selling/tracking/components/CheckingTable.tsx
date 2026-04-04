@@ -833,7 +833,7 @@ export default function CheckingTable({
     RR: 'bg-gray-400 text-black',
     UB: 'bg-pink-500 text-white',
     VV: 'bg-purple-600 text-white',
-    DE: 'bg-orange-500/100 text-white',
+    DE: 'bg-orange-500 text-white',
     CV: 'bg-green-600 text-white',
     MV: 'bg-orange-600 text-white',
     KL: 'bg-lime-500 text-black',
@@ -972,7 +972,7 @@ export default function CheckingTable({
       <div className="flex-none px-4 sm:px-6 pt-6 pb-6 flex gap-4 items-center flex-wrap">
 
         {/* Tabs */}
-        <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
+        <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
           {([
             { id: 'checking' as const, label: 'Checking', count: checkingCount },
             { id: 'damaged' as const, label: 'Damaged', count: damagedCount },
@@ -982,7 +982,7 @@ export default function CheckingTable({
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${checkingTab === tab.id
                 ? tab.id === 'damaged' ? 'bg-rose-600 text-white shadow-lg'
                   : tab.id === 'offline_sell' ? 'bg-cyan-600 text-white shadow-lg'
-                    : 'bg-orange-500/100 text-white shadow-lg'
+                    : 'bg-orange-500 text-white shadow-lg'
                 : 'text-gray-500 hover:text-gray-200'}`}>
               {tab.label} ({tab.count})
             </button>
@@ -994,12 +994,12 @@ export default function CheckingTable({
           placeholder="Search by Box, Invoice, ASIN or Product..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 min-w-0 max-w-sm px-4 sm:px-6 py-2 sm:py-2.5 text-sm bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
+          className="flex-1 min-w-0 max-w-sm px-4 sm:px-6 py-2 sm:py-2.5 text-sm bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
         />
 
         {checkingTab === 'offline_sell' && (
           <>
-            <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
+            <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
               {(['all', 'today', 'week', 'month'] as const).map(opt => (
                 <button key={opt} onClick={() => setOfflineDateFilter(opt)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${offlineDateFilter === opt ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-200'}`}>
@@ -1013,14 +1013,14 @@ export default function CheckingTable({
                   type="date"
                   value={offlineDateStart}
                   onChange={(e) => setOfflineDateStart(e.target.value)}
-                  className="px-2 py-1.5 text-xs bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100"
+                  className="px-2 py-1.5 text-xs bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100"
                 />
                 <span className="text-gray-500 text-xs">to</span>
                 <input
                   type="date"
                   value={offlineDateEnd}
                   onChange={(e) => setOfflineDateEnd(e.target.value)}
-                  className="px-2 py-1.5 text-xs bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100"
+                  className="px-2 py-1.5 text-xs bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100"
                 />
                 {(offlineDateStart || offlineDateEnd) && (
                   <button
@@ -1035,7 +1035,7 @@ export default function CheckingTable({
               placeholder="Filter by party..."
               value={partyFilter}
               onChange={(e) => setPartyFilter(e.target.value)}
-              className="max-w-[180px] px-3 py-2 text-sm bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100 placeholder:text-gray-500"
+              className="max-w-[180px] px-3 py-2 text-sm bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100 placeholder:text-gray-500"
             />
           </>
         )}
@@ -1044,7 +1044,7 @@ export default function CheckingTable({
         <div className="relative">
           <button
             onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -1059,7 +1059,7 @@ export default function CheckingTable({
                 onClick={() => setIsColumnMenuOpen(false)}
               />
 
-              <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-lg shadow-xl p-4 z-20 w-64 max-h-[500px] overflow-y-auto">
+              <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-lg shadow-xl p-4 z-20 w-64 max-h-[500px] overflow-y-auto">
                 <h3 className="font-semibold text-gray-100 mb-3 text-sm">Toggle Columns</h3>
                 <div className="space-y-2">
                   {Object.keys(visibleColumns).map((col) => {
@@ -1093,7 +1093,7 @@ export default function CheckingTable({
                               [col]: !prev[col as keyof typeof visibleColumns]
                             }));
                           }}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                         />
                         <span className="text-sm text-gray-300">
                           {columnDisplayNames[col] || col}
@@ -1103,14 +1103,14 @@ export default function CheckingTable({
                   })}
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
+                <div className="mt-3 pt-3 border-t border-white/[0.1] flex gap-2">
                   <button
                     onClick={() =>
                       setVisibleColumns(
                         Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
                       )
                     }
-                    className="flex-1 px-3 py-1.5 bg-orange-500/100 text-white rounded hover:bg-orange-400 text-xs font-medium"
+                    className="flex-1 px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-400 text-xs font-medium"
                   >
                     Show All
                   </button>
@@ -1142,7 +1142,7 @@ export default function CheckingTable({
 
       {/* Table Wrapper - Same as page.tsx */}
       <div className="flex-1 overflow-hidden">
-        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
           {/* Table Scroll Container */}
           <div className="flex-1 overflow-y-auto">
             <table
@@ -1155,7 +1155,7 @@ export default function CheckingTable({
                   {visibleColumns.sr && (
                     <th
                       style={{ width: columnWidths.sr }}
-                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                     >
                       Sr
                     </th>
@@ -1165,7 +1165,7 @@ export default function CheckingTable({
                   {visibleColumns.expand && (
                     <th
                       style={{ width: columnWidths.expand }}
-                      className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                      className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                     >
                       SKU
                     </th>
@@ -1174,7 +1174,7 @@ export default function CheckingTable({
                   {visibleColumns.product_name && (
                     <th
                       style={{ width: columnWidths.product_name }}
-                      className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                      className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                     >
                       Product
                     </th>
@@ -1182,14 +1182,14 @@ export default function CheckingTable({
 
                   <th
                     style={{ width: columnWidths.asin }}
-                    className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                    className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                   >
                     ASIN
                   </th>
 
                   <th
                     style={{ width: 220 }}
-                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                   >
                     Seller Tag
                   </th>
@@ -1197,7 +1197,7 @@ export default function CheckingTable({
                   {visibleColumns.weight && (
                     <th
                       style={{ width: columnWidths.weight }}
-                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                     >
                       Weight
                     </th>
@@ -1206,7 +1206,7 @@ export default function CheckingTable({
                   {visibleColumns.qty && (
                     <th
                       style={{ width: columnWidths.qty }}
-                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                     >
                       Qty
                     </th>
@@ -1214,38 +1214,38 @@ export default function CheckingTable({
 
                   {/* Checklist column */}
                   {checkingTab === 'checking' && (
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                     Checklist
                   </th>
                   )}
 
                   {/* Damaged Qty column */}
                   {checkingTab === 'checking' && (
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                     Damaged Qty
                   </th>
                   )}
 
                   {/* Offline Sell column */}
                   {checkingTab === 'checking' && (
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-white/[0.06]">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-white/[0.1]">
                     Offline Sell
                   </th>
                   )}
 
                   {/* Qty column for damaged/offline tabs */}
                   {checkingTab !== 'checking' && (
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                     Quantity
                   </th>
                   )}
                   {checkingTab === 'offline_sell' && (
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-white/[0.06]">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-white/[0.1]">
                     Party
                   </th>
                   )}
                   {checkingTab === 'offline_sell' && (
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                     Date
                   </th>
                   )}
@@ -1277,7 +1277,7 @@ export default function CheckingTable({
                       {visibleColumns.sr && (
                         <td
                           style={{ width: columnWidths.sr }}
-                          className="px-3 py-2 text-center text-sm text-gray-300 border-r border-white/[0.06]"
+                          className="px-3 py-2 text-center text-sm text-gray-300 border-r border-white/[0.1]"
                         >
                           {index + 1}
                         </td>
@@ -1287,7 +1287,7 @@ export default function CheckingTable({
                       {visibleColumns.expand && (
                         <td
                           style={{ width: columnWidths.expand }}
-                          className="px-3 py-2 text-sm font-mono text-gray-300 border-r border-white/[0.06]"
+                          className="px-3 py-2 text-sm font-mono text-gray-300 border-r border-white/[0.1]"
                         >
                           {item.sku || '-'}
                         </td>
@@ -1297,7 +1297,7 @@ export default function CheckingTable({
                       {visibleColumns.product_name && (
                         <td
                           style={{ width: columnWidths.product_name }}
-                          className="px-3 py-2 text-sm text-gray-300 border-r border-white/[0.06]"
+                          className="px-3 py-2 text-sm text-gray-300 border-r border-white/[0.1]"
                         >
                           {item.product_name || '-'}
                         </td>
@@ -1306,7 +1306,7 @@ export default function CheckingTable({
                       {/* ASIN */}
                       <td
                         style={{ width: columnWidths.asin }}
-                        className="px-3 py-2 text-sm font-mono border-r border-white/[0.06]"
+                        className="px-3 py-2 text-sm font-mono border-r border-white/[0.1]"
                       >
                         {item.asin ? (
                           <a href={`https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline">
@@ -1318,7 +1318,7 @@ export default function CheckingTable({
                       {/* Seller Tag (merged) */}
                       <td
                         style={{ width: 220 }}
-                        className="px-3 py-2 text-center border-r border-white/[0.06]"
+                        className="px-3 py-2 text-center border-r border-white/[0.1]"
                       >
                         <div className="flex flex-wrap gap-1.5 justify-center items-center">
                           {merged.sellers.map(s => (
@@ -1328,7 +1328,7 @@ export default function CheckingTable({
                               </span>
                               <input
                                 type="number"
-                                className="w-14 bg-[#111111] border border-white/[0.06] rounded px-1 py-0.5 text-xs text-white text-center"
+                                className="w-14 bg-[#111111] border border-white/[0.1] rounded px-1 py-0.5 text-xs text-white text-center"
                                 value={s.qty}
                                 onChange={(e) => {
                                   const newVal = e.target.value === '' ? null : parseInt(e.target.value);
@@ -1344,7 +1344,7 @@ export default function CheckingTable({
                       {visibleColumns.weight && (
                         <td
                           style={{ width: columnWidths.weight }}
-                          className="px-3 py-2 text-center border-r border-white/[0.06]"
+                          className="px-3 py-2 text-center border-r border-white/[0.1]"
                         >
                           <input
                             type="number"
@@ -1355,7 +1355,7 @@ export default function CheckingTable({
                               const val = e.target.value ? Number(e.target.value) : null;
                               merged.allIds.forEach(id => handleEditField(id, 'product_weight', val));
                             }}
-                            className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                           />
                         </td>
                       )}
@@ -1364,7 +1364,7 @@ export default function CheckingTable({
                       {visibleColumns.qty && (
                         <td
                           style={{ width: columnWidths.qty }}
-                          className="px-3 py-2 text-center border-r border-white/[0.06] text-sm text-gray-100 font-bold"
+                          className="px-3 py-2 text-center border-r border-white/[0.1] text-sm text-gray-100 font-bold"
                         >
                           {merged.totalQty}
                         </td>
@@ -1372,9 +1372,9 @@ export default function CheckingTable({
 
                       {/* Checklist — applies to ALL underlying rows */}
                       {checkingTab === 'checking' && (
-                      <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <div className="inline-flex flex-wrap items-center justify-center gap-2">
-                          <label className="inline-flex items-center gap-1 rounded-full bg-emerald-500/100/20 px-2.5 py-1 text-[11px] text-emerald-200 border border-emerald-500/60 hover:bg-emerald-500/100/20 hover:border-emerald-400 transition-colors">
+                          <label className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] text-emerald-200 border border-emerald-500/60 hover:bg-emerald-500/20 hover:border-emerald-400 transition-colors">
                             <input
                               type="checkbox"
                               checked={!!item.check_mrp_label}
@@ -1386,7 +1386,7 @@ export default function CheckingTable({
                             <span>MRP label</span>
                           </label>
 
-                          <label className="inline-flex items-center gap-1 rounded-full bg-amber-500/100/20 px-2.5 py-1 text-[11px] text-amber-200 border border-amber-500/60 hover:bg-amber-500/100/20 hover:border-amber-400 transition-colors">
+                          <label className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] text-amber-200 border border-amber-500/60 hover:bg-amber-500/20 hover:border-amber-400 transition-colors">
                             <input
                               type="checkbox"
                               checked={!!item.check_gelatin}
@@ -1410,7 +1410,7 @@ export default function CheckingTable({
                             <span>Amazon Badge</span>
                           </label>
 
-                          <label className="inline-flex items-center gap-1 rounded-full bg-rose-500/100/20 px-2.5 py-1 text-[11px] text-rose-200 border border-rose-500/60 hover:bg-rose-500/100/20 hover:border-rose-400 transition-colors">
+                          <label className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] text-rose-200 border border-rose-500/60 hover:bg-rose-500/20 hover:border-rose-400 transition-colors">
                             <input
                               type="checkbox"
                               checked={!!item.check_cleaning}
@@ -1427,7 +1427,7 @@ export default function CheckingTable({
 
                       {/* Damaged quantity — applies to ALL underlying rows */}
                       {checkingTab === 'checking' && (
-                      <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <input
                           type="number"
                           min={0}
@@ -1436,14 +1436,14 @@ export default function CheckingTable({
                             const val = e.target.value ? Number(e.target.value) : null;
                             merged.allIds.forEach(id => handleDamagedQtyChange(id, val));
                           }}
-                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
                         />
                       </td>
                       )}
 
                       {/* Offline Sell quantity */}
                       {checkingTab === 'checking' && (
-                      <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <input
                           type="number"
                           min={0}
@@ -1452,32 +1452,32 @@ export default function CheckingTable({
                             const val = e.target.value ? Number(e.target.value) : null;
                             merged.allIds.forEach(id => handleOfflineSellQtyChange(id, val));
                           }}
-                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </td>
                       )}
 
                       {/* Quantity for damaged/offline tabs */}
                       {checkingTab !== 'checking' && (
-                      <td className="px-6 py-4 text-center border-r border-white/[0.06]">
-                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${checkingTab === 'damaged' ? 'bg-rose-500/100/20 text-rose-300 border border-rose-500/30' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'}`}>
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
+                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${checkingTab === 'damaged' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'}`}>
                           {item.buying_quantity ?? item.actual_quantity ?? 0}
                         </span>
                       </td>
                       )}
                       {checkingTab === 'offline_sell' && (
-                      <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <input
                           type="text"
                           value={(item as any).party || ''}
                           onChange={(e) => handlePartyChange(merged.allIds[0], e.target.value)}
                           placeholder="Enter party..."
-                          className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-gray-500"
+                          className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-gray-500"
                         />
                       </td>
                       )}
                       {checkingTab === 'offline_sell' && (
-                      <td className="px-6 py-4 text-center border-r border-white/[0.06] text-xs text-gray-300">
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1] text-xs text-gray-300">
                         {(item as any).offline_sold_at ? new Date((item as any).offline_sold_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                       </td>
                       )}
@@ -1486,7 +1486,7 @@ export default function CheckingTable({
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleSendToRechecking(merged.allIds)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/100 text-white hover:bg-orange-400 transition-colors"
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-400 transition-colors"
                         >
                           ↩ Recheck
                         </button>
@@ -1503,7 +1503,7 @@ export default function CheckingTable({
                             onClick={() => handleMoveToRestock(merged.allIds)}
                             disabled={!anyChecklist}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${anyChecklist
-                              ? 'bg-emerald-600 text-white hover:bg-emerald-500/100'
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                               : 'bg-[#1a1a1a] text-gray-500 cursor-not-allowed'
                               }`}
                           >
@@ -1519,7 +1519,7 @@ export default function CheckingTable({
           </div>
 
           {/* Footer Count - STICKY AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
             <div className="text-xs sm:text-sm text-gray-300">
               Showing {mergedItems.length} items
             </div>
@@ -1540,7 +1540,7 @@ export default function CheckingTable({
       {/* Company Info Modal */}
       {selectedCompany && (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
               <button
@@ -1550,7 +1550,7 @@ export default function CheckingTable({
                 ✕
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06]">
+            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1]">
               {selectedCompany}
             </div>
           </div>
@@ -1570,8 +1570,8 @@ export default function CheckingTable({
 
       {rollbackOpen && (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="bg-[#111111] border-b border-white/[0.06] px-6 py-4 flex items-center justify-between">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-[#111111] border-b border-white/[0.1] px-6 py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-white">Rollback: Restock → Checking</h2>
                 <p className="text-sm text-gray-300">Items from <span className="text-amber-400">all sellers</span> — also removes from listing errors</p>
@@ -1581,8 +1581,8 @@ export default function CheckingTable({
               </div>
               <button onClick={() => setRollbackOpen(false)} className="text-gray-400 hover:text-white p-2 hover:bg-[#111111] rounded-lg text-xl">✕</button>
             </div>
-            <div className="px-6 py-4 border-b border-white/[0.06]">
-              <input type="text" placeholder="Search by ASIN, Product Name, Seller Tag..." value={restockRollbackSearch} onChange={(e) => setRestockRollbackSearch(e.target.value)} className="w-full pl-4 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100 placeholder:text-gray-500" />
+            <div className="px-6 py-4 border-b border-white/[0.1]">
+              <input type="text" placeholder="Search by ASIN, Product Name, Seller Tag..." value={restockRollbackSearch} onChange={(e) => setRestockRollbackSearch(e.target.value)} className="w-full pl-4 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100 placeholder:text-gray-500" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {restockRollbackLoading ? (
@@ -1592,7 +1592,7 @@ export default function CheckingTable({
                 return filtered.length === 0 ? (
                   <div className="flex items-center justify-center h-64 text-gray-500">No items found in Restock</div>
                 ) : (
-                  <table className="w-full"><thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0"><tr>
+                  <table className="w-full"><thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0"><tr>
                     <th className="px-6 py-4 text-left w-12"><input type="checkbox" checked={filtered.length > 0 && filtered.every(i => restockRollbackSelected.has(i.id))} onChange={(e) => { if (e.target.checked) setRestockRollbackSelected(new Set(filtered.map(i => i.id))); else setRestockRollbackSelected(new Set()); }} className="w-5 h-5 accent-indigo-600" /></th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">ASIN</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Product Name</th>
@@ -1601,7 +1601,7 @@ export default function CheckingTable({
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400">Status</th>
                   </tr></thead><tbody className="divide-y divide-white/[0.06]">
                     {filtered.map(item => (
-                      <tr key={item.id} className={`cursor-pointer ${recentlySentAsins.has(item.asin) ? 'bg-amber-900/30 hover:bg-amber-900/50 border-l-2 border-l-amber-500' : 'hover:bg-white/[0.05]0/100/5'}`} onClick={() => { const s = new Set(restockRollbackSelected); if (s.has(item.id)) s.delete(item.id); else s.add(item.id); setRestockRollbackSelected(s); }}>
+                      <tr key={item.id} className={`cursor-pointer ${recentlySentAsins.has(item.asin) ? 'bg-amber-900/30 hover:bg-amber-900/50 border-l-2 border-l-amber-500' : 'hover:bg-white/[0.05]'}`} onClick={() => { const s = new Set(restockRollbackSelected); if (s.has(item.id)) s.delete(item.id); else s.add(item.id); setRestockRollbackSelected(s); }}>
                         <td className="px-6 py-4"><input type="checkbox" checked={restockRollbackSelected.has(item.id)} readOnly className="w-5 h-5 accent-indigo-600" /></td>
                         <td className="px-6 py-4 font-mono text-sm text-gray-100">{item.asin}</td>
                         <td className="px-6 py-4 text-sm text-gray-300"><div className="truncate max-w-[250px]">{item.product_name || '-'}</div></td>
@@ -1613,11 +1613,11 @@ export default function CheckingTable({
                 );
               })()}
             </div>
-            <div className="bg-[#111111] border-t border-white/[0.06] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#111111] border-t border-white/[0.1] px-6 py-4 flex items-center justify-between">
               <div className="text-sm text-gray-300">{restockRollbackSelected.size > 0 ? <span className="text-amber-400 font-semibold">{restockRollbackSelected.size} selected</span> : `${restockRollbackItems.length} items available`}</div>
               <div className="flex gap-3">
-                <button onClick={() => setRollbackOpen(false)} className="px-6 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-500 hover:bg-[#1a1a1a]">Cancel</button>
-                <button onClick={handleRestockRollback} disabled={restockRollbackSelected.size === 0} className={`px-8 py-2.5 rounded-lg font-semibold text-white ${restockRollbackSelected.size === 0 ? 'bg-[#111111] text-gray-500 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-500/100'}`}>⏪ Rollback {restockRollbackSelected.size > 0 ? `(${restockRollbackSelected.size})` : ''}</button>
+                <button onClick={() => setRollbackOpen(false)} className="px-6 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-gray-500 hover:bg-[#1a1a1a]">Cancel</button>
+                <button onClick={handleRestockRollback} disabled={restockRollbackSelected.size === 0} className={`px-8 py-2.5 rounded-lg font-semibold text-white ${restockRollbackSelected.size === 0 ? 'bg-[#111111] text-gray-500 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-500'}`}>⏪ Rollback {restockRollbackSelected.size > 0 ? `(${restockRollbackSelected.size})` : ''}</button>
               </div>
             </div>
           </div>

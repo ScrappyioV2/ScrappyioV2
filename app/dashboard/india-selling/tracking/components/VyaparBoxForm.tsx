@@ -10,7 +10,7 @@ const SELLER_TAG_COLORS: Record<string, string> = {
     RR: "bg-gray-400 text-black",
     UB: "bg-pink-500 text-white",
     VV: "bg-purple-600 text-white",
-    DE: "bg-orange-500/100 text-white",
+    DE: "bg-orange-500 text-white",
     CV: "bg-green-600 text-white",
 };
 
@@ -568,14 +568,14 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
     // RENDER
     // ══════════════════════════════════════════════════════
     return (
-        <div className="h-full flex flex-col bg-[#111111] rounded-xl border border-white/[0.06] overflow-hidden">
+        <div className="h-full flex flex-col bg-[#111111] rounded-xl border border-white/[0.1] overflow-hidden">
             <style>{`
                 .vyapar-input::-webkit-inner-spin-button,
                 .vyapar-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
                 .vyapar-input[type=number] { -moz-appearance: textfield; }
             `}</style>
             {/* ── HEADER ───────────────────────────────── */}
-            <div className="flex-none border-b border-white/[0.06] bg-[#1a1a1a]">
+            <div className="flex-none border-b border-white/[0.1] bg-[#1a1a1a]">
                 {/* Top bar */}
                 <div className="px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -614,7 +614,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                             value={boxId}
                             onChange={e => setBoxId(e.target.value)}
                             placeholder="e.g. 66024430"
-                            className="vyapar-input w-44 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none placeholder:text-gray-500"
+                            className="vyapar-input w-44 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none placeholder:text-gray-500"
                         />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -624,7 +624,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                             max="9999-12-31"
                             value={bookingDate}
                             onChange={e => setBookingDate(e.target.value)}
-                            className="w-44 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                            className="w-44 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
                         />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -635,7 +635,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                             value={totalWeight}
                             onChange={e => setTotalWeight(e.target.value)}
                             placeholder="e.g. 12.5"
-                            className="vyapar-input w-36 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none placeholder:text-gray-500"
+                            className="vyapar-input w-36 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none placeholder:text-gray-500"
                         />
                     </div>
                 </div>
@@ -645,7 +645,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
             <div className="flex-1 overflow-auto" ref={searchRef}>
                 <table className="w-full border-collapse" style={{ minWidth: "900px" }}>
                     <thead className="bg-[#111111] sticky top-0 z-20">
-                        <tr className="border-b-2 border-white/[0.06]">
+                        <tr className="border-b-2 border-white/[0.1]">
                             <th className="w-12 px-6 py-4 text-center text-[10px] font-bold text-gray-500 uppercase">#</th>
                             <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase min-w-[160px]">ASIN / Item</th>
                             <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase">Product Name</th>
@@ -665,7 +665,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                             const isSearching = activeSearchRowId === row.rowId;
 
                             return (
-                                <tr key={row.rowId} className={`group transition-colors border-b-2 border-white/[0.06] ${row.asin ? "hover:bg-white/[0.05]0/100/5 bg-[#111111]/30" : "bg-orange-500/100/5"}`}>
+                                <tr key={row.rowId} className={`group transition-colors border-b-2 border-white/[0.1] ${row.asin ? "hover:bg-white/[0.05] bg-[#111111]/30" : "bg-orange-500/5"}`}>
                                     {/* # */}
                                     <td className="px-6 py-4 text-center">
                                         <span className="text-xs font-bold text-gray-500">{idx + 1}</span>
@@ -693,13 +693,13 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                     onChange={e => { setSearchQuery(e.target.value); setActiveSearchRowId(row.rowId); }}
                                                     onFocus={() => setActiveSearchRowId(row.rowId)}
                                                     placeholder="Search ASIN or product..."
-                                                    className="w-full px-3 py-1.5 bg-[#111111] border border-dashed border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none placeholder:text-gray-500"
+                                                    className="w-full px-3 py-1.5 bg-[#111111] border border-dashed border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none placeholder:text-gray-500"
                                                 />
                                                 <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
 
                                                 {/* Search dropdown */}
                                                 {isSearching && searchCandidates.length > 0 && (
-                                                    <div className="absolute top-full left-0 mt-1 bg-[#111111] border border-white/[0.06] rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto w-[650px]">
+                                                    <div className="absolute top-full left-0 mt-1 bg-[#111111] border border-white/[0.1] rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto w-[650px]">
                                                         {searchCandidates.map(group => {
                                                             const item = group.representative;
                                                             const totalPending = group.sellers.reduce((s: number, x: any) => s + x.pending, 0);
@@ -707,11 +707,11 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                                 <div
                                                                     key={item.asin}
                                                                     onClick={() => handleSelectAsin(row.rowId, group)}
-                                                                    className="px-4 py-3 hover:bg-[#111111] cursor-pointer border-b border-white/[0.06] last:border-0 transition-colors"
+                                                                    className="px-4 py-3 hover:bg-[#111111] cursor-pointer border-b border-white/[0.1] last:border-0 transition-colors"
                                                                 >
                                                                     <div className="flex items-center justify-between mb-1">
                                                                         <span className="font-mono text-sm font-bold text-white">{item.asin}</span>
-                                                                        <span className="text-xs text-amber-400 font-bold bg-amber-500/100/15 px-2 py-0.5 rounded">{totalPending} pending</span>
+                                                                        <span className="text-xs text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded">{totalPending} pending</span>
                                                                     </div>
                                                                     <div className="text-xs text-gray-300 truncate mb-1.5">{item.product_name || "-"}</div>
                                                                     <div className="flex gap-1.5">
@@ -728,7 +728,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                     </div>
                                                 )}
                                                 {isSearching && searchCandidates.length === 0 && searchQuery.trim() && (
-                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl z-50 px-4 py-3 text-xs text-gray-300">
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl z-50 px-4 py-3 text-xs text-gray-300">
                                                         No matching items found.
                                                     </div>
                                                 )}
@@ -763,7 +763,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                             onChange={e => handleSellerQtyChange(row.rowId, si, Number(e.target.value) || 0)}
                                                             onKeyDown={e => handleCellKeyDown(e, idx, `qty-${si}`)}
                                                             data-col={`qty-${si}`}
-                                                            className="vyapar-input vyapar-cell w-16 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                                            className="vyapar-input vyapar-cell w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
                                                         />
                                                         {mode === "create" && (
                                                             <span className="text-[9px] text-gray-500 w-8">/{se.maxQty}</span>
@@ -771,7 +771,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                     </div>
                                                 ))}
                                                 {row.sellerEntries.length > 1 && (
-                                                    <div className="text-[10px] text-gray-500 font-semibold border-t border-white/[0.06] pt-1 w-full text-center">
+                                                    <div className="text-[10px] text-gray-500 font-semibold border-t border-white/[0.1] pt-1 w-full text-center">
                                                         Total: {rowTotal}
                                                     </div>
                                                 )}
@@ -792,7 +792,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                 onChange={e => handleWeightChange(row.rowId, Number(e.target.value) || 0)}
                                                 onKeyDown={e => handleCellKeyDown(e, idx, "weight")}
                                                 data-col="weight"
-                                                className="vyapar-input vyapar-cell w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                                className="vyapar-input vyapar-cell w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
                                             />
                                         ) : <span className="text-gray-500 text-xs">—</span>}
                                     </td>
@@ -812,7 +812,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                         {row.asin && (
                                             <button
                                                 onClick={() => handleRemoveRow(row.rowId)}
-                                                className="p-1.5 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/100/20 transition-all opacity-0 group-hover:opacity-100"
+                                                className="p-1.5 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/20 transition-all opacity-0 group-hover:opacity-100"
                                                 title="Remove item"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -828,7 +828,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                             <td colSpan={9} className="px-6 py-4">
                                 <button
                                     onClick={handleAddRow}
-                                    className="flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-semibold py-2 px-3 rounded-lg hover:bg-white/[0.05]0/100/10 transition-all"
+                                    className="flex items-center gap-2 text-orange-500 hover:text-orange-400 text-xs font-semibold py-2 px-3 rounded-lg hover:bg-white/[0.08] transition-all"
                                 >
                                     <Plus className="w-4 h-4" />
                                     ADD ROW
@@ -838,13 +838,13 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
 
                         {/* TOTALS row */}
                         {rows.some(r => r.asin) && (
-                            <tr className="bg-[#1a1a1a] border-t-2 border-white/[0.06]">
+                            <tr className="bg-[#1a1a1a] border-t-2 border-white/[0.1]">
                                 <td className="px-6 py-4"></td>
                                 <td className="px-6 py-4 text-xs font-bold text-gray-300 uppercase">TOTAL</td>
                                 <td className="px-6 py-4"></td>
                                 <td className="px-6 py-4"></td>
                                 <td className="px-6 py-4 text-center">
-                                    <span className="text-sm font-bold text-white bg-orange-500/100/10 px-3 py-1 rounded-lg border border-orange-500/30">
+                                    <span className="text-sm font-bold text-white bg-orange-500/10 px-3 py-1 rounded-lg border border-orange-500/30">
                                         {totalQty} qty
                                     </span>
                                 </td>
@@ -863,7 +863,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
             </div>
 
             {/* ── FOOTER ─────────────────────────────────── */}
-            <div className="flex-none border-t border-white/[0.06] bg-[#1a1a1a] px-6 py-4 flex items-center justify-between">
+            <div className="flex-none border-t border-white/[0.1] bg-[#1a1a1a] px-6 py-4 flex items-center justify-between">
                 <div className="text-xs text-gray-300">
                     {totalItems} item{totalItems !== 1 ? "s" : ""} · {totalQty} total qty
                     {totalWeight && ` · ${totalWeight} kg`}
@@ -878,7 +878,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                     <button
                         onClick={mode === "create" ? handleSaveCreate : handleSaveEdit}
                         disabled={saving || !boxId.trim() || totalItems === 0}
-                        className="px-6 py-2.5 rounded-lg text-sm font-bold bg-orange-500/100 text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-900/30 transition-all"
+                        className="px-6 py-2.5 rounded-lg text-sm font-bold bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-indigo-900/30 transition-all"
                     >
                         {saving ? (
                             <>

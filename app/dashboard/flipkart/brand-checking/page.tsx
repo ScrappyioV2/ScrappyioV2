@@ -239,17 +239,17 @@ export default function BrandCheckingPage() {
             Back to flipkart Selling Dashboard
           </Link>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/[0.06] pb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/[0.1] pb-8">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+                <div className="p-3 bg-orange-500/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
                   <ShieldCheck className="w-6 h-6 text-orange-500" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-white">Brand Checking Dashboard</h1>
               </div>
               <p className="text-gray-400 pl-[3.75rem] max-w-2xl">
                 Monitor real-time brand approval progress across all sellers.
-                <span className="ml-3 inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#111111] border border-white/[0.06] text-xs font-mono text-gray-500">
+                <span className="ml-3 inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#111111] border border-white/[0.1] text-xs font-mono text-gray-500">
                   Total Sellers: {sellers.length}
                 </span>
               </p>
@@ -270,7 +270,7 @@ export default function BrandCheckingPage() {
               <div
                 key={seller.id}
                 onClick={() => handleSellerCardClick(seller.id)}
-                className="group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-orange-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
+                className="group relative bg-[#1a1a1a] border border-white/[0.1] hover:border-orange-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
               >
                 {/* Hover Glow Effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -279,8 +279,8 @@ export default function BrandCheckingPage() {
 
                   {/* Left: Seller Card */}
                   <div className="col-span-2 flex flex-col">
-                    <div className="flex-1 bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-5 flex flex-col items-center justify-center text-center group-hover:border-orange-500/20 transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-[#111111] border border-white/[0.06] flex items-center justify-center mb-3 text-gray-400 group-hover:text-orange-500 group-hover:scale-110 transition-all shadow-inner">
+                    <div className="flex-1 bg-[#1a1a1a] border border-white/[0.1] rounded-xl p-5 flex flex-col items-center justify-center text-center group-hover:border-orange-500/20 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-[#111111] border border-white/[0.1] flex items-center justify-center mb-3 text-gray-400 group-hover:text-orange-500 group-hover:scale-110 transition-all shadow-inner">
                         <LayoutDashboard className="w-6 h-6" />
                       </div>
                       <h3 className="text-sm font-semibold text-gray-500 mb-1 pb-1 w-full text-center">
@@ -308,13 +308,13 @@ export default function BrandCheckingPage() {
                           <span className="text-sm text-emerald-400 font-medium flex items-center gap-1.5">
                             <CheckCircle2 className="w-4 h-4" /> Approved
                           </span>
-                          <span className="text-xs font-mono text-gray-400 bg-[#111111] px-1.5 py-0.5 rounded border border-white/[0.06]">
+                          <span className="text-xs font-mono text-gray-400 bg-[#111111] px-1.5 py-0.5 rounded border border-white/[0.1]">
                             {seller.approved.toLocaleString()}
                           </span>
                         </div>
-                        <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden border border-white/[0.06]">
+                        <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden border border-white/[0.1]">
                           <div
-                            className="bg-emerald-500/100 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out"
+                            className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out"
                             style={{ width: `${approvedPercentage}%` }}
                           >
                           </div>
@@ -330,13 +330,13 @@ export default function BrandCheckingPage() {
                           <span className="text-sm text-rose-400 font-medium flex items-center gap-1.5">
                             <AlertCircle className="w-4 h-4" /> Not Approved
                           </span>
-                          <span className="text-xs font-mono text-gray-400 bg-[#111111] px-1.5 py-0.5 rounded border border-white/[0.06]">
+                          <span className="text-xs font-mono text-gray-400 bg-[#111111] px-1.5 py-0.5 rounded border border-white/[0.1]">
                             {seller.notApproved.toLocaleString()}
                           </span>
                         </div>
-                        <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden border border-white/[0.06]">
+                        <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden border border-white/[0.1]">
                           <div
-                            className="bg-rose-500/100 h-full rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all duration-700 ease-out"
+                            className="bg-rose-500 h-full rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all duration-700 ease-out"
                             style={{ width: `${notApprovedPercentage}%` }}
                           >
                           </div>

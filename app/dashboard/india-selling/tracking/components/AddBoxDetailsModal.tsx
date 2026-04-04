@@ -344,8 +344,8 @@ export default function AddBoxDetailsModal({
 
     return (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#111111]/60">
-            <div className="w-full max-w-5xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] flex items-center justify-between">
+            <div className="w-full max-w-5xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.1] flex items-center justify-between">
                     <h2 className="text-base sm:text-lg font-semibold text-white">
                         Add Box Details
                     </h2>
@@ -357,7 +357,7 @@ export default function AddBoxDetailsModal({
                     </button>
                 </div>
 
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.1] grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                         <label className="block text-xs font-semibold text-gray-400 mb-1">
                             Box ID
@@ -366,7 +366,7 @@ export default function AddBoxDetailsModal({
                             type="text"
                             value={boxNumber}
                             onChange={(e) => setBoxNumber(e.target.value)}
-                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                             placeholder="BOX-001"
                         />
                     </div>
@@ -379,7 +379,7 @@ export default function AddBoxDetailsModal({
                             step="0.01"
                             value={totalBoxWeight}
                             onChange={(e) => setTotalBoxWeight(e.target.value)}
-                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                             placeholder="e.g. 5.20"
                         />
                     </div>
@@ -391,7 +391,7 @@ export default function AddBoxDetailsModal({
                             type="date"
                             value={boxBookingDate}
                             onChange={(e) => setBoxBookingDate(e.target.value)}
-                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                         />
                     </div>
                 </div>
@@ -409,11 +409,11 @@ export default function AddBoxDetailsModal({
                             onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
                             onFocus={() => setShowDropdown(true)}
                             placeholder="Search by ASIN, SKU or Product name..."
-                            className="w-full md:w-96 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500 placeholder:text-gray-500"
+                            className="w-full md:w-96 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500 placeholder:text-gray-500"
                         />
 
                         {showDropdown && dropdownCandidates.length > 0 && (
-                            <div className="absolute top-full left-0 z-50 w-full md:w-[650px] mt-1 bg-[#111111] border border-white/[0.06] rounded-xl shadow-2xl max-h-[350px] overflow-y-auto overflow-x-hidden">
+                            <div className="absolute top-full left-0 z-50 w-full md:w-[650px] mt-1 bg-[#111111] border border-white/[0.1] rounded-xl shadow-2xl max-h-[350px] overflow-y-auto overflow-x-hidden">
                                 {dropdownCandidates.map((p) => {
                                     const pending = p.pending_quantity ?? p.buying_quantity ?? 0;
                                     return (
@@ -431,13 +431,13 @@ export default function AddBoxDetailsModal({
                                                 setShowDropdown(false);
                                                 setSearch("");
                                             }}
-                                            className="px-5 py-4 hover:bg-[#111111] border-b border-white/[0.06] last:border-0 cursor-pointer transition-colors"
+                                            className="px-5 py-4 hover:bg-[#111111] border-b border-white/[0.1] last:border-0 cursor-pointer transition-colors"
                                         >
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-3 mb-1">
                                                         <span className="text-base font-bold text-white font-mono">{p.asin}</span>
-                                                        {p.sku && <span className="text-xs text-gray-100 bg-[#111111] px-2.5 py-0.5 rounded border border-white/[0.06] font-medium">SKU: {p.sku}</span>}
+                                                        {p.sku && <span className="text-xs text-gray-100 bg-[#111111] px-2.5 py-0.5 rounded border border-white/[0.1] font-medium">SKU: {p.sku}</span>}
                                                     </div>
                                                     <div className="text-sm font-medium text-gray-100 line-clamp-1 mb-1.5">{p.product_name || '-'}</div>
                                                     <div className="flex items-center gap-3">
@@ -445,7 +445,7 @@ export default function AddBoxDetailsModal({
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <div className="bg-amber-500/100/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{pending} Pending</div>
+                                                    <div className="bg-amber-500/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{pending} Pending</div>
                                                     <div className="text-sm text-emerald-300 font-bold mt-1.5">₹{p.buying_price || '-'}</div>
                                                 </div>
                                             </div>
@@ -521,7 +521,7 @@ export default function AddBoxDetailsModal({
                                                     max={pending}
                                                     value={draft?.qty_for_box ?? ""}
                                                     onChange={(e) => handleQtyChange(p, e.target.value)}
-                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                 />
                                                 <div className="text-[10px] text-gray-500 mt-0.5">
                                                     pending {pending}
@@ -538,7 +538,7 @@ export default function AddBoxDetailsModal({
                                                         draft?.product_weight ?? (p.product_weight ?? "")
                                                     }
                                                     onChange={(e) => handleWeightChange(p, e.target.value)}
-                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                 />
                                             </td>
 
@@ -567,7 +567,7 @@ export default function AddBoxDetailsModal({
                     </div>
                 )}
 
-                <div className="px-3 sm:px-5 py-3 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-3 sm:px-5 py-3 border-t border-white/[0.1] flex items-center justify-between">
                     <button
                         onClick={onClose}
                         className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-500 hover:text-white hover:bg-[#111111]"
@@ -578,7 +578,7 @@ export default function AddBoxDetailsModal({
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500/100 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {submitting ? "Saving..." : "Submit Box"}
                     </button>

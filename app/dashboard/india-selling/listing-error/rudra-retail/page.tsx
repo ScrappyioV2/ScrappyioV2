@@ -53,7 +53,7 @@ const generateUUID = (): string => {
 // 🆕 SELLER TAG COLORS (same as purchases page)
 const SELLER_TAG_COLORS: Record<string, string> = {
   GR: 'bg-yellow-500 text-black border border-yellow-600',
-  RR: 'bg-slate-500 text-white border border-white/[0.06]',
+  RR: 'bg-slate-500 text-white border border-white/[0.1]',
   UB: 'bg-pink-500 text-white border border-pink-600',
   VV: 'bg-purple-500 text-white border border-purple-600',
   DE: 'bg-cyan-500 text-black border border-cyan-600',
@@ -531,10 +531,10 @@ export default function RudraRetailListingPage() {
         <div className="flex-1 flex flex-col w-full mx-auto p-3 overflow-hidden">
           {/* === HEADER & CONTROLS === */}
           <div className="flex-none space-y-4 pb-4">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-white/[0.06]">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-white/[0.1]">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                  <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
                     <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                   </div>
                   <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
@@ -542,14 +542,14 @@ export default function RudraRetailListingPage() {
                 <p className="text-xs sm:text-sm text-gray-300 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="px-3 sm:px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.06] text-xs font-mono text-gray-300">
+                <div className="px-3 sm:px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.1] text-xs font-mono text-gray-300">
                   <span className="hidden sm:inline">TOTAL ITEMS:</span><span className="sm:hidden">TOTAL:</span> <span className="text-white font-bold text-sm sm:text-base ml-1 sm:ml-2">{totalItems}</span>
                 </div>
               </div>
             </header>
 
             <div className="space-y-6">
-              <div className="flex flex-wrap gap-2 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
+              <div className="flex flex-wrap gap-2 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
@@ -559,7 +559,7 @@ export default function RudraRetailListingPage() {
                     {activeTab === tab.id && (
                       <motion.div
                         layoutId="activeTab"
-                        className="absolute inset-0 bg-orange-500/100 rounded-xl shadow-sm -z-10"
+                        className="absolute inset-0 bg-orange-500 rounded-xl shadow-sm -z-10"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
@@ -571,7 +571,7 @@ export default function RudraRetailListingPage() {
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 bg-[#1a1a1a] p-3 sm:p-4 rounded-2xl border border-white/[0.06]">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 bg-[#1a1a1a] p-3 sm:p-4 rounded-2xl border border-white/[0.1]">
                 <div className="relative w-full sm:w-96 group">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
                   <input
@@ -579,7 +579,7 @@ export default function RudraRetailListingPage() {
                     placeholder="Search by ASIN, Name, or SKU..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#111111] border border-white/[0.06] rounded-xl focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all outline-none text-sm placeholder:text-gray-500 text-gray-100"
+                    className="w-full pl-10 pr-10 py-2.5 bg-[#111111] border border-white/[0.1] rounded-xl focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 transition-all outline-none text-sm placeholder:text-gray-500 text-gray-100"
                   />
                   {searchQuery && (
                     <button onClick={() => setSearchQuery('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-200 transition-colors">
@@ -593,7 +593,7 @@ export default function RudraRetailListingPage() {
                   whileTap={hasRollback ? { scale: 0.98 } : {}}
                   onClick={handleRollBack}
                   disabled={!hasRollback}
-                  className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${hasRollback ? 'bg-orange-500/100 text-white shadow-lg shadow-orange-500/10 hover:bg-orange-400' : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'}`}
+                  className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${hasRollback ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/10 hover:bg-orange-400' : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'}`}
                 >
                   <RotateCcw className="w-4 h-4" />
                   Undo Action
@@ -603,7 +603,7 @@ export default function RudraRetailListingPage() {
           </div>
 
           {/* === TABLE CONTAINER === */}
-          <div className="flex-1 min-h-0 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] flex flex-col relative overflow-hidden">
+          <div className="flex-1 min-h-0 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] flex flex-col relative overflow-hidden">
             <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
 
               {loading ? (
@@ -613,21 +613,21 @@ export default function RudraRetailListingPage() {
                 </div>
               ) : products.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3">
-                  <div className="p-4 bg-[#111111] rounded-full border border-white/[0.06]">
+                  <div className="p-4 bg-[#111111] rounded-full border border-white/[0.1]">
                     <AlertOctagon className="w-8 h-8 text-gray-500" />
                   </div>
                   <p className="text-sm">No items found.</p>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-[#1a1a1a] border-b border-white/[0.06] sticky top-0 z-20 shadow-md">
+                  <thead className="bg-[#1a1a1a] border-b border-white/[0.1] sticky top-0 z-20 shadow-md">
                     <tr>
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.06] last:border-r-0">ASIN</th>
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider w-1/3 border-r border-white/[0.06] last:border-r-0">Product Details</th>
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.06] last:border-r-0">SKU</th>
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.06] last:border-r-0">Price</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0">ASIN</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider w-1/3 border-r border-white/[0.1] last:border-r-0">Product Details</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0">SKU</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0">Price</th>
                       {/* MIN PRICE - EDITABLE HEADER */}
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.06] last:border-r-0 cursor-pointer select-none"
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0 cursor-pointer select-none"
                         onClick={() => { setEditingMinHeader(true); setTempHeaderValue(String(minPercent)); }}>
                         {editingMinHeader ? (
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -661,7 +661,7 @@ export default function RudraRetailListingPage() {
                       </th>
 
                       {/* MAX PRICE - EDITABLE HEADER */}
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.06] last:border-r-0 cursor-pointer select-none"
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0 cursor-pointer select-none"
                         onClick={() => { setEditingMaxHeader(true); setTempHeaderValue(String(maxPercent)); }}>
                         {editingMaxHeader ? (
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -694,18 +694,18 @@ export default function RudraRetailListingPage() {
                         )}
                       </th>
                       {/* 🆕 SELLER TAG COLUMN HEADER */}
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.06] last:border-r-0">Seller Tag</th>
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.06] last:border-r-0">Source</th>
-                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.06] last:border-r-0">Remark</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Seller Tag</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Source</th>
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Remark</th>
                       {/* 🆕 ACTIONS on ALL tabs: Restock, Dropshipping, Pending get full actions; Listed gets Error+Remove; Error & Removed get nothing extra */}
                       {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
-                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.06] last:border-r-0">Actions</th>
+                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Actions</th>
                       )}
                       {activeTab === 'done' && (
-                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.06] last:border-r-0">Actions</th>
+                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Actions</th>
                       )}
                       {activeTab === 'error' && (
-                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.06] last:border-r-0">Reason</th>
+                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0">Reason</th>
                       )}
                     </tr>
                   </thead>
@@ -725,37 +725,37 @@ export default function RudraRetailListingPage() {
                             const allOthersListed = otherTags.length > 0 && otherTags.every(tag =>
                               (listedByOthers[product.asin] || []).some(s => s.tag === tag)
                             );
-                            return allOthersListed ? 'bg-emerald-500/10 hover:bg-emerald-900/30' : 'hover:bg-white/[0.05]0/100/5';
+                            return allOthersListed ? 'bg-emerald-500/10 hover:bg-emerald-900/30' : 'hover:bg-white/[0.05]';
                           })()
                             }`}
                         >
-                          <td className="px-6 py-4 text-sm font-medium text-gray-300 font-mono tracking-tight border-r border-white/[0.06] last:border-r-0">{product.asin}</td>
-                          <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
+                          <td className="px-6 py-4 text-sm font-medium text-gray-300 font-mono tracking-tight border-r border-white/[0.1] last:border-r-0">{product.asin}</td>
+                          <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
                             <div className="text-sm text-gray-100 truncate max-w-sm" title={product.product_name || ''}>{product.product_name}</div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-300 font-mono border-r border-white/[0.06] last:border-r-0">{product.sku}</td>
-                          <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
-                            <span className="inline-flex px-2.5 py-1 rounded-md bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20 text-sm font-semibold font-mono">
+                          <td className="px-6 py-4 text-sm text-gray-300 font-mono border-r border-white/[0.1] last:border-r-0">{product.sku}</td>
+                          <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
+                            <span className="inline-flex px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-sm font-semibold font-mono">
                               {product.selling_price ? `₹${product.selling_price}` : '-'}
                             </span>
                           </td>
 
                           {/* MIN PRICE CELL */}
-                          <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
-                            <span className="inline-flex px-2.5 py-1 rounded-md bg-amber-500/100/20 text-amber-400 border border-amber-500/20 text-sm font-semibold font-mono">
+                          <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
+                            <span className="inline-flex px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/20 text-sm font-semibold font-mono">
                               {product.selling_price ? `₹${calcMin(product.selling_price)}` : '-'}
                             </span>
                           </td>
 
                           {/* MAX PRICE CELL */}
-                          <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
+                          <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
                             <span className="inline-flex px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 border border-sky-500/20 text-sm font-semibold font-mono">
                               {product.selling_price ? `₹${calcMax(product.selling_price)}` : '-'}
                             </span>
                           </td>
 
                           {/* SELLER TAG COLUMN CELL */}
-                          <td className="px-6 py-4 text-center border-r border-white/[0.06] last:border-r-0">
+                          <td className="px-6 py-4 text-center border-r border-white/[0.1] last:border-r-0">
                             {product.seller_tag ? (
                               <div className="grid grid-cols-2 gap-2.5 justify-items-center w-fit mx-auto">
                                 {product.seller_tag.split(',').map((tag: string) => {
@@ -769,7 +769,7 @@ export default function RudraRetailListingPage() {
                                     <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_TAG_COLORS[cleanTag] || 'bg-[#1a1a1a] text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
                                       {cleanTag}
                                       {isListedByOther && (
-                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500/100 rounded-full flex items-center justify-center">
+                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
                                           <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                           </svg>
@@ -784,19 +784,19 @@ export default function RudraRetailListingPage() {
                             )}
                           </td>
 
-                          <td className="px-6 py-4 text-center border-r border-white/[0.06] last:border-r-0">
+                          <td className="px-6 py-4 text-center border-r border-white/[0.1] last:border-r-0">
                             {product.seller_link ? (
-                              <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#111111] text-gray-400 hover:bg-white/[0.05]0/100 hover:text-white transition-all duration-200">
+                              <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#111111] text-gray-400 hover:bg-white/[0.05]/100 hover:text-white transition-all duration-200">
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : <span className="text-gray-300">-</span>}
                           </td>
 
-                          <td className="px-6 py-4 text-center border-r border-white/[0.06] last:border-r-0">
+                          <td className="px-6 py-4 text-center border-r border-white/[0.1] last:border-r-0">
                             {product.remark ? (
                               <button
                                 onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }}
-                                className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                               >
                                 View
                               </button>
@@ -807,14 +807,14 @@ export default function RudraRetailListingPage() {
 
                           {/* Original actions for Restock, Dropshipping, Pending */}
                           {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
-                            <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
+                            <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
                               <div className="flex items-center justify-center gap-3">
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => handleMoveProduct(product, 'done')}
                                   disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-emerald-500/100/20 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/100 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)] transition-all"
+                                  className="p-2 rounded-lg bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)] transition-all"
                                   title="Mark as Listed"
                                 >
                                   <Check className="w-4 h-4" />
@@ -825,7 +825,7 @@ export default function RudraRetailListingPage() {
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => { setSelectedForError(product); setIsReasonModalOpen(true); }}
                                   disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-rose-500/100/20 text-rose-500 border border-rose-500/20 hover:bg-rose-500/100 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
+                                  className="p-2 rounded-lg bg-rose-500/20 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
                                   title="Mark as Error"
                                 >
                                   <X className="w-4 h-4" />
@@ -836,7 +836,7 @@ export default function RudraRetailListingPage() {
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => handleMoveProduct(product, 'removed')}
                                   disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-[#111111] text-gray-500 border border-white/[0.06] hover:bg-[#1a1a1a] hover:text-white transition-all"
+                                  className="p-2 rounded-lg bg-[#111111] text-gray-500 border border-white/[0.1] hover:bg-[#1a1a1a] hover:text-white transition-all"
                                   title="Remove"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -847,14 +847,14 @@ export default function RudraRetailListingPage() {
 
                           {/* 🆕 ACTIONS FOR LISTED TAB - Move to Error or Removed */}
                           {activeTab === 'done' && (
-                            <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
+                            <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
                               <div className="flex items-center justify-center gap-3">
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => { setSelectedForError(product); setIsReasonModalOpen(true); }}
                                   disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-rose-500/100/20 text-rose-500 border border-rose-500/20 hover:bg-rose-500/100 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
+                                  className="p-2 rounded-lg bg-rose-500/20 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
                                   title="Move to Error"
                                 >
                                   <X className="w-4 h-4" />
@@ -865,7 +865,7 @@ export default function RudraRetailListingPage() {
                                   whileTap={{ scale: 0.9 }}
                                   onClick={() => handleMoveProduct(product, 'removed')}
                                   disabled={processingId === product.id}
-                                  className="p-2 rounded-lg bg-[#111111] text-gray-500 border border-white/[0.06] hover:bg-[#1a1a1a] hover:text-white transition-all"
+                                  className="p-2 rounded-lg bg-[#111111] text-gray-500 border border-white/[0.1] hover:bg-[#1a1a1a] hover:text-white transition-all"
                                   title="Move to Removed"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -875,8 +875,8 @@ export default function RudraRetailListingPage() {
                           )}
 
                           {activeTab === 'error' && (
-                            <td className="px-6 py-4 border-r border-white/[0.06] last:border-r-0">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/100/20 border border-rose-500/20 text-rose-400 text-xs font-medium">
+                            <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-medium">
                                 <AlertOctagon className="w-3 h-3" />
                                 {product.error_reason}
                               </span>
@@ -891,7 +891,7 @@ export default function RudraRetailListingPage() {
             </div>
 
             {/* PAGINATION FOOTER */}
-            <div className="flex-none border-t border-white/[0.06] bg-[#1a1a1a] p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex-none border-t border-white/[0.1] bg-[#1a1a1a] p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <span className="text-xs sm:text-sm text-gray-300">
                 Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span>
               </span>
@@ -900,20 +900,20 @@ export default function RudraRetailListingPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.06] text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
                 </button>
 
-                <span className="text-sm font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
+                <span className="text-sm font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.1]">
                   Page <span className="text-white">{page}</span> / {totalPages || 1}
                 </span>
 
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || totalPages === 0}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.06] text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
@@ -925,7 +925,7 @@ export default function RudraRetailListingPage() {
           {/* ERROR REASON MODAL */}
           {isReasonModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a1a1a]">
-              <div className="bg-[#111111] border border-white/[0.06] p-4 sm:p-6 rounded-2xl w-full max-w-md mx-3 sm:mx-0 shadow-2xl">
+              <div className="bg-[#111111] border border-white/[0.1] p-4 sm:p-6 rounded-2xl w-full max-w-md mx-3 sm:mx-0 shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-4">Report Error</h3>
                 <p className="text-gray-400 mb-4 text-sm">Why are you rejecting <b>{selectedForError?.asin}</b>?</p>
                 <input
@@ -934,14 +934,14 @@ export default function RudraRetailListingPage() {
                   placeholder="E.g., Price mismatch, Out of stock..."
                   value={errorReasonInput}
                   onChange={(e) => setErrorReasonInput(e.target.value)}
-                  className="w-full p-3 bg-[#111111] border border-white/[0.06] rounded-lg text-white focus:border-rose-500 outline-none mb-6"
+                  className="w-full p-3 bg-[#111111] border border-white/[0.1] rounded-lg text-white focus:border-rose-500 outline-none mb-6"
                 />
                 <div className="flex justify-end gap-3">
                   <button onClick={() => setIsReasonModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition">Cancel</button>
                   <button
                     onClick={() => selectedForError && handleMoveProduct(selectedForError, 'error', errorReasonInput)}
                     disabled={!errorReasonInput.trim()}
-                    className="px-6 py-2 bg-rose-600 hover:bg-rose-500/100 text-white rounded-lg font-medium transition disabled:opacity-50"
+                    className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium transition disabled:opacity-50"
                   >
                     Confirm Error
                   </button>
@@ -969,17 +969,17 @@ export default function RudraRetailListingPage() {
                 >
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-3 sm:mx-4 border border-white/[0.06] overflow-hidden pointer-events-auto"
+                    className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-3 sm:mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
                   >
-                    <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.06]">
+                    <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.1]">
                       <h2 className="text-xl font-bold text-white">Remark Details</h2>
                       <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="p-2 hover:bg-[#1a1a1a] rounded-lg transition-colors">
                         <X className="w-5 h-5 text-gray-400" />
                       </button>
                     </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
                       <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
@@ -990,13 +990,13 @@ export default function RudraRetailListingPage() {
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
                   <div className="text-xs text-gray-300">
                     Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
@@ -1016,14 +1016,14 @@ export default function RudraRetailListingPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>

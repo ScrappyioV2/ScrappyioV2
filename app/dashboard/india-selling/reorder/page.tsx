@@ -83,11 +83,11 @@ type Seller = {
 
 // Configured Sellers
 const SELLERS: Seller[] = [
-  { id: 1, name: "Golden Aura", table_suffix: "seller_1", tag: "GR", emoji: "✨", activeColor: "bg-amber-500/100", activeShadow: "shadow-amber-500/40" },
+  { id: 1, name: "Golden Aura", table_suffix: "seller_1", tag: "GR", emoji: "✨", activeColor: "bg-amber-500", activeShadow: "shadow-amber-500/40" },
   { id: 2, name: "Rudra Retail", table_suffix: "seller_2", tag: "RR", emoji: "🔴", activeColor: "bg-red-600", activeShadow: "shadow-red-500/40" },
   { id: 3, name: "UBeauty", table_suffix: "seller_3", tag: "UB", emoji: "💅", activeColor: "bg-pink-500", activeShadow: "shadow-pink-500/40" },
   { id: 4, name: "Velvet Vista", table_suffix: "seller_4", tag: "VV", emoji: "💜", activeColor: "bg-violet-600", activeShadow: "shadow-violet-500/40" },
-  { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DE", emoji: "🟠", activeColor: "bg-orange-500/100", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
+  { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DE", emoji: "🟠", activeColor: "bg-orange-500", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
   { id: 6, name: "Costech Ventures", table_suffix: "seller_6", tag: "CV", emoji: "🟢", activeColor: "bg-green-600", activeShadow: "shadow-green-500/40" },  // ✅ NEW
   { id: 7, name: "Maverick", table_suffix: "seller_7", tag: "MV", emoji: "🟧", activeColor: "bg-orange-600", activeShadow: "shadow-orange-500/40" },
   { id: 8, name: "Kalash", table_suffix: "seller_8", tag: "KL", emoji: "🟩", activeColor: "bg-lime-500", activeShadow: "shadow-lime-500/40" },
@@ -988,7 +988,7 @@ export default function ReorderPage() {
     <div className="h-screen flex flex-col bg-[#111111] text-gray-100 relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-4 border-b border-white/[0.06]">
+      <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-4 border-b border-white/[0.1]">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-white">Replenishment Manager</h1>
@@ -996,7 +996,7 @@ export default function ReorderPage() {
           </div>
 
           {/* SELLER TABS */}
-          <div className="flex bg-[#111111] p-1.5 rounded-xl border border-white/[0.06] shadow-xl overflow-x-auto scrollbar-none">
+          <div className="flex bg-[#111111] p-1.5 rounded-xl border border-white/[0.1] shadow-xl overflow-x-auto scrollbar-none">
             {SELLERS.map(s => (
               <button
                 key={s.id}
@@ -1020,7 +1020,7 @@ export default function ReorderPage() {
             onClick={() => setActiveTab('main')}
             className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-xs sm:text-sm rounded-xl transition-all duration-300 whitespace-nowrap ${activeTab === 'main'
               ? 'bg-[#111111] text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.06]'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.1]'
               }`}
           >
             Main Workspace ({products.filter(p => p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined).length})
@@ -1030,7 +1030,7 @@ export default function ReorderPage() {
             onClick={() => setActiveTab('final')}
             className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all duration-300 whitespace-nowrap ${activeTab === 'final'
               ? 'bg-[#111111] text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
-              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.06]'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.1]'
               }`}
           >
             <AlertTriangle className="w-4 h-4" />
@@ -1048,20 +1048,20 @@ export default function ReorderPage() {
             placeholder="Search by ASIN, Name, or SKU..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
           />
         </div>
 
         {/* Funnel Filter Pills - RS / DP */}
-        <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
+        <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
           {(['ALL', 'RS', 'DP'] as const).map((opt) => (
             <button
               key={opt}
               onClick={() => setFunnelFilter(opt)}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
                 ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
-                  : opt === 'DP' ? 'bg-amber-500/100 text-black shadow-lg'
-                    : 'bg-orange-500/100 text-white shadow-lg'
+                  : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
+                    : 'bg-orange-500 text-white shadow-lg'
                 : 'text-gray-500 hover:text-gray-200'
                 }`}
             >
@@ -1075,8 +1075,8 @@ export default function ReorderPage() {
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
-              ? 'bg-orange-500/100 text-white border-orange-500 shadow-lg shadow-orange-500/20'
-              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+              ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20'
+              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
               }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1093,7 +1093,7 @@ export default function ReorderPage() {
           {isFilterOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
-              <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72">
+              <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-72">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-gray-100 text-sm">Filters</h3>
                   {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
@@ -1115,11 +1115,11 @@ export default function ReorderPage() {
                         key={opt}
                         onClick={() => setOriginFilter(opt)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
-                          ? opt === 'India' ? 'bg-orange-500/100 text-white'
-                            : opt === 'China' ? 'bg-rose-500/100 text-white'
+                          ? opt === 'India' ? 'bg-orange-500 text-white'
+                            : opt === 'China' ? 'bg-rose-500 text-white'
                               : opt === 'US' ? 'bg-sky-500 text-white'
-                                : 'bg-orange-500/100 text-white'
-                          : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
+                                : 'bg-orange-500 text-white'
+                          : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.1]'
                           }`}
                       >
                         {opt}
@@ -1137,11 +1137,11 @@ export default function ReorderPage() {
                         key={opt}
                         onClick={() => setStatusFilter(opt)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === opt
-                          ? opt === 'Safe' ? 'bg-emerald-500/100 text-white'
-                            : opt === 'Covered' ? 'bg-amber-500/100 text-black'
-                              : opt === 'Reorder' ? 'bg-rose-500/100 text-white'
-                                : 'bg-orange-500/100 text-white'
-                          : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
+                          ? opt === 'Safe' ? 'bg-emerald-500 text-white'
+                            : opt === 'Covered' ? 'bg-amber-500 text-black'
+                              : opt === 'Reorder' ? 'bg-rose-500 text-white'
+                                : 'bg-orange-500 text-white'
+                          : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.1]'
                           }`}
                       >
                         {opt}
@@ -1156,18 +1156,18 @@ export default function ReorderPage() {
 
         {activeTab === 'main' && (
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-xs sm:text-sm font-medium transition-colors">
+            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-xs sm:text-sm font-medium transition-colors">
               <RefreshCw className={`w-4 h-4 shrink-0 ${processing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Sync Listed</span><span className="sm:hidden">Sync</span>
             </button>
             <div className="relative">
               <input type="file" accept=".csv,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-xs sm:text-sm font-medium transition-colors">
+              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-xs sm:text-sm font-medium transition-colors">
                 <Upload className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">Upload Inventory</span><span className="sm:hidden">Upload</span>
               </button>
             </div>
-            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500/100 text-white rounded-lg hover:bg-orange-400 shadow-lg text-xs sm:text-sm font-medium transition-colors">
+            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-400 shadow-lg text-xs sm:text-sm font-medium transition-colors">
               <Save className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Run Calculation</span><span className="sm:hidden">Calculate</span>
             </button>
@@ -1177,22 +1177,22 @@ export default function ReorderPage() {
 
       {/* MAIN TABLE */}
       <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-6 pb-4 sm:pb-6">
-        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
           <div className="flex-1 overflow-y-auto">
             <table className="w-full divide-y divide-white/[0.06]">
-              <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.06]">
+              <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.1]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">ASIN</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">SKU</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06] w-1/4">Product Name</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">History</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">ASIN</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">SKU</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1] w-1/4">Product Name</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">History</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Remark</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-500 uppercase bg-orange-500/15/60 border-r border-white/[0.06]">Target Qty</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-500/15 border-r border-white/[0.06]">Current</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Deficit</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-white/[0.06]">Tracking</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-500/10 border-r border-white/[0.06]">Final Order</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-500 uppercase bg-orange-500/15/60 border-r border-white/[0.1]">Target Qty</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-500/15 border-r border-white/[0.1]">Current</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">Deficit</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-white/[0.1]">Tracking</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-500/10 border-r border-white/[0.1]">Final Order</th>
                   {activeTab === 'final' && <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">Action</th>}
                 </tr>
               </thead>
@@ -1208,8 +1208,8 @@ export default function ReorderPage() {
                     const isBlocked = pipelineInfo && !pipelineInfo.can_merge;
                     const isInPipeline = !!pipelineInfo?.location;
                     return (
-                      <tr key={product.id} className={`transition-colors group ${isBlocked ? 'bg-orange-900/20 hover:bg-orange-900/30' : isInPipeline ? 'bg-amber-900/10 hover:bg-amber-900/20' : 'hover:bg-white/[0.05]0/100/5'}`}>
-                        <td className="px-6 py-4 text-sm font-mono text-gray-300 font-medium border-r border-white/[0.06]">
+                      <tr key={product.id} className={`transition-colors group ${isBlocked ? 'bg-orange-900/20 hover:bg-orange-900/30' : isInPipeline ? 'bg-amber-900/10 hover:bg-amber-900/20' : 'hover:bg-white/[0.05]'}`}>
+                        <td className="px-6 py-4 text-sm font-mono text-gray-300 font-medium border-r border-white/[0.1]">
                           {product.asin}
                           {isBlocked && (
                             <div className="text-[10px] text-orange-400">🟠 In {pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
@@ -1218,17 +1218,17 @@ export default function ReorderPage() {
                             <div className="text-[10px] text-amber-400">🟡 In {pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm font-mono text-gray-300 border-r border-white/[0.06]">{product.sku || '-'}</td>
-                        <td className="px-6 py-4 border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm font-mono text-gray-300 border-r border-white/[0.1]">{product.sku || '-'}</td>
+                        <td className="px-6 py-4 border-r border-white/[0.1]">
                           <span className="text-sm text-gray-100 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
                           {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-orange-500 hover:text-orange-400 mt-1 inline-block">View Link</a>}
                         </td>
 
                         {/* ✅ HISTORY BUTTON */}
-                        <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                           <button
                             onClick={() => fetchHistory(product.asin)}
-                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/20 text-gray-400 hover:text-orange-500 transition-colors"
+                            className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors"
                             title="View Journey History"
                           >
                             <History className="w-4 h-4" />
@@ -1249,7 +1249,7 @@ export default function ReorderPage() {
                                 setEditingRemarkProductId(product.id);
                                 setRemarkModalOpen(true);
                               }}
-                              className="px-3 py-1.5 bg-orange-500/100 hover:bg-orange-600 text-white rounded-md text-xs font-medium transition-colors"
+                              className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-medium transition-colors"
                             >
                               View
                             </button>
@@ -1258,7 +1258,7 @@ export default function ReorderPage() {
                           )}
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-orange-500/100/10 border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-center bg-orange-500/10 border-r border-white/[0.1]">
                           <input
                             type="number"
                             value={product.admin_target_qty}
@@ -1266,9 +1266,9 @@ export default function ReorderPage() {
                             className="w-24 text-center py-1.5 px-2 bg-[#111111] border border-orange-500/30 rounded-md text-sm text-white font-medium focus:ring-1 focus:ring-orange-500 outline-none"
                           />
                         </td>
-                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-white/[0.06]">{product.current_qty}</td>
-                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-white/[0.06] ${deficit > 0 ? 'text-rose-400' : 'text-gray-300'}`}>{deficit}</td>
-                        <td className="px-6 py-4 text-center bg-blue-900/10 border-r border-white/[0.06] group/track relative">
+                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-white/[0.1]">{product.current_qty}</td>
+                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-white/[0.1] ${deficit > 0 ? 'text-rose-400' : 'text-gray-300'}`}>{deficit}</td>
+                        <td className="px-6 py-4 text-center bg-blue-900/10 border-r border-white/[0.1] group/track relative">
                           <span className="text-blue-300 font-medium text-sm cursor-help inline-flex items-center gap-1">
                             {product.tracking_qty}
                             {product.tracking_sources && product.tracking_qty > 0 && (
@@ -1276,7 +1276,7 @@ export default function ReorderPage() {
                             )}
                           </span>
                           {product.tracking_sources && product.tracking_qty > 0 && (
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/track:block z-50 w-44 bg-[#111111] border border-white/[0.06] rounded-lg shadow-xl p-2.5 text-xs pointer-events-none">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/track:block z-50 w-44 bg-[#111111] border border-white/[0.1] rounded-lg shadow-xl p-2.5 text-xs pointer-events-none">
                               <div className="text-gray-400 font-semibold mb-1.5 text-center">Source Breakdown</div>
                               {product.tracking_sources.inbound > 0 && (
                                 <div className="flex justify-between py-0.5">
@@ -1306,18 +1306,18 @@ export default function ReorderPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-center border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${product.status === 'Reorder'
-                            ? 'bg-rose-500/100/20 text-rose-400 border-rose-500/20'
+                            ? 'bg-rose-500/20 text-rose-400 border-rose-500/20'
                             : product.status === 'Covered'
-                              ? 'bg-amber-500/100/20 text-amber-400 border-amber-500/20'
-                              : 'bg-emerald-500/100/20 text-emerald-400 border-emerald-500/20'
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/20'
+                              : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20'
                             }`}>
                             {product.status || 'Safe'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center bg-rose-500/100/5 border-r border-white/[0.06]">
-                          {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/100/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-gray-300">-</span>}
+                        <td className="px-6 py-4 text-center bg-rose-500/5 border-r border-white/[0.1]">
+                          {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-gray-300">-</span>}
                         </td>
 
                         {/* ✅ RESTART LOOP BUTTON */}
@@ -1325,7 +1325,7 @@ export default function ReorderPage() {
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => sendToValidation(product)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/100/10 text-orange-400 hover:bg-white/[0.05]0/100 hover:text-white rounded-lg border border-orange-500/30 transition-all text-xs font-medium"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-400 hover:bg-white/[0.05]/100 hover:text-white rounded-lg border border-orange-500/30 transition-all text-xs font-medium"
                             >
                               <Send className="w-3 h-3" />
                               To Validation
@@ -1361,7 +1361,7 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -1383,7 +1383,7 @@ export default function ReorderPage() {
                     <div key={snapshot.id} className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6">
                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
                             Journey #{snapshot.journey_number}
@@ -1450,7 +1450,7 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 flex flex-col"
             >
               <div className="flex items-center justify-between p-4 sm:p-6 pb-0 mb-4">
                 <div>
@@ -1472,8 +1472,8 @@ export default function ReorderPage() {
 
               <div className="flex-1 flex flex-col">
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
                       <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
@@ -1484,14 +1484,14 @@ export default function ReorderPage() {
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between mt-auto">
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between mt-auto">
                   <div className="text-xs text-gray-300">
                     Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
@@ -1512,14 +1512,14 @@ export default function ReorderPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setRemarkModalOpen(false); setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>

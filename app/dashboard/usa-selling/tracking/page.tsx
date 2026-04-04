@@ -15,7 +15,7 @@ const SELLERS = [
     { tag: 'GR', name: 'Golden Aura', id: 1, color: 'bg-yellow-500' },
     { tag: 'RR', name: 'Rudra Retail', id: 2, color: 'bg-orange-400' },
     { tag: 'UB', name: 'UBeauty', id: 3, color: 'bg-pink-500' },
-    { tag: 'VV', name: 'Velvet Vista', id: 4, color: 'bg-emerald-500/100' }
+    { tag: 'VV', name: 'Velvet Vista', id: 4, color: 'bg-emerald-500' }
 ];
 
 type PassFileProduct = {
@@ -545,7 +545,7 @@ export default function TrackingPage() {
         <PageGuard>
             <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
                 {/* Header Section - FIXED */}
-                <div className="flex-none px-6 pt-6 pb-4 border-b border-white/[0.06]">
+                <div className="flex-none px-6 pt-6 pb-4 border-b border-white/[0.1]">
                     <div className="mb-6">
                         <h1 className="text-3xl font-bold text-white">Tracking</h1>
                         <p className="text-gray-400 mt-1">Order Confirmed → Tracking → Invoice</p>
@@ -561,7 +561,7 @@ export default function TrackingPage() {
                                     relative px-6 py-3 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2
                                     ${activeSeller === seller.tag
                                         ? `${seller.color} text-white shadow-lg scale-105`
-                                        : 'bg-[#111111] text-gray-400 hover:bg-[#111111] border border-white/[0.06]'}
+                                        : 'bg-[#111111] text-gray-400 hover:bg-[#111111] border border-white/[0.1]'}
                                 `}
                             >
                                 {seller.name}
@@ -632,7 +632,7 @@ export default function TrackingPage() {
                         {/* Vyapar Tab (New - Admin) */}
                         <button
                             onClick={() => setActiveTab('vyapar')}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap border border-white/[0.06] ${activeTab === 'vyapar'
+                            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap border border-white/[0.1] ${activeTab === 'vyapar'
                                 ? 'bg-red-900/20 text-red-400 border-red-900/50'
                                 : 'text-gray-500 hover:text-gray-500'
                                 }`}
@@ -650,14 +650,14 @@ export default function TrackingPage() {
                             placeholder="Search by ASIN, Product Name, or Funnel..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="flex-1 max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
+                            className="flex-1 max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
                         />
 
                         <button
                             disabled={selectedIds.size === 0}
                             onClick={() => setInvoiceOpen(true)}
                             className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all ${selectedIds.size === 0
-                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                                 : 'bg-green-600 text-white hover:bg-green-500 shadow-lg'
                                 }`}
                         >
@@ -668,7 +668,7 @@ export default function TrackingPage() {
                         <div className="relative">
                             <button
                                 onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-                                className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                                className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-sm font-medium flex items-center gap-2 whitespace-nowrap"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -684,7 +684,7 @@ export default function TrackingPage() {
                                         onClick={() => setIsColumnMenuOpen(false)}
                                     />
 
-                                    <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-lg shadow-xl p-4 z-20 w-64">
+                                    <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-lg shadow-xl p-4 z-20 w-64">
                                         <h3 className="font-semibold text-gray-100 mb-3 text-sm">Toggle Columns</h3>
                                         <div className="space-y-2 max-h-96 overflow-y-auto">
                                             {Object.keys(visibleColumns).map((col) => {
@@ -721,7 +721,7 @@ export default function TrackingPage() {
                                                                     [col]: !prev[col as keyof typeof visibleColumns]
                                                                 }));
                                                             }}
-                                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                                                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                                                         />
                                                         <span className="text-sm text-gray-300">
                                                             {columnDisplayNames[col] || col}
@@ -731,14 +731,14 @@ export default function TrackingPage() {
                                             })}
                                         </div>
 
-                                        <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
+                                        <div className="mt-3 pt-3 border-t border-white/[0.1] flex gap-2">
                                             <button
                                                 onClick={() =>
                                                     setVisibleColumns(
                                                         Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
                                                     )
                                                 }
-                                                className="flex-1 px-3 py-1.5 bg-orange-500/100 text-white rounded hover:bg-orange-400 text-xs font-medium"
+                                                className="flex-1 px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-400 text-xs font-medium"
                                             >
                                                 Show All
                                             </button>
@@ -773,12 +773,12 @@ export default function TrackingPage() {
 
                 {/* Table Container - SCROLLABLE ONLY */}
                 <div className="flex-1 overflow-hidden px-6 pb-6">
-                    <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+                    <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
                         {/* Table Wrapper with Scroll */}
                         <div className="flex-1 overflow-y-auto">
                             {activeTab === 'main_file' && (
                                 <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '2500px' }}>
-                                    <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.06]">
+                                    <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.1]">
                                         <tr>
                                             {visibleColumns.checkbox && (
                                                 <th className="px-6 py-4 text-center" style={{ width: `${columnWidths.checkbox}px` }}>
@@ -789,12 +789,12 @@ export default function TrackingPage() {
                                                             filteredProducts.every(p => selectedIds.has(p.id))
                                                         }
                                                         onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                                                        className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                                                     />
                                                 </th>
                                             )}
                                             {visibleColumns.asin && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.asin}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.asin}px` }}>
                                                     ASIN
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('asin', e)} />
                                                 </th>
@@ -802,7 +802,7 @@ export default function TrackingPage() {
 
                                             {visibleColumns.productlink && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]"
                                                     style={{
                                                         width: `${columnWidths.productlink}px`,
                                                         maxWidth: `${columnWidths.productlink}px`,
@@ -819,7 +819,7 @@ export default function TrackingPage() {
 
                                             {visibleColumns.productname && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]"
                                                     style={{
                                                         width: `${columnWidths.productname}px`,
                                                         maxWidth: `${columnWidths.productname}px`,
@@ -835,87 +835,87 @@ export default function TrackingPage() {
                                             )}
 
                                             {visibleColumns.targetprice && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase bg-green-900/20 relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.targetprice}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase bg-green-900/20 relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.targetprice}px` }}>
                                                     Validation Target Price
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('targetprice', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.targetquantity && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase bg-green-900/20 relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.targetquantity}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase bg-green-900/20 relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.targetquantity}px` }}>
                                                     Target Quantity
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('targetquantity', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.admintargetprice && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase bg-purple-900/20 relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.admintargetprice}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase bg-purple-900/20 relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.admintargetprice}px` }}>
                                                     Admin Target Price
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('admintargetprice', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.funnelquantity && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.funnelquantity}px` }}>
                                                     Funnel
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('funnel_quantity', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.funnelseller && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.funnelseller}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.funnelseller}px` }}>
                                                     Seller Tag
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('funnel_seller', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.inrpurchaselink && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                                                     INR Purchase Link
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('inrpurchaselink', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.origin && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.06]" style={{ width: `${columnWidths.origin}px` }}>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase relative group border-r border-white/[0.1]" style={{ width: `${columnWidths.origin}px` }}>
                                                     Origin
                                                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400" onMouseDown={(e) => handleMouseDown('origin', e)} />
                                                 </th>
                                             )}
 
                                             {visibleColumns.buyingprice && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                     Buying Price
                                                 </th>
                                             )}
 
                                             {visibleColumns.buyingquantity && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                     Buying Qty
                                                 </th>
                                             )}
 
                                             {visibleColumns.sellerlink && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                     Seller Link
                                                 </th>
                                             )}
 
                                             {visibleColumns.sellerphno && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                     Seller Ph No.
                                                 </th>
                                             )}
 
                                             {visibleColumns.paymentmethod && (
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
                                                     Payment Method
                                                 </th>
                                             )}
 
                                             {visibleColumns.trackingdetails && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                                                     style={{ width: `${columnWidths.trackingdetails}px` }}
                                                 >
                                                     Tracking Details
@@ -924,7 +924,7 @@ export default function TrackingPage() {
 
                                             {visibleColumns.deliverydate && (
                                                 <th
-                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]"
+                                                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                                                     style={{ width: `${columnWidths.deliverydate}px` }}
                                                 >
                                                     Delivery Date
@@ -943,25 +943,25 @@ export default function TrackingPage() {
                                         ) : (
                                             filteredProducts.map((product) => {
                                                 return (
-                                                    <tr key={product.id} className="hover:bg-white/[0.05]0/100/5 group transition-colors">
+                                                    <tr key={product.id} className="hover:bg-white/[0.05] group transition-colors">
                                                         {visibleColumns.checkbox && (
-                                                            <td className="px-6 py-4 text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.checkbox}px` }}>
+                                                            <td className="px-6 py-4 text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.checkbox}px` }}>
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={selectedIds.has(product.id)}
                                                                     onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                                    className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                                                                    className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                                                                 />
                                                             </td>
                                                         )}
                                                         {visibleColumns.asin && (
-                                                            <td className="px-6 py-4 font-mono text-sm text-gray-300 overflow-hidden border-r border-white/[0.06]" style={{ width: `${columnWidths.asin}px` }}>
+                                                            <td className="px-6 py-4 font-mono text-sm text-gray-300 overflow-hidden border-r border-white/[0.1]" style={{ width: `${columnWidths.asin}px` }}>
                                                                 <div className="truncate">{product.asin}</div>
                                                             </td>
                                                         )}
                                                         {visibleColumns.productlink && (
                                                             <td
-                                                                className="px-3 py-2 overflow-hidden text-center border-r border-white/[0.06]"
+                                                                className="px-3 py-2 overflow-hidden text-center border-r border-white/[0.1]"
                                                                 style={{
                                                                     width: `${columnWidths.productlink}px`,
                                                                     maxWidth: `${columnWidths.productlink}px`,
@@ -973,7 +973,7 @@ export default function TrackingPage() {
                                                                         href={(product.usa_link || product.product_link) ?? undefined}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/100/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium"
                                                                     >
                                                                         View
                                                                     </a>
@@ -984,7 +984,7 @@ export default function TrackingPage() {
                                                         )}
                                                         {visibleColumns.productname && (
                                                             <td
-                                                                className="px-3 py-2 text-sm text-gray-100 overflow-hidden border-r border-white/[0.06]"
+                                                                className="px-3 py-2 text-sm text-gray-100 overflow-hidden border-r border-white/[0.1]"
                                                                 style={{
                                                                     width: `${columnWidths.productname}px`,
                                                                     maxWidth: `${columnWidths.productname}px`,
@@ -997,7 +997,7 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.targetprice && (
-                                                            <td className="px-6 py-4 bg-green-900/20 overflow-hidden border-r border-white/[0.06]" style={{ width: `${columnWidths.targetprice}px` }}>
+                                                            <td className="px-6 py-4 bg-green-900/20 overflow-hidden border-r border-white/[0.1]" style={{ width: `${columnWidths.targetprice}px` }}>
                                                                 {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
                                                                     <div className="px-2 py-1 text-sm font-medium text-gray-100">
                                                                         {product.target_price ?? product.usd_price ?? '-'}
@@ -1008,7 +1008,7 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.targetquantity && (
-                                                            <td className="px-6 py-4 bg-green-900/20 overflow-hidden border-r border-white/[0.06]" style={{ width: `${columnWidths.targetquantity}px` }}>
+                                                            <td className="px-6 py-4 bg-green-900/20 overflow-hidden border-r border-white/[0.1]" style={{ width: `${columnWidths.targetquantity}px` }}>
                                                                 {activeTab === 'main_file' || activeTab === 'order_confirmed' ? (
                                                                     <div className="px-2 py-1 text-sm font-medium text-gray-100">
                                                                         {product.target_quantity ?? 1}
@@ -1020,14 +1020,14 @@ export default function TrackingPage() {
                                                         )}
                                                         {visibleColumns.admintargetprice && (
                                                             <td
-                                                                className="px-3 py-2 bg-purple-900/20 overflow-hidden text-sm font-medium text-gray-100 border-r border-white/[0.06]"
+                                                                className="px-3 py-2 bg-purple-900/20 overflow-hidden text-sm font-medium text-gray-100 border-r border-white/[0.1]"
                                                                 style={{ width: `${columnWidths.admintargetprice}px` }}
                                                             >
                                                                 {product.admin_target_price ?? '-'}
                                                             </td>
                                                         )}
                                                         {visibleColumns.funnelquantity && (
-                                                            <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.funnelquantity}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.funnelquantity}px` }}>
                                                                 {product.validation_funnel ? (
                                                                     <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
                                                                         product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
@@ -1042,7 +1042,7 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.funnelseller && (
-                                                            <td className="px-6 py-4 overflow-hidden border-r border-white/[0.06]" style={{ width: `${columnWidths.funnelseller}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden border-r border-white/[0.1]" style={{ width: `${columnWidths.funnelseller}px` }}>
                                                                 {product.validation_seller_tag ? (
                                                                     <div className="flex flex-wrap gap-2 justify-center">
                                                                         {product.validation_seller_tag.split(',').map((tag) => {
@@ -1068,13 +1068,13 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.inrpurchaselink && (
-                                                            <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                                                                 {product.inr_purchase_link ? (
                                                                     <a
                                                                         href={ensureAbsoluteUrl(product.inr_purchase_link || '')}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/100/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium"
                                                                     >
                                                                         View
                                                                     </a>
@@ -1084,12 +1084,12 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.origin && (
-                                                            <td className="px-6 py-4 overflow-hidden border-r border-white/[0.06]" style={{ width: columnWidths.origin + 'px' }}>
+                                                            <td className="px-6 py-4 overflow-hidden border-r border-white/[0.1]" style={{ width: columnWidths.origin + 'px' }}>
                                                                 <div className="flex flex-col gap-1 items-center">
                                                                     {/* First priority: Show origin text field */}
                                                                     {product.origin && !['both', 'india, china'].includes(product.origin.toLowerCase()) ? (
                                                                         <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${product.origin.toLowerCase() === 'india'
-                                                                            ? 'bg-orange-500/100 text-white'
+                                                                            ? 'bg-orange-500 text-white'
                                                                             : product.origin.toLowerCase() === 'china'
                                                                                 ? 'bg-red-500 text-white'
                                                                                 : 'bg-[#1a1a1a] text-white'
@@ -1100,7 +1100,7 @@ export default function TrackingPage() {
                                                                         <>
                                                                             {/* Show India if true */}
                                                                             {product.origin_india && (
-                                                                                <span className="px-2 py-1 bg-orange-500/100 text-white rounded text-xs font-semibold whitespace-nowrap">
+                                                                                <span className="px-2 py-1 bg-orange-500 text-white rounded text-xs font-semibold whitespace-nowrap">
                                                                                     India
                                                                                 </span>
                                                                             )}
@@ -1123,23 +1123,23 @@ export default function TrackingPage() {
                                                         )}
 
                                                         {visibleColumns.buyingprice && (
-                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.buyingprice}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.buyingprice}px` }}>
                                                                 {product.buying_price ?? '-'}
                                                             </td>
                                                         )}
                                                         {visibleColumns.buyingquantity && (
-                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.buyingquantity}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.buyingquantity}px` }}>
                                                                 {product.buying_quantity ?? '-'}
                                                             </td>
                                                         )}
                                                         {visibleColumns.sellerlink && (
-                                                            <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.sellerlink}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.sellerlink}px` }}>
                                                                 {product.seller_link ? (
                                                                     <a
                                                                         href={ensureAbsoluteUrl(product.seller_link || '')}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/100/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium"
+                                                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium"
                                                                     >
                                                                         View
                                                                     </a>
@@ -1147,18 +1147,18 @@ export default function TrackingPage() {
                                                             </td>
                                                         )}
                                                         {visibleColumns.sellerphno && (
-                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.sellerphno}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.sellerphno}px` }}>
                                                                 {product.seller_phone ?? '-'}
                                                             </td>
                                                         )}
                                                         {visibleColumns.paymentmethod && (
-                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.06]" style={{ width: `${columnWidths.paymentmethod}px` }}>
+                                                            <td className="px-6 py-4 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.paymentmethod}px` }}>
                                                                 {product.payment_method ?? '-'}
                                                             </td>
                                                         )}
                                                         {visibleColumns.trackingdetails && (
                                                             <td
-                                                                className="px-3 py-2 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.06]"
+                                                                className="px-3 py-2 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.1]"
                                                                 style={{ width: `${columnWidths.trackingdetails}px` }}
                                                             >
                                                                 {product.tracking_details ?? '-'}
@@ -1166,7 +1166,7 @@ export default function TrackingPage() {
                                                         )}
                                                         {visibleColumns.deliverydate && (
                                                             <td
-                                                                className="px-3 py-2 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.06]"
+                                                                className="px-3 py-2 overflow-hidden text-sm text-gray-300 text-center border-r border-white/[0.1]"
                                                                 style={{ width: `${columnWidths.deliverydate}px` }}
                                                             >
                                                                 {product.delivery_date ?? '-'}
@@ -1220,7 +1220,7 @@ export default function TrackingPage() {
 
                         {/* Footer Stats - STICKY AT BOTTOM */}
                         {activeTab === 'main_file' && (
-                            <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                            <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
                                 <div className="text-sm text-gray-300">
                                     Showing {filteredProducts.length} of {products.length} products
                                     {selectedIds.size > 0 && ` | ${selectedIds.size} selected`}

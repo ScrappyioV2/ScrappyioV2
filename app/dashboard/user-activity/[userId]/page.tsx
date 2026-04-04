@@ -96,22 +96,22 @@ const getActionDescription = (log: ActivityLog): string => {
 // --- Styling ---
 
 const ACTION_COLORS: Record<string, string> = {
-  submit: 'bg-orange-500/100/10 text-orange-400 border-orange-500/30',
-  approved: 'bg-emerald-500/100/20 text-emerald-300 border-emerald-500/30',
-  approve: 'bg-emerald-500/100/20 text-emerald-300 border-emerald-500/30',
-  not_approve: 'bg-orange-500/100/20 text-orange-300 border-orange-500/30',
-  not_approved: 'bg-orange-500/100/20 text-orange-300 border-orange-500/30',
-  rejected: 'bg-rose-500/100/20 text-rose-300 border-rose-500/30',
-  reject: 'bg-rose-500/100/20 text-rose-300 border-rose-500/30',
-  move: 'bg-amber-500/100/20 text-amber-300 border-amber-500/30',
-  rollback: 'bg-orange-500/100/20 text-orange-300 border-orange-500/30',
+  submit: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+  approved: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  approve: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  not_approve: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+  not_approved: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+  rejected: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  reject: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  move: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  rollback: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
   delete: 'bg-red-500/20 text-red-300 border-red-500/30',
   edit: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
   update: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-  pass: 'bg-emerald-500/100/20 text-emerald-300 border-emerald-500/30',
-  fail: 'bg-rose-500/100/20 text-rose-300 border-rose-500/30',
-  listed: 'bg-emerald-500/100/20 text-emerald-300 border-emerald-500/30',
-  error: 'bg-rose-500/100/20 text-rose-300 border-rose-500/30',
+  pass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  fail: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  listed: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  error: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
   removed: 'bg-slate-500/20 text-gray-500 border-slate-500/30',
 };
 
@@ -341,7 +341,7 @@ export default function UserActivityPage() {
     <div className="h-full flex flex-col bg-[#111111] text-gray-100 overflow-hidden">
 
       {/* Header */}
-      <div className="flex-none px-6 pt-6 pb-4 border-b border-white/[0.06]">
+      <div className="flex-none px-6 pt-6 pb-4 border-b border-white/[0.1]">
         <div className="flex items-center gap-4 mb-4">
           <button onClick={() => router.back()} className="p-2 hover:bg-[#111111] rounded-lg text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
@@ -357,7 +357,7 @@ export default function UserActivityPage() {
           </div>
           <button
             onClick={() => fetchLogs(currentPage)}
-            className="ml-auto p-2.5 bg-[#111111] hover:bg-[#1a1a1a] rounded-lg text-gray-500 transition-colors border border-white/[0.06]"
+            className="ml-auto p-2.5 bg-[#111111] hover:bg-[#1a1a1a] rounded-lg text-gray-500 transition-colors border border-white/[0.1]"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -371,8 +371,8 @@ export default function UserActivityPage() {
               key={preset.label}
               onClick={() => handlePreset(preset)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${activePreset === preset.label
-                ? 'bg-orange-500/100/10 text-orange-400 border-orange-500/30'
-                : 'bg-[#111111] text-gray-400 border-white/[0.06] hover:border-white/[0.06] hover:text-gray-200'
+                ? 'bg-orange-500/10 text-orange-400 border-orange-500/30'
+                : 'bg-[#111111] text-gray-400 border-white/[0.1] hover:border-white/[0.1] hover:text-gray-200'
                 }`}
             >
               {preset.label}
@@ -387,7 +387,7 @@ export default function UserActivityPage() {
               value={dateFrom}
               max={dateTo}
               onChange={(e) => handleDateFromChange(e.target.value)}
-              className="px-2 py-1.5 bg-[#111111] border border-white/[0.06] rounded-lg text-xs text-gray-500 focus:outline-none focus:border-orange-500/50 [color-scheme:dark]"
+              className="px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded-lg text-xs text-gray-500 focus:outline-none focus:border-orange-500/50 [color-scheme:dark]"
             />
             <span className="text-xs text-gray-500">→</span>
             <input
@@ -396,7 +396,7 @@ export default function UserActivityPage() {
               min={dateFrom}
               max={today}
               onChange={(e) => handleDateToChange(e.target.value)}
-              className="px-2 py-1.5 bg-[#111111] border border-white/[0.06] rounded-lg text-xs text-gray-500 focus:outline-none focus:border-orange-500/50 [color-scheme:dark]"
+              className="px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded-lg text-xs text-gray-500 focus:outline-none focus:border-orange-500/50 [color-scheme:dark]"
             />
           </div>
         </div>
@@ -410,14 +410,14 @@ export default function UserActivityPage() {
               placeholder="Search ASIN, action, description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50"
+              className="w-full pl-10 pr-4 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500/50"
             />
           </div>
 
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-500 focus:outline-none focus:border-orange-500/50"
+            className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-500 focus:outline-none focus:border-orange-500/50"
           >
             <option value="ALL">All Actions</option>
             {uniqueActions.map((a) => (
@@ -428,7 +428,7 @@ export default function UserActivityPage() {
           <select
             value={pageFilter}
             onChange={(e) => setPageFilter(e.target.value)}
-            className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-500 focus:outline-none focus:border-orange-500/50"
+            className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-500 focus:outline-none focus:border-orange-500/50"
           >
             <option value="ALL">All Pages</option>
             {uniquePages.map((p) => (
@@ -441,13 +441,13 @@ export default function UserActivityPage() {
             {uniqueActions.map((action) => (
               <div key={action} className="relative group">
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 cursor-default ${ACTION_COLORS[action] || 'bg-[#111111] text-gray-400 border-white/[0.06]'
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 cursor-default ${ACTION_COLORS[action] || 'bg-[#111111] text-gray-400 border-white/[0.1]'
                     }`}
                 >
                   {ACTION_ICONS[action] || null}
                   {logs.filter((l) => l.action === action).length}
                 </span>
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#111111] border border-white/[0.06] rounded-lg text-xs text-gray-100 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-[#111111] border border-white/[0.1] rounded-lg text-xs text-gray-100 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50">
                   {action.charAt(0).toUpperCase() + action.slice(1)} actions
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
                 </div>
@@ -461,7 +461,7 @@ export default function UserActivityPage() {
       <div className="flex-none px-6 pt-3">
         <button
           onClick={() => setShowCharts(!showCharts)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${showCharts ? 'bg-orange-500/100/10 text-orange-400 border-orange-500/30' : 'bg-[#111111] text-gray-400 border-white/[0.06] hover:border-white/[0.06]'}`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${showCharts ? 'bg-orange-500/10 text-orange-400 border-orange-500/30' : 'bg-[#111111] text-gray-400 border-white/[0.1] hover:border-white/[0.1]'}`}
         >
           {showCharts ? '▼ Hide Charts' : '▶ Show Charts'}
         </button>
@@ -489,12 +489,12 @@ export default function UserActivityPage() {
           <div className="flex-none px-6 pb-3">
             {/* Summary Cards */}
             <div className="grid grid-cols-4 gap-3 mt-3 mb-4">
-              <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-3 text-center">
+              <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-white">{totalActions.toLocaleString()}</p>
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Total Actions</p>
               </div>
               {actionData.slice(0, 3).map((d, i) => (
-                <div key={d.name} className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-3 text-center">
+                <div key={d.name} className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl p-3 text-center">
                   <p className="text-2xl font-bold" style={{ color: PIE_COLORS[i] }}>{d.value.toLocaleString()}</p>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{d.name}</p>
                 </div>
@@ -503,7 +503,7 @@ export default function UserActivityPage() {
 
             <div className="grid grid-cols-3 gap-4">
               {/* Hourly Activity - Visual Heatmap */}
-              <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-4">
+              <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl p-4">
                 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity by Hour</h4>
                 <div className="space-y-1">
                   {[
@@ -524,7 +524,7 @@ export default function UserActivityPage() {
                               : intensity > 0.7
                                 ? 'bg-orange-400'
                                 : intensity > 0.4
-                                  ? 'bg-orange-500/100/70'
+                                  ? 'bg-orange-500/70'
                                   : intensity > 0.15
                                     ? 'bg-orange-600/50'
                                     : 'bg-indigo-900/40';
@@ -535,7 +535,7 @@ export default function UserActivityPage() {
                                   {count > 0 && <span className="text-[9px] font-bold text-white/80">{count}</span>}
                                 </div>
                                 <span className="text-[8px] text-gray-500">{h % 12 || 12}{h >= 12 ? 'p' : 'a'}</span>
-                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10">
+                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10">
                                   {hourLabel}: {count} actions
                                 </div>
                               </div>
@@ -549,7 +549,7 @@ export default function UserActivityPage() {
                 <div className="flex items-center justify-end gap-2 mt-3">
                   <span className="text-[9px] text-gray-500">Less</span>
                   <div className="flex gap-0.5">
-                    {['bg-[#111111]', 'bg-indigo-900/40', 'bg-orange-600/50', 'bg-orange-500/100/70', 'bg-orange-400'].map((bg, i) => (
+                    {['bg-[#111111]', 'bg-indigo-900/40', 'bg-orange-600/50', 'bg-orange-500/70', 'bg-orange-400'].map((bg, i) => (
                       <div key={i} className={`w-3 h-3 rounded-sm ${bg}`} />
                     ))}
                   </div>
@@ -558,7 +558,7 @@ export default function UserActivityPage() {
               </div>
 
               {/* Action Type Pie Chart */}
-              <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-4">
+              <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl p-4">
                 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">By Action Type</h4>
                 <div className="flex items-center gap-4">
                   <ResponsiveContainer width="50%" height={160}>
@@ -582,7 +582,7 @@ export default function UserActivityPage() {
               </div>
 
               {/* Page Distribution */}
-              <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-4">
+              <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl p-4">
                 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">By Page</h4>
                 <div className="space-y-2.5">
                   {pageData.map((d, i) => {
@@ -647,11 +647,11 @@ export default function UserActivityPage() {
                 {dateLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl px-5 py-3.5 hover:border-white/[0.06] transition-colors"
+                    className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl px-5 py-3.5 hover:border-white/[0.1] transition-colors"
                   >
                     <div className="flex items-start gap-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap shrink-0 flex items-center gap-1.5 ${ACTION_COLORS[log.action] || 'bg-[#111111] text-gray-400 border-white/[0.06]'
+                        className={`px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap shrink-0 flex items-center gap-1.5 ${ACTION_COLORS[log.action] || 'bg-[#111111] text-gray-400 border-white/[0.1]'
                           }`}
                       >
                         {ACTION_ICONS[log.action] || null}
@@ -672,7 +672,7 @@ export default function UserActivityPage() {
                             </span>
                           )}
                           {log.details?.funnel && (
-                            <span className="text-[10px] text-amber-400 px-1.5 py-0.5 bg-amber-500/100/20 rounded">
+                            <span className="text-[10px] text-amber-400 px-1.5 py-0.5 bg-amber-500/20 rounded">
                               Funnel: {log.details.funnel}
                             </span>
                           )}
@@ -682,7 +682,7 @@ export default function UserActivityPage() {
                             </span>
                           )}
                           {log.details?.seller_name && (
-                            <span className="text-[10px] text-emerald-400 px-1.5 py-0.5 bg-emerald-500/100/20 rounded font-medium">
+                            <span className="text-[10px] text-emerald-400 px-1.5 py-0.5 bg-emerald-500/20 rounded font-medium">
                               {log.details.seller_name.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
                             </span>
                           )}
@@ -695,7 +695,7 @@ export default function UserActivityPage() {
                       </div>
 
                       {log.asin && (
-                        <span className="text-sm font-mono text-orange-500 bg-orange-500/100/10 px-2.5 py-0.5 rounded-md shrink-0">
+                        <span className="text-sm font-mono text-orange-500 bg-orange-500/10 px-2.5 py-0.5 rounded-md shrink-0">
                           {log.asin}
                         </span>
                       )}
@@ -721,7 +721,7 @@ export default function UserActivityPage() {
       </div>
 
       {/* Footer with Pagination */}
-      <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-6 py-3">
+      <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-6 py-3">
         <div className="flex items-center justify-between text-sm text-gray-500">
           <span>
             Showing {Math.min((currentPage - 1) * ROWS_PER_PAGE + 1, totalCount)}–{Math.min(currentPage * ROWS_PER_PAGE, totalCount)} of {totalCount.toLocaleString()} activity logs
@@ -730,7 +730,7 @@ export default function UserActivityPage() {
             <div className="flex items-center gap-1.5">
               <button onClick={() => fetchLogs(1)} disabled={currentPage === 1 || loading} className="px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-white hover:bg-[#111111]">First</button>
               <button onClick={() => fetchLogs(currentPage - 1)} disabled={currentPage === 1 || loading} className="p-1.5 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-white hover:bg-[#111111]"><ChevronLeft className="w-4 h-4" /></button>
-              <span className="px-3 py-1.5 bg-orange-500/100 text-white rounded-lg text-xs font-semibold">{currentPage} / {totalPages}</span>
+              <span className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold">{currentPage} / {totalPages}</span>
               <button onClick={() => fetchLogs(currentPage + 1)} disabled={currentPage === totalPages || loading} className="p-1.5 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-white hover:bg-[#111111]"><ChevronRight className="w-4 h-4" /></button>
               <button onClick={() => fetchLogs(totalPages)} disabled={currentPage === totalPages || loading} className="px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-white hover:bg-[#111111]">Last</button>
             </div>

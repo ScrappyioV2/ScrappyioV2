@@ -11,8 +11,8 @@ const SELLERS = [
     { tag: "GR", name: "Golden Aura", id: 1, color: "bg-yellow-500" },
     { tag: "RR", name: "Rudra Retail", id: 2, color: "bg-orange-400" },
     { tag: "UB", name: "UBeauty", id: 3, color: "bg-pink-500" },
-    { tag: "VV", name: "Velvet Vista", id: 4, color: "bg-emerald-500/100" },
-    { tag: "DE", name: "Dropy Ecom", id: 5, color: "bg-orange-500/100" },
+    { tag: "VV", name: "Velvet Vista", id: 4, color: "bg-emerald-500" },
+    { tag: "DE", name: "Dropy Ecom", id: 5, color: "bg-orange-500" },
     { tag: "CV", name: "Costech Ventures", id: 6, color: "bg-green-600" },
     { tag: "MV", name: "Maverick", id: 7, color: "bg-orange-600" },
     { tag: "KL", name: "Kalash", id: 8, color: "bg-lime-500" },
@@ -77,7 +77,7 @@ export default function TrackingPage() {
         <PageGuard>
             <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
                 {/* Header Section - FIXED */}
-                <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-6 border-b border-white/[0.06]">
+                <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-6 border-b border-white/[0.1]">
                     <div className="mb-4 sm:mb-6">
                         <h1 className="text-xl sm:text-3xl font-bold text-white">
                             Tracking
@@ -126,7 +126,7 @@ export default function TrackingPage() {
 
                 {/* Table Container - SCROLLABLE ONLY */}
                 <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-6 pb-3 sm:pb-6">
-                    <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+                    <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
                         <div className="flex-1 overflow-hidden min-h-0 px-4 sm:px-6 lg:px-6 pb-3 sm:pb-6">
                             <div className={activeTab === "inbound" ? "h-full" : "hidden"}>
                                 <InboundTable onCountsChange={handleCountsChange} refreshKey={refreshKey} />

@@ -140,10 +140,10 @@ export default function ListingErrorDashboard() {
       <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-orange-400/30">
 
         {/* === HEADER === */}
-        <header className="flex items-center justify-between mb-10 pb-6 border-b border-white/[0.06]">
+        <header className="flex items-center justify-between mb-10 pb-6 border-b border-white/[0.1]">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+              <div className="p-2.5 bg-orange-500/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
                 <LayoutDashboard className="w-6 h-6 text-orange-500" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Listing Overview</h1>
@@ -155,7 +155,7 @@ export default function ListingErrorDashboard() {
 
           <button
             onClick={() => { setLoading(true); fetchRealCounts(); }}
-            className="px-4 py-2 bg-[#111111] hover:bg-[#1a1a1a] text-gray-500 text-sm font-medium rounded-lg transition-colors border border-white/[0.06]"
+            className="px-4 py-2 bg-[#111111] hover:bg-[#1a1a1a] text-gray-500 text-sm font-medium rounded-lg transition-colors border border-white/[0.1]"
           >
             Refresh Data
           </button>
@@ -181,7 +181,7 @@ export default function ListingErrorDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.4 }}
                   onClick={() => handleSellerCardClick(seller.slug)}
-                  className="group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-white/[0.06]/80 rounded-2xl p-6 cursor-pointer transition-all hover:bg-[#111111]/60 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
+                  className="group relative bg-[#1a1a1a] border border-white/[0.1] hover:border-white/[0.1]/80 rounded-2xl p-6 cursor-pointer transition-all hover:bg-[#111111]/60 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
                 >
                   <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 bg-gradient-to-br ${seller.color}`} />
 
@@ -214,7 +214,7 @@ export default function ListingErrorDashboard() {
                           initial={{ width: 0 }}
                           animate={{ width: `${listedPercent}%` }}
                           transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full bg-emerald-500/100 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                          className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                         />
                       </div>
                     </div>
@@ -232,13 +232,13 @@ export default function ListingErrorDashboard() {
                           initial={{ width: 0 }}
                           animate={{ width: `${errorPercent}%` }}
                           transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full bg-rose-500/100 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
+                          className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-white/[0.06] flex items-center justify-between text-sm group-hover:text-white transition-colors relative z-10">
+                  <div className="mt-6 pt-4 border-t border-white/[0.1] flex items-center justify-between text-sm group-hover:text-white transition-colors relative z-10">
                     <span className="text-gray-500 group-hover:text-gray-200 transition-colors">Manage Listings</span>
                     <div className={`p-2 rounded-full bg-[#111111] group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
                       <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-white" />

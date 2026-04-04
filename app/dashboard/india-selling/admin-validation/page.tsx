@@ -1696,7 +1696,7 @@ export default function AdminValidationPage() {
                   String(product.funnel).toUpperCase() === 'HD' || String(product.funnel).toUpperCase() === 'LD' || String(product.funnel).toUpperCase() === 'RS'
                   ? 'bg-emerald-600 text-white'
                   : product.funnel === 3 || product.funnel === '3' || String(product.funnel).toUpperCase() === 'DP'
-                    ? 'bg-amber-500/100 text-black'
+                    ? 'bg-amber-500 text-black'
                     : 'bg-slate-600 text-white'
                   }`}>
                   {product.funnel === 1 || product.funnel === '1' || product.funnel === 2 || product.funnel === '2' ||
@@ -1718,17 +1718,17 @@ export default function AdminValidationPage() {
               {/* Dropdown */}
               {openFunnelId === product.id && dropdownPos && (
                 <div style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
-                  className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150">
+                  className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150">
                   {['RS', 'DP'].map(f => (
                     <button
                       key={f}
                       onClick={() => handleFunnelChange(product.id, f)}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${(product.funnel === f || String(product.funnel).toUpperCase() === f)
-                        ? 'bg-orange-500/100/10 text-orange-400'
+                        ? 'bg-orange-500/10 text-orange-400'
                         : 'text-gray-500 hover:bg-[#111111] hover:text-white'
                         }`}
                     >
-                      <span className={`w-6 h-6 inline-flex items-center justify-center rounded-lg font-bold text-xs ${f === 'RS' ? 'bg-emerald-600 text-white' : 'bg-amber-500/100 text-black'
+                      <span className={`w-6 h-6 inline-flex items-center justify-center rounded-lg font-bold text-xs ${f === 'RS' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-black'
                         }`}>{f}</span>
                       <span>{f === 'RS' ? 'Restock' : 'Dropshipping'}</span>
                     </button>
@@ -1823,7 +1823,7 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4 text-center bg-amber-500/10">
             <button
               onClick={() => fetchHistory(product.asin)}
-              className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/100/20 text-amber-300 border border-amber-500/30 hover:bg-white/[0.05]0/100/10 hover:text-orange-400 hover:border-indigo-400/50 transition-all cursor-pointer"
+              className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-white/[0.08] hover:text-orange-400 hover:border-indigo-400/50 transition-all cursor-pointer"
               title={`Journey ${product.journey_number || 1} — Click to view history`}
             >
               <span>{product.journey_number || 1}</span>
@@ -1836,7 +1836,7 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-6 py-4" style={{ width: columnWidths.remark }}>
             {product.remark ? (
-              <button onClick={() => { setSelectedRemark(product.remark); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-orange-500/100 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
+              <button onClick={() => { setSelectedRemark(product.remark); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
                 View
               </button>
             ) : (
@@ -1897,7 +1897,7 @@ export default function AdminValidationPage() {
             <input type="number" defaultValue={product.target_price}
               onBlur={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             />
           </td>
         );
@@ -1907,7 +1907,7 @@ export default function AdminValidationPage() {
       //     <td key={col_key} className="px-6 py-4">
       //       <input type="number" defaultValue={product.target_quantity}
       //         onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
-      //         className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+      //         className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
       //       />
       //     </td>
       //   );
@@ -1957,7 +1957,7 @@ export default function AdminValidationPage() {
             <div className="relative">
               <input type="number" step="0.01" defaultValue={product.product_weight}
                 onBlur={(e) => handleCellEdit(product.id, 'productweight', parseFloat(e.target.value) || null)}
-                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 placeholder="g"
               />
               {calculatingIds.has(product.id) && (
@@ -1974,8 +1974,8 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4 text-sm">
             <div className="flex flex-col gap-1">
               <div className={`w-full min-w-[6rem] px-2 py-1 border rounded text-sm font-bold text-center truncate ${(product.profit ?? 0) >= 0
-                ? 'text-emerald-400 bg-emerald-500/100/20 border-emerald-500/30'
-                : 'text-rose-400 bg-rose-500/100/20 border-rose-500/30'
+                ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
+                : 'text-rose-400 bg-rose-500/20 border-rose-500/30'
                 }`}>
                 {product.profit != null ? `₹${product.profit.toFixed(2)}` : '-'}
               </div>
@@ -1994,7 +1994,7 @@ export default function AdminValidationPage() {
               <select
                 value={product.purchase_currency || 'INR'}
                 onChange={(e) => handleCellEdit(product.id, 'purchase_currency', e.target.value)}
-                className="w-12 px-1 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500"
+                className="w-12 px-1 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500"
               >
                 <option value="INR">₹</option>
                 <option value="USD">$</option>
@@ -2002,7 +2002,7 @@ export default function AdminValidationPage() {
               <input type="number" defaultValue={product.buying_price}
                 onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
           </td>
@@ -2021,7 +2021,7 @@ export default function AdminValidationPage() {
 
         const tagColors: Record<string, string> = {
           GR: 'bg-yellow-500 text-black border-yellow-600',
-          RR: 'bg-slate-500 text-white border-white/[0.06]',
+          RR: 'bg-slate-500 text-white border-white/[0.1]',
           UB: 'bg-pink-500 text-white border-pink-600',
           VV: 'bg-purple-500 text-white border-purple-600',
           DE: 'bg-cyan-500 text-black border-cyan-600',
@@ -2037,7 +2037,7 @@ export default function AdminValidationPage() {
             <td key={col_key} className="px-6 py-4">
               <div className="flex items-center gap-1">
                 {singleTag && (
-                  <span className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[singleTag] ?? 'bg-[#1a1a1a] text-white border-white/[0.06]'}`}>
+                  <span className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[singleTag] ?? 'bg-[#1a1a1a] text-white border-white/[0.1]'}`}>
                     {singleTag}
                   </span>
                 )}
@@ -2045,7 +2045,7 @@ export default function AdminValidationPage() {
                   key={`${product.id}-single-${product.buying_quantity ?? ''}`}
                   defaultValue={product.buying_quantity ?? ''}
                   onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-                  className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                  className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 />
               </div>
             </td>
@@ -2062,7 +2062,7 @@ export default function AdminValidationPage() {
               {qtyTags.map((tag: string) => (
                 <div key={tag} className="flex items-center gap-1">
                   <span
-                    className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[tag] ?? 'bg-[#1a1a1a] text-white border-white/[0.06]'
+                    className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[tag] ?? 'bg-[#1a1a1a] text-white border-white/[0.1]'
                       }`}
                   >
                     {tag}
@@ -2082,12 +2082,12 @@ export default function AdminValidationPage() {
                         product
                       )
                     }
-                    className="w-14 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    className="w-14 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                     placeholder="Qty"
                   />
                 </div>
               ))}
-              <div className="col-span-2 border-t border-white/[0.06] pt-1 mt-0.5 flex items-center gap-1">
+              <div className="col-span-2 border-t border-white/[0.1] pt-1 mt-0.5 flex items-center gap-1">
                 <span className="text-[10px] text-gray-300 font-medium">Total:</span>
                 <span className="text-[11px] text-gray-500 font-bold">
                   {currentTotal || '—'}
@@ -2141,7 +2141,7 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4">
             <input type="text" defaultValue={product.seller_phone}
               onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-              className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Phone"
             />
           </td>
@@ -2152,7 +2152,7 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4">
             <input type="text" defaultValue={product.payment_method}
               onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-              className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Method"
             />
           </td>
@@ -2167,8 +2167,8 @@ export default function AdminValidationPage() {
                 onClick={() => handleConfirmProduct(product.id)}
                 disabled={product.admin_status === 'confirmed'}
                 className={`p-2 rounded-lg transition-all ${product.admin_status === 'confirmed'
-                  ? 'bg-emerald-500/100/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
-                  : 'bg-emerald-500/100/20 text-emerald-400 hover:bg-emerald-500/100 hover:text-white border border-emerald-500/20'}`}
+                  ? 'bg-emerald-500/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
+                  : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20'}`}
                 title="Confirm"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -2177,8 +2177,8 @@ export default function AdminValidationPage() {
                 onClick={() => handleRejectProduct(product.id)}
                 disabled={product.admin_status === 'rejected'}
                 className={`p-2 rounded-lg transition-all ${product.admin_status === 'rejected'
-                  ? 'bg-rose-500/100/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
-                  : 'bg-rose-500/100/20 text-rose-400 hover:bg-rose-500/100 hover:text-white border border-rose-500/20'}`}
+                  ? 'bg-rose-500/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
+                  : 'bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20'}`}
                 title="Reject"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -2203,28 +2203,28 @@ export default function AdminValidationPage() {
         </div>
 
         {/* Tabs - STICKY */}
-        <div className="flex-none flex gap-1.5 sm:gap-2 mb-3 sm:mb-5 overflow-x-auto p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-full sm:w-fit scrollbar-none">
+        <div className="flex-none flex gap-1.5 sm:gap-2 mb-3 sm:mb-5 overflow-x-auto p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit scrollbar-none">
           {[
-            { id: 'overview', label: 'Overview', count: products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length, color: 'text-orange-500', activeBg: 'bg-orange-500/100/10' },
-            { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/100/10' },
-            { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/100/20' },
+            { id: 'overview', label: 'Overview', count: products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length, color: 'text-orange-500', activeBg: 'bg-orange-500/10' },
+            { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/10' },
+            { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/20' },
             { id: 'us', label: 'US', count: usCount, color: 'text-sky-400', activeBg: 'bg-sky-500/20' },
-            { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/100/20' },
-            { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/100/20' },
-            { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/100/20' }
+            { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/20' },
+            { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20' },
+            { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/20' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
               className={`px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === tab.id
-                ? `bg-orange-500/100 text-white font-semibold shadow-sm`
+                ? `bg-orange-500 text-white font-semibold shadow-sm`
                 : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
                 }`}
             >
               <span className="relative z-10 flex items-center gap-2">
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={`px-2 py-0.5 text-xs rounded-full bg-[#1a1a1a] border border-white/[0.06] ${tab.color}`}>
+                  <span className={`px-2 py-0.5 text-xs rounded-full bg-[#1a1a1a] border border-white/[0.1] ${tab.color}`}>
                     {tab.count}
                   </span>
                 )}
@@ -2248,7 +2248,7 @@ export default function AdminValidationPage() {
               placeholder="Search by ASIN, Product Name, SKU, or Funnel Seller..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
             />
           </div>
 
@@ -2256,15 +2256,15 @@ export default function AdminValidationPage() {
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
 
             {/* Funnel Filter Pills - RS / DP */}
-            <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
+            <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
               {(['ALL', 'RS', 'DP'] as const).map((opt) => (
                 <button
                   key={opt}
                   onClick={() => setFunnelFilter(opt)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
                     ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
-                      : opt === 'DP' ? 'bg-amber-500/100 text-black shadow-lg'
-                        : 'bg-orange-500/100 text-white shadow-lg'
+                      : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
+                        : 'bg-orange-500 text-white shadow-lg'
                     : 'text-gray-500 hover:text-gray-200'
                     }`}
                 >
@@ -2278,8 +2278,8 @@ export default function AdminValidationPage() {
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || adminStatusFilter !== 'ALL'
-                  ? 'bg-orange-500/100 text-white border-orange-500 shadow-lg shadow-indigo-900/30'
-                  : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+                  ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-indigo-900/30'
+                  : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
                   }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2296,7 +2296,7 @@ export default function AdminValidationPage() {
               {isFilterOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72">
+                  <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-72">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-100 text-sm">Filters</h3>
                       {(originFilter !== 'ALL' || adminStatusFilter !== 'ALL' || remarkFilter !== 'ALL') && (
@@ -2318,11 +2318,11 @@ export default function AdminValidationPage() {
                             key={opt}
                             onClick={() => setOriginFilter(opt)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
-                              ? opt === 'India' ? 'bg-orange-500/100 text-white'
-                                : opt === 'China' ? 'bg-rose-500/100 text-white'
+                              ? opt === 'India' ? 'bg-orange-500 text-white'
+                                : opt === 'China' ? 'bg-rose-500 text-white'
                                   : opt === 'US' ? 'bg-sky-500 text-white'
-                                    : 'bg-orange-500/100 text-white'
-                              : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
+                                    : 'bg-orange-500 text-white'
+                              : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.1]'
                               }`}
                           >
                             {opt}
@@ -2340,11 +2340,11 @@ export default function AdminValidationPage() {
                             key={opt}
                             onClick={() => setAdminStatusFilter(opt)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${adminStatusFilter === opt
-                              ? opt === 'pending' ? 'bg-amber-500/100 text-black'
-                                : opt === 'confirmed' ? 'bg-emerald-500/100 text-white'
-                                  : opt === 'rejected' ? 'bg-rose-500/100 text-white'
-                                    : 'bg-orange-500/100 text-white'
-                              : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
+                              ? opt === 'pending' ? 'bg-amber-500 text-black'
+                                : opt === 'confirmed' ? 'bg-emerald-500 text-white'
+                                  : opt === 'rejected' ? 'bg-rose-500 text-white'
+                                    : 'bg-orange-500 text-white'
+                              : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.1]'
                               }`}
                           >
                             {opt === 'ALL' ? 'All' : opt}
@@ -2364,9 +2364,9 @@ export default function AdminValidationPage() {
                               ? opt === 'hasRemark'
                                 ? 'bg-teal-500 text-white'
                                 : opt === 'noRemark'
-                                  ? 'bg-rose-500/100 text-white'
-                                  : 'bg-orange-500/100 text-white'
-                              : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-orange-500 text-white'
+                              : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.1]'
                               }`}
                           >
                             {opt === 'ALL' ? 'All' : opt === 'hasRemark' ? 'Has Remark' : 'No Remark'}
@@ -2384,8 +2384,8 @@ export default function AdminValidationPage() {
               <button
                 onClick={() => setIsColumnsDropdownOpen(!isColumnsDropdownOpen)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg ${hiddenColumns.size > 0
-                  ? 'bg-orange-500/100 text-white border-orange-500/50 shadow-orange-500/10'
-                  : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+                  ? 'bg-orange-500 text-white border-orange-500/50 shadow-orange-500/10'
+                  : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
                   }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2402,7 +2402,7 @@ export default function AdminValidationPage() {
               {isColumnsDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-3 z-20 w-64 max-h-80 overflow-y-auto">
+                  <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-3 z-20 w-64 max-h-80 overflow-y-auto">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-gray-100 text-sm">Toggle Columns</h3>
                       {hiddenColumns.size > 0 && (
@@ -2424,7 +2424,7 @@ export default function AdminValidationPage() {
                             type="checkbox"
                             checked={!hiddenColumns.has(col_key)}
                             onChange={() => toggleColumnVisibility(col_key)}
-                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer w-3.5 h-3.5"
+                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer w-3.5 h-3.5"
                           />
                           <span className={`text-xs font-medium ${hiddenColumns.has(col_key) ? 'text-gray-500' : 'text-gray-100'}`}>
                             {COLUMN_LABELS[col_key] || col_key}
@@ -2441,7 +2441,7 @@ export default function AdminValidationPage() {
             <button
               onClick={handleRollBack}
               disabled={!movementHistory[activeTab]}
-              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
               title="Roll Back last action from this tab (Ctrl+Z)"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2454,8 +2454,8 @@ export default function AdminValidationPage() {
             <button
               onClick={() => setShowAllJourneys(!showAllJourneys)}
               className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
-                ? 'bg-orange-500/100 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
-                : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+                ? 'bg-orange-500 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
+                : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
                 }`}
               title={`Currently showing: ${showAllJourneys ? 'All journey cycles' : 'Latest journey only'}`}
             >
@@ -2509,7 +2509,7 @@ export default function AdminValidationPage() {
               </button>
 
               {isDownloadOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 w-64 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl z-50 overflow-hidden">
                   <button
                     onClick={handleDownloadCurrentPage}
                     className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-[#1a1a1a] transition-colors flex items-center gap-3"
@@ -2522,7 +2522,7 @@ export default function AdminValidationPage() {
                   </button>
                   <button
                     onClick={handleDownloadAllData}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-[#1a1a1a] transition-colors flex items-center gap-3 border-t border-white/[0.06]"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-[#1a1a1a] transition-colors flex items-center gap-3 border-t border-white/[0.1]"
                   >
                     <Download className="w-4 h-4 text-purple-400" />
                     <div>
@@ -2558,29 +2558,29 @@ export default function AdminValidationPage() {
         </div>
 
         <div className="text-xs text-orange-500 mb-2 px-1 font-medium hidden sm:flex items-center gap-2">
-          <span className="bg-orange-500/100/10 px-2 py-1 rounded">💡</span>
+          <span className="bg-orange-500/10 px-2 py-1 rounded">💡</span>
           <span>
             {showAllJourneys
               ? 'Showing ALL journey cycles. Toggle to see latest only.'
               : 'Showing LATEST journey per ASIN. Toggle to see all cycles.'}
           </span>
-          <span className="bg-orange-500/100/10 px-2 py-1 rounded ml-2">📊</span>
+          <span className="bg-orange-500/10 px-2 py-1 rounded ml-2">📊</span>
           <span>Double-click any column header to auto-fit its width</span>
         </div>
 
         {/* Table - SCROLLABLE ONLY */}
-        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.06]">
+        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
           <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
             <table className="w-full border-collapse" ref={tableRef}>
-              <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10 shadow-md">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
                 <tr>
                   {/* Checkbox — always first, not draggable */}
-                  <th className="px-6 py-4 bg-[#111111] border-r border-white/[0.06]">
+                  <th className="px-6 py-4 bg-[#111111] border-r border-white/[0.1]">
                     <input
                       type="checkbox"
                       checked={selectedIds.size === products.length && products.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                      className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                     />
                   </th>
 
@@ -2622,7 +2622,7 @@ export default function AdminValidationPage() {
                         onDragOver={(e) => handleColumnDragOver(e, col_key)}
                         onDrop={handleColumnDrop}
                         onDoubleClick={() => handleColumnDoubleClick(cfg.widthKey)}
-                        className={`px-4 py-3 text-xs font-bold uppercase tracking-wider hover:bg-[#111111] relative border-r border-white/[0.06] select-none cursor-grab active:cursor-grabbing ${headerClass}`}
+                        className={`px-4 py-3 text-xs font-bold uppercase tracking-wider hover:bg-[#111111] relative border-r border-white/[0.1] select-none cursor-grab active:cursor-grabbing ${headerClass}`}
                         style={{ width: columnWidths[cfg.widthKey], minWidth: cfg.minWidth }}
                       >
                         <div className="flex items-center justify-between">
@@ -2656,13 +2656,13 @@ export default function AdminValidationPage() {
                   </tr>
                 ) : (
                   filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.06] [&>td]:border-r [&>td]:border-white/[0.06]">
-                      <td className="px-6 py-4 border-r border-white/[0.06]">
+                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
+                      <td className="px-6 py-4 border-r border-white/[0.1]">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(product.id)}
                           onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </td>
                       {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
@@ -2674,7 +2674,7 @@ export default function AdminValidationPage() {
           </div>
 
           {/* Stats Footer - FIXED AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3 text-sm text-gray-300">
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 text-sm text-gray-300">
             Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
             {filteredProducts.length > 0 && (
               <button
@@ -2694,7 +2694,7 @@ export default function AdminValidationPage() {
             <div className="fixed inset-0 bg-[#111111] z-40" onClick={() => setIsConstantsModalOpen(false)} />
             {/* Modal */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.06] animate-in zoom-in-95 duration-200">
+              <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.1] animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-4 sm:p-6 rounded-t-xl">
                   <h2 className="text-lg sm:text-2xl font-bold">Admin Calculation Constants</h2>
@@ -2709,7 +2709,7 @@ export default function AdminValidationPage() {
                     <input type="text" inputMode="decimal" value={modalInputs.dollarrate}
                       onChange={(e) => setModalInputs({ ...modalInputs, dollarrate: e.target.value })}
                       placeholder="e.g. 90"
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-300 mt-1">Currently: ₹{adminConstants.dollar_rate}</p>
                   </div>
@@ -2720,7 +2720,7 @@ export default function AdminValidationPage() {
                     <input type="text" inputMode="decimal" value={modalInputs.bankfee}
                       onChange={(e) => setModalInputs({ ...modalInputs, bankfee: e.target.value })}
                       placeholder="e.g. 2"
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-300 mt-1">Currently: {adminConstants.bank_conversion_rate * 100}%</p>
                   </div>
@@ -2731,7 +2731,7 @@ export default function AdminValidationPage() {
                     <input type="text" inputMode="decimal" value={modalInputs.shipping}
                       onChange={(e) => setModalInputs({ ...modalInputs, shipping: e.target.value })}
                       placeholder="e.g. 950"
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-300 mt-1">Currently: ₹{adminConstants.shipping_charge_per_kg}</p>
                   </div>
@@ -2742,7 +2742,7 @@ export default function AdminValidationPage() {
                     <input type="text" inputMode="decimal" value={modalInputs.commission}
                       onChange={(e) => setModalInputs({ ...modalInputs, commission: e.target.value })}
                       placeholder="e.g. 25"
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-300 mt-1">Currently: {adminConstants.commission_rate * 100}%</p>
                   </div>
@@ -2753,15 +2753,15 @@ export default function AdminValidationPage() {
                     <input type="text" inputMode="decimal" value={modalInputs.packingcost}
                       onChange={(e) => setModalInputs({ ...modalInputs, packingcost: e.target.value })}
                       placeholder="e.g. 25"
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-300 mt-1">Currently: ₹{adminConstants.packing_cost}</p>
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 sm:p-6 border-t border-white/[0.06] bg-[#1a1a1a] flex items-center justify-end gap-3 rounded-b-xl">
-                  <button onClick={() => setIsConstantsModalOpen(false)} className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] border border-white/[0.06] font-medium transition-colors">Cancel</button>
+                <div className="p-4 sm:p-6 border-t border-white/[0.1] bg-[#1a1a1a] flex items-center justify-end gap-3 rounded-b-xl">
+                  <button onClick={() => setIsConstantsModalOpen(false)} className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] border border-white/[0.1] font-medium transition-colors">Cancel</button>
                   <button onClick={saveAdminConstants} disabled={isSavingConstants} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all">
                     {isSavingConstants ? (
                       <>
@@ -2810,7 +2810,7 @@ export default function AdminValidationPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
@@ -2846,7 +2846,7 @@ export default function AdminValidationPage() {
                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                       {/* Card */}
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                         {/* Journey Info */}
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
@@ -2865,7 +2865,7 @@ export default function AdminValidationPage() {
                         {/* Snapshot Details */}
                         <div className="space-y-1.5 text-xs">
                           {snapshot.profit !== null && snapshot.profit !== undefined && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Profit:</span>
                               <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                                 ₹{snapshot.profit.toFixed(2)}
@@ -2873,19 +2873,19 @@ export default function AdminValidationPage() {
                             </div>
                           )}
                           {snapshot.totalcost && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Total Cost:</span>
                               <span className="text-gray-100">₹{snapshot.totalcost.toFixed(2)}</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.productweight && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Weight:</span>
                               <span className="text-gray-100">{snapshot.snapshotdata.productweight}g</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.usdprice && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">USD Price:</span>
                               <span className="text-gray-100">${snapshot.snapshotdata.usdprice}</span>
                             </div>
@@ -2922,17 +2922,17 @@ export default function AdminValidationPage() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-white/[0.06] overflow-hidden pointer-events-auto"
+                className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
               >
-                <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.06]">
+                <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.1]">
                   <h2 className="text-xl font-bold text-white">Remark Details</h2>
                   <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="p-2 hover:bg-[#1a1a1a] rounded-lg transition-colors">
                     <X className="w-5 h-5 text-gray-400" />
                   </button>
                 </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
                       <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
@@ -2943,13 +2943,13 @@ export default function AdminValidationPage() {
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
                   <div className="text-xs text-gray-300">
                     Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
@@ -2969,14 +2969,14 @@ export default function AdminValidationPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>

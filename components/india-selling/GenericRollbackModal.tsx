@@ -414,10 +414,10 @@ export default function GenericRollbackModal({
 
     return (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
 
                 {/* Header */}
-                <div className="bg-[#111111] border-b border-white/[0.06] px-6 py-4 flex items-center justify-between">
+                <div className="bg-[#111111] border-b border-white/[0.1] px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Undo2 className="w-6 h-6 text-amber-400" />
                         <div>
@@ -437,7 +437,7 @@ export default function GenericRollbackModal({
                 </div>
 
                 {/* Search */}
-                <div className="px-6 py-4 border-b border-white/[0.06]">
+                <div className="px-6 py-4 border-b border-white/[0.1]">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                         <input
@@ -445,7 +445,7 @@ export default function GenericRollbackModal({
                             placeholder="Search by ASIN, Product Name, Box, Invoice..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500 transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500 transition-all"
                         />
                     </div>
                 </div>
@@ -468,7 +468,7 @@ export default function GenericRollbackModal({
                         </div>
                     ) : (
                         <table className="w-full">
-                            <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0">
+                            <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0">
                                 <tr>
                                     <th className="px-4 py-3 text-left w-12">
                                         <input
@@ -490,7 +490,7 @@ export default function GenericRollbackModal({
                                 {filteredItems.map(item => (
                                     <tr
                                         key={item.id}
-                                        className="hover:bg-white/[0.05]0/100/5 cursor-pointer transition-colors"
+                                        className="hover:bg-white/[0.05] cursor-pointer transition-colors"
                                         onClick={() => handleSelect(item.id, !selectedIds.has(item.id))}
                                     >
                                         <td className="px-4 py-3">
@@ -521,7 +521,7 @@ export default function GenericRollbackModal({
                 </div>
 
                 {/* Footer */}
-                <div className="bg-[#111111] border-t border-white/[0.06] px-6 py-4 flex items-center justify-between">
+                <div className="bg-[#111111] border-t border-white/[0.1] px-6 py-4 flex items-center justify-between">
                     <div className="text-sm text-gray-400">
                         {selectedIds.size > 0 && (
                             <span className="font-semibold text-amber-400">{selectedIds.size} item(s) selected</span>
@@ -532,7 +532,7 @@ export default function GenericRollbackModal({
                         <button
                             onClick={onClose}
                             disabled={processing}
-                            className="px-6 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-500 hover:bg-[#1a1a1a] hover:text-white transition-all font-medium"
+                            className="px-6 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-gray-500 hover:bg-[#1a1a1a] hover:text-white transition-all font-medium"
                         >
                             Cancel
                         </button>
@@ -540,8 +540,8 @@ export default function GenericRollbackModal({
                             onClick={handleRollback}
                             disabled={selectedIds.size === 0 || processing}
                             className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${selectedIds.size === 0 || processing
-                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-                                : 'bg-amber-600 hover:bg-amber-500/100 hover:shadow-amber-500/50'
+                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                : 'bg-amber-600 hover:bg-amber-500 hover:shadow-amber-500/50'
                                 }`}
                         >
                             {processing ? 'Processing...' : `⏪ Rollback ${selectedIds.size > 0 ? `(${selectedIds.size})` : ''}`}

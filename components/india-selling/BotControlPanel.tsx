@@ -243,7 +243,7 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 bg-orange-500/100 hover:bg-orange-400 text-white rounded-lg shadow-lg shadow-orange-500/20 transition-all hover:scale-105 border border-orange-400/30 text-sm"
+        className="flex items-center gap-2 px-3 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-lg shadow-lg shadow-orange-500/20 transition-all hover:scale-105 border border-orange-400/30 text-sm"
       >
         <Bot className="w-5 h-5" />
         <span className="text-sm font-bold">ASIN Bot</span>
@@ -255,9 +255,9 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[340px] bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
+    <div className="fixed bottom-6 right-6 z-50 w-[340px] bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl shadow-black/30 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 border-b border-white/[0.1]">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${running ? (paused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse') : 'bg-gray-300'}`} />
           <span className="text-sm font-bold text-white tracking-wide">ASIN Auto Checker</span>
@@ -280,7 +280,7 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
       )}
 
       {/* Status */}
-      <div className="px-4 py-2 bg-[#1a1a1a] border-b border-white/[0.06]">
+      <div className="px-4 py-2 bg-[#1a1a1a] border-b border-white/[0.1]">
         <span className="text-xs text-gray-400">
           {!running ? 'Idle' : paused ? 'Paused' : currentAsin ? `Processing: ${currentAsin}` : 'Starting...'}
         </span>
@@ -291,21 +291,21 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
         <button
           onClick={startBot}
           disabled={running}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/100 hover:text-white"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white"
         >
           <Play className="w-3.5 h-3.5" /> Start
         </button>
         <button
           onClick={togglePause}
           disabled={!running}
-          className="px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-amber-500/100/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/100 hover:text-black"
+          className="px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-black"
         >
           <Pause className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={stopBot}
           disabled={!running}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-rose-500/100/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/100 hover:text-white"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white"
         >
           <Square className="w-3.5 h-3.5" /> Stop
         </button>
@@ -329,7 +329,7 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
 
       {/* Settings */}
       {showSettings && (
-        <div className="px-4 py-3 border-t border-white/[0.06] space-y-2">
+        <div className="px-4 py-3 border-t border-white/[0.1] space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">Delay between actions</span>
             <div className="flex items-center gap-2">
@@ -338,7 +338,7 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
                 value={delayMs}
                 onChange={e => setDelayMs(Math.max(1000, Number(e.target.value)))}
                 disabled={running}
-                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white text-center disabled:opacity-50"
+                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white text-center disabled:opacity-50"
                 min={1000}
                 max={15000}
                 step={500}
@@ -350,7 +350,7 @@ export default function BotControlPanel({ products, moveProduct, sellerName }: B
       )}
 
       {/* Logs */}
-      <div className="border-t border-white/[0.06]">
+      <div className="border-t border-white/[0.1]">
         <div className="px-4 py-2">
           <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Activity Log</span>
         </div>

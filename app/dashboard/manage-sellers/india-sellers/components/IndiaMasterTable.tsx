@@ -501,14 +501,14 @@ export default function IndiaMasterTable({
       {/* Loading modal for select all */}
       {isSelectingAll && (
         <div className="fixed inset-0 bg-[#111111] flex items-center justify-center z-50">
-          <div className="bg-[#111111] border border-white/[0.06] rounded-lg p-8 max-w-md w-full mx-4 text-center">
+          <div className="bg-[#111111] border border-white/[0.1] rounded-lg p-8 max-w-md w-full mx-4 text-center">
             <Loader2 className="h-10 w-10 text-orange-500 animate-spin mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">Selecting Products...</h3>
             {selectAllProgress.total > 0 && (
               <div>
                 <div className="w-full bg-[#111111] rounded-full h-3 overflow-hidden mb-2">
                   <div
-                    className="bg-orange-500/100 h-3 transition-all duration-300"
+                    className="bg-orange-500 h-3 transition-all duration-300"
                     style={{ width: `${(selectAllProgress.current / selectAllProgress.total) * 100}%` }}
                   ></div>
                 </div>
@@ -528,7 +528,7 @@ export default function IndiaMasterTable({
         columnConfig={COLUMN_LABELS}
       />
 
-      <div className="bg-[#111111] rounded-2xl border border-white/[0.06] overflow-hidden shadow-xl">
+      <div className="bg-[#111111] rounded-2xl border border-white/[0.1] overflow-hidden shadow-xl">
         <div className="overflow-x-auto h-[calc(100vh-320px)] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
           <table className="min-w-full divide-y divide-white/[0.06] text-xs">
 
@@ -536,20 +536,20 @@ export default function IndiaMasterTable({
             <thead className="bg-[#111111] sticky top-0 z-20 shadow-md">
               <tr>
                 {/* Checkbox column */}
-                <th className="px-2 py-3 w-12 sticky left-0 bg-[#111111] z-10 border-r border-white/[0.06]/80">
+                <th className="px-2 py-3 w-12 sticky left-0 bg-[#111111] z-10 border-r border-white/[0.1]/80">
                   <input
                     ref={selectAllCheckboxRef}
                     type="checkbox"
                     checked={isAllCurrentPageSelected}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="w-4 h-4 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer"
+                    className="w-4 h-4 rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer"
                   />
                 </th>
 
                 {visibleColumns.map((column) => (
                   <th
                     key={column}
-                    className="px-2 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider relative select-none bg-[#111111] border-r border-white/[0.06] group"
+                    className="px-2 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider relative select-none bg-[#111111] border-r border-white/[0.1] group"
                     style={{
                       width: `${columnWidths[column] || 100}px`,
                       minWidth: `${columnWidths[column] || 100}px`,
@@ -575,7 +575,7 @@ export default function IndiaMasterTable({
                           <button
                             onClick={() => handleOpenFilter(column, getColumnType(column))}
                             className={`p-1 rounded transition-colors ${hasActiveFilter(column)
-                              ? 'text-orange-500 bg-orange-500/100/10'
+                              ? 'text-orange-500 bg-orange-500/10'
                               : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111]'
                               }`}
                             title="Filter"
@@ -639,14 +639,14 @@ export default function IndiaMasterTable({
                 </tr>
               ) : (
                 data.map((row) => (
-                  <tr key={row.id} className={`group hover:bg-[#111111]/60 transition-colors ${selectedIds.has(row.id) ? 'bg-orange-500/100/10' : ''}`}>
+                  <tr key={row.id} className={`group hover:bg-[#111111]/60 transition-colors ${selectedIds.has(row.id) ? 'bg-orange-500/10' : ''}`}>
                     {/* Checkbox column */}
-                    <td className="px-2 py-2 sticky left-0 bg-[#111111] group-hover:bg-[#111111]/60 z-10 border-r border-white/[0.06]">
+                    <td className="px-2 py-2 sticky left-0 bg-[#111111] group-hover:bg-[#111111]/60 z-10 border-r border-white/[0.1]">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(row.id)}
                         onChange={(e) => handleSelectRow(row.id, e.target.checked)}
-                        className="w-4 h-4 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer"
+                        className="w-4 h-4 rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer"
                       />
                     </td>
 
@@ -670,7 +670,7 @@ export default function IndiaMasterTable({
                             row.remark ? (
                               <button
                                 onClick={() => setSelectedRemark(row.remark)}
-                                className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                               >
                                 View
                               </button>
@@ -678,7 +678,7 @@ export default function IndiaMasterTable({
                               <span className="text-gray-500">-</span>
                             )
                           ) : column === 'asin' ? (
-                            <span className="px-1.5 py-0.5 bg-[#111111] rounded border border-white/[0.06] text-gray-500 font-mono text-[10px] select-all">
+                            <span className="px-1.5 py-0.5 bg-[#111111] rounded border border-white/[0.1] text-gray-500 font-mono text-[10px] select-all">
                               {row.asin}
                             </span>
                           ) : column === 'amz_link' ? (
@@ -714,7 +714,7 @@ export default function IndiaMasterTable({
       {/* ✅ Remark Detail Modal (India) */}
       {selectedRemark && (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl p-6">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Master Remark</h3>
               <button
@@ -724,7 +724,7 @@ export default function IndiaMasterTable({
                 ×
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06] max-h-96 overflow-y-auto font-sans">
+            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1] max-h-96 overflow-y-auto font-sans">
               {selectedRemark}
             </div>
           </div>

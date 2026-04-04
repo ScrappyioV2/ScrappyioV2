@@ -286,9 +286,9 @@ export default function RollbackModal({
 
     return (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="bg-[#111111] border-b border-white/[0.06] px-6 py-4 flex items-center justify-between">
+                <div className="bg-[#111111] border-b border-white/[0.1] px-6 py-4 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-white">Rollback Invoices to Main File</h2>
                     <button
                         onClick={onClose}
@@ -299,13 +299,13 @@ export default function RollbackModal({
                 </div>
 
                 {/* Search Bar */}
-                <div className="px-6 py-4 border-b border-white/[0.06]">
+                <div className="px-6 py-4 border-b border-white/[0.1]">
                     <input
                         type="text"
                         placeholder="Search by Invoice Number..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-4 py-2.5 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition-all"
+                        className="w-full bg-[#111111] border border-white/[0.1] rounded-lg px-4 py-2.5 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition-all"
                     />
                 </div>
 
@@ -323,7 +323,7 @@ export default function RollbackModal({
                         </div>
                     ) : (
                         <table className="w-full">
-                            <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0">
+                            <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0">
                                 <tr>
                                     <th className="px-6 py-4 text-left w-12">
                                         <input
@@ -355,7 +355,7 @@ export default function RollbackModal({
                                 {filteredInvoices.map((invoice) => (
                                     <tr
                                         key={invoice.invoice_number}
-                                        className="hover:bg-white/[0.05]0/100/5 cursor-pointer transition-colors"
+                                        className="hover:bg-white/[0.05] cursor-pointer transition-colors"
                                         onClick={() => handleSelect(invoice.invoice_number, !selectedInvoices.has(invoice.invoice_number))}
                                     >
                                         <td className="px-6 py-4">
@@ -378,7 +378,7 @@ export default function RollbackModal({
                                                 : '-'}
                                         </td>
                                         <td className="px-6 py-4 text-sm">
-                                            <span className="bg-orange-500/100 text-white px-3 py-1 rounded-full font-semibold text-xs">
+                                            <span className="bg-orange-500 text-white px-3 py-1 rounded-full font-semibold text-xs">
                                                 {invoice.asin_count}
                                             </span>
                                         </td>
@@ -393,7 +393,7 @@ export default function RollbackModal({
                 </div>
 
                 {/* Footer */}
-                <div className="bg-[#111111] border-t border-white/[0.06] px-6 py-4 flex items-center justify-between">
+                <div className="bg-[#111111] border-t border-white/[0.1] px-6 py-4 flex items-center justify-between">
                     <div className="text-sm text-gray-300">
                         {selectedInvoices.size > 0 && (
                             <span className="font-semibold text-orange-500">
@@ -404,7 +404,7 @@ export default function RollbackModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="px-6 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-500 hover:bg-[#1a1a1a] hover:text-white transition-all font-medium"
+                            className="px-6 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-gray-500 hover:bg-[#1a1a1a] hover:text-white transition-all font-medium"
                             disabled={processing}
                         >
                             Cancel
@@ -413,7 +413,7 @@ export default function RollbackModal({
                             onClick={handleRollback}
                             disabled={selectedInvoices.size === 0 || processing}
                             className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${selectedInvoices.size === 0 || processing
-                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                                 : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/50'
                                 }`}
                         >

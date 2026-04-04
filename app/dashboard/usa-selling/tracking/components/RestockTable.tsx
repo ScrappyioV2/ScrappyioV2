@@ -81,16 +81,16 @@ export default function RestockTable({
                     placeholder="Search by Invoice or ASIN..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100"
+                    className="w-full max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100"
                 />
             </div>
 
             {/* Table */}
             <div className="flex-1 overflow-hidden">
-                <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+                <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
                     <div className="flex-1 overflow-y-auto">
                         <table className="w-full">
-                            <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0">
+                            <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0">
                                 <tr>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice No</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice Date</th>
@@ -119,7 +119,7 @@ export default function RestockTable({
                                     </tr>
                                 ) : (
                                     filteredItems.map((item) => (
-                                        <tr key={item.id} className="hover:bg-white/[0.05]0/100/5 transition-colors">
+                                        <tr key={item.id} className="hover:bg-white/[0.05] transition-colors">
                                             <td className="px-6 py-4 text-gray-100 font-semibold">{item.invoice_number}</td>
                                             <td className="px-6 py-4 text-gray-300">
                                                 {item.invoice_date ? new Date(item.invoice_date).toLocaleDateString() : '-'}
@@ -158,7 +158,7 @@ export default function RestockTable({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                    <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
                         <div className="text-sm text-gray-300">
                             Showing {filteredItems.length} of {items.length} items
                         </div>

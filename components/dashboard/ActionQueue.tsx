@@ -20,7 +20,7 @@ export default function ActionQueue({ data }: { data: ActionItem[] }) {
       case "success":
         return "bg-green-100 text-green-800 border-green-300";
       default:
-        return "bg-[#1a1a1a] text-gray-100 border-white/[0.06]";
+        return "bg-[#1a1a1a] text-gray-100 border-white/[0.1]";
     }
   };
 

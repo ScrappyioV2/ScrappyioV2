@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   if (loading) {
     return (
-      <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.06] flex items-center justify-center">
+      <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.1] flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
       </aside>
     )
@@ -67,9 +67,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   // ✅ The actual sidebar content (shared between mobile overlay & desktop)
   const sidebarContent = (
-    <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.06] flex flex-col h-full">
+    <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.1] flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-white/[0.06] flex items-center gap-2">
+      <div className="p-4 border-b border-white/[0.1] flex items-center gap-2">
         <Rocket className="w-5 h-5 text-orange-500" />
         <span className="font-bold text-white text-lg tracking-tight">Scrappy v2</span>
       </div>
@@ -80,7 +80,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* User Role Badge */}
       {userRole && (
-        <div className="px-4 py-2 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="px-4 py-2 border-b border-white/[0.1] flex items-center justify-between">
           <div>
             {userRole.full_name && (
               <p className="text-xs text-gray-400 mb-1 truncate">{userRole.full_name}</p>
@@ -109,7 +109,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Logout */}
-      <div className="p-3 border-t border-white/[0.06]">
+      <div className="p-3 border-t border-white/[0.1]">
         <button
           onClick={logout}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg transition-colors"
@@ -222,7 +222,7 @@ function SidebarItem({
           flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-150
           select-none
           ${depth > 0 ? 'mt-1' : ''}
-          ${isActive ? 'bg-orange-500/100 text-white shadow-md shadow-orange-500/20' : ''}
+          ${isActive ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : ''}
           ${!isActive && isParentOfActive ? 'text-orange-600 bg-orange-500/10' : ''}
           ${!isActive && !isParentOfActive ? 'hover:bg-white/[0.03] hover:text-white text-gray-400' : ''}
           ${depth === 1 ? 'text-xs' : ''}

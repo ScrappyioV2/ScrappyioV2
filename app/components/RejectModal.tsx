@@ -54,7 +54,7 @@ export default function RejectModal({
               onChange={(e) => setReason(e.target.value)}
               placeholder="Enter reason why this product is rejected..."
               rows={4}
-              className="w-full px-3 py-2 border border-white/[0.06] rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-white/[0.1] rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
             />
           </div>
 

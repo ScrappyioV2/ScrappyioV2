@@ -12,8 +12,8 @@ const SELLERS = [
     { tag: 'GR', name: 'Golden Aura', id: 1, slug: 'golden-aura', color: 'bg-yellow-500' },
     { tag: 'RR', name: 'Rudra Retail', id: 2, slug: 'rudra-retail', color: 'bg-orange-400' },
     { tag: 'UB', name: 'UBeauty', id: 3, slug: 'ubeauty', color: 'bg-pink-500' },
-    { tag: 'VV', name: 'Velvet Vista', id: 4, slug: 'velvet-vista', color: 'bg-emerald-500/100' },
-    { tag: 'DE', name: 'Dropy Ecom', id: 5, slug: 'dropy-ecom', color: 'bg-orange-500/100' },
+    { tag: 'VV', name: 'Velvet Vista', id: 4, slug: 'velvet-vista', color: 'bg-emerald-500' },
+    { tag: 'DE', name: 'Dropy Ecom', id: 5, slug: 'dropy-ecom', color: 'bg-orange-500' },
     { tag: 'CV', name: 'Costech Ventures', id: 6, slug: 'costech-ventures', color: 'bg-green-600' },
     { tag: 'MV', name: 'Maverick', id: 7, slug: 'maverick', color: 'bg-orange-600' },
     { tag: 'KL', name: 'Kalash', id: 8, slug: 'kalash', color: 'bg-lime-500' },
@@ -146,9 +146,9 @@ function RestockRollbackModal({
 
     return (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-start justify-between p-4 sm:p-6 border-b border-white/[0.06]">
+                <div className="flex items-start justify-between p-4 sm:p-6 border-b border-white/[0.1]">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl bg-${color}-500/20 flex items-center justify-center`}>
                             <RotateCcw className={`w-5 h-5 text-${color}-400`} />
@@ -181,7 +181,7 @@ function RestockRollbackModal({
                             placeholder="Search by ASIN, Product Name, Box, Invoice..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
                         />
                     </div>
                 </div>
@@ -203,7 +203,7 @@ function RestockRollbackModal({
                                             type="checkbox"
                                             checked={filtered.length > 0 && filtered.every((i) => selected.has(i.id))}
                                             onChange={(e) => toggleAll(e.target.checked)}
-                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                                         />
                                     </th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase">ASIN</th>
@@ -216,13 +216,13 @@ function RestockRollbackModal({
                             </thead>
                             <tbody className="divide-y divide-white/[0.06]">
                                 {filtered.map((item) => (
-                                    <tr key={item.id} className="hover:bg-white/[0.05]0/100/5 transition-colors">
+                                    <tr key={item.id} className="hover:bg-white/[0.05] transition-colors">
                                         <td className="px-6 py-4.5 text-center">
                                             <input
                                                 type="checkbox"
                                                 checked={selected.has(item.id)}
                                                 onChange={(e) => toggleOne(item.id, e.target.checked)}
-                                                className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                                                className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                                             />
                                         </td>
                                         <td className="px-6 py-4.5 font-mono text-sm text-gray-300">
@@ -251,7 +251,7 @@ function RestockRollbackModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-4 sm:p-6 border-t border-white/[0.06]">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 p-4 sm:p-6 border-t border-white/[0.1]">
                     <span className="text-sm text-gray-300">
                         {filtered.length} items available
                         {selected.size > 0 && ` · ${selected.size} selected`}
@@ -259,14 +259,14 @@ function RestockRollbackModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
+                            className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.1]"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleRollback}
                             disabled={selected.size === 0 || processing}
-                            className="px-5 py-2.5 bg-orange-500/100 text-white rounded-xl hover:bg-orange-400 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg transition-all"
+                            className="px-5 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg transition-all"
                         >
                             <RotateCcw className="w-4 h-4" />
                             {processing ? 'Rolling back...' : `Rollback (${selected.size})`}
@@ -692,10 +692,10 @@ export default function RestockPage() {
     const StatusBadge = ({ status }: { status?: string | null }) => {
         const s = status || 'pending'
         const styles: Record<string, string> = {
-            pending: 'bg-amber-500/100/20 text-amber-400 border-amber-500/30',
-            relisted: 'bg-emerald-500/100/20 text-emerald-400 border-emerald-500/30',
+            pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+            relisted: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
             disposed: 'bg-red-500/20 text-red-400 border-red-500/30',
-            removed: 'bg-rose-500/100/20 text-rose-400 border-rose-500/30',
+            removed: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
         }
         const displayLabel: Record<string, string> = {
             pending: 'PENDING',
@@ -731,7 +731,7 @@ export default function RestockPage() {
             <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
 
                 {/* Header */}
-                <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-6 border-b border-white/[0.06]">
+                <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-6 border-b border-white/[0.1]">
                     <div className="mb-4">
                         <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
                             <Package className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500 shrink-0" />
@@ -750,7 +750,7 @@ export default function RestockPage() {
                                 onClick={() => router.push(`/dashboard/india-selling/restock/${seller.slug}`)}
                                 className={`relative px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${currentSeller.tag === seller.tag
                                     ? `${seller.color} text-white shadow-lg scale-105`
-                                    : 'bg-[#111111] text-gray-400 hover:bg-[#111111] border border-white/[0.06]'
+                                    : 'bg-[#111111] text-gray-400 hover:bg-[#111111] border border-white/[0.1]'
                                     }`}
                             >
                                 <span className="hidden sm:inline">{seller.name}</span>
@@ -767,9 +767,9 @@ export default function RestockPage() {
                         {(['pending', 'relisted', 'removed'] as const).map(opt => {
                             const count = counts[opt];
                             const colors: Record<string, string> = {
-                                pending: 'bg-amber-500/100/20 text-amber-400',
-                                relisted: 'bg-emerald-500/100/20 text-emerald-400',
-                                removed: 'bg-rose-500/100/20 text-rose-400',
+                                pending: 'bg-amber-500/20 text-amber-400',
+                                relisted: 'bg-emerald-500/20 text-emerald-400',
+                                removed: 'bg-rose-500/20 text-rose-400',
                             };
                             return (
                                 <button
@@ -795,7 +795,7 @@ export default function RestockPage() {
                                 placeholder="Search by ASIN, Product Name, SKU, Invoice..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
+                                className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
                             />
                         </div>
 
@@ -813,7 +813,7 @@ export default function RestockPage() {
                         )}
 
                         {statusFilter === 'relisted' && (
-                            <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-xl border border-white/[0.06] px-3 py-1.5">
+                            <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-xl border border-white/[0.1] px-3 py-1.5">
                                 <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Date</span>
                                 {['Today', 'Yesterday', 'This Week', 'This Month'].map(label => {
                                     const isActive = restockDateFilter === label;
@@ -822,7 +822,7 @@ export default function RestockPage() {
                                             key={label}
                                             onClick={() => setRestockDateFilter(isActive ? '' : label)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${isActive
-                                                ? 'bg-orange-500/100 text-white shadow'
+                                                ? 'bg-orange-500 text-white shadow'
                                                 : 'text-gray-400 hover:text-white hover:bg-[#111111]'
                                             }`}
                                         >
@@ -837,7 +837,7 @@ export default function RestockPage() {
                                     value={restockStartDate}
                                     onChange={e => { setRestockStartDate(e.target.value); setRestockDateFilter(''); }}
                                     title="Start date"
-                                    className="px-2 py-1.5 bg-[#111111] border border-white/[0.06] rounded-lg text-xs text-gray-300 focus:outline-none focus:border-orange-500 w-[130px] [color-scheme:dark]"
+                                    className="px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded-lg text-xs text-gray-300 focus:outline-none focus:border-orange-500 w-[130px] [color-scheme:dark]"
                                 />
                                 <span className="text-gray-300 text-xs">to</span>
                                 <input
@@ -846,7 +846,7 @@ export default function RestockPage() {
                                     value={restockEndDate}
                                     onChange={e => { setRestockEndDate(e.target.value); setRestockDateFilter(''); }}
                                     title="End date"
-                                    className="px-2 py-1.5 bg-[#111111] border border-white/[0.06] rounded-lg text-xs text-gray-300 focus:outline-none focus:border-orange-500 w-[130px] [color-scheme:dark]"
+                                    className="px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded-lg text-xs text-gray-300 focus:outline-none focus:border-orange-500 w-[130px] [color-scheme:dark]"
                                 />
                                 {(restockDateFilter || restockStartDate || restockEndDate) && (
                                     <button onClick={() => { setRestockDateFilter(''); setRestockStartDate(''); setRestockEndDate(''); }} className="text-gray-300 hover:text-white text-xs px-1.5">✕</button>
@@ -887,7 +887,7 @@ export default function RestockPage() {
                                     setToast({ message: `Downloaded ${dataToExport.length} restocked items`, type: 'success' });
                                     setTimeout(() => setToast(null), 2000);
                                 }}
-                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-orange-500/100 text-white hover:bg-orange-400 flex items-center gap-1.5 shadow transition-all"
+                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-400 flex items-center gap-1.5 shadow transition-all"
                             >
                                 <Download className="w-3.5 h-3.5" />
                                 CSV
@@ -898,17 +898,17 @@ export default function RestockPage() {
 
                 {/* Table */}
                 <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-6 pb-3 sm:pb-6 pt-6">
-                    <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+                    <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
                         <div className="flex-1 overflow-y-auto">
                             <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '1400px' }}>
-                                <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.06]">
+                                <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.1]">
                                     <tr>
                                         {/* <th className="px-6 py-4 text-center w-12">
                                             <input
                                                 type="checkbox"
                                                 checked={filteredItems.length > 0 && filteredItems.every(i => selectedIds.has(i.id))}
                                                 onChange={e => handleSelectAll(e.target.checked)}
-                                                className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                                                className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                                             />
                                         </th> */}
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase cursor-pointer hover:text-white" onClick={() => toggleSort('asin')}>
@@ -951,7 +951,7 @@ export default function RestockPage() {
                                             if (count === 1) {
                                                 const item = first
                                                 return (
-                                                    <tr key={item.id} className="hover:bg-white/[0.05]0/100/5 group transition-colors">
+                                                    <tr key={item.id} className="hover:bg-white/[0.05] group transition-colors">
                                                         <td className="px-6 py-4 font-mono text-sm text-gray-300">
                                                             <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="truncate max-w-[120px] text-orange-500 hover:text-orange-400 underline font-semibold" title={item.asin}>
                                                                 {item.asin} <span className="text-[10px]">↗</span>
@@ -961,7 +961,7 @@ export default function RestockPage() {
                                                         <td className="px-6 py-4 text-sm text-gray-100"><div className="truncate max-w-[200px]" title={item.product_name || '-'}>{item.product_name || '-'}</div></td>
                                                         <td className="px-6 py-4 text-center">
                                                             <div className="flex flex-col gap-1 items-center">
-                                                                {item.origin_india && <span className="px-2 py-0.5 bg-orange-500/100 text-white rounded text-xs font-semibold">India</span>}
+                                                                {item.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}
                                                                 {item.origin_china && <span className="px-2 py-0.5 bg-red-500 text-white rounded text-xs font-semibold">China</span>}
                                                                 {item.origin_us && <span className="px-2 py-0.5 bg-sky-500 text-white rounded text-xs font-semibold">US</span>}
                                                                 {!item.origin_india && !item.origin_china && !item.origin_us && <span className="text-xs text-gray-300 italic">-</span>}
@@ -1006,7 +1006,7 @@ export default function RestockPage() {
                                                 <React.Fragment key={asin}>
                                                     {/* Summary row */}
                                                     <tr
-                                                        className="hover:bg-white/[0.05]0/100/5 cursor-pointer transition-colors"
+                                                        className="hover:bg-white/[0.05] cursor-pointer transition-colors"
                                                         onClick={() => toggleAsin(asin)}
                                                     >
                                                         <td className="px-6 py-4 font-mono text-sm text-gray-300">
@@ -1015,14 +1015,14 @@ export default function RestockPage() {
                                                                 <a href={first.product_link || `https://www.amazon.in/dp/${asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline font-semibold" title={asin} onClick={e => e.stopPropagation()}>
                                                                     {asin} <span className="text-[10px]">↗</span>
                                                                 </a>
-                                                                <span className="px-1.5 py-0.5 bg-orange-500/100/10 text-orange-400 rounded text-[10px] font-bold">{count}</span>
+                                                                <span className="px-1.5 py-0.5 bg-orange-500/10 text-orange-400 rounded text-[10px] font-bold">{count}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 font-mono text-sm text-gray-300"><div className="truncate max-w-[100px]">{first.sku || '-'}</div></td>
                                                         <td className="px-6 py-4 text-sm text-gray-100"><div className="truncate max-w-[200px]">{first.product_name || '-'}</div></td>
                                                         <td className="px-6 py-4 text-center">
                                                             <div className="flex flex-col gap-1 items-center">
-                                                                {first.origin_india && <span className="px-2 py-0.5 bg-orange-500/100 text-white rounded text-xs font-semibold">India</span>}
+                                                                {first.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}
                                                                 {first.origin_china && <span className="px-2 py-0.5 bg-red-500 text-white rounded text-xs font-semibold">China</span>}
                                                                 {first.origin_us && <span className="px-2 py-0.5 bg-sky-500 text-white rounded text-xs font-semibold">US</span>}
                                                             </div>
@@ -1048,13 +1048,13 @@ export default function RestockPage() {
 
                                                     {/* Expanded sub-rows */}
                                                     {isExpanded && asinItems.map(item => (
-                                                        <tr key={item.id} className="bg-[#111111]/20 hover:bg-white/[0.05]0/100/5 transition-colors">
+                                                        <tr key={item.id} className="bg-[#111111]/20 hover:bg-white/[0.05] transition-colors">
                                                             <td className="px-6 py-4 pl-9 font-mono text-sm text-gray-300">↳</td>
                                                             <td className="px-6 py-4 font-mono text-sm text-gray-300"><div className="truncate max-w-[100px]" title={item.sku || '-'}>{item.sku || '-'}</div></td>
                                                             <td className="px-6 py-4 text-sm text-gray-100"><div className="truncate max-w-[200px]" title={item.product_name || '-'}>{item.product_name || '-'}</div></td>
                                                             <td className="px-6 py-4 text-center">
                                                                 <div className="flex flex-col gap-1 items-center">
-                                                                    {item.origin_india && <span className="px-2 py-0.5 bg-orange-500/100 text-white rounded text-xs font-semibold">India</span>}
+                                                                    {item.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}
                                                                     {item.origin_china && <span className="px-2 py-0.5 bg-red-500 text-white rounded text-xs font-semibold">China</span>}
                                                                     {item.origin_us && <span className="px-2 py-0.5 bg-sky-500 text-white rounded text-xs font-semibold">US</span>}
                                                                     {!item.origin_india && !item.origin_china && !item.origin_us && <span className="text-xs text-gray-300 italic">-</span>}
@@ -1101,7 +1101,7 @@ export default function RestockPage() {
                         </div>
 
                         {/* Footer */}
-                        <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
+                        <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
                             <div className="text-xs sm:text-sm text-gray-300">
                                 Showing {groupedByAsin.length} ASINs ({filteredItems.length} items) of {items.length} total
                             </div>
@@ -1112,7 +1112,7 @@ export default function RestockPage() {
                 {/* Dispose Reason Modal */}
                 {disposeModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111111]/60 p-3 sm:p-4">
-                        <div className="bg-[#111111] border border-white/[0.06] rounded-xl p-4 sm:p-6 w-full max-w-md shadow-2xl">
+                        <div className="bg-[#111111] border border-white/[0.1] rounded-xl p-4 sm:p-6 w-full max-w-md shadow-2xl">
                             <h3 className="text-lg font-bold text-white mb-4">Reason for Disposal</h3>
                             <textarea
                                 value={disposeReason}
@@ -1126,7 +1126,7 @@ export default function RestockPage() {
                                     }
                                 }}
                                 placeholder="Enter reason for disposing this item..."
-                                className="w-full h-24 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 resize-none"
+                                className="w-full h-24 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 resize-none"
                                 autoFocus
                             />
                             <div className="flex justify-end gap-2 mt-4">

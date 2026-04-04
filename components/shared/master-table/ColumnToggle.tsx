@@ -46,7 +46,7 @@ export default function ColumnToggle({
                   type="checkbox"
                   checked={!hiddenColumns.includes(column)}
                   onChange={() => onToggleColumn(column)}
-                  className="w-4 h-4 text-blue-600 border-white/[0.06] rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 border-white/[0.1] rounded focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-300 capitalize">
                   {column.replace(/_/g, ' ')}

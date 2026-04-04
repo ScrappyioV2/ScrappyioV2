@@ -38,7 +38,7 @@ export default function ExportButton({ onExport }: ExportButtonProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-[#111111] border border-white/[0.06] rounded-lg shadow-lg z-20">
+        <div className="absolute right-0 mt-2 w-48 bg-[#111111] border border-white/[0.1] rounded-lg shadow-lg z-20">
           <div className="py-1">
             <button
               onClick={() => handleExport('csv')}

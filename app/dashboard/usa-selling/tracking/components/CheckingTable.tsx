@@ -564,14 +564,14 @@ export default function CheckingTable({
           placeholder="Search by Invoice Number..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
+          className="flex-1 max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
         />
 
         {/* Hide Columns Button */}
         <div className="relative">
           <button
             onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-            className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+            className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-sm font-medium flex items-center gap-2 whitespace-nowrap"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -586,7 +586,7 @@ export default function CheckingTable({
                 onClick={() => setIsColumnMenuOpen(false)}
               />
 
-              <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-lg shadow-xl p-4 z-20 w-64 max-h-[500px] overflow-y-auto">
+              <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-lg shadow-xl p-4 z-20 w-64 max-h-[500px] overflow-y-auto">
                 <h3 className="font-semibold text-gray-100 mb-3 text-sm">Toggle Columns</h3>
                 <div className="space-y-2">
                   {Object.keys(visibleColumns).map((col) => {
@@ -619,7 +619,7 @@ export default function CheckingTable({
                               [col]: !prev[col as keyof typeof visibleColumns]
                             }));
                           }}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500"
                         />
                         <span className="text-sm text-gray-300">
                           {columnDisplayNames[col] || col}
@@ -629,14 +629,14 @@ export default function CheckingTable({
                   })}
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
+                <div className="mt-3 pt-3 border-t border-white/[0.1] flex gap-2">
                   <button
                     onClick={() =>
                       setVisibleColumns(
                         Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
                       )
                     }
-                    className="flex-1 px-3 py-1.5 bg-orange-500/100 text-white rounded hover:bg-orange-400 text-xs font-medium"
+                    className="flex-1 px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-400 text-xs font-medium"
                   >
                     Show All
                   </button>
@@ -659,12 +659,12 @@ export default function CheckingTable({
 
       {/* Table Wrapper - Same as page.tsx */}
       <div className="flex-1 overflow-hidden">
-        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
+        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
           {/* Table Scroll Container */}
           <div className="flex-1 overflow-y-auto">
             <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '2000px' }}>
 
-              <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10">
                 <tr>
                   {/* Expand Column */}
                   {visibleColumns.expand && (
@@ -918,7 +918,7 @@ export default function CheckingTable({
                   {/* Total Amount */}
                   {visibleColumns.total_amount && (
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-white/[0.06] select-none"
+                      className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-white/[0.1] select-none"
                       onMouseDown={(e) => handleResizeStart('tax_amount', e)}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderRight = '2px solid #6366f1';
@@ -1056,7 +1056,7 @@ export default function CheckingTable({
                       <React.Fragment key={group.invoice_number}>
                         {/* Main Invoice Row */}
                         <tr
-                          className="border-t border-white/[0.06] hover:bg-white/[0.05]0/100/5 cursor-pointer transition-colors"
+                          className="border-t border-white/[0.1] hover:bg-white/[0.05] cursor-pointer transition-colors"
                           onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
                         >
                           {visibleColumns.expand && (
@@ -1112,7 +1112,7 @@ export default function CheckingTable({
                                   value={group.items[0].product_weight || ''}
                                   onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-20 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                                  className="w-20 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
                                   placeholder="kg"
                                 />
                               ) : (
@@ -1130,7 +1130,7 @@ export default function CheckingTable({
                                   value={group.items[0].buying_quantity || ''}
                                   onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-16 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                                  className="w-16 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
                                   placeholder="0"
                                 />
                               ) : (
@@ -1151,7 +1151,7 @@ export default function CheckingTable({
                                     value={group.items[0].buying_price || ''}
                                     onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="w-24 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                                    className="w-24 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
                                     placeholder="0.00"
                                   />
                                 </div>
@@ -1173,7 +1173,7 @@ export default function CheckingTable({
                             </td>
                           )}
                           {visibleColumns.total_amount && (
-                            <td className="px-6 py-4 text-sm font-bold text-green-400 bg-green-900/10 border-r border-white/[0.06]">
+                            <td className="px-6 py-4 text-sm font-bold text-green-400 bg-green-900/10 border-r border-white/[0.1]">
                               ₹ {(group.total_amount + group.total_tax).toFixed(2)}
                             </td>
                           )}
@@ -1206,7 +1206,7 @@ export default function CheckingTable({
                                     e.stopPropagation();
                                     setSelectedCompany(group.seller_company);
                                   }}
-                                  className="bg-orange-500/100 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                                 >
                                   View
                                 </button>
@@ -1300,12 +1300,12 @@ export default function CheckingTable({
                         {/* Expanded Card - Show individual items */}
                         {isExpanded && hasMultipleItems && (
                           <tr>
-                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-orange-500/100/5 px-6 py-4">
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-orange-500/5 px-6 py-4">
                               <div className="ml-8 space-y-2">
                                 {group.items.map((item) => (
                                   <div
                                     key={item.id}
-                                    className="bg-[#111111] border border-white/[0.06] rounded-lg p-3 shadow-md hover:border-orange-500/50 transition-all"
+                                    className="bg-[#111111] border border-white/[0.1] rounded-lg p-3 shadow-md hover:border-orange-500/50 transition-all"
                                   >
                                     <div className="flex items-center gap-6 text-sm">
                                       {/* ASIN */}
@@ -1329,7 +1329,7 @@ export default function CheckingTable({
                                           value={item.product_weight || ''}
                                           onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
                                           onClick={(e) => e.stopPropagation()}
-                                          className="w-20 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                                          className="w-20 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
                                           placeholder="kg"
                                         />
                                       </div>
@@ -1342,7 +1342,7 @@ export default function CheckingTable({
                                           value={item.buying_quantity || ''}
                                           onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
                                           onClick={(e) => e.stopPropagation()}
-                                          className="w-16 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                                          className="w-16 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
                                           placeholder="0"
                                         />
                                       </div>
@@ -1358,7 +1358,7 @@ export default function CheckingTable({
                                             value={item.buying_price || ''}
                                             onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="w-24 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
+                                            className="w-24 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
                                             placeholder="0.00"
                                           />
                                         </div>
@@ -1462,7 +1462,7 @@ export default function CheckingTable({
           </div>
 
           {/* Footer Count - STICKY AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
             <div className="text-sm text-gray-300">
               Showing {filteredInvoices.length} of {groupedInvoices.length} invoices
             </div>
@@ -1483,7 +1483,7 @@ export default function CheckingTable({
       {/* Company Info Modal */}
       {selectedCompany && (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
               <button
@@ -1493,7 +1493,7 @@ export default function CheckingTable({
                 ✕
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06]">
+            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1]">
               {selectedCompany}
             </div>
           </div>

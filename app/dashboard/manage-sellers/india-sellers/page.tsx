@@ -769,11 +769,11 @@ export default function IndiaSellersPage() {
         />
 
         {/* === HEADER === */}
-        <div className="sticky top-0 z-40 bg-[#1a1a1a] border-b border-white/[0.06] -mx-10 px-10 py-4 mb-8">
+        <div className="sticky top-0 z-40 bg-[#1a1a1a] border-b border-white/[0.1] -mx-10 px-10 py-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Title */}
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-lg shadow-indigo-500/10">
+              <div className="p-2.5 bg-orange-500/10 rounded-xl border border-orange-500/20 shadow-lg shadow-indigo-500/10">
                 <Database className="w-6 h-6 text-orange-500" />
               </div>
               <div>
@@ -791,27 +791,27 @@ export default function IndiaSellersPage() {
                   placeholder="Search by ASIN, Brand..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-72 pl-10 pr-4 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-gray-500"
+                  className="w-72 pl-10 pr-4 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-gray-500"
                 />
               </div>
 
               <button
                 onClick={() => setIsColumnToggleOpen(true)}
-                className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg hover:bg-[#111111] text-gray-500 text-sm font-medium flex items-center gap-2 transition-colors"
+                className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg hover:bg-[#111111] text-gray-500 text-sm font-medium flex items-center gap-2 transition-colors"
               >
                 <Columns className="w-4 h-4" /> Columns
               </button>
 
               <div onClick={() => handleExport('csv')} className="cursor-pointer">
                 {/* Re-using your Export Button logic but styling wrapper or passing styles if supported */}
-                <button className="px-3 py-2 bg-emerald-500/100/20 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/100/20 text-sm font-medium flex items-center gap-2 transition-colors">
+                <button className="px-3 py-2 bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
                   <Download className="w-4 h-4" /> Export
                 </button>
               </div>
 
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="px-3 py-2 bg-orange-500/100 text-white rounded-lg hover:bg-orange-400 text-sm font-medium flex items-center gap-2 shadow-lg shadow-orange-500/20 transition-all"
+                className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-400 text-sm font-medium flex items-center gap-2 shadow-lg shadow-orange-500/20 transition-all"
               >
                 <Upload className="w-4 h-4" /> Upload
               </button>
@@ -850,7 +850,7 @@ export default function IndiaSellersPage() {
               </span>
             </div>
             <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden">
-              <div className="bg-amber-500/100 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((partialProgress.current / partialProgress.total) * 100)}%` }} />
+              <div className="bg-amber-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((partialProgress.current / partialProgress.total) * 100)}%` }} />
             </div>
             <p className="text-xs text-gray-300 mt-1.5 text-right">{Math.round((partialProgress.current / partialProgress.total) * 100)}% complete</p>
           </div>
@@ -881,7 +881,7 @@ export default function IndiaSellersPage() {
             {exportProgress.total > 0 && (
               <>
                 <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden">
-                  <div className="bg-emerald-500/100 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }} />
+                  <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }} />
                 </div>
                 <p className="text-xs text-gray-300 mt-1.5 text-right">{Math.round((exportProgress.current / exportProgress.total) * 100)}% complete</p>
               </>
@@ -894,7 +894,7 @@ export default function IndiaSellersPage() {
         </div>
 
         {/* Table Component */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-[#111111] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
           <IndiaMasterTable
             searchTerm={searchTerm}
             hiddenColumns={hiddenColumns}
@@ -912,13 +912,13 @@ export default function IndiaSellersPage() {
           />
 
           {/* Pagination */}
-          <div className="border-t border-white/[0.06] bg-[#1a1a1a] p-4 flex items-center justify-between">
+          <div className="border-t border-white/[0.1] bg-[#1a1a1a] p-4 flex items-center justify-between">
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1.5 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
                 >
                   <ChevronLeft className="w-3 h-3" /> Previous
                 </button>
@@ -928,7 +928,7 @@ export default function IndiaSellersPage() {
                 <button
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
                 >
                   Next <ChevronRight className="w-3 h-3" />
                 </button>

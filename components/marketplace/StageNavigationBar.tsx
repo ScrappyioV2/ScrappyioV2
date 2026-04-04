@@ -9,7 +9,7 @@ type Props = {
 const stages = [
   { label: "Brand Checking", slug: "brand-checking", color: "bg-blue-600" },
   { label: "Validation", slug: "validation", color: "bg-purple-600" },
-  { label: "Admin Validation", slug: "admin-validation", color: "bg-orange-500/100" },
+  { label: "Admin Validation", slug: "admin-validation", color: "bg-orange-500" },
   { label: "Listing", slug: "listing", color: "bg-green-600" },
   { label: "Purchasing", slug: "purchasing", color: "bg-orange-600" },
   { label: "Reorder", slug: "reorder", color: "bg-red-600" },

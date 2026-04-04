@@ -1046,28 +1046,28 @@ export default function AdminValidationPage() {
         </div>
 
         {/* Tabs - STICKY */}
-        <div className="flex-none flex gap-2 mb-5 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit">
+        <div className="flex-none flex gap-2 mb-5 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit">
           {[
-            { id: 'overview', label: 'Overview', count: products.length, color: 'text-orange-500', activeBg: 'bg-orange-500/100/10' },
-            { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/100/10' },
-            { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/100/20' },
+            { id: 'overview', label: 'Overview', count: products.length, color: 'text-orange-500', activeBg: 'bg-orange-500/10' },
+            { id: 'india', label: 'India', count: indiaCount, color: 'text-orange-400', activeBg: 'bg-orange-500/10' },
+            { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/20' },
             { id: 'us', label: 'US', count: usCount, color: 'text-sky-400', activeBg: 'bg-sky-500/20' },
-            { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/100/20' },
-            { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/100/20' },
-            { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/100/20' }
+            { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/20' },
+            { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20' },
+            { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/20' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
               className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
-                ? `bg-orange-500/100 text-white font-semibold shadow-sm`
+                ? `bg-orange-500 text-white font-semibold shadow-sm`
                 : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
                 }`}
             >
               <span className="relative z-10 flex items-center gap-2">
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={`px-2 py-0.5 text-xs rounded-full bg-[#1a1a1a] border border-white/[0.06] ${tab.color}`}>
+                  <span className={`px-2 py-0.5 text-xs rounded-full bg-[#1a1a1a] border border-white/[0.1] ${tab.color}`}>
                     {tab.count}
                   </span>
                 )}
@@ -1094,7 +1094,7 @@ export default function AdminValidationPage() {
               placeholder="Search by ASIN, Product Name, or Funnel Seller..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm text-sm"
             />
           </div>
 
@@ -1104,7 +1104,7 @@ export default function AdminValidationPage() {
             <button
               onClick={handleRollBack}
               disabled={!movementHistory[activeTab]}
-              className="px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
+              className="px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-amber-900/20 transition-all border border-amber-500/50"
               title="Roll Back last action from this tab (Ctrl+Z)"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1117,8 +1117,8 @@ export default function AdminValidationPage() {
             <button
               onClick={() => setShowAllJourneys(!showAllJourneys)}
               className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all border shadow-lg ${showAllJourneys
-                ? 'bg-orange-500/100 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
-                : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
+                ? 'bg-orange-500 text-white hover:bg-orange-400 border-orange-500/50 shadow-orange-500/10'
+                : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.1]'
                 }`}
               title={`Currently showing: ${showAllJourneys ? 'All journey cycles' : 'Latest journey only'}`}
             >
@@ -1143,21 +1143,21 @@ export default function AdminValidationPage() {
         </div>
 
         <div className="text-xs text-orange-500 mb-2 px-1 font-medium flex items-center gap-2">
-          <span className="bg-orange-500/100/10 px-2 py-1 rounded">💡</span>
+          <span className="bg-orange-500/10 px-2 py-1 rounded">💡</span>
           <span>
             {showAllJourneys
               ? 'Showing ALL journey cycles. Toggle to see latest only.'
               : 'Showing LATEST journey per ASIN. Toggle to see all cycles.'}
           </span>
-          <span className="bg-orange-500/100/10 px-2 py-1 rounded ml-2">📊</span>
+          <span className="bg-orange-500/10 px-2 py-1 rounded ml-2">📊</span>
           <span>Double-click any column header to auto-fit its width</span>
         </div>
 
         {/* Table - SCROLLABLE ONLY */}
-        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.06]">
+        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
           <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
             <table className="w-full border-collapse" ref={tableRef}>
-              <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10 shadow-md">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
                 <tr>
                   {/* Checkbox */}
                   <th className="px-6 py-4 bg-[#111111]">
@@ -1165,14 +1165,14 @@ export default function AdminValidationPage() {
                       type="checkbox"
                       checked={selectedIds.size === products.length && products.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                      className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                     />
                   </th>
 
                   {/* 1. ASIN */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('asin')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.asin, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1191,7 +1191,7 @@ export default function AdminValidationPage() {
                   {/* ✅ HISTORY COLUMN */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('history')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.history, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1210,7 +1210,7 @@ export default function AdminValidationPage() {
                   {/* ✅✅ REMARK COLUMN */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('remark')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.remark, minWidth: 100 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1230,7 +1230,7 @@ export default function AdminValidationPage() {
                   {/* 🆕 2. Journey # Column */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('journey_number')}
-                    className="px-4 py-3 text-xs font-bold text-amber-400 uppercase tracking-wider hover:bg-[#111111] relative bg-amber-500/10 border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-amber-400 uppercase tracking-wider hover:bg-[#111111] relative bg-amber-500/10 border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.journey_number, minWidth: 70 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1245,7 +1245,7 @@ export default function AdminValidationPage() {
                   {/* 2. Product Name */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('productname')}
-                    className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.productname, minWidth: 150 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1260,7 +1260,7 @@ export default function AdminValidationPage() {
                   {/* 3. Product Link */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('productlink')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.productlink, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1275,7 +1275,7 @@ export default function AdminValidationPage() {
                   {/* 4. Target Price */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('targetprice')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.targetprice, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1290,7 +1290,7 @@ export default function AdminValidationPage() {
                   {/* 5. Target Qty */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('targetqty')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.targetqty, minWidth: 70 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1305,7 +1305,7 @@ export default function AdminValidationPage() {
                   {/* 6. Admin Target Price */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('admintargetprice')}
-                    className="px-4 py-3 text-xs font-bold text-purple-300 uppercase tracking-wider hover:bg-purple-900/20 relative bg-purple-900/10 border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-purple-300 uppercase tracking-wider hover:bg-purple-900/20 relative bg-purple-900/10 border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.admintargetprice, minWidth: 100 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1320,7 +1320,7 @@ export default function AdminValidationPage() {
                   {/* 7. Seller Tag */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('funnelseller')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.funnelseller, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1335,7 +1335,7 @@ export default function AdminValidationPage() {
                   {/* 8. Funnel */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('funnelqty')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.funnelqty, minWidth: 70 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1350,7 +1350,7 @@ export default function AdminValidationPage() {
                   {/* 9. Product Weight */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('productweight')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.productweight, minWidth: 100 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1365,7 +1365,7 @@ export default function AdminValidationPage() {
                   {/* 10. USD Price */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('usdprice')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.usdprice, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1380,7 +1380,7 @@ export default function AdminValidationPage() {
                   {/* 11. INR Purchase */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('inrpurchase')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.inrpurchase, minWidth: 100 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1395,7 +1395,7 @@ export default function AdminValidationPage() {
                   {/* 12. Profit */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('profit')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.profit, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1410,7 +1410,7 @@ export default function AdminValidationPage() {
                   {/* 13. INR Purchase Link */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('inrpurchaselink')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.inrpurchaselink, minWidth: 150 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1425,7 +1425,7 @@ export default function AdminValidationPage() {
                   {/* 14. Buying Price */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('buyingprice')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.buyingprice, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1440,7 +1440,7 @@ export default function AdminValidationPage() {
                   {/* 15. Buying Quantity */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('buyingqty')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.buyingqty, minWidth: 70 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1455,7 +1455,7 @@ export default function AdminValidationPage() {
                   {/* 16. Seller Link */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('sellerlink')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.sellerlink, minWidth: 80 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1470,7 +1470,7 @@ export default function AdminValidationPage() {
                   {/* 17. Seller Ph No. */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('sellerphone')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.sellerphone, minWidth: 100 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1485,7 +1485,7 @@ export default function AdminValidationPage() {
                   {/* 18. Payment Method */}
                   <th
                     onDoubleClick={() => handleColumnDoubleClick('paymentmethod')}
-                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.06] select-none"
+                    className="px-4 py-3 text-xs font-bold text-white uppercase tracking-wider hover:bg-[#111111] relative bg-[#111111] border-r border-white/[0.1] select-none"
                     style={{ width: columnWidths.paymentmethod, minWidth: 100 }}
                   >
                     <div className="flex items-center justify-between">
@@ -1520,14 +1520,14 @@ export default function AdminValidationPage() {
                   </tr>
                 ) : (
                   filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.06]">
+                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1]">
                       {/* Checkbox */}
                       <td className="px-6 py-4">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(product.id)}
                           onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </td>
 
@@ -1541,7 +1541,7 @@ export default function AdminValidationPage() {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => fetchHistory(product.asin)}
-                          className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
+                          className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors"
                           title="View Journey History"
                         >
                           <History className="w-4 h-4" />
@@ -1554,7 +1554,7 @@ export default function AdminValidationPage() {
                           {product.remark && (
                             <button
                               onClick={() => setSelectedRemark(product.remark)}
-                              className="flex-shrink-0 bg-orange-500/100 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
+                              className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs font-medium transition-colors"
                             >
                               View
                             </button>
@@ -1564,7 +1564,7 @@ export default function AdminValidationPage() {
 
                       {/* 🆕 2. Journey # */}
                       <td className="px-6 py-4 text-center bg-amber-500/10">
-                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-amber-500/100/20 text-amber-300 border border-amber-500/30">
+                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           #{product.journey_number || 1}
                         </span>
                       </td>
@@ -1673,7 +1673,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.target_price || ''}
                           onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
-                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1683,7 +1683,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.target_quantity || ''}
                           onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1733,11 +1733,11 @@ export default function AdminValidationPage() {
                         {product.funnel ? (
                           <span
                             className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.funnel === 1
-                              ? 'bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : product.funnel === 2
                                 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                                 : product.funnel === 3
-                                  ? 'bg-amber-500/100/20 text-amber-400 border border-amber-500/30'
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                   : 'bg-[#1a1a1a] text-gray-500'
                               }`}
                           >
@@ -1762,7 +1762,7 @@ export default function AdminValidationPage() {
                                 parseFloat(e.target.value) || null
                               )
                             }
-                            className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                            className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="g"
                           />
                           {calculatingIds.has(product.id) && (
@@ -1783,7 +1783,7 @@ export default function AdminValidationPage() {
                             onBlur={(e) =>
                               handleCellEdit(product.id, 'usdprice', parseFloat(e.target.value) || null)
                             }
-                            className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                            className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="$"
                           />
                           {calculatingIds.has(product.id) && (
@@ -1808,7 +1808,7 @@ export default function AdminValidationPage() {
                                 parseFloat(e.target.value) || null
                               )
                             }
-                            className="w-28 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                            className="w-28 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="₹"
                           />
                           {calculatingIds.has(product.id) && (
@@ -1823,8 +1823,8 @@ export default function AdminValidationPage() {
                       <td className="px-6 py-4 text-sm">
                         <div
                           className={`w-24 px-2 py-1 border rounded text-sm font-bold text-center ${(product.profit || 0) >= 0
-                            ? 'text-emerald-400 bg-emerald-500/100/20 border-emerald-500/30'
-                            : 'text-rose-400 bg-rose-500/100/20 border-rose-500/30'
+                            ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
+                            : 'text-rose-400 bg-rose-500/20 border-rose-500/30'
                             }`}
                         >
                           {product.profit !== null && product.profit !== undefined
@@ -1920,7 +1920,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.buying_price || ''}
                           onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1930,7 +1930,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.buying_quantity || ''}
                           onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -2021,7 +2021,7 @@ export default function AdminValidationPage() {
                           type="text"
                           defaultValue={product.seller_phone || ''}
                           onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-                          className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                           placeholder="Phone"
                         />
                       </td>
@@ -2032,7 +2032,7 @@ export default function AdminValidationPage() {
                           type="text"
                           defaultValue={product.payment_method || ''}
                           onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-                          className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                           placeholder="Method"
                         />
                       </td>
@@ -2045,8 +2045,8 @@ export default function AdminValidationPage() {
                               onClick={() => handleConfirmProduct(product.id)}
                               disabled={product.admin_status === 'confirmed'}
                               className={`p-2 rounded-lg transition-all ${product.admin_status === 'confirmed'
-                                ? 'bg-emerald-500/100/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
-                                : 'bg-emerald-500/100/20 text-emerald-400 hover:bg-emerald-500/100 hover:text-white border border-emerald-500/20'
+                                ? 'bg-emerald-500/20 text-emerald-600 cursor-not-allowed border border-emerald-500/30'
+                                : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20'
                                 }`}
                               title="Confirm"
                             >
@@ -2058,8 +2058,8 @@ export default function AdminValidationPage() {
                               onClick={() => handleRejectProduct(product.id)}
                               disabled={product.admin_status === 'rejected'}
                               className={`p-2 rounded-lg transition-all ${product.admin_status === 'rejected'
-                                ? 'bg-rose-500/100/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
-                                : 'bg-rose-500/100/20 text-rose-400 hover:bg-rose-500/100 hover:text-white border border-rose-500/20'
+                                ? 'bg-rose-500/20 text-rose-600 cursor-not-allowed border border-rose-500/30'
+                                : 'bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20'
                                 }`}
                               title="Reject"
                             >
@@ -2078,7 +2078,7 @@ export default function AdminValidationPage() {
           </div>
 
           {/* Stats Footer - FIXED AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3 text-sm text-gray-300">
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 text-sm text-gray-300">
             Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
           </div>
         </div>
@@ -2094,7 +2094,7 @@ export default function AdminValidationPage() {
 
             {/* Modal */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.06] animate-in zoom-in-95 duration-200">
+              <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.1] animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6 rounded-t-xl">
                   <h2 className="text-2xl font-bold">Admin Calculation Constants</h2>
@@ -2111,7 +2111,7 @@ export default function AdminValidationPage() {
                       type="number"
                       value={adminConstants.dollar_rate}
                       onChange={(e) => setAdminConstants({ ...adminConstants, dollar_rate: parseFloat(e.target.value) || 90 })}
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                       step="0.01"
                     />
                   </div>
@@ -2124,7 +2124,7 @@ export default function AdminValidationPage() {
                       type="number"
                       value={adminConstants.bank_conversion_rate * 100}
                       onChange={(e) => setAdminConstants({ ...adminConstants, bank_conversion_rate: (parseFloat(e.target.value) || 2) / 100 })}
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                       step="0.01"
                     />
                   </div>
@@ -2137,7 +2137,7 @@ export default function AdminValidationPage() {
                       type="number"
                       value={adminConstants.shipping_charge_per_kg}
                       onChange={(e) => setAdminConstants({ ...adminConstants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                       step="0.01"
                     />
                   </div>
@@ -2150,7 +2150,7 @@ export default function AdminValidationPage() {
                       type="number"
                       value={adminConstants.commission_rate * 100}
                       onChange={(e) => setAdminConstants({ ...adminConstants, commission_rate: (parseFloat(e.target.value) || 25) / 100 })}
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                       step="0.01"
                     />
                   </div>
@@ -2163,17 +2163,17 @@ export default function AdminValidationPage() {
                       type="number"
                       value={adminConstants.packing_cost}
                       onChange={(e) => setAdminConstants({ ...adminConstants, packing_cost: parseFloat(e.target.value) || 25 })}
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                       step="0.01"
                     />
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-white/[0.06] bg-[#1a1a1a] flex items-center justify-end gap-3 rounded-b-xl">
+                <div className="p-6 border-t border-white/[0.1] bg-[#1a1a1a] flex items-center justify-end gap-3 rounded-b-xl">
                   <button
                     onClick={() => setIsConstantsModalOpen(false)}
-                    className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] border border-white/[0.06] font-medium transition-colors"
+                    className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] border border-white/[0.1] font-medium transition-colors"
                   >
                     Cancel
                   </button>
@@ -2230,7 +2230,7 @@ export default function AdminValidationPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
+              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-6 flex flex-col overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
@@ -2266,7 +2266,7 @@ export default function AdminValidationPage() {
                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                       {/* Card */}
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                         {/* Journey Info */}
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
@@ -2285,7 +2285,7 @@ export default function AdminValidationPage() {
                         {/* Snapshot Details */}
                         <div className="space-y-1.5 text-xs">
                           {snapshot.profit !== null && snapshot.profit !== undefined && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Profit:</span>
                               <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                                 ₹{snapshot.profit.toFixed(2)}
@@ -2293,19 +2293,19 @@ export default function AdminValidationPage() {
                             </div>
                           )}
                           {snapshot.totalcost && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Total Cost:</span>
                               <span className="text-gray-100">₹{snapshot.totalcost.toFixed(2)}</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.productweight && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">Weight:</span>
                               <span className="text-gray-100">{snapshot.snapshotdata.productweight}g</span>
                             </div>
                           )}
                           {snapshot.snapshotdata?.usdprice && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.06]">
+                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
                               <span className="text-gray-400">USD Price:</span>
                               <span className="text-gray-100">${snapshot.snapshotdata.usdprice}</span>
                             </div>
@@ -2342,21 +2342,21 @@ export default function AdminValidationPage() {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-white/[0.06] overflow-hidden pointer-events-auto"
+                className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
               >
-                <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.06]">
+                <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.1]">
                   <h2 className="text-xl font-bold text-white">Remark Details</h2>
                   <button onClick={() => setSelectedRemark(null)} className="p-2 hover:bg-[#1a1a1a] rounded-lg transition-colors">
                     <X className="w-5 h-5 text-gray-400" />
                   </button>
                 </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-[#111111] rounded-lg p-4 border border-white/[0.06]">
+                  <div className="bg-[#111111] rounded-lg p-4 border border-white/[0.1]">
                     <p className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap">{selectedRemark}</p>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-[#111111] border-t border-white/[0.06] flex justify-end">
-                  <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors">
+                <div className="px-6 py-4 bg-[#111111] border-t border-white/[0.1] flex justify-end">
+                  <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors">
                     Close
                   </button>
                 </div>

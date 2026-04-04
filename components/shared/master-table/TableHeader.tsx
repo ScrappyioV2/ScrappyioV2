@@ -36,7 +36,7 @@ export default function TableHeader({
   placeholder="Search all columns..."
   value={searchTerm}
   onChange={handleSearchChange}
-  className="w-full pl-10 pr-4 py-2 border border-white/[0.06] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:!text-black placeholder:opacity-100 placeholder:font-medium"
+  className="w-full pl-10 pr-4 py-2 border border-white/[0.1] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:!text-black placeholder:opacity-100 placeholder:font-medium"
 />
 
   </div>
@@ -48,7 +48,7 @@ export default function TableHeader({
         <div className="flex items-center gap-3">
           <button
             onClick={onColumnToggle}
-            className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#111111] transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#111111] transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

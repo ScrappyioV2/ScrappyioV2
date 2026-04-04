@@ -620,7 +620,7 @@ export default function UBeautyPage() {
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
     return (
-      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.06] p-4">
+      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.1] p-4">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-300">
             Showing <span className="text-gray-100 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
@@ -631,17 +631,17 @@ export default function UBeautyPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
-            <span className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg font-mono flex items-center">
+            <span className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg font-mono flex items-center">
               Page {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
@@ -697,7 +697,7 @@ export default function UBeautyPage() {
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
         // Added 'relative' and 'text-center'
-        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.06] cursor-move hover:bg-[#111111] transition-colors select-none group"
+        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.1] cursor-move hover:bg-[#111111] transition-colors select-none group"
         style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
         <div className="flex items-center justify-center gap-2">
@@ -707,7 +707,7 @@ export default function UBeautyPage() {
         {/* Resize Handle */}
         <div
           onMouseDown={(e) => startResize(columnKey, e)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.05]0/100/50 z-10"
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.08] z-10"
           onClick={(e) => e.stopPropagation()}
         />
       </th>
@@ -722,7 +722,7 @@ export default function UBeautyPage() {
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
-        ? `bg-orange-500/100 text-white font-semibold shadow-sm`
+        ? `bg-orange-500 text-white font-semibold shadow-sm`
         : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
         }`}
     >
@@ -743,12 +743,12 @@ export default function UBeautyPage() {
       <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30">
 
         {/* HEADER */}
-        <div className="sticky top-0 z-50 bg-[#1a1a1a] border-b border-white/[0.06] pb-4 pt-6 px-6">
+        <div className="sticky top-0 z-50 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-6 px-6">
           <div className="max-w-[1920px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                  <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
                     <LayoutList className="w-6 h-6 text-orange-500" />
                   </div>
                   <h1 className="text-2xl font-bold tracking-tight text-white">UBeauty Listing</h1>
@@ -758,7 +758,7 @@ export default function UBeautyPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
+              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.1]">
                 <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
                 <span className="w-px h-3 bg-[#1a1a1a] mx-2" />
                 <span>SELECTED: <span className="text-orange-500 font-bold">{selectedIds.size}</span></span>
@@ -766,7 +766,7 @@ export default function UBeautyPage() {
             </div>
 
             {/* TABS */}
-            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit">
+            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit">
               {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
               {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
@@ -775,26 +775,26 @@ export default function UBeautyPage() {
             </div>
 
             {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.06] mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.1] mb-2">
               <div className="flex gap-3 w-full md:w-auto">
                 <div className="relative">
                   <button
                     onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] flex items-center gap-2 text-sm font-medium transition-colors"
+                    className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] flex items-center gap-2 text-sm font-medium transition-colors"
                   >
                     <Columns className="w-4 h-4" /> Columns
                   </button>
                   {isColumnDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
-                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
                         {Object.keys(visibleColumns).map((col) => (
                           <label key={col} className="flex items-center gap-3 p-2 hover:bg-[#111111] rounded-lg cursor-pointer transition-colors">
                             <input
                               type="checkbox"
                               checked={visibleColumns[col as keyof typeof visibleColumns]}
                               onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
-                              className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                              className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                             />
                             <span className="text-sm text-gray-300 capitalize">{col.replace('_', ' ')}</span>
                           </label>
@@ -835,8 +835,8 @@ export default function UBeautyPage() {
                       onClick={() => setIsMoveToDropdownOpen(!isMoveToDropdownOpen)}
                       disabled={selectedIds.size === 0}
                       className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${selectedIds.size > 0
-                        ? 'bg-amber-600 text-white hover:bg-amber-500/100 shadow-lg shadow-amber-900/20'
-                        : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                        ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
+                        : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                         }`}
                     >
                       <ArrowUpDown className="w-4 h-4" /> Move To
@@ -846,10 +846,10 @@ export default function UBeautyPage() {
                     {isMoveToDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
-                        <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
                           <button
                             onClick={() => handleMoveFromReject('high_demand')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-emerald-500/100/20 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2"
                           >
                             <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                             High Demand
@@ -863,14 +863,14 @@ export default function UBeautyPage() {
                           </button>
                           <button
                             onClick={() => handleMoveFromReject('dropshipping')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-amber-500/100/20 hover:text-amber-400 rounded-lg transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-amber-500/20 hover:text-amber-400 rounded-lg transition-colors flex items-center gap-2"
                           >
                             <div className="w-2 h-2 rounded-full bg-amber-400"></div>
                             Dropshipping
                           </button>
                           <button
                             onClick={() => handleMoveFromReject('not_approved')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-rose-500/100/20 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-rose-500/20 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-2"
                           >
                             <div className="w-2 h-2 rounded-full bg-rose-400"></div>
                             Not Approved
@@ -885,8 +885,8 @@ export default function UBeautyPage() {
                   onClick={handleRollBack}
                   disabled={!hasRollback}
                   className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
-                    ? 'bg-orange-500/100 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
-                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                    ? 'bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
+                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                     }`}
                 >
                   <RotateCcw className="w-4 h-4" /> Undo
@@ -899,7 +899,7 @@ export default function UBeautyPage() {
 
         {/* TABLE */}
         <div className="max-w-[1920px] mx-auto px-6 pb-6">
-          <div className="bg-[#111111] rounded-2xl border border-white/[0.06] overflow-hidden shadow-xl shadow-black/20">
+          <div className="bg-[#111111] rounded-2xl border border-white/[0.1] overflow-hidden shadow-xl shadow-black/20">
             {loading ? (
               <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
                 <div className="w-10 h-10 border-4 border-orange-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -914,14 +914,14 @@ export default function UBeautyPage() {
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                 <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
-                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.06] shadow-md">
+                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.1] shadow-md">
                     <tr>
-                      <th className="p-4 bg-[#111111] border-r border-white/[0.06] text-center sticky left-0 z-20" style={{ width: '60px' }}>
+                      <th className="p-4 bg-[#111111] border-r border-white/[0.1] text-center sticky left-0 z-20" style={{ width: '60px' }}>
                         <input
                           type="checkbox"
                           checked={selectedIds.size === products.length && products.length > 0}
                           onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </th>
                       {columnOrder.map((col) => {
@@ -940,13 +940,13 @@ export default function UBeautyPage() {
                   </thead>
                   <tbody className="divide-y divide-white/[0.06]">
                     {products.map((product, index) => (
-                      <tr key={product.id} className={`group hover:bg-white/[0.05]0/100/5 transition-colors ${selectedIds.has(product.id) ? 'bg-orange-500/100/10' : ''}`}>
-                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.06] group-hover:bg-[#111111] transition-colors" style={{ width: '60px' }}>
+                      <tr key={product.id} className={`group hover:bg-white/[0.05] transition-colors ${selectedIds.has(product.id) ? 'bg-orange-500/10' : ''}`}>
+                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.1] group-hover:bg-[#111111] transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(product.id)}
                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
+                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
                           />
                         </td>
                         {columnOrder.map((col) => {
@@ -955,7 +955,7 @@ export default function UBeautyPage() {
 
                           return (
                             <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-white/[0.06] truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                              className={`px-4 py-3 text-sm border-r border-white/[0.1] truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
@@ -964,7 +964,7 @@ export default function UBeautyPage() {
                                   product.remark ? (
                                     <button
                                       onClick={() => setSelectedRemark(product.remark || '')}
-                                      className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                      className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                     >
                                       View
                                     </button>
@@ -974,7 +974,7 @@ export default function UBeautyPage() {
                                 ) : col === 'product_link' || col === 'amz_link' ? (
                                   product[col as keyof ProductRow] ? (
                                     <a href={ensureAbsoluteUrl(String(product[col as keyof ProductRow]))} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/100/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium border border-orange-500/20"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium border border-orange-500/20"
                                     >
                                       View Link
                                     </a>
@@ -995,7 +995,7 @@ export default function UBeautyPage() {
                               <button
                                 onClick={() => moveProduct(product, 'approved')}
                                 disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                               >
                                 {processingId === product.id ? '...' : 'Approve'}
                               </button>
@@ -1003,7 +1003,7 @@ export default function UBeautyPage() {
                                 <button
                                   onClick={() => moveProduct(product, 'not_approved')}
                                   disabled={processingId === product.id}
-                                  className="px-3 py-1.5 bg-rose-500/100/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                  className="px-3 py-1.5 bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                                 >
                                   Not Appr.
                                 </button>
@@ -1011,7 +1011,7 @@ export default function UBeautyPage() {
                               <button
                                 onClick={() => setRejectModal({ isOpen: true, product })}
                                 disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-[#111111] text-gray-400 border border-white/[0.06] rounded-lg hover:bg-[#1a1a1a] hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                className="px-3 py-1.5 bg-[#111111] text-gray-400 border border-white/[0.1] rounded-lg hover:bg-[#1a1a1a] hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                               >
                                 Reject
                               </button>
@@ -1040,7 +1040,7 @@ export default function UBeautyPage() {
         )}
         {selectedRemark && (
         <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl p-6">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Remark Details</h3>
               <button
@@ -1050,7 +1050,7 @@ export default function UBeautyPage() {
                 ×
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06] max-h-96 overflow-y-auto">
+            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1] max-h-96 overflow-y-auto">
               {selectedRemark}
             </div>
           </div>

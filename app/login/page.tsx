@@ -125,7 +125,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white/[0.06] placeholder-gray-500 text-white rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white/[0.1] placeholder-gray-500 text-white rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
               />
             </div>
@@ -141,7 +141,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white/[0.06] placeholder-gray-500 text-white rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white/[0.1] placeholder-gray-500 text-white rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
               />
             </div>
@@ -313,7 +313,7 @@ export default function LoginPage() {
 //               type="email"
 //               value={email}
 //               onChange={(e) => setEmail(e.target.value)}
-//               className="w-full px-4 py-2 border border-white/[0.06] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-4 py-2 border border-white/[0.1] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 //               placeholder="you@example.com"
 //               required
 //               disabled={loading}
@@ -329,7 +329,7 @@ export default function LoginPage() {
 //               type="password"
 //               value={password}
 //               onChange={(e) => setPassword(e.target.value)}
-//               className="w-full px-4 py-2 border border-white/[0.06] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-4 py-2 border border-white/[0.1] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 //               placeholder="••••••••"
 //               required
 //               disabled={loading}

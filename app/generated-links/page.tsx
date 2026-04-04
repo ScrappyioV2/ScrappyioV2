@@ -472,7 +472,7 @@ function GeneratedLinks() {
 
         {/* Copy Progress Bar */}
         {copyProgress.isActive && (
-          <div className="mb-4 bg-[#111111] rounded-lg shadow-md p-4 border border-white/[0.06]">
+          <div className="mb-4 bg-[#111111] rounded-lg shadow-md p-4 border border-white/[0.1]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-gray-500">Copying links...</span>
               <span className="text-sm font-semibold text-blue-600">
@@ -492,15 +492,15 @@ function GeneratedLinks() {
         <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
           <p className="text-sm text-blue-700">
             <strong>⌨️ Keyboard Navigation:</strong> Click any row to select → Use{' '}
-            <kbd className="px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs mx-1">↑</kbd>{' '}
-            <kbd className="px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs">↓</kbd> arrows to navigate → Press{' '}
-            <kbd className="px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs mx-1">Ctrl+C</kbd> to copy link!
+            <kbd className="px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs mx-1">↑</kbd>{' '}
+            <kbd className="px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs">↓</kbd> arrows to navigate → Press{' '}
+            <kbd className="px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs mx-1">Ctrl+C</kbd> to copy link!
           </p>
         </div>
 
         {/* Links Table */}
         {visibleLinks.length > 0 ? (
-          <div className="bg-[#111111] rounded-lg shadow-md overflow-hidden border border-white/[0.06]">
+          <div className="bg-[#111111] rounded-lg shadow-md overflow-hidden border border-white/[0.1]">
             <div
               ref={scrollContainerRef}
               className="overflow-x-auto"
@@ -508,23 +508,23 @@ function GeneratedLinks() {
             >
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-[#1a1a1a] border-b border-white/[0.06]">
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.06]">
+                  <tr className="bg-[#1a1a1a] border-b border-white/[0.1]">
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.1]">
                       No.
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.06]">
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.1]">
                       Seller Name
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.06]">
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.1]">
                       Merchant Token
                     </th>
-                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.06]">
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.1]">
                       Page
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.06]">
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.1]">
                       Filter Type
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.06]">
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-r border-white/[0.1]">
                       Profile Link
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -541,34 +541,34 @@ function GeneratedLinks() {
                       <tr
                         key={index}
                         onClick={() => setFocusedRowIndex(index)}
-                        className={`border-b border-white/[0.06] transition-all duration-150 cursor-pointer ${isCopied
+                        className={`border-b border-white/[0.1] transition-all duration-150 cursor-pointer ${isCopied
                           ? 'bg-green-50 hover:bg-green-100'
                           : isFocused
                             ? 'bg-blue-50 ring-2 ring-inset ring-blue-400 shadow-sm'
                             : 'hover:bg-[#111111]'
                           }`}
                       >
-                        <td className="px-6 py-4 text-sm text-gray-500 font-medium border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm text-gray-500 font-medium border-r border-white/[0.1]">
                           {index + 1}
                           {isCopied && <span className="ml-2 text-green-600">✓</span>}
                         </td>
-                        <td className="px-6 py-4 text-sm text-white font-medium border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm text-white font-medium border-r border-white/[0.1]">
                           {link.seller_name}
                         </td>
-                        <td className="px-6 py-4 text-sm font-mono text-gray-500 border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm font-mono text-gray-500 border-r border-white/[0.1]">
                           {link.merchant_token}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 text-center border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm text-gray-500 text-center border-r border-white/[0.1]">
                           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold">
                             {link.page_number}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm border-r border-white/[0.1]">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
                             {link.filter_label}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-blue-600 max-w-md border-r border-white/[0.06]">
+                        <td className="px-6 py-4 text-sm text-blue-600 max-w-md border-r border-white/[0.1]">
                           <a
                             href={link.profile_link}
                             target="_blank"
@@ -609,7 +609,7 @@ function GeneratedLinks() {
             </div>
 
             {/* Footer Info */}
-            <div className="bg-[#111111] px-6 py-3 border-t border-white/[0.06] text-sm text-gray-500 flex items-center justify-between">
+            <div className="bg-[#111111] px-6 py-3 border-t border-white/[0.1] text-sm text-gray-500 flex items-center justify-between">
               <span>
                 Displaying {visibleLinks.length.toLocaleString()} of {links.length.toLocaleString()} total links
                 {showCopied && ` (filtered to ${copiedLinks.size} copied)`}
@@ -622,7 +622,7 @@ function GeneratedLinks() {
             </div>
           </div>
         ) : (
-          <div className="bg-[#111111] rounded-lg shadow-md p-12 text-center border border-white/[0.06]">
+          <div className="bg-[#111111] rounded-lg shadow-md p-12 text-center border border-white/[0.1]">
             <svg className="w-20 h-20 mx-auto text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>

@@ -77,7 +77,7 @@ export default function NumericFilter({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Enter value..."
-          className="w-full px-3 py-2 text-sm border border-white/[0.06] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 text-sm border border-white/[0.1] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
@@ -91,7 +91,7 @@ export default function NumericFilter({
         </button>
         <button
           onClick={handleClear}
-          className="flex-1 px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 text-sm font-medium rounded-lg hover:bg-[#111111] transition"
+          className="flex-1 px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 text-sm font-medium rounded-lg hover:bg-[#111111] transition"
         >
           Clear
         </button>

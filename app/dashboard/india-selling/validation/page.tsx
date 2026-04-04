@@ -2314,7 +2314,7 @@ export default function ValidationPage() {
                         <div className="flex items-center gap-2 whitespace-nowrap">
                             <span>{product.asin}</span>
                             {product.is_new && (
-                                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30 rounded uppercase tracking-wider animate-pulse">
+                                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded uppercase tracking-wider animate-pulse">
                                     New
                                 </span>
                             )}
@@ -2397,10 +2397,10 @@ export default function ValidationPage() {
 
             case 'history':
                 return (
-                    <td key={col_key} className="px-6 py-4 text-center border-r border-white/[0.06]">
+                    <td key={col_key} className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <button
                             onClick={() => fetchHistory(product.asin)}
-                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
+                            className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors"
                             title="View Journey History"
                         >
                             <History className="w-4 h-4" />
@@ -2411,7 +2411,7 @@ export default function ValidationPage() {
             case 'product_name':
                 if (!visibleColumns.product_name) return null;
                 return (
-                    <td key={col_key} style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-white/[0.06]">
+                    <td key={col_key} style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-white/[0.1]">
                         <div className="truncate max-w-full text-gray-500 text-xs" title={product.product_name || ''}>
                             {product.product_name || '-'}
                         </div>
@@ -2464,14 +2464,14 @@ export default function ValidationPage() {
                                 {openFunnelId === product.id && dropdownPos && (
                                     <div
                                         style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
-                                        className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150"
+                                        className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150"
                                     >
                                         {['RS', 'DP'].map((f) => (
                                             <button
                                                 key={f}
                                                 onClick={() => handleFunnelChange(product.id, f)}
                                                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${product.funnel === f
-                                                    ? 'bg-orange-500/100/10 text-orange-400'
+                                                    ? 'bg-orange-500/10 text-orange-400'
                                                     : 'text-gray-500 hover:bg-[#111111] hover:text-white'
                                                     }`}
                                             >
@@ -2713,12 +2713,12 @@ export default function ValidationPage() {
                                             setOpenChecklistId(null);
                                         }
                                     }}
-                                    className={`w-full min-w-[100px] px-3 py-1.5 bg-[#111111] border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-white/[0.06] hover:border-white/[0.06]'}`}
+                                    className={`w-full min-w-[100px] px-3 py-1.5 bg-[#111111] border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-white/[0.1] hover:border-white/[0.1]'}`}
                                 >
                                     {selected.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                             {selected.map(o => (
-                                                <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/100/20 text-emerald-400 rounded text-[10px] font-medium">{o.label}</span>
+                                                <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] font-medium">{o.label}</span>
                                             ))}
                                         </div>
                                     ) : (<span className="text-gray-300">Select...</span>)}
@@ -2729,10 +2729,10 @@ export default function ValidationPage() {
                                 {isOpen && dropdownPos && (
                                     <>
                                         <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenOriginId(null); setDropdownPos(null); }} />
-                                        <div className="fixed w-40 bg-[#111111] border border-white/[0.06] rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+                                        <div className="fixed w-40 bg-[#111111] border border-white/[0.1] rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
                                             {origins.map(o => (
                                                 <label key={o.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#111111] cursor-pointer text-xs text-gray-300 transition-colors">
-                                                    <input type="checkbox" checked={o.checked} onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50" />
+                                                    <input type="checkbox" checked={o.checked} onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50" />
                                                     <span className={o.checked ? 'text-emerald-400 font-medium' : ''}>{o.label}</span>
                                                     {o.checked && (<svg className="w-3 h-3 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
                                                 </label>
@@ -2754,7 +2754,7 @@ export default function ValidationPage() {
                             <input type="number" key={`${product.id}-pw-${product.product_weight}`} defaultValue={product.product_weight ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'product_weight', e.target.value)}
                                 onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
-                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
+                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (product.product_weight ?? '-')}
                     </td>
@@ -2769,7 +2769,7 @@ export default function ValidationPage() {
                             <input type="text" key={`${product.id}-usd-${product.usd_price}`} defaultValue={product.usd_price ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'usd_price', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
-                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
+                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (formatUSD(product.usd_price))}
                     </td>
@@ -2784,7 +2784,7 @@ export default function ValidationPage() {
                             <input type="text" key={`${product.id}-inr-${product.inr_purchase}`} defaultValue={product.inr_purchase ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'inr_purchase', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
-                                className="w-full max-w-[90px] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
+                                className="w-full max-w-[90px] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (formatINR(product.inr_purchase))}
                     </td>
@@ -2802,7 +2802,7 @@ export default function ValidationPage() {
                             onBlur={(e) => { const val = e.target.value.trim(); if (val) { handleCellEdit(product.id, 'inr_purchase_link', val); } }}
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                             placeholder="Paste source link"
-                            className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate text-xs"
+                            className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate text-xs"
                         />
                     </td>
                 );
@@ -2842,12 +2842,12 @@ export default function ValidationPage() {
                                             setOpenOriginId(null);
                                         }
                                     }}
-                                    className={`w-full min-w-[130px] px-3 py-1.5 bg-[#111111] border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-white/[0.06] hover:border-white/[0.06]'}`}
+                                    className={`w-full min-w-[130px] px-3 py-1.5 bg-[#111111] border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-white/[0.1] hover:border-white/[0.1]'}`}
                                 >
                                     {checkedCount > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                             {checkedItems.map(c => (
-                                                <span key={c.key} className="px-1.5 py-0.5 bg-orange-500/100/10 text-orange-500 rounded text-[10px] font-medium">{c.label}</span>
+                                                <span key={c.key} className="px-1.5 py-0.5 bg-orange-500/10 text-orange-500 rounded text-[10px] font-medium">{c.label}</span>
                                             ))}
                                         </div>
                                     ) : (<span className="text-gray-300">-</span>)}
@@ -2855,10 +2855,10 @@ export default function ValidationPage() {
                                 {isOpen && dropdownPos && (
                                     <>
                                         <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenChecklistId(null); setDropdownPos(null); }} />
-                                        <div className="fixed w-44 bg-[#111111] border border-white/[0.06] rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+                                        <div className="fixed w-44 bg-[#111111] border border-white/[0.1] rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
                                             {checks.map(c => (
                                                 <label key={c.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#111111] cursor-pointer text-xs text-gray-300 transition-colors">
-                                                    <input type="checkbox" checked={c.checked} onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50" />
+                                                    <input type="checkbox" checked={c.checked} onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50" />
                                                     <span className={c.checked ? 'text-orange-500 font-medium' : ''}>{c.label}</span>
                                                     {c.checked && (<svg className="w-3 h-3 text-orange-500 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
                                                 </label>
@@ -2893,8 +2893,8 @@ export default function ValidationPage() {
                         <div className="flex flex-col items-center gap-1.5">
                             {product.calculated_judgement && product.calculated_judgement !== 'PENDING' ? (
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${product.calculated_judgement === 'PASS'
-                                    ? 'bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30'
-                                    : 'bg-rose-500/100/20 text-rose-400 border border-rose-500/30'
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                                     }`}>
                                     {product.calculated_judgement}
                                 </span>
@@ -2904,8 +2904,8 @@ export default function ValidationPage() {
                                 <button
                                     onClick={() => handleMoveByJudgement(product)}
                                     className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${product.calculated_judgement === 'PASS'
-                                        ? 'bg-emerald-600 hover:bg-emerald-500/100 text-white shadow-lg shadow-emerald-900/50'
-                                        : 'bg-rose-600 hover:bg-rose-500/100 text-white shadow-lg shadow-rose-900/50'
+                                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/50'
+                                        : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/50'
                                         }`}
                                 >
                                     Move {product.calculated_judgement === 'PASS' ? 'Pass' : 'Fail'}
@@ -2920,7 +2920,7 @@ export default function ValidationPage() {
                 return (
                     <td key={col_key} className="p-3 text-center">
                         {product.remark ? (
-                            <button onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+                            <button onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">
                                 View
                             </button>
                         ) : (<button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer">+ Add</button>)}
@@ -2947,7 +2947,7 @@ export default function ValidationPage() {
 
                         {/* Stats Cards - Compact */}
                         <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-6">
-                            <div className="flex items-center gap-2.5 bg-[#1a1a1a] rounded-lg px-3.5 py-2 border border-white/[0.06]">
+                            <div className="flex items-center gap-2.5 bg-[#1a1a1a] rounded-lg px-3.5 py-2 border border-white/[0.1]">
                                 <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Total</span>
                                 <span className="text-sm sm:text-lg font-bold text-white">{stats.total}</span>
                             </div>
@@ -2973,7 +2973,7 @@ export default function ValidationPage() {
                             </div>
                         </div>
                         {/* File Tabs */}
-                        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-5 p-1 sm:p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
+                        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-5 p-1 sm:p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
                             {[
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
@@ -2985,7 +2985,7 @@ export default function ValidationPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as FileTab)}
                                     className={`px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === tab.id
-                                        ? 'bg-orange-500/100 text-white font-semibold shadow-sm'
+                                        ? 'bg-orange-500 text-white font-semibold shadow-sm'
                                         : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
                                         }`}
                                 >
@@ -3011,7 +3011,7 @@ export default function ValidationPage() {
                                             placeholder="Search by ASIN, SKU, Product Name, or Brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
+                                            className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
                                         />
                                         {searchQuery && (
                                             <button
@@ -3029,7 +3029,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.06] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.1] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -3040,7 +3040,7 @@ export default function ValidationPage() {
                                         {isFilterOpen && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
                                                     <h3 className="font-semibold text-gray-100 mb-3">Filter Products</h3>
                                                     <div className="space-y-3">
                                                         <div>
@@ -3049,7 +3049,7 @@ export default function ValidationPage() {
                                                                 type="text"
                                                                 value={filters.seller_tag}
                                                                 onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter seller name"
                                                             />
                                                         </div>
@@ -3059,7 +3059,7 @@ export default function ValidationPage() {
                                                                 type="text"
                                                                 value={filters.brand}
                                                                 onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter brand"
                                                             />
                                                         </div>
@@ -3069,7 +3069,7 @@ export default function ValidationPage() {
                                                                 type="text"
                                                                 value={filters.funnel}
                                                                 onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter funnel"
                                                             />
                                                         </div>
@@ -3091,8 +3091,8 @@ export default function ValidationPage() {
                                         onClick={handleMoveToMainClick}
                                         disabled={selectedIds.size === 0}
                                         className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-                                            : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.06]'
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                            : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.1]'
                                             }`}
                                     >
                                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3107,7 +3107,7 @@ export default function ValidationPage() {
                                         onClick={handleMoveToReworkingClick}
                                         disabled={selectedIds.size === 0}
                                         className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                                             : 'bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500'
                                             }`}
                                     >
@@ -3124,8 +3124,8 @@ export default function ValidationPage() {
         onClick={handleMoveToPassClick}
         disabled={selectedIds.size === 0}
         className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
-          ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-          : 'bg-emerald-600 text-white hover:bg-emerald-500/100 border border-emerald-500'
+          ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+          : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
           }`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3141,8 +3141,8 @@ export default function ValidationPage() {
         onClick={handleMoveToFailClick}
         disabled={selectedIds.size === 0}
         className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
-          ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-          : 'bg-rose-600 text-white hover:bg-rose-500/100 border border-rose-500'
+          ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+          : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
           }`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3153,11 +3153,11 @@ export default function ValidationPage() {
     )} */}
 
                                 {/* Funnel Quick Filters */}
-                                <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.06]">
+                                <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
                                     <button
                                         onClick={() => setFunnelFilter('ALL')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'ALL'
-                                            ? 'bg-orange-500/100 text-white shadow-lg'
+                                            ? 'bg-orange-500 text-white shadow-lg'
                                             : 'text-gray-400 hover:text-white hover:bg-[#111111]'
                                             }`}
                                     >
@@ -3188,7 +3188,7 @@ export default function ValidationPage() {
                                         onClick={handleMoveToRejectClick}
                                         disabled={selectedIds.size === 0}
                                         className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
                                             : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
                                             }`}
                                     >
@@ -3210,8 +3210,8 @@ export default function ValidationPage() {
                                         className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
                                             (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
                                             (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
-                                            : 'bg-amber-600 text-white hover:bg-amber-500/100 border border-amber-500'
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                            : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
                                             }`}
                                         title={
                                             activeTab === 'main_file' ? 'Roll back last ASIN from Pass File' :
@@ -3230,7 +3230,7 @@ export default function ValidationPage() {
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500/100 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
                                     >
                                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -3244,7 +3244,7 @@ export default function ValidationPage() {
                                     {isDownloadDropdownOpen && (
                                         <>
                                             <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
 
                                                 {/* Download Selected - only if items selected */}
                                                 {selectedIds.size > 0 && (
@@ -3295,7 +3295,7 @@ export default function ValidationPage() {
                                 {/* Bulk india Price Update */}
                                 <button
                                     onClick={() => indiaPriceCSVInputRef.current?.click()}
-                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500/100 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
                                 >
                                     Bulk INDIA Price Update
                                 </button>
@@ -3316,7 +3316,7 @@ export default function ValidationPage() {
                     </div>
 
                     {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                    <div className="flex-1 min-h-0 bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/[0.06]">
+                    <div className="flex-1 min-h-0 bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/[0.1]">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-8 sm:p-16">
                                 <div className="relative">
@@ -3348,7 +3348,7 @@ export default function ValidationPage() {
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
                                         <div className="absolute inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">
-                                            <div className="flex items-center gap-3 bg-[#111111] px-6 py-4 rounded-xl shadow-2xl border border-white/[0.06]">
+                                            <div className="flex items-center gap-3 bg-[#111111] px-6 py-4 rounded-xl shadow-2xl border border-white/[0.1]">
                                                 <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
                                                 <span className="text-gray-100 font-semibold">
                                                     Loading {activeTab.replace('_', ' ')}...
@@ -3358,7 +3358,7 @@ export default function ValidationPage() {
                                     )}
 
                                     <table className="w-full table-fixed max-w-full">
-                                        <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10 shadow-md">
+                                        <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
                                             <tr>
                                                 {/* Checkbox — always first, not draggable */}
                                                 <th className="px-6 py-4 text-left bg-[#111111] sticky left-0 z-20" style={{ width: 50, minWidth: 50 }}>
@@ -3366,7 +3366,7 @@ export default function ValidationPage() {
                                                         type="checkbox"
                                                         checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                                                         onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                                                        className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                     />
                                                 </th>
 
@@ -3448,7 +3448,7 @@ export default function ValidationPage() {
                                                             type="checkbox"
                                                             checked={selectedIds.has(product.id)}
                                                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                                                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                         />
                                                     </td>
 
@@ -3464,7 +3464,7 @@ export default function ValidationPage() {
                                 </div>
 
                                 {allFilteredProducts.length > rowsPerPage && (
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-white/[0.06] bg-[#111111]">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-white/[0.1] bg-[#111111]">
                                         <div className="text-sm text-gray-300">
                                             Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{allFilteredProducts.length}</span> products
                                             {selectedIds.size > 0 && (
@@ -3478,7 +3478,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(1)}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 First
                                             </button>
@@ -3486,19 +3486,19 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 Previous
                                             </button>
 
-                                            <span className="px-4 py-1.5 bg-orange-500/100 text-white rounded-lg text-sm font-semibold">
+                                            <span className="px-4 py-1.5 bg-orange-500 text-white rounded-lg text-sm font-semibold">
                                                 Page {currentPage} of {totalPages}
                                             </span>
 
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 Next
                                             </button>
@@ -3506,7 +3506,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(totalPages)}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.1]"
                                             >
                                                 Last
                                             </button>
@@ -3515,13 +3515,13 @@ export default function ValidationPage() {
                                 )}
 
                                 {/* Footer Stats - Fixed at bottom of table
-                                <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                                <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
                                     <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap gap-2">
                                         <span className="font-medium">
                                             Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{products.length}</span> products
                                         </span>
                                         {selectedIds.size > 0 && (
-                                            <span className="px-3 py-1 bg-orange-500/100/10 text-orange-400 rounded-full font-semibold border border-orange-500/30">
+                                            <span className="px-3 py-1 bg-orange-500/10 text-orange-400 rounded-full font-semibold border border-orange-500/30">
                                                 {selectedIds.size} selected
                                             </span>
                                         )}
@@ -3537,7 +3537,7 @@ export default function ValidationPage() {
                     <>
                         <div className="fixed inset-0 bg-[#111111] z-40" onClick={() => setIsConstantsModalOpen(false)} />
                         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.06] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                            <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.1] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
                                 <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-4 sm:p-6">
                                     <h2 className="text-lg sm:text-2xl font-bold">Calculation Constants Configuration</h2>
                                     <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
@@ -3550,7 +3550,7 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.dollar_rate ?? ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, dollar_rate: isNaN(val) ? 0 : val }); }}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
@@ -3560,7 +3560,7 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.bank_conversion_rate != null && !isNaN(constants.bank_conversion_rate) ? constants.bank_conversion_rate * 100 : ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, bank_conversion_rate: isNaN(val) ? 0 : val / 100 }); }}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
@@ -3570,7 +3570,7 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.shipping_charge_per_kg ?? ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, shipping_charge_per_kg: isNaN(val) ? 0 : val }); }}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
@@ -3583,7 +3583,7 @@ export default function ValidationPage() {
                                                 const val = parseFloat(e.target.value);
                                                 setConstants({ ...constants, commission_rate: isNaN(val) ? 0 : val / 100 });
                                             }}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
@@ -3593,16 +3593,16 @@ export default function ValidationPage() {
                                             type="number"
                                             value={constants.packing_cost ?? ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, packing_cost: isNaN(val) ? 0 : val }); }}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="p-4 sm:p-6 border-t border-white/[0.06] bg-[#1a1a1a] flex items-center justify-end gap-3">
+                                <div className="p-4 sm:p-6 border-t border-white/[0.1] bg-[#1a1a1a] flex items-center justify-end gap-3">
                                     <button
                                         onClick={() => setIsConstantsModalOpen(false)}
-                                        className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
+                                        className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.1]"
                                     >
                                         Cancel
                                     </button>
@@ -3660,7 +3660,7 @@ export default function ValidationPage() {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
+                            className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between mb-8">
@@ -3696,7 +3696,7 @@ export default function ValidationPage() {
                                             <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                                             {/* Card */}
-                                            <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
+                                            <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
                                                 {/* Journey Info */}
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
@@ -3756,7 +3756,7 @@ export default function ValidationPage() {
             {/* REJECT REASON MODAL */}
             {isRejectModalOpen && (
                 <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
+                    <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Reject {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''}</h3>
                             <button
@@ -3773,12 +3773,12 @@ export default function ValidationPage() {
                             placeholder="Enter rejection reason..."
                             rows={4}
                             autoFocus
-                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder-slate-600 transition-all resize-none"
+                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder-slate-600 transition-all resize-none"
                         />
                         <div className="flex items-center justify-end gap-3 mt-4">
                             <button
                                 onClick={() => { setIsRejectModalOpen(false); setRejectReason(''); }}
-                                className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
+                                className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.1]"
                             >
                                 Cancel
                             </button>
@@ -3802,8 +3802,8 @@ export default function ValidationPage() {
                             <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg">×</button>
                         </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
                       <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                       <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
@@ -3814,13 +3814,13 @@ export default function ValidationPage() {
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
                   <div className="text-xs text-gray-300">
                     Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
@@ -3840,14 +3840,14 @@ export default function ValidationPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>
