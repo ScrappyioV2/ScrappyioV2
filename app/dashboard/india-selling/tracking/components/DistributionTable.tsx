@@ -385,17 +385,17 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={saveEdit}
                     onKeyDown={handleKeyDown}
-                    className="w-full px-2 py-1 bg-slate-800 border border-indigo-500 rounded text-sm text-slate-200 focus:outline-none"
+                    className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-sm text-gray-100 focus:outline-none"
                 />
             );
         }
         return (
             <div
                 onClick={() => startEditing(id, field, value || '')}
-                className={`cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors min-h-[28px] ${className}`}
+                className={`cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors min-h-[28px] ${className}`}
                 title="Click to edit"
             >
-                {value || <span className="text-slate-600 italic">-</span>}
+                {value || <span className="text-gray-500 italic">-</span>}
             </div>
         );
     };
@@ -415,7 +415,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-lg text-slate-400">Loading distribution for {sellerName}...</div>
+                <div className="text-lg text-gray-400">Loading distribution for {sellerName}...</div>
             </div>
         );
     }
@@ -426,18 +426,18 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
     return (
         <div className="h-full flex flex-col">
             {/* Toolbar */}
-            <div className="flex-none pt-3 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
+            <div className="flex-none pt-3 sm:pt-5 pb-6 flex gap-4 items-center flex-wrap">
                 {/* Search */}
                 <input
                     type="text"
                     placeholder={`Search ${sellerName} items...`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500 text-sm"
+                    className="flex-1 min-w-0 max-w-md px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500 text-sm"
                 />
 
                 {/* Status Filter */}
-                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
+                <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
                     {(['ALL', 'pending', 'shipped', 'completed'] as const).map(opt => (
                         <button
                             key={opt}
@@ -446,8 +446,8 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                                 ? opt === 'pending' ? 'bg-yellow-600 text-white shadow-lg'
                                     : opt === 'shipped' ? 'bg-blue-600 text-white shadow-lg'
                                         : opt === 'completed' ? 'bg-green-600 text-white shadow-lg'
-                                            : 'bg-indigo-600 text-white shadow-lg'
-                                : 'text-slate-500 hover:text-slate-300'
+                                            : 'bg-orange-500/100 text-white shadow-lg'
+                                : 'text-gray-500 hover:text-gray-200'
                                 }`}
                         >
                             {opt === 'ALL' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1)}
@@ -458,7 +458,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                 {/* Bulk Actions */}
                 {selectedIds.size > 0 && (
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">{selectedIds.size} selected:</span>
+                        <span className="text-xs text-gray-400">{selectedIds.size} selected:</span>
                         <button
                             disabled={updating}
                             onClick={() => handleBulkStatusUpdate('shipped')}
@@ -483,7 +483,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                         {/* ⏪ Rollback from Restock */}
                         <button
                             onClick={() => setRollbackOpen(true)}
-                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
+                            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
                         >
                             <span className="hidden sm:inline">⏪ Rollback from Restock</span><span className="sm:hidden">⏪ Rollback</span>
                         </button>
@@ -493,36 +493,36 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
 
             {/* Table */}
             <div className="flex-1 overflow-hidden">
-                <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
+                <div className="bg-[#1a1a1a] rounded-lg border border-white/[0.06] h-full flex flex-col">
                     <div className="flex-1 overflow-auto">
-                        <table className="w-full divide-y divide-slate-800" style={{ minWidth: '1400px' }}>
-                            <thead className="bg-slate-950 sticky top-0 z-10">
+                        <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '1400px' }}>
+                            <thead className="bg-[#111111] sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-3 py-3 text-center w-12">
+                                    <th className="px-6 py-4 text-center w-12">
                                         <input
                                             type="checkbox"
                                             checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.has(p.id))}
                                             onChange={(e) => handleSelectAll(e.target.checked)}
-                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
                                         />
                                     </th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">SKU</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Product Name</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Box</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Funnel</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Origin</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 bg-green-900/20">Buying Price</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 bg-green-900/20">Qty</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Weight</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Notes</th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Status</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">ASIN</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">SKU</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Product Name</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Box</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Funnel</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Origin</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06] bg-green-900/20">Buying Price</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06] bg-green-900/20">Qty</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Weight</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Notes</th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800/50">
+                            <tbody className="divide-y divide-white/[0.06]">
                                 {filteredProducts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={12} className="px-4 py-12 text-center text-slate-500">
+                                        <td colSpan={12} className="px-4 py-12 text-center text-gray-300">
                                             {products.length === 0
                                                 ? `No items distributed to ${sellerName} yet. Items will appear here after Checking.`
                                                 : 'No items match your current filters.'
@@ -531,87 +531,87 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                                     </tr>
                                 ) : (
                                     filteredProducts.map(product => (
-                                        <tr key={product.id} className="hover:bg-slate-800/40 group transition-colors">
+                                        <tr key={product.id} className="hover:bg-white/[0.05]0/100/5 group transition-colors">
                                             {/* Checkbox */}
-                                            <td className="px-3 py-2 text-center">
+                                            <td className="px-6 py-4 text-center">
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedIds.has(product.id)}
                                                     onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                    className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                                                    className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
                                                 />
                                             </td>
 
                                             {/* ASIN */}
-                                            <td className="px-3 py-2 font-mono text-sm text-slate-300 border-r border-slate-800/50">
+                                            <td className="px-6 py-4 font-mono text-sm text-gray-300 border-r border-white/[0.06]">
                                                 <div className="truncate max-w-[120px]" title={product.asin}>{product.asin}</div>
                                             </td>
 
                                             {/* SKU */}
-                                            <td className="px-3 py-2 font-mono text-sm text-slate-400 border-r border-slate-800/50">
+                                            <td className="px-6 py-4 font-mono text-sm text-gray-300 border-r border-white/[0.06]">
                                                 <div className="truncate max-w-[100px]">{product.sku || '-'}</div>
                                             </td>
 
                                             {/* Product Name */}
-                                            <td className="px-3 py-2 text-sm text-slate-200 border-r border-slate-800/50">
+                                            <td className="px-6 py-4 text-sm text-gray-100 border-r border-white/[0.06]">
                                                 <div className="truncate max-w-[200px]" title={product.product_name || ''}>{product.product_name || '-'}</div>
                                             </td>
 
                                             {/* Box Number */}
-                                            <td className="px-3 py-2 text-center border-r border-slate-800/50">
+                                            <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                                                 {product.box_number ? (
                                                     <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold">
                                                         {product.box_number}
                                                     </span>
-                                                ) : <span className="text-slate-600">-</span>}
+                                                ) : <span className="text-gray-500">-</span>}
                                             </td>
 
                                             {/* Funnel */}
-                                            <td className="px-3 py-2 text-center border-r border-slate-800/50">
+                                            <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                                                 {(() => {
                                                     const { display, color } = getFunnelBadgeStyle(product.funnel);
                                                     return display === '-'
-                                                        ? <span className="text-slate-600">-</span>
+                                                        ? <span className="text-gray-500">-</span>
                                                         : <span className={`px-2 py-1 rounded-lg text-xs font-bold ${color}`}>{display}</span>;
                                                 })()}
                                             </td>
 
                                             {/* Origin */}
-                                            <td className="px-3 py-2 text-center border-r border-slate-800/50">
+                                            <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                                                 <div className="flex flex-col gap-0.5 items-center">
-                                                    {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500 text-white rounded text-[10px] font-bold">IN</span>}
+                                                    {product.origin_india && <span className="px-1.5 py-0.5 bg-orange-500/100 text-white rounded text-[10px] font-bold">IN</span>}
                                                     {product.origin_china && <span className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold">CN</span>}
                                                     {product.origin_us && <span className="px-1.5 py-0.5 bg-sky-500 text-white rounded text-[10px] font-bold">US</span>}
-                                                    {!product.origin_india && !product.origin_china && !product.origin_us && <span className="text-slate-600">-</span>}
+                                                    {!product.origin_india && !product.origin_china && !product.origin_us && <span className="text-gray-500">-</span>}
                                                 </div>
                                             </td>
 
                                             {/* Buying Price */}
-                                            <td className="px-3 py-2 text-sm text-slate-300 text-center border-r border-slate-800/50 bg-green-900/10">
+                                            <td className="px-6 py-4 text-sm text-gray-300 text-center border-r border-white/[0.06] bg-green-900/10">
                                                 {product.buying_price ? `₹${product.buying_price}` : '-'}
                                             </td>
 
                                             {/* Qty */}
-                                            <td className="px-3 py-2 text-sm text-slate-300 text-center border-r border-slate-800/50 bg-green-900/10">
+                                            <td className="px-6 py-4 text-sm text-gray-300 text-center border-r border-white/[0.06] bg-green-900/10">
                                                 {product.buying_quantity || '-'}
                                             </td>
 
                                             {/* Weight */}
-                                            <td className="px-3 py-2 text-sm text-slate-300 text-center border-r border-slate-800/50">
+                                            <td className="px-6 py-4 text-sm text-gray-300 text-center border-r border-white/[0.06]">
                                                 {product.product_weight ? `${product.product_weight}kg` : '-'}
                                             </td>
 
                                             {/* Notes - EDITABLE */}
-                                            <td className="px-3 py-2 text-sm text-slate-300 border-r border-slate-800/50">
+                                            <td className="px-6 py-4 text-sm text-gray-300 border-r border-white/[0.06]">
                                                 <EditableCell id={product.id} field="notes" value={product.notes} />
                                             </td>
 
                                             {/* Status */}
-                                            <td className="px-3 py-2 text-center">
+                                            <td className="px-6 py-4 text-center">
                                                 <select
                                                     value={product.distribution_status}
                                                     onChange={(e) => handleStatusChange(product.id, e.target.value)}
-                                                    className={`px-2 py-1 rounded-lg text-xs font-bold border cursor-pointer bg-slate-900 ${statusColors[product.distribution_status] || 'text-slate-400 border-slate-700'}`}
+                                                    className={`px-2 py-1 rounded-lg text-xs font-bold border cursor-pointer bg-[#111111] ${statusColors[product.distribution_status] || 'text-gray-400 border-white/[0.06]'}`}
                                                 >
                                                     <option value="pending">⏳ Pending</option>
                                                     <option value="shipped">🚚 Shipped</option>
@@ -626,8 +626,8 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-slate-400">
+                    <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-gray-300">
                             <span>
                                 Showing {filteredProducts.length} of {products.length} items for {sellerName}
                                 {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}

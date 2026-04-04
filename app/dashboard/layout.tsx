@@ -126,9 +126,9 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   // Loading State - Only on FIRST load
   if ((loading || isChecking) && !hasEverLoaded) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-        <p className="mt-4 text-slate-400 text-sm">Loading...</p>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#111111]">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+        <p className="mt-4 text-gray-400 text-sm">Loading...</p>
       </div>
     );
   }
@@ -142,30 +142,30 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   // Render Dashboard
   return (
-    <div className="flex h-screen bg-slate-950">
+    <div className="flex h-screen bg-[#111111]">
       {/* ✅ Sidebar now receives mobile props */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* ✅ Main area wrapper */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ✅ NEW: Mobile top bar — only visible on <md screens */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-950 border-b border-slate-800">
+        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[#111111] border-b border-white/[0.06]">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#111111] transition-colors"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
           <div className="flex items-center gap-2">
-            <Rocket className="w-4 h-4 text-indigo-500" />
+            <Rocket className="w-4 h-4 text-orange-500" />
             <span className="font-bold text-white text-sm tracking-tight">Scrappy v2</span>
           </div>
 
           {/* Right side: role badge or spacer */}
           {userRole ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-500/100/10 text-orange-500 border border-orange-500/20">
               <ShieldCheck className="w-2.5 h-2.5" />
               {userRole.role}
             </span>

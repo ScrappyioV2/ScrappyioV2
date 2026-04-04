@@ -171,28 +171,28 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="w-full max-w-5xl bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col max-h-[90vh] mx-2 sm:mx-0">
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#111111] p-4">
+            <div className="w-full max-w-5xl bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col max-h-[90vh] mx-2 sm:mx-0">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] flex items-center justify-between">
                     <div>
                         <h2 className="text-base sm:text-xl font-bold text-white">✏️ Edit Box Details</h2>
-                        <p className="text-xs sm:text-sm text-slate-400 mt-1">Modify box metadata or item quantities. Removed items will return to the Inbound queue.</p>
+                        <p className="text-xs sm:text-sm text-gray-300 mt-1">Modify box metadata or item quantities. Removed items will return to the Inbound queue.</p>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl">×</button>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
                 </div>
 
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/50 flex flex-wrap gap-3 sm:gap-6">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] bg-[#1a1a1a] flex flex-wrap gap-3 sm:gap-6">
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-400 uppercase">Box ID</label>
-                        <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500 focus:outline-none" />
+                        <label className="text-xs font-semibold text-gray-400 uppercase">Box ID</label>
+                        <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-400 uppercase">Booking Date</label>
-                        <input type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500 focus:outline-none" />
+                        <label className="text-xs font-semibold text-gray-400 uppercase">Booking Date</label>
+                        <input type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-400 uppercase">Total Weight (kg)</label>
-                        <input type="number" step="0.01" value={totalWeight} onChange={e => setTotalWeight(e.target.value ? Number(e.target.value) : "")} className="w-32 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500 focus:outline-none" />
+                        <label className="text-xs font-semibold text-gray-400 uppercase">Total Weight (kg)</label>
+                        <input type="number" step="0.01" value={totalWeight} onChange={e => setTotalWeight(e.target.value ? Number(e.target.value) : "")} className="w-32 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
                     </div>
                 </div>
 
@@ -201,16 +201,16 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
                         <div className="text-center py-10 text-rose-400 font-medium">All items removed. Saving will delete the box entirely.</div>
                     ) : (
                         <table className="w-full text-sm">
-                            <thead className="bg-slate-900 text-slate-400">
+                            <thead className="bg-[#111111] text-gray-400">
                                 <tr>
-                                    <th className="px-3 py-2 text-left">ASIN</th>
-                                    <th className="px-3 py-2 text-left">Product</th>
-                                    <th className="px-3 py-2 text-center">Box Qty</th>
-                                    <th className="px-3 py-2 text-center">Weight (kg)</th>
-                                    <th className="px-3 py-2 text-center">Action</th>
+                                    <th className="px-6 py-4 text-left">ASIN</th>
+                                    <th className="px-6 py-4 text-left">Product</th>
+                                    <th className="px-6 py-4 text-center">Box Qty</th>
+                                    <th className="px-6 py-4 text-center">Weight (kg)</th>
+                                    <th className="px-6 py-4 text-center">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800">
+                            <tbody className="divide-y divide-white/[0.06]">
                                 {boxGroup.items.map((item: any) => {
                                     if ((quantities[item.id] ?? 0) <= 0) return null;
                                     const trackingPending = item.pending_quantity ?? 0;
@@ -218,24 +218,24 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
                                     const maxAllowed = currentBoxQty + trackingPending;
 
                                     return (
-                                        <tr key={item.id} className="hover:bg-slate-800/40">
-                                            <td className="px-3 py-3 font-mono text-slate-200">
-                                                <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline flex items-center gap-1">
+                                        <tr key={item.id} className="hover:bg-white/[0.05]0/100/5">
+                                            <td className="px-6 py-4 font-mono text-gray-100">
+                                                <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline flex items-center gap-1">
                                                     {item.asin} <span className="text-[10px]">↗</span>
                                                 </a>
                                             </td>
-                                            <td className="px-3 py-3 text-slate-300 truncate max-w-[200px]">{item.product_name || '-'}</td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-6 py-4 text-gray-300 truncate max-w-[200px]">{item.product_name || '-'}</td>
+                                            <td className="px-6 py-4 text-center">
                                                 <input type="number" min={0} max={maxAllowed} value={quantities[item.id] ?? 0}
                                                     onChange={e => setQuantities(prev => ({ ...prev, [item.id]: Math.min(Number(e.target.value) || 0, maxAllowed) }))}
-                                                    className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-center text-white" />
+                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-center text-white" />
                                             </td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-6 py-4 text-center">
                                                 <input type="number" min={0} step={0.01} value={weights[item.id] ?? 0}
                                                     onChange={e => setWeights(prev => ({ ...prev, [item.id]: Number(e.target.value) || 0 }))}
-                                                    className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-center text-white" />
+                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-center text-white" />
                                             </td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-6 py-4 text-center">
                                                 <button onClick={() => setQuantities(prev => ({ ...prev, [item.id]: 0 }))} className="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded bg-rose-400/10">✕ Remove</button>
                                             </td>
                                         </tr>
@@ -246,9 +246,9 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
                     )}
                 </div>
 
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900/30">
-                    <button onClick={onClose} className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800">Cancel</button>
-                    <button onClick={handleSave} disabled={saving} className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 flex items-center gap-2">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-white/[0.06] flex justify-end gap-3 bg-[#111111]/30">
+                    <button onClick={onClose} className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium text-gray-500 hover:bg-[#111111]">Cancel</button>
+                    <button onClick={handleSave} disabled={saving} className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-orange-500/100 text-white hover:bg-orange-400 disabled:opacity-50 flex items-center gap-2">
                         {saving ? "Saving..." : "💾 Save Changes"}
                     </button>
                 </div>
@@ -645,7 +645,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
         RR: 'bg-gray-400 text-black',
         UB: 'bg-pink-500 text-white',
         VV: 'bg-purple-600 text-white',
-        DE: 'bg-orange-500 text-white',
+        DE: 'bg-orange-500/100 text-white',
         CV: 'bg-green-600 text-white',
     };
 
@@ -671,7 +671,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-lg text-slate-400">Loading boxes...</div>
+                <div className="text-lg text-gray-400">Loading boxes...</div>
             </div>
         );
     }
@@ -684,28 +684,28 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <EditBoxModal open={!!editBoxData} boxGroup={editBoxData} onClose={() => setEditBoxData(null)} onSuccess={() => { setEditBoxData(null); refreshSilently(); onCountsChange(); }} showToast={showToast} />
             {/* Toolbar */}
-            <div className="flex-none pt-3 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
+            <div className="flex-none pt-3 sm:pt-5 pb-6 flex gap-4 items-center flex-wrap">
                 {/* Search */}
                 <input
                     type="text"
                     placeholder="Search by ASIN, Name, SKU, or Box Number..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500 text-sm"
+                    className="flex-1 min-w-0 max-w-md px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500 text-sm"
                 />
 
                 {/* View Toggle */}
-                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1">
+                <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
                     <button
                         onClick={() => setViewMode('grouped')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'grouped' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'grouped' ? 'bg-orange-500/100 text-white' : 'text-gray-500 hover:text-gray-200'
                             }`}
                     >
                         📦 Grouped
                     </button>
                     <button
                         onClick={() => setViewMode('list')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-orange-500/100 text-white' : 'text-gray-500 hover:text-gray-200'
                             }`}
                     >
                         📋 List
@@ -713,12 +713,12 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                 </div>
 
                 {/* Divider */}
-                <div className="h-8 w-px bg-slate-700" />
+                <div className="h-8 w-px bg-[#1a1a1a]" />
 
                 {/* ⏪ Rollback from Checking */}
                 <button
                     onClick={() => setRollbackOpen(true)}
-                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
+                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2"
                 >
                     <span className="hidden sm:inline">⏪ Rollback from Checking</span><span className="sm:hidden">⏪ Rollback</span>
                 </button>
@@ -726,14 +726,14 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
 
             {/* Content */}
             <div className="flex-1 overflow-hidden">
-                <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
+                <div className="bg-[#1a1a1a] rounded-lg border border-white/[0.06] h-full flex flex-col">
                     <div className="flex-1 overflow-y-auto">
 
                         {/* GROUPED VIEW */}
                         {viewMode === 'grouped' && (
                             <div className="p-2 sm:p-4 space-y-2 sm:space-y-3">
                                 {groupedBoxes.length === 0 ? (
-                                    <div className="text-center py-12 text-slate-500">
+                                    <div className="text-center py-12 text-gray-500">
                                         No items in boxes yet. Move delivered items from Inbound tab.
                                     </div>
                                 ) : (
@@ -748,13 +748,13 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                             >
                                                 {/* Box Header */}
                                                 <div
-                                                    className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 cursor-pointer hover:bg-slate-800/30 transition-colors flex-wrap gap-2"
+                                                    className="flex items-center justify-between px-4 sm:px-6 py-2 sm:py-3 cursor-pointer hover:bg-white/[0.05]0/100/5 transition-colors flex-wrap gap-2"
                                                     onClick={() => toggleExpand(group.box_number)}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         {/* Expand Icon */}
                                                         <svg
-                                                            className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                                            className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                                                             fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                                         >
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -768,9 +768,9 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                             </span>
                                                             {/* ✅ UI FIX: Shows Booking and Saved Dates */}
                                                             {group.items.length > 0 && (
-                                                                <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1 font-medium">
-                                                                    <span className="bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap">📅 Booked: <span className="text-slate-200">{group.items[0]?.booking_date ? new Date(group.items[0].booking_date).toLocaleDateString('en-IN') : 'N/A'}</span></span>
-                                                                    <span className="bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap">🕒 Saved: <span className="text-slate-200">{new Date(group.items[0]?.created_at || Date.now()).toLocaleString('en-IN')}</span></span>
+                                                                <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-1 font-medium">
+                                                                    <span className="bg-[#111111] px-2 py-0.5 rounded whitespace-nowrap">📅 Booked: <span className="text-gray-100">{group.items[0]?.booking_date ? new Date(group.items[0].booking_date).toLocaleDateString('en-IN') : 'N/A'}</span></span>
+                                                                    <span className="bg-[#111111] px-2 py-0.5 rounded whitespace-nowrap">🕒 Saved: <span className="text-gray-100">{new Date(group.items[0]?.created_at || Date.now()).toLocaleString('en-IN')}</span></span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -781,28 +781,28 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                         </span>
 
                                                         {/* Item Count */}
-                                                        <span className="text-xs sm:text-sm text-slate-300 font-medium bg-slate-900 px-2 sm:px-3 py-1 rounded-lg border border-slate-800 ml-1 sm:ml-2">
+                                                        <span className="text-xs sm:text-sm text-gray-300 font-medium bg-[#111111] px-2 sm:px-3 py-1 rounded-lg border border-white/[0.06] ml-1 sm:ml-2">
                                                             {new Set(group.items.map(i => i.asin)).size} ASINs · {group.total_quantity} qty
                                                         </span>
                                                     </div>
 
                                                     {/* Box Actions */}
                                                     <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                                                        <button onClick={() => setEditBoxData(group)} className="px-2 sm:px-4 py-1.5 sm:py-2 bg-sky-600/20 text-sky-400 border border-sky-500/30 rounded-lg text-xs font-bold hover:bg-sky-600 hover:text-white transition-all shadow">
+                                                        <button onClick={() => setEditBoxData(group)} className="px-4 sm:px-6 py-1.5 sm:py-2 bg-sky-600/20 text-sky-400 border border-sky-500/30 rounded-lg text-xs font-bold hover:bg-sky-600 hover:text-white transition-all shadow">
                                                             ✏️ Edit Box
                                                         </button>
 
                                                         <button
                                                             disabled={moving}
                                                             onClick={() => handleMoveToChecking(group.box_number)}
-                                                            className="px-2 sm:px-4 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all disabled:opacity-50 shadow"
+                                                            className="px-4 sm:px-6 py-1.5 sm:py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-500/100 transition-all disabled:opacity-50 shadow"
                                                         >
                                                             {moving ? '⏳ Moving...' : '✅ Move to Checking'}
                                                         </button>
 
                                                         <button
                                                             onClick={() => handleDeleteBox(group.box_number)}
-                                                            className="px-2 sm:px-4 py-1.5 sm:py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow"
+                                                            className="px-4 sm:px-6 py-1.5 sm:py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all shadow"
                                                         >
                                                             🗑 Delete
                                                         </button>
@@ -811,7 +811,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
 
                                                 {/* Expanded Items */}
                                                 {isExpanded && (
-                                                    <div className="border-t border-slate-800 overflow-x-auto">
+                                                    <div className="border-t border-white/[0.06] overflow-x-auto">
                                                         <table className="w-full" style={{ tableLayout: 'fixed' }}>
                                                             <colgroup>
                                                                 <col style={{ width: '12%' }} />   {/* ASIN */}
@@ -823,71 +823,71 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                                 <col style={{ width: '5%' }} />    {/* Qty */}
                                                                 <col style={{ width: '8%' }} />    {/* Price */}
                                                             </colgroup>
-                                                            <thead className="bg-slate-950/50">
+                                                            <thead className="bg-[#1a1a1a]">
                                                                 <tr>
-                                                                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">ASIN</th>
-                                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase">
+                                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase">ASIN</th>
+                                                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">
                                                                         SKU
                                                                     </th>
-                                                                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-400 uppercase">Product Name</th>
-                                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase">Funnel</th>
-                                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase">Seller Tag</th>
-                                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase">Origin</th>
-                                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase">Qty</th>
-                                                                    <th className="px-3 py-2 text-center text-xs font-semibold text-slate-400 uppercase">Price</th>
+                                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase">Product Name</th>
+                                                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Funnel</th>
+                                                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Seller Tag</th>
+                                                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Origin</th>
+                                                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Qty</th>
+                                                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Price</th>
                                                                 </tr>
                                                             </thead>
-                                                            <tbody className="divide-y divide-slate-800/50">
+                                                            <tbody className="divide-y divide-white/[0.06]">
                                                                 {mergeBoxItems(group.items).map((merged, idx) => {
                                                                     const item = merged.representative;
                                                                     const totalQty = merged.sellers.reduce((s, x) => s + x.qty, 0);
                                                                     return (
-                                                                        <tr key={item.asin + '-' + idx} className="hover:bg-slate-800/30 transition-colors">
-                                                                            <td className="px-3 py-2 font-mono text-sm text-slate-300">
-                                                                                <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline font-semibold flex items-center gap-1 w-fit">
+                                                                        <tr key={item.asin + '-' + idx} className="hover:bg-white/[0.05]0/100/5 transition-colors">
+                                                                            <td className="px-6 py-4 font-mono text-sm text-gray-300">
+                                                                                <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline font-semibold flex items-center gap-1 w-fit">
                                                                                     {item.asin} <span className="text-[10px]">↗</span>
                                                                                 </a>
                                                                             </td>
-                                                                            <td className="px-3 py-2 font-mono text-sm text-slate-400">
+                                                                            <td className="px-6 py-4 font-mono text-sm text-gray-300">
                                                                                 <div className="truncate max-w-[100px]" title={item.sku || '-'}>
                                                                                     {item.sku || '-'}
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-sm text-slate-200">
+                                                                            <td className="px-6 py-4 text-sm text-gray-100">
                                                                                 <div className="truncate max-w-[200px]" title={item.product_name || ''}>{item.product_name || '-'}</div>
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-center">
+                                                                            <td className="px-6 py-4 text-center">
                                                                                 {(() => {
                                                                                     const { display, color } = getFunnelBadgeStyle(item.funnel);
                                                                                     return display === '-'
-                                                                                        ? <span className="text-slate-600">-</span>
+                                                                                        ? <span className="text-gray-500">-</span>
                                                                                         : <span className={`px-2 py-1 rounded-lg text-xs font-bold ${color}`}>{display}</span>;
                                                                                 })()}
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-center">
+                                                                            <td className="px-6 py-4 text-center">
                                                                                 <div className="flex flex-wrap gap-1.5 justify-center items-center">
                                                                                     {merged.sellers.map(s => (
                                                                                         <div key={s.id} className="flex items-center gap-1">
-                                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-slate-700 text-white'}`}>
+                                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
                                                                                                 {s.tag}
                                                                                             </span>
-                                                                                            <span className="text-xs text-slate-300 font-semibold">{s.qty}</span>
+                                                                                            <span className="text-xs text-gray-300 font-semibold">{s.qty}</span>
                                                                                         </div>
                                                                                     ))}
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-center">
+                                                                            <td className="px-6 py-4 text-center">
                                                                                 <div className="flex flex-col gap-0.5 items-center">
-                                                                                    {item.origin_india && <span className="px-1.5 py-0.5 bg-orange-500 text-white rounded text-[10px] font-bold">IN</span>}
+                                                                                    {item.origin_india && <span className="px-1.5 py-0.5 bg-orange-500/100 text-white rounded text-[10px] font-bold">IN</span>}
                                                                                     {item.origin_china && <span className="px-1.5 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold">CN</span>}
                                                                                     {item.origin_us && <span className="px-1.5 py-0.5 bg-sky-500 text-white rounded text-[10px] font-bold">US</span>}
-                                                                                    {!item.origin_india && !item.origin_china && !item.origin_us && <span className="text-slate-600">-</span>}
+                                                                                    {!item.origin_india && !item.origin_china && !item.origin_us && <span className="text-gray-500">-</span>}
                                                                                 </div>
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-sm text-slate-300 text-center font-bold">
+                                                                            <td className="px-6 py-4 text-sm text-gray-300 text-center font-bold">
                                                                                 {totalQty}
                                                                             </td>
-                                                                            <td className="px-3 py-2 text-sm text-slate-300 text-center">
+                                                                            <td className="px-6 py-4 text-sm text-gray-300 text-center">
                                                                                 {item.buying_price ? `₹${item.buying_price}` : '-'}
                                                                             </td>
                                                                         </tr>
@@ -906,61 +906,61 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
 
                         {/* LIST VIEW */}
                         {viewMode === 'list' && (
-                            <table className="w-full divide-y divide-slate-800" style={{ minWidth: '1200px' }}>
-                                <thead className="bg-slate-950 sticky top-0 z-10">
+                            <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '1200px' }}>
+                                <thead className="bg-[#111111] sticky top-0 z-10">
                                     <tr>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">ASIN</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">
                                             SKU
                                         </th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Product Name</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Funnel</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Seller Tag</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Qty</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Price</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Box Number</th>
-                                        <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Box Number</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Product Name</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Funnel</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Seller Tag</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Qty</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Price</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Box Number</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Box Number</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-800/50">
+                                <tbody className="divide-y divide-white/[0.06]">
                                     {filteredProducts.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                                            <td colSpan={8} className="px-4 py-12 text-center text-gray-300">
                                                 No items in boxes yet.
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredProducts.map(p => (
-                                            <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
-                                                <td className="px-3 py-2 font-mono text-sm text-slate-300 border-r border-slate-800/50">
-                                                    <a href={p.product_link || `https://www.amazon.in/dp/${p.asin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline font-semibold flex items-center gap-1 w-fit truncate max-w-[120px]">
+                                            <tr key={p.id} className="hover:bg-white/[0.05]0/100/5 transition-colors">
+                                                <td className="px-6 py-4 font-mono text-sm text-gray-300 border-r border-white/[0.06]">
+                                                    <a href={p.product_link || `https://www.amazon.in/dp/${p.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline font-semibold flex items-center gap-1 w-fit truncate max-w-[120px]">
                                                         {p.asin} <span className="text-[10px]">↗</span>
                                                     </a>
                                                 </td>
-                                                <td className="px-3 py-2 font-mono text-sm text-slate-400 border-r border-slate-800/50">
+                                                <td className="px-6 py-4 font-mono text-sm text-gray-300 border-r border-white/[0.06]">
                                                     <div className="truncate max-w-[100px]">{p.sku || '-'}</div>
                                                 </td>
-                                                <td className="px-3 py-2 text-sm text-slate-200 border-r border-slate-800/50">
+                                                <td className="px-6 py-4 text-sm text-gray-100 border-r border-white/[0.06]">
                                                     <div className="truncate max-w-[200px]">{p.product_name || '-'}</div>
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-slate-800/50 text-sm">
+                                                <td className="px-6 py-4 text-center border-r border-white/[0.06] text-sm">
                                                     {(() => {
                                                         const { display, color } = getFunnelBadgeStyle(p.funnel);
                                                         return display === '-'
-                                                            ? <span className="text-slate-600">-</span>
+                                                            ? <span className="text-gray-500">-</span>
                                                             : <span className={`px-2 py-1 rounded-lg text-xs font-bold ${color}`}>{display}</span>;
                                                     })()}
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-slate-800/50 text-sm">
+                                                <td className="px-6 py-4 text-center border-r border-white/[0.06] text-sm">
                                                     {p.seller_tag || '-'}
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-slate-800/50 text-sm text-slate-300">
+                                                <td className="px-6 py-4 text-center border-r border-white/[0.06] text-sm text-gray-300">
                                                     {p.buying_quantity || '-'}
                                                 </td>
-                                                <td className="px-3 py-2 text-center border-r border-slate-800/50 text-sm text-slate-300">
+                                                <td className="px-6 py-4 text-center border-r border-white/[0.06] text-sm text-gray-300">
                                                     {p.buying_price ? `₹${p.buying_price}` : '-'}
                                                 </td>
-                                                <td className="px-3 py-2 text-center">
+                                                <td className="px-6 py-4 text-center">
                                                     <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold">
                                                         {p.box_number}
                                                     </span>
@@ -974,8 +974,8 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-slate-400">
+                    <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-gray-300">
                             <span>
                                 {filteredProducts.length} items · {groupedBoxes.length} boxes
                             </span>

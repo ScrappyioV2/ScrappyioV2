@@ -6,7 +6,7 @@ export default function SystemHealth({ data }: any) {
       <HealthBar label="Seller Scraping Progress" value={data.scraping} />
       <HealthBar label="Copy Progress" value={data.copy} />
       <div className="border rounded-lg p-4">
-        <p className="text-sm text-gray-500">Automation Status</p>
+        <p className="text-sm text-gray-400">Automation Status</p>
         <p className="text-lg font-semibold mt-2">{data.automationStatus}</p>
       </div>
     </div>
@@ -16,9 +16,9 @@ export default function SystemHealth({ data }: any) {
 function HealthBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="border rounded-lg p-4">
-      <p className="text-sm text-gray-500">{label}</p>
+      <p className="text-sm text-gray-400">{label}</p>
       <div className="w-full bg-gray-200 rounded h-2 mt-3">
-        <div className="bg-black h-2 rounded" style={{ width: `${value}%` }} />
+        <div className="bg-[#111111] h-2 rounded" style={{ width: `${value}%` }} />
       </div>
       <p className="text-xs mt-2">{value}% Complete</p>
     </div>

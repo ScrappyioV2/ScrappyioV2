@@ -50,7 +50,7 @@ export default function NumericFilter({
         {OPERATORS.map((op) => (
           <label
             key={op.value}
-            className="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer"
+            className="flex items-center gap-2 py-1.5 px-2 hover:bg-[#111111] rounded cursor-pointer"
           >
             <input
               type="radio"
@@ -60,7 +60,7 @@ export default function NumericFilter({
               onChange={(e) => setOperator(e.target.value)}
               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
-            <span className="text-xs text-gray-700">
+            <span className="text-xs text-gray-300">
               {op.symbol} {op.label}
             </span>
           </label>
@@ -69,7 +69,7 @@ export default function NumericFilter({
 
       {/* Value Input */}
       <div className="space-y-2">
-        <label className="block text-xs font-medium text-gray-700 uppercase">
+        <label className="block text-xs font-medium text-gray-500 uppercase">
           {columnName}
         </label>
         <input
@@ -77,7 +77,7 @@ export default function NumericFilter({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Enter value..."
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 text-sm border border-white/[0.06] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
@@ -91,7 +91,7 @@ export default function NumericFilter({
         </button>
         <button
           onClick={handleClear}
-          className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
+          className="flex-1 px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 text-sm font-medium rounded-lg hover:bg-[#111111] transition"
         >
           Clear
         </button>

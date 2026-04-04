@@ -134,9 +134,9 @@ function DashboardDetailsContent() {
       </div>
 
       {/* Table */}
-      <div className="border rounded bg-white">
+      <div className="border rounded bg-[#111111]">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100">
+          <thead className="bg-[#1a1a1a]">
             <tr>
               <th
                 className="border p-2 cursor-pointer"
@@ -162,7 +162,7 @@ function DashboardDetailsContent() {
 
           <tbody>
             {data.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50">
+              <tr key={item.id} className="hover:bg-[#111111]">
                 <td className="border p-2">{item.name}</td>
                 <td className="border p-2">{item.sku}</td>
                 <td className="border p-2">{item.marketplace}</td>
@@ -172,7 +172,7 @@ function DashboardDetailsContent() {
 
             {data.length === 0 && (
               <tr>
-                <td colSpan={4} className="border p-6 text-center text-gray-500">
+                <td colSpan={4} className="border p-6 text-center text-gray-400">
                   No data found
                 </td>
               </tr>

@@ -73,10 +73,10 @@ export default function UploadedInvoiceModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex items-center justify-center">
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-2xl overflow-hidden"
+        className="bg-[#111111] rounded-lg shadow-2xl overflow-hidden"
         style={{
           position: 'absolute',
           left: `${position.x}px`,
@@ -87,7 +87,7 @@ export default function UploadedInvoiceModal({
       >
         {/* Draggable Header */}
         <div
-          className="bg-gray-800 text-white px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between cursor-move"
+          className="bg-gray-800 text-white px-4 sm:px-6 py-2 sm:py-3 flex items-center justify-between cursor-move"
           onMouseDown={handleMouseDownDrag}
         >
           <h3 className="font-semibold text-sm sm:text-base truncate">{invoiceName}</h3>

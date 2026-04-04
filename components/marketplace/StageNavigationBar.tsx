@@ -9,7 +9,7 @@ type Props = {
 const stages = [
   { label: "Brand Checking", slug: "brand-checking", color: "bg-blue-600" },
   { label: "Validation", slug: "validation", color: "bg-purple-600" },
-  { label: "Admin Validation", slug: "admin-validation", color: "bg-indigo-600" },
+  { label: "Admin Validation", slug: "admin-validation", color: "bg-orange-500/100" },
   { label: "Listing", slug: "listing", color: "bg-green-600" },
   { label: "Purchasing", slug: "purchasing", color: "bg-orange-600" },
   { label: "Reorder", slug: "reorder", color: "bg-red-600" },
@@ -19,7 +19,7 @@ export default function StageNavigationBar({ country }: Props) {
   const router = useRouter();
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="bg-[#111111] p-6 rounded-lg shadow">
       <h2 className="text-xl font-semibold mb-4">Navigate by Stage</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stages.map((stage) => (

@@ -101,12 +101,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="max-w-md w-full space-y-8 p-10 bg-white rounded-xl shadow-2xl">
+      <div className="max-w-md w-full space-y-8 p-10 bg-[#111111] rounded-xl shadow-2xl">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Sign in to your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-500">
             Secure authentication powered by Supabase
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white/[0.06] placeholder-gray-500 text-white rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
               />
             </div>
@@ -141,7 +141,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-white/[0.06] placeholder-gray-500 text-white rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
               />
             </div>
@@ -169,7 +169,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <p className="mt-2 text-center text-xs text-gray-600">
+          <p className="mt-2 text-center text-xs text-gray-500">
             <strong>Note:</strong> Sign up is disabled. Contact your administrator to create an account.
           </p>
         </form>
@@ -278,7 +278,7 @@ export default function LoginPage() {
 
 //   return (
 //     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-//       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+//       <div className="bg-[#111111] rounded-2xl shadow-xl p-8 w-full max-w-md">
 //         {/* Logo */}
 //         <div className="text-center mb-8">
 //           <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
@@ -286,9 +286,9 @@ export default function LoginPage() {
 //               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 //             </svg>
 //           </div>
-//           <h1 className="text-2xl font-bold text-gray-900">🚀 Scrappy V2</h1>
-//           <p className="text-gray-600 mt-2">Sign in to your account</p>
-//           <p className="text-xs text-gray-500 mt-1">Secure authentication powered by Supabase</p>
+//           <h1 className="text-2xl font-bold text-white">🚀 Scrappy V2</h1>
+//           <p className="text-gray-500 mt-2">Sign in to your account</p>
+//           <p className="text-xs text-gray-400 mt-1">Secure authentication powered by Supabase</p>
 //         </div>
 
 //         {/* Error/Success Message */}
@@ -306,14 +306,14 @@ export default function LoginPage() {
 //         <form onSubmit={handleAuth} className="space-y-4">
 //           {/* Email */}
 //           <div>
-//             <label className="block text-sm font-medium text-gray-700 mb-2">
+//             <label className="block text-sm font-medium text-gray-500 mb-2">
 //               Email Address
 //             </label>
 //             <input
 //               type="email"
 //               value={email}
 //               onChange={(e) => setEmail(e.target.value)}
-//               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-4 py-2 border border-white/[0.06] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 //               placeholder="you@example.com"
 //               required
 //               disabled={loading}
@@ -322,14 +322,14 @@ export default function LoginPage() {
 
 //           {/* Password */}
 //           <div>
-//             <label className="block text-sm font-medium text-gray-700 mb-2">
+//             <label className="block text-sm font-medium text-gray-500 mb-2">
 //               Password
 //             </label>
 //             <input
 //               type="password"
 //               value={password}
 //               onChange={(e) => setPassword(e.target.value)}
-//               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-4 py-2 border border-white/[0.06] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 //               placeholder="••••••••"
 //               required
 //               disabled={loading}
@@ -356,13 +356,13 @@ export default function LoginPage() {
 
 //         {/* Sign Up Disabled Notice */}
 //         <div className="mt-6 text-center">
-//           <p className="text-sm text-gray-600">
+//           <p className="text-sm text-gray-500">
 //             🔒 <strong>Note:</strong> Sign up is disabled. Contact your administrator to create an account.
 //           </p>
 //         </div>
 
 //         {/* Footer */}
-//         <div className="mt-8 text-center text-xs text-gray-500">
+//         <div className="mt-8 text-center text-xs text-gray-400">
 //           © 2026 Scrappy V2. All rights reserved.
 //         </div>
 //       </div>

@@ -14,7 +14,7 @@ export default function SellerProgressGrid({ sellers }: { sellers: Seller[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-gray-100 border-b">
+          <tr className="bg-[#1a1a1a] border-b">
             <th className="p-4 font-semibold">Seller Name</th>
             <th className="p-4 font-semibold">Total Products</th>
             <th className="p-4 font-semibold text-green-600">Brand Approved</th>
@@ -25,7 +25,7 @@ export default function SellerProgressGrid({ sellers }: { sellers: Seller[] }) {
         </thead>
         <tbody>
           {sellers.map((seller) => (
-            <tr key={seller.name} className="border-b hover:bg-gray-50">
+            <tr key={seller.name} className="border-b hover:bg-[#111111]">
               <td className="p-4 font-medium">{seller.name}</td>
               <td className="p-4">{seller.products}</td>
               <td className="p-4 text-green-600 font-bold">{seller.brandApproved}</td>

@@ -343,35 +343,35 @@ export default function AddBoxDetailsModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-            <div className="w-full max-w-5xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#111111]/60">
+            <div className="w-full max-w-5xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] flex items-center justify-between">
                     <h2 className="text-base sm:text-lg font-semibold text-white">
                         Add Box Details
                     </h2>
                     <button
                         onClick={onClose}
-                        className="text-slate-400 hover:text-slate-100 text-xl"
+                        className="text-gray-400 hover:text-white text-xl"
                     >
                         ×
                     </button>
                 </div>
 
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.06] grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">
+                        <label className="block text-xs font-semibold text-gray-400 mb-1">
                             Box ID
                         </label>
                         <input
                             type="text"
                             value={boxNumber}
                             onChange={(e) => setBoxNumber(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                             placeholder="BOX-001"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">
+                        <label className="block text-xs font-semibold text-gray-400 mb-1">
                             Total Box Weight (kg)
                         </label>
                         <input
@@ -379,25 +379,25 @@ export default function AddBoxDetailsModal({
                             step="0.01"
                             value={totalBoxWeight}
                             onChange={(e) => setTotalBoxWeight(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                             placeholder="e.g. 5.20"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">
+                        <label className="block text-xs font-semibold text-gray-400 mb-1">
                             Booking Date
                         </label>
                         <input
                             type="date"
                             value={boxBookingDate}
                             onChange={(e) => setBoxBookingDate(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                         />
                     </div>
                 </div>
 
                 <div className="px-3 sm:px-5 pt-3 space-y-2">
-                    <label className="block text-xs font-semibold text-slate-400">
+                    <label className="block text-xs font-semibold text-gray-400">
                         Add ASIN to this box
                     </label>
 
@@ -409,11 +409,11 @@ export default function AddBoxDetailsModal({
                             onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
                             onFocus={() => setShowDropdown(true)}
                             placeholder="Search by ASIN, SKU or Product name..."
-                            className="w-full md:w-96 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-500"
+                            className="w-full md:w-96 px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500 placeholder:text-gray-500"
                         />
 
                         {showDropdown && dropdownCandidates.length > 0 && (
-                            <div className="absolute top-full left-0 z-50 w-full md:w-[650px] mt-1 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl max-h-[350px] overflow-y-auto overflow-x-hidden">
+                            <div className="absolute top-full left-0 z-50 w-full md:w-[650px] mt-1 bg-[#111111] border border-white/[0.06] rounded-xl shadow-2xl max-h-[350px] overflow-y-auto overflow-x-hidden">
                                 {dropdownCandidates.map((p) => {
                                     const pending = p.pending_quantity ?? p.buying_quantity ?? 0;
                                     return (
@@ -431,21 +431,21 @@ export default function AddBoxDetailsModal({
                                                 setShowDropdown(false);
                                                 setSearch("");
                                             }}
-                                            className="px-5 py-4 hover:bg-slate-800 border-b border-slate-700 last:border-0 cursor-pointer transition-colors"
+                                            className="px-5 py-4 hover:bg-[#111111] border-b border-white/[0.06] last:border-0 cursor-pointer transition-colors"
                                         >
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-3 mb-1">
                                                         <span className="text-base font-bold text-white font-mono">{p.asin}</span>
-                                                        {p.sku && <span className="text-xs text-slate-200 bg-slate-800 px-2.5 py-0.5 rounded border border-slate-600 font-medium">SKU: {p.sku}</span>}
+                                                        {p.sku && <span className="text-xs text-gray-100 bg-[#111111] px-2.5 py-0.5 rounded border border-white/[0.06] font-medium">SKU: {p.sku}</span>}
                                                     </div>
-                                                    <div className="text-sm font-medium text-slate-200 line-clamp-1 mb-1.5">{p.product_name || '-'}</div>
+                                                    <div className="text-sm font-medium text-gray-100 line-clamp-1 mb-1.5">{p.product_name || '-'}</div>
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-xs text-slate-300 bg-slate-800 px-2 py-0.5 rounded">{p.seller_tag || 'No Tag'}</span>
+                                                        <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded">{p.seller_tag || 'No Tag'}</span>
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <div className="bg-amber-500/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{pending} Pending</div>
+                                                    <div className="bg-amber-500/100/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{pending} Pending</div>
                                                     <div className="text-sm text-emerald-300 font-bold mt-1.5">₹{p.buying_price || '-'}</div>
                                                 </div>
                                             </div>
@@ -456,7 +456,7 @@ export default function AddBoxDetailsModal({
                         )}
                     </div>
 
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-gray-500">
                         Only ASINs added here will be included in this box.
                     </p>
                 </div>
@@ -464,21 +464,21 @@ export default function AddBoxDetailsModal({
                 <div className="flex-1 overflow-auto px-3 sm:px-5 py-3 sm:py-4">
                     <table className="w-full text-xs border-separate border-spacing-y-1">
                         <thead>
-                            <tr className="bg-slate-900">
-                                <th className="px-2 py-2 text-center text-slate-400 w-12">Sr.</th>
-                                <th className="px-2 py-2 text-left text-slate-400">ASIN</th>
-                                <th className="px-2 py-2 text-left text-slate-400">Product</th>
-                                <th className="px-2 py-2 text-left text-slate-400">SKU</th>
-                                <th className="px-2 py-2 text-center text-slate-400">Ordered</th>
-                                <th className="px-2 py-2 text-center text-slate-400">Qty in Box</th>
-                                <th className="px-2 py-2 text-center text-slate-400">Weight (kg)</th>
-                                <th className="px-2 py-2 text-center text-slate-400"></th>
+                            <tr className="bg-[#111111]">
+                                <th className="px-2 py-2 text-center text-gray-400 w-12">Sr.</th>
+                                <th className="px-2 py-2 text-left text-gray-400">ASIN</th>
+                                <th className="px-2 py-2 text-left text-gray-400">Product</th>
+                                <th className="px-2 py-2 text-left text-gray-400">SKU</th>
+                                <th className="px-2 py-2 text-center text-gray-400">Ordered</th>
+                                <th className="px-2 py-2 text-center text-gray-400">Qty in Box</th>
+                                <th className="px-2 py-2 text-center text-gray-400">Weight (kg)</th>
+                                <th className="px-2 py-2 text-center text-gray-400"></th>
                             </tr>
                         </thead>
                         <tbody>
                             {itemsInThisBox.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-2 py-6 text-center text-slate-500">
+                                    <td colSpan={8} className="px-2 py-6 text-center text-gray-300">
                                         No items added yet. Search above to add ASINs.
                                     </td>
                                 </tr>
@@ -488,28 +488,28 @@ export default function AddBoxDetailsModal({
                                     const ordered = p.buying_quantity ?? 0;
                                     const pending = p.pending_quantity ?? ordered;
                                     return (
-                                        <tr key={p.id} className="bg-slate-900/60 hover:bg-slate-900">
-                                            <td className="px-2 py-2 text-center text-slate-500">{index + 1}</td>
-                                            <td className="px-2 py-2 font-mono text-slate-200">
-                                                <a href={p.product_link || `https://www.amazon.in/dp/${p.asin}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
+                                        <tr key={p.id} className="bg-[#111111]/60 hover:bg-[#111111]">
+                                            <td className="px-2 py-2 text-center text-gray-300">{index + 1}</td>
+                                            <td className="px-2 py-2 font-mono text-gray-100">
+                                                <a href={p.product_link || `https://www.amazon.in/dp/${p.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
                                                     {p.asin}
                                                 </a>
                                             </td>
 
                                             {/* Product */}
-                                            <td className="px-2 py-2 text-slate-200">
+                                            <td className="px-2 py-2 text-gray-100">
                                                 <div className="truncate max-w-[200px]">
                                                     {p.product_name || "-"}
                                                 </div>
                                             </td>
 
                                             {/* SKU */}
-                                            <td className="px-2 py-2 font-mono text-slate-400">
+                                            <td className="px-2 py-2 font-mono text-gray-300">
                                                 {p.sku || "-"}
                                             </td>
 
                                             {/* Ordered */}
-                                            <td className="px-2 py-2 text-center text-slate-300">
+                                            <td className="px-2 py-2 text-center text-gray-300">
                                                 {ordered}
                                             </td>
 
@@ -521,9 +521,9 @@ export default function AddBoxDetailsModal({
                                                     max={pending}
                                                     value={draft?.qty_for_box ?? ""}
                                                     onChange={(e) => handleQtyChange(p, e.target.value)}
-                                                    className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                 />
-                                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                                <div className="text-[10px] text-gray-500 mt-0.5">
                                                     pending {pending}
                                                 </div>
                                             </td>
@@ -538,7 +538,7 @@ export default function AddBoxDetailsModal({
                                                         draft?.product_weight ?? (p.product_weight ?? "")
                                                     }
                                                     onChange={(e) => handleWeightChange(p, e.target.value)}
-                                                    className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                 />
                                             </td>
 
@@ -567,10 +567,10 @@ export default function AddBoxDetailsModal({
                     </div>
                 )}
 
-                <div className="px-3 sm:px-5 py-3 border-t border-slate-800 flex items-center justify-between">
+                <div className="px-3 sm:px-5 py-3 border-t border-white/[0.06] flex items-center justify-between">
                     <button
                         onClick={onClose}
-                        className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800"
+                        className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium text-gray-500 hover:text-white hover:bg-[#111111]"
                         disabled={submitting}
                     >
                         Cancel
@@ -578,7 +578,7 @@ export default function AddBoxDetailsModal({
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500/100 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {submitting ? "Saving..." : "Submit Box"}
                     </button>

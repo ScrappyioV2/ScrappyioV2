@@ -172,7 +172,7 @@ const renderSellerTags = (sellerTag: string | null) => {
             {sellerTag.split(',').map((tag) => {
                 const cleanTag = tag.trim();
                 return (
-                    <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-sm ${SELLER_STYLES[cleanTag] ?? 'bg-slate-700 text-white'}`}>
+                    <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-sm ${SELLER_STYLES[cleanTag] ?? 'bg-[#1a1a1a] text-white'}`}>
                         {cleanTag}
                     </span>
                 );
@@ -221,14 +221,14 @@ const ResizableTH = ({
                 minWidth: width,
                 width: isFlex ? 'auto' : width,
             }}
-            className={`relative px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 ${align === 'center' ? 'text-center' : 'text-left'
+            className={`relative px-4 py-3 text-xs font-bold text-white uppercase tracking-wider bg-[#111111] ${align === 'center' ? 'text-center' : 'text-left'
                 } select-none`}
         >
             <div className={isFlex ? 'truncate' : ''}>{label}</div>
 
             <span
                 onMouseDown={(e) => onResizeStart(columnKey, e.clientX)}
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400"
             />
         </th>
     );
@@ -1653,19 +1653,19 @@ export default function ValidationPage() {
     }
     return (
         <PageTransition>
-            <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
+            <div className="h-screen flex flex-col overflow-hidden bg-[#111111] p-6 text-gray-100 font-sans selection:bg-orange-400/30">
                 <div className="w-full flex flex-col flex-1 overflow-hidden">
                     {/* Fixed Header Section */}
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
                             <h1 className="text-3xl font-bold text-white">Flipkart Selling - Validation</h1>
-                            <p className="text-slate-400 mt-1">Manage validation files and product status</p>
+                            <p className="text-gray-400 mt-1">Manage validation files and product status</p>
                         </div>
                         {/* Stats Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
-                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-slate-700/50">
-                                <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products</div>
+                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl px-5 py-4 text-white shadow-lg border border-white/[0.06]">
+                                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Products</div>
                                 <div className="text-3xl font-bold mt-1">{stats.total}</div>
                             </div>
 
@@ -1690,7 +1690,7 @@ export default function ValidationPage() {
                         </div>
 
                         {/* File Tabs */}
-                        <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit backdrop-blur-sm">
+                        <div className="flex gap-2 mb-5 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit">
                             {[
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
@@ -1702,8 +1702,8 @@ export default function ValidationPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as FileTab)}
                                     className={`px-6 py-2.5 text-sm font-medium rounded-xl transition-all relative overflow-hidden ${activeTab === tab.id
-                                        ? 'text-white bg-slate-800 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] border border-slate-700'
-                                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+                                        ? 'bg-orange-500/100 text-white font-semibold shadow-sm'
+                                        : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
                                         }`}
                                 >
                                     {tab.label}
@@ -1719,7 +1719,7 @@ export default function ValidationPage() {
                                     {/* Search Bar */}
                                     <div className="relative flex-1 max-w-md group">
                                         <svg
-                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
+                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-orange-500 transition-colors"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -1731,12 +1731,12 @@ export default function ValidationPage() {
                                             placeholder="Search by ASIN, Product Name, or Brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2.5 text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
+                                            className="w-full pl-9 pr-10 py-2.5 text-sm bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
                                         />
                                         {searchQuery && (
                                             <button
                                                 onClick={() => setSearchQuery('')}
-                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-200"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1749,7 +1749,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                            className="px-3 py-1.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.06] text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -1760,42 +1760,42 @@ export default function ValidationPage() {
                                         {isFilterOpen && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
-                                                    <h3 className="font-semibold text-slate-200 mb-3">Filter Products</h3>
+                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                                    <h3 className="font-semibold text-gray-100 mb-3">Filter Products</h3>
                                                     <div className="space-y-3">
                                                         <div>
-                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Seller Tag</label>
+                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Seller Tag</label>
                                                             <input
                                                                 type="text"
                                                                 value={filters.seller_tag}
                                                                 onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter seller name"
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Brand</label>
+                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Brand</label>
                                                             <input
                                                                 type="text"
                                                                 value={filters.brand}
                                                                 onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter brand"
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Funnel</label>
+                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Funnel</label>
                                                             <input
                                                                 type="text"
                                                                 value={filters.funnel}
                                                                 onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter funnel"
                                                             />
                                                         </div>
                                                         <button
                                                             onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
-                                                            className="w-full px-3 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white font-medium text-sm transition-colors"
+                                                            className="w-full px-3 py-2 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white font-medium text-sm transition-colors"
                                                         >
                                                             Clear Filters
                                                         </button>
@@ -1813,9 +1813,9 @@ export default function ValidationPage() {
                                         <button
                                             onClick={handleMoveToMainClick}
                                             disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
+                                            className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                                : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.06]'
                                                 }`}
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1830,9 +1830,9 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={handleMoveToPassClick}
                                                 disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
-                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                    : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
+                                                className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
+                                                    ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                                    : 'bg-emerald-600 text-white hover:bg-emerald-500/100 border border-emerald-500'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1847,9 +1847,9 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={handleMoveToFailClick}
                                                 disabled={selectedIds.size === 0}
-                                                className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
-                                                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                                    : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
+                                                className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
+                                                    ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                                    : 'bg-rose-600 text-white hover:bg-rose-500/100 border border-rose-500'
                                                     }`}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1863,8 +1863,8 @@ export default function ValidationPage() {
                                         <button
                                             onClick={handleMoveToRejectClick}
                                             disabled={selectedIds.size === 0}
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
-                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                            className={`px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                                                 : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
                                                 }`}
                                         >
@@ -1879,7 +1879,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500/100 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1893,32 +1893,32 @@ export default function ValidationPage() {
                                         {isDownloadDropdownOpen && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                                                <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                                                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
 
                                                     {selectedIds.size > 0 && (
                                                         <button
                                                             onClick={() => downloadCSV('selected')}
-                                                            className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                                                            className="w-full px-3 py-1.5 text-left text-sm text-gray-100 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
                                                         >
                                                             <span>📋 Download Selected</span>
-                                                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                                                            <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{selectedIds.size}</span>
                                                         </button>
                                                     )}
 
                                                     <button
                                                         onClick={() => downloadCSV('page')}
-                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                                                        className="w-full px-3 py-1.5 text-left text-sm text-gray-100 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
                                                     >
                                                         <span>📄 Download Page</span>
-                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                                                        <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
                                                     </button>
 
                                                     <button
                                                         onClick={() => downloadCSV('all')}
-                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                                                        className="w-full px-3 py-1.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
                                                     >
                                                         <span>📦 Download All</span>
-                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
+                                                        <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
                                                     </button>
 
                                                 </div>
@@ -1929,7 +1929,7 @@ export default function ValidationPage() {
                                     {/* Upload CSV */}
                                     <button
                                         onClick={handleUploadCSV}
-                                        className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                        className="px-3 py-1.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -1941,7 +1941,7 @@ export default function ValidationPage() {
                                     {/* Bulk Flipkart Price Update */}
                                     <button
                                         onClick={() => flipkartPriceCSVInputRef.current?.click()}
-                                        className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
+                                        className="px-3 py-1.5 bg-orange-500/100 text-white rounded-xl hover:bg-orange-400 text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
                                     >
                                         Bulk Flipkart Price Update
                                     </button>
@@ -1950,7 +1950,7 @@ export default function ValidationPage() {
                                     {/* Configure Constants */}
                                     <button
                                         onClick={openConstantsModal}
-                                        className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                        className="px-3 py-1.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -1964,22 +1964,22 @@ export default function ValidationPage() {
                     </div>
 
                     {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                    <div className="flex-1 min-h-0 bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-800">
+                    <div className="flex-1 min-h-0 bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/[0.06]">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-16">
                                 <div className="relative">
-                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500/30"></div>
+                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-orange-500/30"></div>
                                     <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-indigo-500"></div>
                                 </div>
-                                <p className="mt-4 text-slate-400 font-medium tracking-wide animate-pulse">Loading products...</p>
+                                <p className="mt-4 text-gray-400 font-medium tracking-wide animate-pulse">Loading products...</p>
                             </div>
                         ) : filteredProducts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-12 text-slate-500">
-                                <svg className="w-16 h-16 mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+                                <svg className="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                 </svg>
-                                <p className="text-lg font-semibold text-slate-400 mb-2">No products found</p>
-                                <p className="text-sm text-slate-600 max-w-md text-center">
+                                <p className="text-lg font-semibold text-gray-400 mb-2">No products found</p>
+                                <p className="text-sm text-gray-300 max-w-md text-center">
                                     {activeTab === 'pending'
                                         ? 'Products with incomplete data will appear here'
                                         : activeTab === 'pass_file'
@@ -1995,10 +1995,10 @@ export default function ValidationPage() {
                                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
-                                        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50">
-                                            <div className="flex items-center gap-3 bg-slate-800 px-6 py-4 rounded-xl shadow-2xl border border-slate-700">
-                                                <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                                                <span className="text-slate-200 font-semibold">
+                                        <div className="absolute inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">
+                                            <div className="flex items-center gap-3 bg-[#111111] px-6 py-4 rounded-xl shadow-2xl border border-white/[0.06]">
+                                                <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                                                <span className="text-gray-100 font-semibold">
                                                     Loading {activeTab.replace('_', ' ')}...
                                                 </span>
                                             </div>
@@ -2006,16 +2006,16 @@ export default function ValidationPage() {
                                     )}
 
                                     <table className="w-full table-fixed max-w-full">
-                                        <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
+                                        <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10 shadow-md">
 
                                             <tr>
                                                 {/* ✅ Fixed width for checkbox to prevent overlap */}
-                                                <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
+                                                <th className="px-6 py-4 text-left bg-[#111111] sticky left-0 z-20" style={{ width: '50px', minWidth: '50px' }}>
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                                                         onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                     />
                                                 </th>
 
@@ -2051,30 +2051,30 @@ export default function ValidationPage() {
                                             </tr>
                                         </thead>
 
-                                        <tbody className="divide-y divide-slate-800">
+                                        <tbody className="divide-y divide-white/[0.06]">
                                             {filteredProducts.map((product) => (
-                                                <tr key={product.id} className="hover:bg-slate-800/50 transition-colors">
+                                                <tr key={product.id} className="hover:bg-[#1a1a1a]/50 transition-colors">
                                                     <td className="p-3">
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedIds.has(product.id)}
                                                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                         />
                                                     </td>
 
                                                     {/* Column 1: ASIN only (no icon) */}
                                                     {visibleColumns.asin && (
-                                                        <td className="p-3 font-mono text-sm text-slate-300">
+                                                        <td className="p-3 font-mono text-sm text-gray-300">
                                                             {product.asin}
                                                         </td>
                                                     )}
 
                                                     {/* Column 2: History icon only (no ASIN) */}
-                                                    <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                                                    <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                                                         <button
                                                             onClick={() => fetchHistory(product.asin)}
-                                                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                                                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
                                                             title="View Journey History"
                                                         >
                                                             <History className="w-4 h-4" />
@@ -2082,18 +2082,18 @@ export default function ValidationPage() {
                                                     </td>
 
                                                     {visibleColumns.product_name && (
-                                                        <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
+                                                        <td style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-white/[0.06]">
                                                             {/* ✅ Truncate long names */}
-                                                            <div className="truncate max-w-full text-slate-300 text-xs" title={product.product_name || ''}>
+                                                            <div className="truncate max-w-full text-gray-500 text-xs" title={product.product_name || ''}>
                                                                 {product.product_name || '-'}
                                                             </div>
                                                         </td>
                                                     )}
 
-                                                    {visibleColumns.brand && <td className="p-3 text-slate-300">{product.brand || '-'}</td>}
+                                                    {visibleColumns.brand && <td className="p-3 text-gray-300">{product.brand || '-'}</td>}
                                                     {visibleColumns.seller_tag && <td className="p-3">{renderSellerTags(product.seller_tag)}</td>}
                                                     {visibleColumns.funnel && <td className="p-3">{renderFunnelBadge(product.funnel)}</td>}
-                                                    {visibleColumns.no_of_seller && <td className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>}
+                                                    {visibleColumns.no_of_seller && <td className="p-3 text-gray-300">{product.no_of_seller || '-'}</td>}
 
                                                     {visibleColumns.flipkart_link && (
                                                         <td className="p-3 overflow-hidden text-center">
@@ -2102,12 +2102,12 @@ export default function ValidationPage() {
                                                                     href={product.flipkart_link?.startsWith('http') ? product.flipkart_link : `https://${product.flipkart_link}`}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="text-indigo-400 hover:text-indigo-300 hover:underline text-sm truncate block"
+                                                                    className="text-orange-500 hover:text-orange-400 hover:underline text-sm truncate block"
                                                                 >
                                                                     View
                                                                 </a>
                                                             ) : (
-                                                                <span className="text-slate-600 text-xs">-</span>
+                                                                <span className="text-gray-300 text-xs">-</span>
                                                             )}
                                                         </td>
                                                     )}
@@ -2115,19 +2115,19 @@ export default function ValidationPage() {
 
                                                     {activeTab === 'pass_file' && (
                                                         <td className="p-3">
-                                                            <div className="flex flex-col gap-1 text-sm text-slate-300">
+                                                            <div className="flex flex-col gap-1 text-sm text-gray-300">
                                                                 <label className="flex items-center gap-2">
-                                                                    <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    <input type="checkbox" checked={!!product.origin_india} onChange={(e) => handleOriginToggle(product.id, 'origin_india', e.target.checked)} className="rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                     India
                                                                 </label>
                                                                 <label className="flex items-center gap-2">
-                                                                    <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    <input type="checkbox" checked={!!product.origin_china} onChange={(e) => handleOriginToggle(product.id, 'origin_china', e.target.checked)} className="rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                     China
                                                                 </label>
                                                                 <label className="flex items-center gap-2">
                                                                     <input type="checkbox" checked={!!product.origin_us}
                                                                         onChange={(e) => handleOriginToggle(product.id, 'origin_us', e.target.checked)}
-                                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                     US
                                                                 </label>
                                                             </div>
@@ -2135,7 +2135,7 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {visibleColumns.product_weight && (
-                                                        <td className="p-3 text-slate-300">
+                                                        <td className="p-3 text-gray-300">
                                                             {activeTab === 'main_file' ? (
                                                                 <input
                                                                     type="number"
@@ -2144,7 +2144,7 @@ export default function ValidationPage() {
                                                                     onBlur={(e) =>
                                                                         handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)
                                                                     }
-                                                                    className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 product.product_weight ?? '-'
@@ -2154,7 +2154,7 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {visibleColumns.usd_price && (
-                                                        <td className="p-3 text-slate-300">
+                                                        <td className="p-3 text-gray-300">
                                                             {activeTab === 'main_file' ? (
                                                                 <input
                                                                     type="text"
@@ -2164,7 +2164,7 @@ export default function ValidationPage() {
                                                                         const parsed = parseCurrency(e.target.value);
                                                                         handleCellEdit(product.id, 'usd_price', parsed);
                                                                     }}
-                                                                    className="w-28 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    className="w-28 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 formatUSD(product.usd_price)
@@ -2174,7 +2174,7 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {visibleColumns.inr_purchase && (
-                                                        <td className="p-3 text-slate-300">
+                                                        <td className="p-3 text-gray-300">
                                                             {activeTab === 'main_file' ? (
                                                                 <input
                                                                     type="text"
@@ -2184,7 +2184,7 @@ export default function ValidationPage() {
                                                                         const parsed = parseCurrency(e.target.value);
                                                                         handleCellEdit(product.id, 'inr_purchase', parsed);
                                                                     }}
-                                                                    className="w-32 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 formatINR(product.inr_purchase)
@@ -2194,7 +2194,7 @@ export default function ValidationPage() {
                                                     )}
 
                                                     {visibleColumns.inr_purchase_link && activeTab === 'main_file' && (
-                                                        <td className="px-4 py-3 text-sm overflow-hidden">
+                                                        <td className="px-6 py-4 text-sm overflow-hidden">
                                                             <input
                                                                 type="url"
                                                                 value={product.inr_purchase_link || ''}
@@ -2235,7 +2235,7 @@ export default function ValidationPage() {
                                                                     }
                                                                 }}
                                                                 placeholder="Enter link + press Enter ↵"
-                                                                className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate"
+                                                                className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate"
                                                             />
                                                         </td>
                                                     )}
@@ -2251,22 +2251,22 @@ export default function ValidationPage() {
                                                                     OK
                                                                 </button>
                                                             ) : (
-                                                                <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                                                                <div className="flex flex-wrap gap-2 text-xs text-gray-300">
                                                                     {/* ... existing checkboxes ... */}
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Brand Checking">
-                                                                        <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Brand Checking">
+                                                                        <input type="checkbox" checked={!!product.check_brand} onChange={(e) => handleChecklistToggle(product.id, 'check_brand', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                         <span>Brand</span>
                                                                     </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Item Expire">
-                                                                        <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Item Expire">
+                                                                        <input type="checkbox" checked={!!product.check_item_expire} onChange={(e) => handleChecklistToggle(product.id, 'check_item_expire', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                         <span>Expire</span>
                                                                     </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Small Size">
-                                                                        <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Small Size">
+                                                                        <input type="checkbox" checked={!!product.check_small_size} onChange={(e) => handleChecklistToggle(product.id, 'check_small_size', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                         <span>Size</span>
                                                                     </label>
-                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors" title="Multi Sellers">
-                                                                        <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-indigo-500" />
+                                                                    <label className="flex items-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors" title="Multi Sellers">
+                                                                        <input type="checkbox" checked={!!product.check_multi_seller} onChange={(e) => handleChecklistToggle(product.id, 'check_multi_seller', e.target.checked)} className="w-3 h-3 rounded border-white/[0.06] bg-[#111111] text-orange-500" />
                                                                         <span>Multi</span>
                                                                     </label>
                                                                 </div>
@@ -2283,13 +2283,13 @@ export default function ValidationPage() {
                                                                 return displayJudgement ? (
                                                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${displayJudgement === 'PASS' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
                                                                         displayJudgement === 'FAIL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                                                            displayJudgement === 'PENDING' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                                                                                'bg-slate-700 text-slate-300'
+                                                                            displayJudgement === 'PENDING' ? 'bg-orange-500/100/20 text-orange-400 border border-orange-500/30' :
+                                                                                'bg-[#1a1a1a] text-gray-500'
                                                                         }`}>
                                                                         {displayJudgement}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">PENDING</span>
+                                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/100/20 text-orange-400 border border-orange-500/30">PENDING</span>
                                                                 );
                                                             })()}
                                                         </td>
@@ -2300,12 +2300,12 @@ export default function ValidationPage() {
                                                             {product.remark ? (
                                                                 <button
                                                                     onClick={() => setSelectedRemark(product.remark)}
-                                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                                                 >
                                                                     View
                                                                 </button>
                                                             ) : (
-                                                                <span className="text-slate-600">-</span>
+                                                                <span className="text-gray-300">-</span>
                                                             )}
                                                         </td>
                                                     )}
@@ -2316,12 +2316,12 @@ export default function ValidationPage() {
                                 </div>
 
                                 {allFilteredProducts.length > rowsPerPage && (
-                                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900">
-                                        <div className="text-sm text-slate-400">
-                                            Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{allFilteredProducts.length}</span> products
+                                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] bg-[#111111]">
+                                        <div className="text-sm text-gray-300">
+                                            Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{allFilteredProducts.length}</span> products
                                             {selectedIds.size > 0 && (
                                                 <span className="ml-4">
-                                                    (<span className="font-bold text-indigo-400">{selectedIds.size}</span> selected)
+                                                    (<span className="font-bold text-orange-500">{selectedIds.size}</span> selected)
                                                 </span>
                                             )}
                                         </div>
@@ -2330,7 +2330,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(1)}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 First
                                             </button>
@@ -2338,19 +2338,19 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 Previous
                                             </button>
 
-                                            <span className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold">
+                                            <span className="px-4 py-1.5 bg-orange-500/100 text-white rounded-lg text-sm font-semibold">
                                                 Page {currentPage} of {totalPages}
                                             </span>
 
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 Next
                                             </button>
@@ -2358,7 +2358,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(totalPages)}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 Last
                                             </button>
@@ -2367,13 +2367,13 @@ export default function ValidationPage() {
                                 )}
 
                                 {/* Footer Stats - Fixed at bottom of table
-                                <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
-                                    <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
+                                <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                                    <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap gap-2">
                                         <span className="font-medium">
-                                            Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{products.length}</span> products
+                                            Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{products.length}</span> products
                                         </span>
                                         {selectedIds.size > 0 && (
-                                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-semibold border border-indigo-500/30">
+                                            <span className="px-3 py-1 bg-orange-500/100/10 text-orange-400 rounded-full font-semibold border border-orange-500/30">
                                                 {selectedIds.size} selected
                                             </span>
                                         )}
@@ -2387,9 +2387,9 @@ export default function ValidationPage() {
                 {/* Constants Configuration Modal */}
                 {isConstantsModalOpen && (
                     <>
-                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
+                        <div className="fixed inset-0 bg-[#111111] z-40" onClick={() => setIsConstantsModalOpen(false)} />
                         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.06] overflow-hidden animate-in zoom-in-95 duration-200">
                                 <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-6">
                                     <h2 className="text-2xl font-bold">Calculation Constants Configuration</h2>
                                     <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
@@ -2397,41 +2397,41 @@ export default function ValidationPage() {
 
                                 <div className="p-6 space-y-5">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Dollar Rate (₹)</label>
                                         <input
                                             type="number"
                                             value={constants.dollar_rate || ''}
                                             onChange={(e) => setConstants({ ...constants, dollar_rate: parseFloat(e.target.value) || 90 })}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Bank Fee (%)</label>
                                         <input
                                             type="number"
                                             value={(constants.bank_conversion_rate * 100) || ''}
                                             onChange={(e) => setConstants({ ...constants, bank_conversion_rate: parseFloat(e.target.value) / 100 || 0.02 })}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Shipping per 1000g (₹)</label>
                                         <input
                                             type="number"
                                             value={constants.shipping_charge_per_kg || ''}
                                             onChange={(e) => setConstants({ ...constants, shipping_charge_per_kg: parseFloat(e.target.value) || 950 })}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
+                                <div className="p-6 border-t border-white/[0.06] bg-[#1a1a1a] flex items-center justify-end gap-3">
                                     <button
                                         onClick={() => setIsConstantsModalOpen(false)}
-                                        className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
+                                        className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
                                     >
                                         Cancel
                                     </button>
@@ -2480,7 +2480,7 @@ export default function ValidationPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setSelectedHistoryAsin(null)}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+                            className="absolute inset-0 bg-[#111111]/60 z-40"
                         />
 
                         {/* Sidebar */}
@@ -2489,17 +2489,17 @@ export default function ValidationPage() {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+                            className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-6 flex flex-col"
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between mb-8">
                                 <div>
                                     <h2 className="text-xl font-bold text-white">Journey History</h2>
-                                    <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                                    <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
                                 </div>
                                 <button
                                     onClick={() => setSelectedHistoryAsin(null)}
-                                    className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                                    className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors"
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -2509,29 +2509,29 @@ export default function ValidationPage() {
                             <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                                 {historyLoading ? (
                                     <div className="flex justify-center py-10">
-                                        <Loader2 className="animate-spin w-8 h-8 text-indigo-500" />
+                                        <Loader2 className="animate-spin w-8 h-8 text-orange-500" />
                                     </div>
                                 ) : historyData.length === 0 ? (
-                                    <div className="text-center text-slate-500 py-10">
+                                    <div className="text-center text-gray-500 py-10">
                                         No history found for this item.
                                     </div>
                                 ) : (
                                     historyData.map((snapshot, idx) => (
                                         <div
                                             key={snapshot.id}
-                                            className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6"
+                                            className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6"
                                         >
                                             {/* Timeline Dot */}
-                                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+                                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                                             {/* Card */}
-                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                                            <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
                                                 {/* Journey Info */}
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                                    <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
                                                         Journey #{snapshot.journey_number}
                                                     </span>
-                                                    <span className="text-xs text-slate-500">
+                                                    <span className="text-xs text-gray-300">
                                                         {new Date(snapshot.created_at).toLocaleDateString()}
                                                     </span>
                                                 </div>
@@ -2542,7 +2542,7 @@ export default function ValidationPage() {
                                                 </h3>
 
                                                 {/* Snapshot Details */}
-                                                <div className="space-y-1 text-xs text-slate-300">
+                                                <div className="space-y-1 text-xs text-gray-300">
                                                     {snapshot.profit && (
                                                         <div className="flex justify-between">
                                                             <span>Profit:</span>
@@ -2584,18 +2584,18 @@ export default function ValidationPage() {
             </AnimatePresence>
             {/* ✅ REMARK MODAL */}
             {selectedRemark && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+                <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Remark Details</h3>
                             <button
                                 onClick={() => setSelectedRemark(null)}
-                                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                                className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
                             >
                                 ×
                             </button>
                         </div>
-                        <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+                        <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06] max-h-96 overflow-y-auto">
                             {selectedRemark}
                         </div>
                     </div>

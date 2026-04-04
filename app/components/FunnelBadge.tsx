@@ -5,7 +5,7 @@ interface FunnelBadgeProps {
 }
 
 export default function FunnelBadge({ funnel }: FunnelBadgeProps) {
-  if (!funnel) return <span className="text-gray-400">-</span>;
+  if (!funnel) return <span className="text-gray-500">-</span>;
 
   const getBadgeStyle = () => {
     switch (funnel.toUpperCase()) {
@@ -14,9 +14,9 @@ export default function FunnelBadge({ funnel }: FunnelBadgeProps) {
       case 'LD':
         return 'bg-blue-500 text-white';
       case 'DP':
-        return 'bg-yellow-500 text-gray-900';
+        return 'bg-yellow-500 text-white';
       case 'RS':                              // ← ADD THIS
-        return 'bg-emerald-500 text-white';   // ← ADD THIS
+        return 'bg-emerald-500/100 text-white';   // ← ADD THIS
       default:
         return 'bg-gray-400 text-white';
     }

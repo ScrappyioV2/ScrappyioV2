@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { ensureAbsoluteUrl } from '@/lib/utils'
+import { batchCheckPipeline, checkAsinPipeline, PipelineResult } from '@/lib/utils/pipelineCheck'
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -82,11 +83,11 @@ type Seller = {
 
 // Configured Sellers
 const SELLERS: Seller[] = [
-  { id: 1, name: "Golden Aura", table_suffix: "seller_1", tag: "GR", emoji: "✨", activeColor: "bg-amber-500", activeShadow: "shadow-amber-500/40" },
+  { id: 1, name: "Golden Aura", table_suffix: "seller_1", tag: "GR", emoji: "✨", activeColor: "bg-amber-500/100", activeShadow: "shadow-amber-500/40" },
   { id: 2, name: "Rudra Retail", table_suffix: "seller_2", tag: "RR", emoji: "🔴", activeColor: "bg-red-600", activeShadow: "shadow-red-500/40" },
   { id: 3, name: "UBeauty", table_suffix: "seller_3", tag: "UB", emoji: "💅", activeColor: "bg-pink-500", activeShadow: "shadow-pink-500/40" },
   { id: 4, name: "Velvet Vista", table_suffix: "seller_4", tag: "VV", emoji: "💜", activeColor: "bg-violet-600", activeShadow: "shadow-violet-500/40" },
-  { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DE", emoji: "🟠", activeColor: "bg-orange-500", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
+  { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DE", emoji: "🟠", activeColor: "bg-orange-500/100", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
   { id: 6, name: "Costech Ventures", table_suffix: "seller_6", tag: "CV", emoji: "🟢", activeColor: "bg-green-600", activeShadow: "shadow-green-500/40" },  // ✅ NEW
   { id: 7, name: "Maverick", table_suffix: "seller_7", tag: "MV", emoji: "🟧", activeColor: "bg-orange-600", activeShadow: "shadow-orange-500/40" },
   { id: 8, name: "Kalash", table_suffix: "seller_8", tag: "KL", emoji: "🟩", activeColor: "bg-lime-500", activeShadow: "shadow-lime-500/40" },
@@ -148,6 +149,7 @@ export default function ReorderPage() {
     type: 'danger' | 'warning';
     onConfirm: () => void;
   } | null>(null);
+  const [blockedAsins, setBlockedAsins] = useState<Map<string, PipelineResult>>(new Map());
 
   // --- 1. Fetch Data ---
   const fetchReorderData = async () => {
@@ -161,6 +163,14 @@ export default function ReorderPage() {
 
       if (error) throw error
       setProducts(data || [])
+      setLoading(false)
+      if (data && data.length > 0) {
+        const asins = data.map((p: any) => p.asin);
+        const pipelineMap = await batchCheckPipeline(asins);
+        setBlockedAsins(pipelineMap);
+      } else {
+        setBlockedAsins(new Map());
+      }
     } catch (err) {
       console.error('Fetch error:', err)
     } finally {
@@ -790,6 +800,48 @@ export default function ReorderPage() {
         try {
           setProcessing(true)
 
+          // Pipeline check
+          const pipelineInfo = blockedAsins.get(product.asin);
+          if (pipelineInfo && pipelineInfo.location) {
+            if (!pipelineInfo.can_merge) {
+              setToast({ message: `ASIN ${product.asin} is in ${pipelineInfo.stage_label} (${pipelineInfo.seller_tags}). Cannot send until current journey completes.`, type: 'error' });
+              return;
+            }
+            // Mergeable — append seller tag to existing record
+            const liveCheck = await checkAsinPipeline(product.asin);
+            if (liveCheck.location && !liveCheck.can_merge) {
+              setToast({ message: `ASIN ${product.asin} is now in ${liveCheck.stage_label}. Cannot merge.`, type: 'error' });
+              return;
+            }
+            if (liveCheck.location && liveCheck.can_merge) {
+              const existingTags = liveCheck.seller_tags.split(',').map(t => t.trim().toUpperCase());
+              if (existingTags.includes(activeSeller.tag)) {
+                setToast({ message: `ASIN ${product.asin} already has ${activeSeller.tag} in ${liveCheck.stage_label}`, type: 'error' });
+                return;
+              }
+              const newTag = liveCheck.seller_tags ? `${liveCheck.seller_tags},${activeSeller.tag}` : activeSeller.tag;
+              const tableMap: Record<string, string> = {
+                validation: 'india_validation_main_file',
+                purchases: 'india_purchases',
+                admin_validation: 'india_admin_validation',
+              };
+              const targetTable = tableMap[liveCheck.location];
+              if (targetTable) {
+                const { error: mergeError } = await supabase
+                  .from(targetTable)
+                  .update({ seller_tag: newTag })
+                  .eq('asin', product.asin);
+                if (mergeError) throw mergeError;
+                // Delete from reorder
+                await supabase.from(`india_reorder_${activeSeller.table_suffix}`).delete().eq('id', product.id);
+                setProducts(prev => prev.filter(p => p.id !== product.id));
+                setToast({ message: `Added ${activeSeller.tag} to ${product.asin} in ${liveCheck.stage_label}`, type: 'success' });
+                setTimeout(() => setToast(null), 3000);
+                return;
+              }
+            }
+          }
+
           // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
           const { data: historyData, error: historyError } = await supabase
             .from('india_asin_history')
@@ -840,7 +892,7 @@ export default function ReorderPage() {
 
               // ♻️ RESTORED FIELDS (The "Bag" Contents)
               brand: masterData?.brand || null,
-              seller_tag: masterData?.seller_tag || null,
+              seller_tag: activeSeller.tag,
               funnel: masterData?.funnel || null,
               origin: masterData?.origin || 'India', // Default to India if unknown
               india_link: masterData?.india_link || product.seller_link,
@@ -933,25 +985,25 @@ export default function ReorderPage() {
   });
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-slate-200 relative overflow-hidden">
+    <div className="h-screen flex flex-col bg-[#111111] text-gray-100 relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex-none px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 pb-4 border-b border-slate-800">
+      <div className="flex-none px-4 sm:px-6 lg:px-6 pt-4 sm:pt-6 pb-4 border-b border-white/[0.06]">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-white">Replenishment Manager</h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
+            <p className="text-xs sm:text-sm text-gray-300 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
           </div>
 
           {/* SELLER TABS */}
-          <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shadow-xl overflow-x-auto scrollbar-none">
+          <div className="flex bg-[#111111] p-1.5 rounded-xl border border-white/[0.06] shadow-xl overflow-x-auto scrollbar-none">
             {SELLERS.map(s => (
               <button
                 key={s.id}
                 onClick={() => setActiveSeller(s)}
                 className={`relative px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeSeller.id === s.id
                   ? `${s.activeColor} text-white ${s.activeShadow} shadow-lg scale-105 z-10`
-                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
+                  : 'text-gray-500 hover:text-gray-100 hover:bg-[#111111]'
                   }`}
               >
                 <span className="text-base">{s.emoji}</span>
@@ -967,8 +1019,8 @@ export default function ReorderPage() {
           <button
             onClick={() => setActiveTab('main')}
             className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-xs sm:text-sm rounded-xl transition-all duration-300 whitespace-nowrap ${activeTab === 'main'
-              ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+              ? 'bg-[#111111] text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.06]'
               }`}
           >
             Main Workspace ({products.filter(p => p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined).length})
@@ -977,8 +1029,8 @@ export default function ReorderPage() {
           <button
             onClick={() => setActiveTab('final')}
             className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-xs sm:text-sm rounded-xl flex items-center gap-2 transition-all duration-300 whitespace-nowrap ${activeTab === 'final'
-              ? 'bg-slate-800 text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+              ? 'bg-[#111111] text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.06]'
               }`}
           >
             <AlertTriangle className="w-4 h-4" />
@@ -988,29 +1040,29 @@ export default function ReorderPage() {
       </div>
 
       {/* CONTROLS */}
-      <div className="flex gap-2 sm:gap-3 items-center flex-wrap mb-4 sm:mb-6 px-3 sm:px-4 lg:px-6 pt-4">
+      <div className="flex gap-4 items-center flex-wrap mb-4 sm:mb-6 px-4 sm:px-6 lg:px-6 pt-4">
         <div className="relative flex-1 min-w-0 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
             type="text"
             placeholder="Search by ASIN, Name, or SKU..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
           />
         </div>
 
         {/* Funnel Filter Pills - RS / DP */}
-        <div className="flex items-center bg-slate-900/50 rounded-xl border border-slate-800 p-1">
+        <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1">
           {(['ALL', 'RS', 'DP'] as const).map((opt) => (
             <button
               key={opt}
               onClick={() => setFunnelFilter(opt)}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === opt
                 ? opt === 'RS' ? 'bg-emerald-600 text-white shadow-lg'
-                  : opt === 'DP' ? 'bg-amber-500 text-black shadow-lg'
-                    : 'bg-indigo-600 text-white shadow-lg'
-                : 'text-slate-500 hover:text-slate-300'
+                  : opt === 'DP' ? 'bg-amber-500/100 text-black shadow-lg'
+                    : 'bg-orange-500/100 text-white shadow-lg'
+                : 'text-gray-500 hover:text-gray-200'
                 }`}
             >
               {opt}
@@ -1022,9 +1074,9 @@ export default function ReorderPage() {
         <div className="relative">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
-              ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/30'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+            className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border ${originFilter !== 'ALL' || statusFilter !== 'ALL'
+              ? 'bg-orange-500/100 text-white border-orange-500 shadow-lg shadow-orange-500/20'
+              : 'bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border-white/[0.06]'
               }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1032,7 +1084,7 @@ export default function ReorderPage() {
             </svg>
             Filter
             {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
-              <span className="w-5 h-5 bg-white/20 rounded-full text-[10px] flex items-center justify-center font-bold">
+              <span className="w-5 h-5 bg-[#111111]/20 rounded-full text-[10px] flex items-center justify-center font-bold">
                 {[originFilter !== 'ALL', statusFilter !== 'ALL'].filter(Boolean).length}
               </span>
             )}
@@ -1041,9 +1093,9 @@ export default function ReorderPage() {
           {isFilterOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)} />
-              <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72">
+              <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-slate-200 text-sm">Filters</h3>
+                  <h3 className="font-semibold text-gray-100 text-sm">Filters</h3>
                   {(originFilter !== 'ALL' || statusFilter !== 'ALL') && (
                     <button
                       onClick={() => { setOriginFilter('ALL'); setStatusFilter('ALL'); }}
@@ -1056,18 +1108,18 @@ export default function ReorderPage() {
 
                 {/* Origin Filter */}
                 <div className="mb-4">
-                  <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Origin</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase mb-2 block">Origin</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(['ALL', 'India', 'China', 'US'] as const).map((opt) => (
                       <button
                         key={opt}
                         onClick={() => setOriginFilter(opt)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${originFilter === opt
-                          ? opt === 'India' ? 'bg-orange-500 text-white'
-                            : opt === 'China' ? 'bg-rose-500 text-white'
+                          ? opt === 'India' ? 'bg-orange-500/100 text-white'
+                            : opt === 'China' ? 'bg-rose-500/100 text-white'
                               : opt === 'US' ? 'bg-sky-500 text-white'
-                                : 'bg-indigo-600 text-white'
-                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                                : 'bg-orange-500/100 text-white'
+                          : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
                           }`}
                       >
                         {opt}
@@ -1078,18 +1130,18 @@ export default function ReorderPage() {
 
                 {/* Status Filter */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-400 uppercase mb-2 block">Status</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase mb-2 block">Status</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(['ALL', 'Safe', 'Covered', 'Reorder'] as const).map((opt) => (
                       <button
                         key={opt}
                         onClick={() => setStatusFilter(opt)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === opt
-                          ? opt === 'Safe' ? 'bg-emerald-500 text-white'
-                            : opt === 'Covered' ? 'bg-amber-500 text-black'
-                              : opt === 'Reorder' ? 'bg-rose-500 text-white'
-                                : 'bg-indigo-600 text-white'
-                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                          ? opt === 'Safe' ? 'bg-emerald-500/100 text-white'
+                            : opt === 'Covered' ? 'bg-amber-500/100 text-black'
+                              : opt === 'Reorder' ? 'bg-rose-500/100 text-white'
+                                : 'bg-orange-500/100 text-white'
+                          : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.06]'
                           }`}
                       >
                         {opt}
@@ -1104,18 +1156,18 @@ export default function ReorderPage() {
 
         {activeTab === 'main' && (
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-medium transition-colors">
+            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-xs sm:text-sm font-medium transition-colors">
               <RefreshCw className={`w-4 h-4 shrink-0 ${processing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Sync Listed</span><span className="sm:hidden">Sync</span>
             </button>
             <div className="relative">
               <input type="file" accept=".csv,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-medium transition-colors">
+              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-xs sm:text-sm font-medium transition-colors">
                 <Upload className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">Upload Inventory</span><span className="sm:hidden">Upload</span>
               </button>
             </div>
-            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shadow-lg text-xs sm:text-sm font-medium transition-colors">
+            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500/100 text-white rounded-lg hover:bg-orange-400 shadow-lg text-xs sm:text-sm font-medium transition-colors">
               <Save className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Run Calculation</span><span className="sm:hidden">Calculate</span>
             </button>
@@ -1124,48 +1176,59 @@ export default function ReorderPage() {
       </div>
 
       {/* MAIN TABLE */}
-      <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 pb-4 sm:pb-6">
-        <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
+      <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-6 pb-4 sm:pb-6">
+        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full divide-y divide-slate-800">
-              <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
+            <table className="w-full divide-y divide-white/[0.06]">
+              <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.06]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">SKU</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 w-1/4">Product Name</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">History</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Remark</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-indigo-400 uppercase bg-indigo-900/20 border-r border-slate-800">Target Qty</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-900/20 border-r border-slate-800">Current</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Deficit</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-slate-800">Tracking</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-900/20 border-r border-slate-800">Final Order</th>
-                  {activeTab === 'final' && <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Action</th>}
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">ASIN</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">SKU</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06] w-1/4">Product Name</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">History</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Remark</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-500 uppercase bg-orange-500/15/60 border-r border-white/[0.06]">Target Qty</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-500/15 border-r border-white/[0.06]">Current</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Deficit</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-white/[0.06]">Tracking</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-500/10 border-r border-white/[0.06]">Final Order</th>
+                  {activeTab === 'final' && <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">Action</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className="divide-y divide-white/[0.06]">
                 {loading ? (
-                  <tr><td colSpan={10} className="p-12 text-center text-slate-500"><Loader2 className="animate-spin w-8 h-8 mx-auto mb-2 text-indigo-500" />Loading data...</td></tr>
+                  <tr><td colSpan={10} className="p-12 text-center text-gray-300"><Loader2 className="animate-spin w-8 h-8 mx-auto mb-2 text-orange-500" />Loading data...</td></tr>
                 ) : filteredProducts.length === 0 ? (
-                  <tr><td colSpan={10} className="p-12 text-center text-slate-500">No products found.</td></tr>
+                  <tr><td colSpan={10} className="p-12 text-center text-gray-300">No products found.</td></tr>
                 ) : (
                   filteredProducts.map(product => {
                     const deficit = product.admin_target_qty - product.current_qty
+                    const pipelineInfo = blockedAsins.get(product.asin);
+                    const isBlocked = pipelineInfo && !pipelineInfo.can_merge;
+                    const isInPipeline = !!pipelineInfo?.location;
                     return (
-                      <tr key={product.id} className="hover:bg-slate-800/40 transition-colors group">
-                        <td className="px-6 py-4 text-sm font-mono text-slate-300 font-medium border-r border-slate-800/50">{product.asin}</td>
-                        <td className="px-6 py-4 text-sm font-mono text-slate-500 border-r border-slate-800/50">{product.sku || '-'}</td>
-                        <td className="px-6 py-4 border-r border-slate-800/50">
-                          <span className="text-sm text-slate-200 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
-                          {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-indigo-400 hover:text-indigo-300 mt-1 inline-block">View Link</a>}
+                      <tr key={product.id} className={`transition-colors group ${isBlocked ? 'bg-orange-900/20 hover:bg-orange-900/30' : isInPipeline ? 'bg-amber-900/10 hover:bg-amber-900/20' : 'hover:bg-white/[0.05]0/100/5'}`}>
+                        <td className="px-6 py-4 text-sm font-mono text-gray-300 font-medium border-r border-white/[0.06]">
+                          {product.asin}
+                          {isBlocked && (
+                            <div className="text-[10px] text-orange-400">🟠 In {pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
+                          )}
+                          {isInPipeline && !isBlocked && (
+                            <div className="text-[10px] text-amber-400">🟡 In {pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-mono text-gray-300 border-r border-white/[0.06]">{product.sku || '-'}</td>
+                        <td className="px-6 py-4 border-r border-white/[0.06]">
+                          <span className="text-sm text-gray-100 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
+                          {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-orange-500 hover:text-orange-400 mt-1 inline-block">View Link</a>}
                         </td>
 
                         {/* ✅ HISTORY BUTTON */}
-                        <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                        <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                           <button
                             onClick={() => fetchHistory(product.asin)}
-                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/20 text-gray-400 hover:text-orange-500 transition-colors"
                             title="View Journey History"
                           >
                             <History className="w-4 h-4" />
@@ -1173,7 +1236,7 @@ export default function ReorderPage() {
                         </td>
 
                         {/* ✅ REMARK BUTTON */}
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-6 py-4 text-center">
                           {product.remark ? (
                             <button
                               onClick={() => {
@@ -1186,35 +1249,35 @@ export default function ReorderPage() {
                                 setEditingRemarkProductId(product.id);
                                 setRemarkModalOpen(true);
                               }}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium transition-colors"
+                              className="px-3 py-1.5 bg-orange-500/100 hover:bg-orange-600 text-white rounded-md text-xs font-medium transition-colors"
                             >
                               View
                             </button>
                           ) : (
-                            <button onClick={() => { setSelectedRemark({ id: product.id, asin: product.asin, remark: null }); setEditingRemarkText(''); setEditingRemarkProductId(product.id); setRemarkModalOpen(true); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>
+                            <button onClick={() => { setSelectedRemark({ id: product.id, asin: product.asin, remark: null }); setEditingRemarkText(''); setEditingRemarkProductId(product.id); setRemarkModalOpen(true); }} className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer">+ Add</button>
                           )}
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-indigo-900/10 border-r border-slate-800/50">
+                        <td className="px-6 py-4 text-center bg-orange-500/100/10 border-r border-white/[0.06]">
                           <input
                             type="number"
                             value={product.admin_target_qty}
                             onChange={(e) => updateTargetQty(product.id, parseInt(e.target.value) || 0)}
-                            className="w-24 text-center py-1.5 px-2 bg-slate-800 border border-indigo-500/30 rounded-md text-sm text-white font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
+                            className="w-24 text-center py-1.5 px-2 bg-[#111111] border border-orange-500/30 rounded-md text-sm text-white font-medium focus:ring-1 focus:ring-orange-500 outline-none"
                           />
                         </td>
-                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-slate-800/50">{product.current_qty}</td>
-                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-slate-800/50 ${deficit > 0 ? 'text-rose-400' : 'text-slate-500'}`}>{deficit}</td>
-                        <td className="px-6 py-4 text-center bg-blue-900/10 border-r border-slate-800/50 group/track relative">
+                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-white/[0.06]">{product.current_qty}</td>
+                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-white/[0.06] ${deficit > 0 ? 'text-rose-400' : 'text-gray-300'}`}>{deficit}</td>
+                        <td className="px-6 py-4 text-center bg-blue-900/10 border-r border-white/[0.06] group/track relative">
                           <span className="text-blue-300 font-medium text-sm cursor-help inline-flex items-center gap-1">
                             {product.tracking_qty}
                             {product.tracking_sources && product.tracking_qty > 0 && (
-                              <Info className="w-3.5 h-3.5 text-slate-500" />
+                              <Info className="w-3.5 h-3.5 text-gray-500" />
                             )}
                           </span>
                           {product.tracking_sources && product.tracking_qty > 0 && (
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/track:block z-50 w-44 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2.5 text-xs pointer-events-none">
-                              <div className="text-slate-400 font-semibold mb-1.5 text-center">Source Breakdown</div>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/track:block z-50 w-44 bg-[#111111] border border-white/[0.06] rounded-lg shadow-xl p-2.5 text-xs pointer-events-none">
+                              <div className="text-gray-400 font-semibold mb-1.5 text-center">Source Breakdown</div>
                               {product.tracking_sources.inbound > 0 && (
                                 <div className="flex justify-between py-0.5">
                                   <span className="text-cyan-400">Inbound</span>
@@ -1239,22 +1302,22 @@ export default function ReorderPage() {
                                   <span className="text-white font-medium">{product.tracking_sources.restock}</span>
                                 </div>
                               )}
-                              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-0 h-0 border-l-[6px] border-r-[6px] border-b-[6px] border-transparent border-b-slate-700" />
+                              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-0 h-0 border-l-[6px] border-r-[6px] border-b-[6px] border-transparent border-b-gray-200" />
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                        <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${product.status === 'Reorder'
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            ? 'bg-rose-500/100/20 text-rose-400 border-rose-500/20'
                             : product.status === 'Covered'
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              ? 'bg-amber-500/100/20 text-amber-400 border-amber-500/20'
+                              : 'bg-emerald-500/100/20 text-emerald-400 border-emerald-500/20'
                             }`}>
                             {product.status || 'Safe'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center bg-rose-900/10 border-r border-slate-800/50">
-                          {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-slate-600">-</span>}
+                        <td className="px-6 py-4 text-center bg-rose-500/100/5 border-r border-white/[0.06]">
+                          {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/100/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-gray-300">-</span>}
                         </td>
 
                         {/* ✅ RESTART LOOP BUTTON */}
@@ -1262,7 +1325,7 @@ export default function ReorderPage() {
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => sendToValidation(product)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white rounded-lg border border-indigo-500/30 transition-all text-xs font-medium"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/100/10 text-orange-400 hover:bg-white/[0.05]0/100 hover:text-white rounded-lg border border-orange-500/30 transition-all text-xs font-medium"
                             >
                               <Send className="w-3 h-3" />
                               To Validation
@@ -1289,7 +1352,7 @@ export default function ReorderPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedHistoryAsin(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="absolute inset-0 bg-[#111111]/60 z-40"
             />
 
             {/* Sidebar */}
@@ -1298,34 +1361,34 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-xl font-bold text-white">Journey History</h2>
-                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
                 </div>
-                <button onClick={() => setSelectedHistoryAsin(null)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setSelectedHistoryAsin(null)} className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                 {historyLoading ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin w-8 h-8 text-indigo-500" /></div>
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin w-8 h-8 text-orange-500" /></div>
                 ) : historyData.length === 0 ? (
-                  <div className="text-center text-slate-500 py-10">No history found for this item.</div>
+                  <div className="text-center text-gray-500 py-10">No history found for this item.</div>
                 ) : (
                   historyData.map((snapshot, idx) => (
-                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6">
+                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
-                      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                          <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
                             Journey #{snapshot.journey_number}
                           </span>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-gray-300">
                             {new Date(snapshot.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -1335,7 +1398,7 @@ export default function ReorderPage() {
                         </h3>
 
                         {/* Snapshot Details */}
-                        <div className="space-y-1 text-xs text-slate-300">
+                        <div className="space-y-1 text-xs text-gray-300">
                           {snapshot.profit && (
                             <div className="flex justify-between">
                               <span>Profit:</span>
@@ -1378,7 +1441,7 @@ export default function ReorderPage() {
                 setEditingRemarkText('');
                 setEditingRemarkProductId(null);
               }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="absolute inset-0 bg-[#111111]/60 z-40"
             />
 
             {/* Sidebar */}
@@ -1387,12 +1450,12 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col"
+              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 flex flex-col"
             >
               <div className="flex items-center justify-between p-4 sm:p-6 pb-0 mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-white">Remark</h2>
-                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedRemark.asin}</p>
+                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedRemark.asin}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1401,7 +1464,7 @@ export default function ReorderPage() {
                     setEditingRemarkText('');
                     setEditingRemarkProductId(null);
                   }}
-                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                  className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1409,33 +1472,33 @@ export default function ReorderPage() {
 
               <div className="flex-1 flex flex-col">
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
                     <textarea
                       value={editingRemarkText}
                       onChange={(e) => setEditingRemarkText(e.target.value)}
-                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-gray-500"
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between mt-auto">
-                  <div className="text-xs text-slate-500">
-                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between mt-auto">
+                  <div className="text-xs text-gray-300">
+                    Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => navigator.clipboard.writeText(editingRemarkText)}
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm"
+                      className="px-4 py-2 bg-[#1a1a1a] hover:bg-gray-200 text-gray-100 rounded-lg font-medium transition-colors text-sm"
                     >
                       Copy
                     </button>
@@ -1449,14 +1512,14 @@ export default function ReorderPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setRemarkModalOpen(false); setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>

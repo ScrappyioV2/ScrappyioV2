@@ -42,9 +42,9 @@ export default function ManageSellersPage() {
   // Config for UI Mapping
   const countryConfig = {
     usa: { label: 'United States', code: 'US', flag: '🇺🇸', color: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500/20', glow: 'shadow-blue-500/20' },
-    india: { label: 'India', code: 'IN', flag: '🇮🇳', color: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500/20', glow: 'shadow-orange-500/20' },
-    uae: { label: 'UAE', code: 'AE', flag: '🇦🇪', color: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/20' },
-    uk: { label: 'United Kingdom', code: 'GB', flag: '🇬🇧', color: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500/20', glow: 'shadow-rose-500/20' },
+    india: { label: 'India', code: 'IN', flag: '🇮🇳', color: 'text-orange-400', bg: 'bg-orange-500/100', border: 'border-orange-500/20', glow: 'shadow-orange-500/20' },
+    uae: { label: 'UAE', code: 'AE', flag: '🇦🇪', color: 'text-emerald-400', bg: 'bg-emerald-500/100', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/20' },
+    uk: { label: 'United Kingdom', code: 'GB', flag: '🇬🇧', color: 'text-rose-400', bg: 'bg-rose-500/100', border: 'border-rose-500/20', glow: 'shadow-rose-500/20' },
   };
 
   const debouncedFetchProgressRef = useRef<NodeJS.Timeout | null>(null);
@@ -172,26 +172,26 @@ export default function ManageSellersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-orange-400/30">
 
       <motion.div variants={container} initial="hidden" animate="show" className="max-w-7xl mx-auto space-y-8">
 
         {/* === HEADER === */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-slate-800/60">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-white/[0.06]">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
-                <Globe className="w-6 h-6 text-indigo-400" />
+              <div className="p-2 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+                <Globe className="w-6 h-6 text-orange-500" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Seller Management</h1>
             </div>
-            <p className="text-slate-400 pl-[3.25rem]">
+            <p className="text-gray-400 pl-[3.25rem]">
               Manage scraping sources and monitor copy progress across regions.
             </p>
           </div>
           {user && userRole && (
-            <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono text-slate-400 flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
+            <div className="px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.06] text-xs font-mono text-gray-400 flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse`} />
               {userRole.full_name || user.email}
             </div>
           )}
@@ -199,7 +199,7 @@ export default function ManageSellersPage() {
 
         {/* === AUTH MESSAGE === */}
         {authMessage && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl border ${authMessage.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'} flex items-center gap-3`}>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl border ${authMessage.type === 'success' ? 'bg-emerald-500/100/20 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/100/20 border-rose-500/20 text-rose-400'} flex items-center gap-3`}>
             {authMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <Loader2 className="w-5 h-5" />}
             {authMessage.text}
           </motion.div>
@@ -217,7 +217,7 @@ export default function ManageSellersPage() {
               <motion.div
                 key={country}
                 variants={item}
-                className={`group relative bg-slate-900/40 border border-slate-800 hover:border-slate-700 p-6 rounded-2xl backdrop-blur-sm transition-all duration-300 overflow-hidden hover:shadow-2xl hover:shadow-black/50`}
+                className={`group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-white/[0.06] p-6 rounded-2xl transition-all duration-300 overflow-hidden hover:shadow-2xl hover:shadow-black/30`}
               >
                 {/* Background Glow */}
                 <div className={`absolute -right-20 -top-20 w-64 h-64 bg-gradient-to-br ${config.color.replace('text-', 'from-')}/10 to-transparent rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
@@ -231,11 +231,11 @@ export default function ManageSellersPage() {
                     <div>
                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         {config.label}
-                        <span className={`text-[10px] px-2 py-0.5 rounded border ${config.border} bg-slate-900 ${config.color}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded border ${config.border} bg-[#111111] ${config.color}`}>
                           {config.code}
                         </span>
                       </h3>
-                      <div className="flex items-center gap-2 text-slate-500 text-sm mt-1">
+                      <div className="flex items-center gap-2 text-gray-500 text-sm mt-1">
                         <Database className="w-3 h-3" />
                         <span>{data.totalLinks.toLocaleString()} Total Sellers</span>
                       </div>
@@ -246,13 +246,13 @@ export default function ManageSellersPage() {
                 {/* Progress Section */}
                 <div className="mb-8 relative z-10">
                   <div className="flex justify-between text-sm mb-2 font-medium">
-                    <span className="text-slate-400">Copy Progress</span>
+                    <span className="text-gray-400">Copy Progress</span>
                     {/* ✅ CHANGED: Show count instead of percentage */}
                     <span className={config.color}>
                       {data.copiedLinks.toLocaleString()} / {data.totalLinks.toLocaleString()}
                     </span>
                   </div>
-                  <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                  <div className="h-3 w-full bg-[#111111] rounded-full overflow-hidden border border-white/[0.06]">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
@@ -264,7 +264,7 @@ export default function ManageSellersPage() {
                   {/* Timestamp Info */}
                   <div className="mt-3 flex flex-wrap gap-4 text-xs font-mono">
                     {data.resetAt && (
-                      <div className="flex items-center gap-1.5 text-slate-500">
+                      <div className="flex items-center gap-1.5 text-gray-500">
                         <Clock className="w-3 h-3" />
                         <span>Reset: {new Date(data.resetAt).toLocaleDateString()}</span>
                       </div>
@@ -279,10 +279,10 @@ export default function ManageSellersPage() {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="flex items-center gap-3 pt-4 border-t border-slate-800/50 relative z-10">
+                <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06] relative z-10">
                   <button
                     onClick={() => handleCardClick(country)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium transition-all group-hover:ring-1 ring-inset ring-slate-700`}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#111111] hover:bg-[#1a1a1a] text-white font-medium transition-all group-hover:ring-1 ring-inset ring-slate-700`}
                   >
                     <Plus className="w-4 h-4" />
                     Add Seller
@@ -291,7 +291,7 @@ export default function ManageSellersPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); resetAllCopied(country); }}
                     disabled={data.copiedLinks === 0}
-                    className="px-4 py-2.5 rounded-lg border border-slate-800 text-slate-500 hover:text-white hover:bg-rose-500/10 hover:border-rose-500/50 hover:shadow-[0_0_15px_-5px_rgba(244,63,94,0.3)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    className="px-4 py-2.5 rounded-lg border border-white/[0.06] text-gray-500 hover:text-white hover:bg-rose-500/100/20 hover:border-rose-500/50 hover:shadow-[0_0_15px_-5px_rgba(244,63,94,0.3)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     title="Reset Copy Progress"
                   >
                     <RefreshCw className={`w-4 h-4 ${data.copiedLinks > 0 ? '' : ''}`} />

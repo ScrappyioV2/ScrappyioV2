@@ -54,7 +54,7 @@ export default function FilterDropdown({
   return (
     <div 
       ref={dropdownRef}
-      className={`absolute top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col ${
+      className={`absolute top-full mt-2 w-80 bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] z-50 max-h-96 overflow-hidden flex flex-col ${
         position === 'left' ? 'right-0' : 'left-0'
       }`}
       style={{
@@ -63,11 +63,11 @@ export default function FilterDropdown({
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <h3 className="font-semibold text-sm text-gray-900">{title}</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#111111]">
+        <h3 className="font-semibold text-sm text-white">{title}</h3>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition"
+          className="text-gray-500 hover:text-gray-500 transition"
         >
           <X className="w-4 h-4" />
         </button>

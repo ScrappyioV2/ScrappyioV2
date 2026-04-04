@@ -98,7 +98,7 @@ export default function VyaparTable({
         item.asin?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    if (loading) return <div className="p-8 text-slate-400">Loading Vyapar records...</div>;
+    if (loading) return <div className="p-8 text-gray-400">Loading Vyapar records...</div>;
 
     return (
         <div className="h-full flex flex-col">
@@ -107,7 +107,7 @@ export default function VyaparTable({
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h2 className="text-2xl font-bold text-white">Vyapar Records</h2>
-                        <p className="text-sm text-slate-400 mt-1">⛔ Admin Access Only - Final Accounting</p>
+                        <p className="text-sm text-gray-300 mt-1">⛔ Admin Access Only - Final Accounting</p>
                     </div>
                 </div>
 
@@ -116,41 +116,41 @@ export default function VyaparTable({
                     placeholder="Search by Invoice or ASIN..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-200"
+                    className="w-full max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100"
                 />
             </div>
 
             {/* Table */}
             <div className="flex-1 overflow-hidden">
-                <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
+                <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
 
                     {/* Scrollable Table */}
                     <div className="flex-1 overflow-y-auto">
                         <table className="w-full">
-                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
+                            <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice No</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice Date</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">GST Number</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">ASIN</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Product</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Qty</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Price</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Amount</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tax</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Total</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Company</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Upload</th>
-                                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-400">Action</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice No</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice Date</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">GST Number</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">ASIN</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Product</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Qty</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Price</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Amount</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Tax</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Total</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Tracking</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Delivery</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Company</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Upload</th>
+                                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400">Action</th>
                                 </tr>
                             </thead>
 
-                            <tbody className="divide-y divide-slate-800">
+                            <tbody className="divide-y divide-white/[0.06]">
                                 {filteredItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={15} className="text-center py-8 text-slate-500">
+                                        <td colSpan={15} className="text-center py-8 text-gray-300">
                                             {searchQuery ? 'No items found' : 'No Vyapar records yet'}
                                         </td>
                                     </tr>
@@ -160,73 +160,73 @@ export default function VyaparTable({
                                             key={item.id}
                                             className={`transition-colors ${item.action_status === 'done'
                                                 ? 'bg-green-900/30 hover:bg-green-900/40'
-                                                : 'hover:bg-slate-800/40'
+                                                : 'hover:bg-white/[0.05]0/100/5'
                                                 }`}
                                         >
                                             {/* 1. Invoice No */}
-                                            <td className="px-4 py-3 text-slate-200 font-semibold">{item.invoice_number}</td>
+                                            <td className="px-6 py-4 text-gray-100 font-semibold">{item.invoice_number}</td>
 
                                             {/* 2. Invoice Date */}
-                                            <td className="px-4 py-3 text-slate-300">
+                                            <td className="px-6 py-4 text-gray-300">
                                                 {item.invoice_date ? new Date(item.invoice_date).toLocaleDateString() : '-'}
                                             </td>
 
                                             {/* 3. GST Number */}
-                                            <td className="px-4 py-3 text-slate-300">{item.gst_number || '-'}</td>
+                                            <td className="px-6 py-4 text-gray-300">{item.gst_number || '-'}</td>
 
                                             {/* 4. ASIN */}
-                                            <td className="px-4 py-3 font-mono text-indigo-400">{item.asin}</td>
+                                            <td className="px-6 py-4 font-mono text-orange-500">{item.asin}</td>
 
                                             {/* 5. Product */}
-                                            <td className="px-4 py-3 text-slate-300">{item.product_name || '-'}</td>
+                                            <td className="px-6 py-4 text-gray-300">{item.product_name || '-'}</td>
 
                                             {/* 6. Qty */}
-                                            <td className="px-4 py-3 text-slate-300">{item.buying_quantity || '-'}</td>
+                                            <td className="px-6 py-4 text-gray-300">{item.buying_quantity || '-'}</td>
 
                                             {/* 7. Price */}
-                                            <td className="px-4 py-3 text-slate-300">₹{item.buying_price || 0}</td>
+                                            <td className="px-6 py-4 text-gray-300">₹{item.buying_price || 0}</td>
 
                                             {/* 8. Amount */}
-                                            <td className="px-4 py-3 text-green-400 font-semibold">
+                                            <td className="px-6 py-4 text-green-400 font-semibold">
                                                 ₹{item.amount?.toFixed(2) || '0.00'}
                                             </td>
 
                                             {/* 9. Tax */}
-                                            <td className="px-4 py-3 text-slate-300">
+                                            <td className="px-6 py-4 text-gray-300">
                                                 ₹{item.tax_amount?.toFixed(2) || '0.00'}
                                             </td>
 
                                             {/* 10. Total */}
-                                            <td className="px-4 py-3 text-yellow-400 font-bold">
+                                            <td className="px-6 py-4 text-yellow-400 font-bold">
                                                 ₹{item.total_amount?.toFixed(2) || '0.00'}
                                             </td>
 
                                             {/* 11. Tracking */}
-                                            <td className="px-4 py-3 text-slate-300 truncate max-w-[150px]">
+                                            <td className="px-6 py-4 text-gray-300 truncate max-w-[150px]">
                                                 {item.tracking_details || '-'}
                                             </td>
 
                                             {/* 12. Delivery */}
-                                            <td className="px-4 py-3 text-slate-300">
+                                            <td className="px-6 py-4 text-gray-300">
                                                 {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString() : '-'}
                                             </td>
 
                                             {/* 13. Company - MOVED HERE AT THE END */}
-                                            <td className="px-4 py-3">
+                                            <td className="px-6 py-4">
                                                 {item.seller_company ? (
                                                     <button
                                                         onClick={() => setSelectedCompany(item.seller_company!)}
-                                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                                        className="bg-orange-500/100 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                                                     >
                                                         View
                                                     </button>
                                                 ) : (
-                                                    <span className="text-slate-600">-</span>
+                                                    <span className="text-gray-500">-</span>
                                                 )}
                                             </td>
 
                                             {/* 14. Upload - MOVED HERE AT THE END */}
-                                            <td className="px-4 py-3">
+                                            <td className="px-6 py-4">
                                                 {item.uploaded_invoice_url ? (
                                                     <a
                                                         href={item.uploaded_invoice_url}
@@ -237,12 +237,12 @@ export default function VyaparTable({
                                                         View
                                                     </a>
                                                 ) : (
-                                                    <span className="text-slate-600">-</span>
+                                                    <span className="text-gray-500">-</span>
                                                 )}
                                             </td>
 
                                             {/* 15. Action - AT THE VERY END */}
-                                            <td className="px-4 py-3">
+                                            <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-2">
                                                     {item.action_status === 'done' ? (
                                                         <button
@@ -272,8 +272,8 @@ export default function VyaparTable({
                     </div>
 
                     {/* Footer - FIXED at bottom */}
-                    <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-                        <div className="text-sm text-slate-400">
+                    <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                        <div className="text-sm text-gray-300">
                             Showing {filteredItems.length} of {items.length} Vyapar records
                         </div>
                     </div>
@@ -283,18 +283,18 @@ export default function VyaparTable({
 
             {/* Company Modal */}
             {selectedCompany && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+                <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
                             <button
                                 onClick={() => setSelectedCompany(null)}
-                                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                                className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
                             >
                                 ×
                             </button>
                         </div>
-                        <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700">
+                        <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06]">
                             {selectedCompany}
                         </div>
                     </div>

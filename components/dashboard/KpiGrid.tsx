@@ -11,9 +11,9 @@ export default function KpiGrid({ data }: { data: KpiItem[] }) {
       {data.map((kpi) => (
         <div
           key={kpi.label}
-          className="border rounded-lg p-4 bg-white"
+          className="border rounded-lg p-4 bg-[#111111]"
         >
-          <p className="text-sm text-gray-500">{kpi.label}</p>
+          <p className="text-sm text-gray-400">{kpi.label}</p>
           <p className="text-2xl font-semibold mt-2">{kpi.value}</p>
         </div>
       ))}

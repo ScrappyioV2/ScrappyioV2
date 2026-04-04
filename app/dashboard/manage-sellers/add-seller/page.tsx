@@ -42,7 +42,7 @@ interface GeneratedLink {
 
 export default function AddSellerPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-slate-400">Loading seller page...</div>}>
+    <Suspense fallback={<div className="p-4 text-gray-400">Loading seller page...</div>}>
       <AddSeller />
     </Suspense>
   );
@@ -1298,10 +1298,10 @@ function AddSeller() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30">
       <div className="flex h-screen overflow-hidden">
         {/* Left Section - Country Cards */}
-        <div className="w-[320px] flex-shrink-0 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto">
+        <div className="w-[320px] flex-shrink-0 bg-[#111111] border-r border-white/[0.06] p-6 overflow-y-auto">
           <h2 className="text-xl font-bold text-white mb-6">No of Sellers</h2>
 
           <div className="space-y-3">
@@ -1311,15 +1311,15 @@ function AddSeller() {
                 onClick={() => handleCountryCardClick(card.id)}
                 className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${selectedCountry === card.id
                   ? 'bg-gradient-to-br ' + card.color + ' border-transparent text-white shadow-lg scale-105'
-                  : 'bg-slate-800 border-slate-700 hover:border-slate-600 hover:bg-slate-750'
+                  : 'bg-[#111111] border-white/[0.06] hover:border-white/[0.06] hover:bg-slate-750'
                   }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
-                    <div className={`text-xs font-medium mb-1 ${selectedCountry === card.id ? 'text-white' : 'text-slate-200'}`}>
+                    <div className={`text-xs font-medium mb-1 ${selectedCountry === card.id ? 'text-white' : 'text-gray-100'}`}>
                       Add {card.name} Seller
                     </div>
-                    <div className={`text-3xl font-bold ${selectedCountry === card.id ? 'text-white' : 'text-slate-200'}`}>
+                    <div className={`text-3xl font-bold ${selectedCountry === card.id ? 'text-white' : 'text-gray-100'}`}>
                       {card.count}
                     </div>
                   </div>
@@ -1331,13 +1331,13 @@ function AddSeller() {
         </div>
 
         {/* Right Section - Dynamic Content */}
-        <div className="flex-1 overflow-y-auto bg-slate-950">
+        <div className="flex-1 overflow-y-auto bg-[#111111]">
           <div className="p-6">
             {!selectedCountry ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <h3 className="text-2xl font-bold text-slate-300 mb-2">Select a Country</h3>
-                  <p className="text-slate-500">Choose a country from the left to manage sellers</p>
+                  <h3 className="text-2xl font-bold text-gray-500 mb-2">Select a Country</h3>
+                  <p className="text-gray-500">Choose a country from the left to manage sellers</p>
                 </div>
               </div>
             ) : currentView === 'links' ? (
@@ -1345,18 +1345,18 @@ function AddSeller() {
               <>
                 <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <h1 className="text-2xl font-bold text-slate-200">
+                    <h1 className="text-2xl font-bold text-gray-100">
                       Generated Links - {selectedCountry.toUpperCase()}
                     </h1>
-                    <p className="text-slate-400 mt-2">
+                    <p className="text-gray-400 mt-2">
                       Total Links: <span className="font-semibold text-emerald-400">{generatedLinks.length}</span>
                       {filteredLinks.length !== generatedLinks.length && (
-                        <span className="ml-2 text-indigo-400">
+                        <span className="ml-2 text-orange-500">
                           | Filtered: {filteredLinks.length}
                         </span>
                       )}
                       {selectedLinks.size > 0 && (
-                        <span className="ml-4 text-indigo-400">Selected: {selectedLinks.size}</span>
+                        <span className="ml-4 text-orange-500">Selected: {selectedLinks.size}</span>
                       )}
                     </p>
                   </div>
@@ -1364,7 +1364,7 @@ function AddSeller() {
                     {selectedLinks.size > 0 && (
                       <button
                         onClick={handleBulkDelete}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500 hover:bg-red-700 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm"
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-500/100 hover:bg-red-700 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1375,8 +1375,8 @@ function AddSeller() {
                     <button
                       onClick={() => setHideCopiedLinks(!hideCopiedLinks)}
                       className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm shadow-md transition ${hideCopiedLinks
-                        ? 'bg-slate-800 border border-slate-700 hover:bg-slate-700'
-                        : 'bg-slate-800 border border-slate-700 hover:bg-slate-700'
+                        ? 'bg-[#111111] border border-white/[0.06] hover:bg-[#1a1a1a]'
+                        : 'bg-[#111111] border border-white/[0.06] hover:bg-[#1a1a1a]'
                         }`}
                     >
                       {hideCopiedLinks ? (
@@ -1398,7 +1398,7 @@ function AddSeller() {
                     </button>
                     <button
                       onClick={() => setCurrentView('table')}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-md text-sm"
+                      className="px-4 py-2 bg-orange-500/100 hover:bg-orange-400 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-md text-sm"
                     >
                       + Add New Seller
 
@@ -1419,7 +1419,7 @@ function AddSeller() {
                     <button
                       onClick={downloadAsCSV}
                       disabled={generatedLinks.length === 0}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm"
+                      className="px-4 py-2 bg-orange-500/100 hover:bg-orange-400 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1429,7 +1429,7 @@ function AddSeller() {
                     <button
                       onClick={copyAllLinks}
                       disabled={generatedLinks.length === 0}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500/100 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1450,10 +1450,10 @@ function AddSeller() {
                         setFocusedRowIndex(null) // Clear focus on search
                       }}
                       placeholder="Search by seller name, merchant token, or filter type..."
-                      className="w-full px-4 py-3 pl-10 bg-slate-900 border border-slate-800 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition text-slate-200 placeholder:text-slate-600"
+                      className="w-full px-4 py-3 pl-10 bg-[#111111] border border-white/[0.06] rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-transparent transition text-gray-100 placeholder:text-gray-500"
                     />
                     <svg
-                      className="w-5 h-5 text-slate-500 absolute left-3 top-1/2 transform -translate-y-1/2"
+                      className="w-5 h-5 text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1463,7 +1463,7 @@ function AddSeller() {
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-400"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-500"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1475,27 +1475,27 @@ function AddSeller() {
 
                 {/* KEYBOARD WORKFLOW HINT */}
                 {filteredLinks.length > 0 && (
-                  <div className="mb-4 p-3 bg-slate-900/50 border border-slate-800 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm text-slate-400 flex-wrap">
-                      <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mb-4 p-3 bg-[#1a1a1a] border border-white/[0.06] rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-gray-300 flex-wrap">
+                      <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                       </svg>
-                      <span className="font-semibold text-indigo-300">Keyboard Workflow:</span>
+                      <span className="font-semibold text-orange-400">Keyboard Workflow:</span>
                       <span>Click any link to select it</span>
                       <span className="mx-1">→</span>
-                      <span>Use <kbd className="px-2 py-0.5 bg-slate-800 border-slate-700 text-slate-300 rounded text-xs font-mono">↑</kbd> <kbd className="px-2 py-0.5 bg-slate-800 border-slate-700 text-slate-300 rounded text-xs font-mono">↓</kbd> to navigate</span>
+                      <span>Use <kbd className="px-2 py-0.5 bg-[#111111] border-white/[0.06] text-gray-500 rounded text-xs font-mono">↑</kbd> <kbd className="px-2 py-0.5 bg-[#111111] border-white/[0.06] text-gray-500 rounded text-xs font-mono">↓</kbd> to navigate</span>
                       <span className="mx-1">→</span>
-                      <span>Press <kbd className="px-2 py-0.5 bg-slate-800 border-slate-700 text-slate-300 rounded text-xs font-mono">Ctrl+C</kbd> to copy & auto-mark as copied</span>
+                      <span>Press <kbd className="px-2 py-0.5 bg-[#111111] border-white/[0.06] text-gray-500 rounded text-xs font-mono">Ctrl+C</kbd> to copy & auto-mark as copied</span>
                     </div>
                   </div>
                 )}
 
                 {loadingLinks ? (
                   <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
                   </div>
                 ) : filteredLinks.length > 0 ? (
-                  <div className="bg-slate-900 rounded-lg shadow-md overflow-hidden border border-slate-800">
+                  <div className="bg-[#111111] rounded-lg shadow-md overflow-hidden border border-white/[0.06]">
                     <div
                       ref={linksScrollRef}
                       className="overflow-x-auto overflow-y-auto"
@@ -1513,22 +1513,22 @@ function AddSeller() {
                     >
                       <table className="w-full border-collapse min-w-[1000px]">
                         <thead>
-                          <tr className="bg-slate-950 border-b border-slate-800">
-                            <th className="px-3 py-3 text-center border-r border-slate-800 w-12">
+                          <tr className="bg-[#111111] border-b border-white/[0.06]">
+                            <th className="px-6 py-4 text-center border-r border-white/[0.06] w-12">
                               <input
                                 type="checkbox"
                                 checked={selectAll}
                                 onChange={handleSelectAll}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase border-r border-slate-800 w-16">No.</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase border-r border-slate-800 min-w-[150px]">Seller Name</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase border-r border-slate-800 min-w-[120px]">Merchant Token</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase border-r border-slate-800 w-20">Page</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase border-r border-slate-800 min-w-[130px]">Filter Type</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase border-r border-slate-800 min-w-[250px]">Profile Link</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase w-32">Action</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase border-r border-white/[0.06] w-16">No.</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase border-r border-white/[0.06] min-w-[150px]">Seller Name</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase border-r border-white/[0.06] min-w-[120px]">Merchant Token</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase border-r border-white/[0.06] w-20">Page</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase border-r border-white/[0.06] min-w-[130px]">Filter Type</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase border-r border-white/[0.06] min-w-[250px]">Profile Link</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase w-32">Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1556,33 +1556,33 @@ function AddSeller() {
                                   key={link.id}
                                   id={`link-row-${originalIndex}`}
                                   onClick={() => editingRowIndex !== originalIndex && setFocusedRowIndex(originalIndex)}
-                                  className={`border-b border-slate-800 hover:bg-slate-800/60 cursor-pointer transition-colors ${selectedLinks.has(originalIndex) ? 'bg-indigo-500/10' : ''
-                                    } ${focusedRowIndex === originalIndex ? 'ring-1 ring-indigo-500 bg-indigo-500/20' : ''} ${editingRowIndex === originalIndex ? 'bg-amber-500/10 ring-1 ring-amber-500' : ''
+                                  className={`border-b border-white/[0.06] hover:bg-[#111111]/60 cursor-pointer transition-colors ${selectedLinks.has(originalIndex) ? 'bg-orange-500/100/10' : ''
+                                    } ${focusedRowIndex === originalIndex ? 'ring-1 ring-orange-500 bg-orange-500/100/10' : ''} ${editingRowIndex === originalIndex ? 'bg-amber-500/100/20 ring-1 ring-amber-500' : ''
                                     }`}
                                 >
                                   {/* Checkbox */}
-                                  <td className="px-3 py-3 text-center border-r border-slate-800">
+                                  <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                                     <input
                                       type="checkbox"
                                       checked={selectedLinks.has(originalIndex)}
                                       onChange={() => handleCheckboxChange(originalIndex)}
-                                      className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                      className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                                     />
                                   </td>
 
                                   {/* No. */}
-                                  <td className="px-4 py-3 text-sm text-slate-400 font-medium border-r border-slate-800">
+                                  <td className="px-6 py-4 text-sm text-gray-300 font-medium border-r border-white/[0.06]">
                                     {filteredIndex + 1}
                                   </td>
 
                                   {/* Seller Name - EDITABLE */}
-                                  <td className="px-4 py-3 text-sm text-slate-200 font-medium border-r border-slate-800">
+                                  <td className="px-6 py-4 text-sm text-gray-100 font-medium border-r border-white/[0.06]">
                                     {editingRowIndex === originalIndex ? (
                                       <input
                                         type="text"
                                         value={editingRowData?.seller_name || ''}
                                         onChange={(e) => setEditingRowData(prev => prev ? { ...prev, seller_name: e.target.value } : null)}
-                                        className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded focus:ring-2 focus:ring-indigo-500 text-slate-200"
+                                        className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded focus:ring-2 focus:ring-orange-500 text-gray-100"
                                         onClick={(e) => e.stopPropagation()}
                                       />
                                     ) : (
@@ -1591,13 +1591,13 @@ function AddSeller() {
                                   </td>
 
                                   {/* Merchant Token - EDITABLE */}
-                                  <td className="px-4 py-3 text-sm font-mono text-slate-300 border-r border-slate-800">
+                                  <td className="px-6 py-4 text-sm font-mono text-gray-300 border-r border-white/[0.06]">
                                     {editingRowIndex === originalIndex ? (
                                       <input
                                         type="text"
                                         value={editingRowData?.merchant_token || ''}
                                         onChange={(e) => setEditingRowData(prev => prev ? { ...prev, merchant_token: e.target.value } : null)}
-                                        className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded focus:ring-2 focus:ring-indigo-500 text-slate-200 font-mono"
+                                        className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded focus:ring-2 focus:ring-orange-500 text-gray-100 font-mono"
                                         onClick={(e) => e.stopPropagation()}
                                       />
                                     ) : (
@@ -1606,45 +1606,45 @@ function AddSeller() {
                                   </td>
 
                                   {/* Page Number - EDITABLE */}
-                                  <td className="px-4 py-3 text-sm text-center border-r border-slate-800">
+                                  <td className="px-6 py-4 text-sm text-center border-r border-white/[0.06]">
                                     {editingRowIndex === originalIndex ? (
                                       <input
                                         type="number"
                                         value={editingRowData?.page_number || 1}
                                         onChange={(e) => setEditingRowData(prev => prev ? { ...prev, page_number: parseInt(e.target.value) || 1 } : null)}
-                                        className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded focus:ring-2 focus:ring-indigo-500 text-slate-200 text-center"
+                                        className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded focus:ring-2 focus:ring-orange-500 text-gray-100 text-center"
                                         onClick={(e) => e.stopPropagation()}
                                         min="1"
                                         max="20"
                                       />
                                     ) : (
-                                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold text-xs">
+                                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-500/100/10 text-orange-400 font-semibold text-xs">
                                         {link.page_number}
                                       </span>
                                     )}
                                   </td>
 
                                   {/* Filter Type */}
-                                  <td className="px-4 py-3 text-sm border-r border-slate-800">
+                                  <td className="px-6 py-4 text-sm border-r border-white/[0.06]">
                                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-500/20 text-purple-300">
                                       {link.filter_label}
                                     </span>
                                   </td>
 
                                   {/* Profile Link */}
-                                  <td className="px-4 py-3 text-sm text-indigo-400 border-r border-slate-800">
+                                  <td className="px-6 py-4 text-sm text-orange-500 border-r border-white/[0.06]">
                                     <a
                                       href={link.profile_link}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="hover:text-indigo-300 hover:underline truncate block max-w-[250px]"
+                                      className="hover:text-orange-400 hover:underline truncate block max-w-[250px]"
                                     >
                                       {link.profile_link}
                                     </a>
                                   </td>
 
                                   {/* Action Column */}
-                                  <td className="px-4 py-3 text-center">
+                                  <td className="px-6 py-4 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                       {editingRowIndex === originalIndex ? (
                                         <>
@@ -1654,7 +1654,7 @@ function AddSeller() {
                                               e.stopPropagation()
                                               handleSaveEdit()
                                             }}
-                                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1"
+                                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500/100 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1"
                                           >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1668,7 +1668,7 @@ function AddSeller() {
                                               e.stopPropagation()
                                               handleCancelEdit()
                                             }}
-                                            className="px-3 py-1.5 border-2 border-slate-600 text-slate-300 hover:bg-slate-700 hover:border-slate-500 text-xs font-semibold rounded-lg transition-all"
+                                            className="px-3 py-1.5 border-2 border-white/[0.06] text-gray-500 hover:bg-[#1a1a1a] hover:border-slate-500 text-xs font-semibold rounded-lg transition-all"
                                           >
                                             Cancel
                                           </button>
@@ -1683,8 +1683,8 @@ function AddSeller() {
                                             }}
                                             disabled={link.is_copied}
                                             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 shadow-sm ${link.is_copied
-                                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-default'
-                                              : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-md'
+                                              ? 'bg-emerald-600 hover:bg-emerald-500/100 text-white cursor-default'
+                                              : 'bg-orange-500/100 hover:bg-orange-600 text-white hover:shadow-md'
                                               }`}
                                             title={link.is_copied ? 'Copied ✓' : 'Copy link'}
                                           >
@@ -1708,7 +1708,7 @@ function AddSeller() {
                                               e.stopPropagation()
                                               handleEditLink(originalIndex)
                                             }}
-                                            className="p-2 border-2 border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                                            className="p-2 border-2 border-amber-500 text-amber-500 hover:bg-amber-500/100 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                                             title="Edit link"
                                           >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1722,7 +1722,7 @@ function AddSeller() {
                                               e.stopPropagation()
                                               deleteLink(originalIndex)
                                             }}
-                                            className="p-2 border-2 border-rose-500 text-rose-500 hover:bg-rose-500 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                                            className="p-2 border-2 border-rose-500 text-rose-500 hover:bg-rose-500/100 hover:text-white hover:scale-105 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                                             title="Delete link"
                                           >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1743,14 +1743,14 @@ function AddSeller() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-slate-900 rounded-lg shadow-md p-12 text-center border border-slate-800">
-                    <svg className="w-20 h-20 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-[#111111] rounded-lg shadow-md p-12 text-center border border-white/[0.06]">
+                    <svg className="w-20 h-20 mx-auto text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <h3 className="text-2xl font-semibold text-slate-200 mb-2">
+                    <h3 className="text-2xl font-semibold text-gray-100 mb-2">
                       {searchQuery ? 'No Results Found' : 'No Links Generated Yet'}
                     </h3>
-                    <p className="text-slate-500 mb-6">
+                    <p className="text-gray-500 mb-6">
                       {searchQuery
                         ? `No links match "${searchQuery}". Try a different search term.`
                         : 'Add sellers and generate links to see them here.'
@@ -1759,14 +1759,14 @@ function AddSeller() {
                     {searchQuery ? (
                       <button
                         onClick={() => setSearchQuery('')}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
+                        className="px-6 py-3 bg-orange-500/100 hover:bg-orange-400 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
                       >
                         Clear Search
                       </button>
                     ) : (
                       <button
                         onClick={() => setCurrentView('table')}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
+                        className="px-6 py-3 bg-orange-500/100 hover:bg-orange-400 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
                       >
                         Add Sellers Now
                       </button>
@@ -1780,7 +1780,7 @@ function AddSeller() {
                 <div className="mb-4">
                   <button
                     onClick={() => setCurrentView('links')}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg transition flex items-center gap-2"
+                    className="px-4 py-2 bg-[#111111] hover:bg-[#1a1a1a] text-gray-500 font-semibold rounded-lg transition flex items-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1791,7 +1791,7 @@ function AddSeller() {
 
                 <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
                   <div className="flex gap-2 flex-wrap">
-                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 hover:bg-green-700 text-white font-semibold rounded-lg cursor-pointer transition shadow-md text-sm">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500/100 hover:bg-green-700 text-white font-semibold rounded-lg cursor-pointer transition shadow-md text-sm">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
@@ -1799,7 +1799,7 @@ function AddSeller() {
                       <input type="file" accept=".xlsx,.xls" onChange={handleBulkUpload} className="hidden" />
                     </label>
 
-                    <button onClick={clearAllSellers} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 hover:bg-red-700 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm">
+                    <button onClick={clearAllSellers} className="px-4 py-2 bg-rose-600 hover:bg-rose-500/100 hover:bg-red-700 text-white font-semibold rounded-lg transition shadow-md flex items-center gap-2 text-sm">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -1812,117 +1812,117 @@ function AddSeller() {
                   </button>
                 </div>
 
-                <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden shadow-sm">
+                <div className="bg-[#111111] rounded-lg border border-white/[0.06] overflow-hidden shadow-sm">
                   <div className="overflow-x-auto links-scroll-container">
                     <table className="w-full border-collapse" style={{ minWidth: '1200px' }}>
-                      <thead className="sticky top-0 bg-slate-950 z-10">
-                        <tr className="border-b-2 border-slate-800">
-                          <th className="px-2 py-3 text-left text-xs font-bold text-slate-400 border-r border-slate-800 w-12 bg-slate-950">No.</th>
-                          <th className="px-2 py-3 text-left text-xs font-bold text-slate-400 border-r border-slate-800 bg-slate-950" style={{ minWidth: '140px' }}>Seller Name</th>
-                          <th className="px-2 py-3 text-left text-xs font-bold text-slate-400 border-r border-slate-800 bg-slate-950" style={{ minWidth: '130px' }}>Merchant Token</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-16 bg-slate-950">Page</th>
-                          <th className="px-2 py-3 text-left text-xs font-bold text-slate-400 border-r border-slate-800 w-32 bg-slate-950">Total Products</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-16 bg-slate-950">Default</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-20 bg-slate-950">Low-High</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-20 bg-slate-950">High-Low</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-20 bg-slate-950">Avg Rvw</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-16 bg-slate-950">New</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 border-r border-slate-800 w-16 bg-slate-950">Best</th>
-                          <th className="px-2 py-3 text-center text-xs font-bold text-slate-400 w-20 bg-slate-950">Actions</th>
+                      <thead className="sticky top-0 bg-[#111111] z-10">
+                        <tr className="border-b-2 border-white/[0.06]">
+                          <th className="px-2 py-3 text-left text-xs font-bold text-gray-400 border-r border-white/[0.06] w-12 bg-[#111111]">No.</th>
+                          <th className="px-2 py-3 text-left text-xs font-bold text-gray-400 border-r border-white/[0.06] bg-[#111111]" style={{ minWidth: '140px' }}>Seller Name</th>
+                          <th className="px-2 py-3 text-left text-xs font-bold text-gray-400 border-r border-white/[0.06] bg-[#111111]" style={{ minWidth: '130px' }}>Merchant Token</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-16 bg-[#111111]">Page</th>
+                          <th className="px-2 py-3 text-left text-xs font-bold text-gray-400 border-r border-white/[0.06] w-32 bg-[#111111]">Total Products</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-16 bg-[#111111]">Default</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-20 bg-[#111111]">Low-High</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-20 bg-[#111111]">High-Low</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-20 bg-[#111111]">Avg Rvw</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-16 bg-[#111111]">New</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 border-r border-white/[0.06] w-16 bg-[#111111]">Best</th>
+                          <th className="px-2 py-3 text-center text-xs font-bold text-gray-400 w-20 bg-[#111111]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sellers.map((seller, index) => (
-                          <tr key={seller.id} className="border-b border-slate-800 hover:bg-slate-800/60 transition">
-                            <td className="px-2 py-2 text-sm text-slate-300 font-medium border-r border-slate-800">{index + 1}</td>
-                            <td className="px-2 py-2 border-r border-slate-800">
+                          <tr key={seller.id} className="border-b border-white/[0.06] hover:bg-[#111111]/60 transition">
+                            <td className="px-2 py-2 text-sm text-gray-300 font-medium border-r border-white/[0.06]">{index + 1}</td>
+                            <td className="px-2 py-2 border-r border-white/[0.06]">
                               <input
                                 type="text"
                                 value={seller.sellerName}
                                 onChange={(e) => updateCell(seller.id, 'sellerName', e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm bg-slate-950 border border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-200"
+                                className="w-full px-2 py-1.5 text-sm bg-[#111111] border border-white/[0.06] rounded focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-100"
                                 placeholder="Seller name"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-slate-800">
+                            <td className="px-2 py-2 border-r border-white/[0.06]">
                               <input
                                 type="text"
                                 value={seller.merchantToken}
                                 onChange={(e) => updateCell(seller.id, 'merchantToken', e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm bg-slate-950 border border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-slate-200"
+                                className="w-full px-2 py-1.5 text-sm bg-[#111111] border border-white/[0.06] rounded focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono text-gray-100"
                                 placeholder="AC626B"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-slate-800">
+                            <td className="px-2 py-2 border-r border-white/[0.06]">
                               <input
                                 type="text"
                                 value={seller.page}
                                 readOnly
-                                className="w-full px-2 py-1.5 text-sm border border-slate-700 rounded bg-slate-800 text-center font-semibold text-slate-400"
+                                className="w-full px-2 py-1.5 text-sm border border-white/[0.06] rounded bg-[#111111] text-center font-semibold text-gray-400"
                               />
                             </td>
-                            <td className="px-2 py-2 border-r border-slate-800">
+                            <td className="px-2 py-2 border-r border-white/[0.06]">
                               <input
                                 type="number"
                                 value={seller.totalProducts}
                                 onChange={(e) => updateCell(seller.id, 'totalProducts', e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm bg-slate-950 border border-slate-700 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-200"
+                                className="w-full px-2 py-1.5 text-sm bg-[#111111] border border-white/[0.06] rounded focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-100"
                                 placeholder="0"
                                 min="0"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center border-r border-slate-800">
+                            <td className="px-2 py-2 text-center border-r border-white/[0.06]">
                               <input
                                 type="checkbox"
                                 checked={seller.default}
                                 onChange={(e) => updateCell(seller.id, 'default', e.target.checked)}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center border-r border-slate-800">
+                            <td className="px-2 py-2 text-center border-r border-white/[0.06]">
                               <input
                                 type="checkbox"
                                 checked={seller.lowToHigh}
                                 onChange={(e) => updateCell(seller.id, 'lowToHigh', e.target.checked)}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center border-r border-slate-800">
+                            <td className="px-2 py-2 text-center border-r border-white/[0.06]">
                               <input
                                 type="checkbox"
                                 checked={seller.highToLow}
                                 onChange={(e) => updateCell(seller.id, 'highToLow', e.target.checked)}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center border-r border-slate-800">
+                            <td className="px-2 py-2 text-center border-r border-white/[0.06]">
                               <input
                                 type="checkbox"
                                 checked={seller.avgReview}
                                 onChange={(e) => updateCell(seller.id, 'avgReview', e.target.checked)}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center border-r border-slate-800">
+                            <td className="px-2 py-2 text-center border-r border-white/[0.06]">
                               <input
                                 type="checkbox"
                                 checked={seller.newArrivals}
                                 onChange={(e) => updateCell(seller.id, 'newArrivals', e.target.checked)}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center border-r border-slate-800">
+                            <td className="px-2 py-2 text-center border-r border-white/[0.06]">
                               <input
                                 type="checkbox"
                                 checked={seller.bestSellers}
                                 onChange={(e) => updateCell(seller.id, 'bestSellers', e.target.checked)}
-                                className="w-4 h-4 text-indigo-400 border-slate-700 rounded focus:ring-indigo-500 cursor-pointer bg-slate-800"
+                                className="w-4 h-4 text-orange-500 border-white/[0.06] rounded focus:ring-orange-500 cursor-pointer bg-[#111111]"
                               />
                             </td>
                             <td className="px-2 py-2 text-center">
                               <button
                                 onClick={() => deleteSeller(seller.id)}
-                                className="p-1.5 bg-rose-600 hover:bg-rose-500 hover:bg-red-700 text-white rounded transition inline-flex items-center justify-center"
+                                className="p-1.5 bg-rose-600 hover:bg-rose-500/100 hover:bg-red-700 text-white rounded transition inline-flex items-center justify-center"
                                 title="Delete seller"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1940,7 +1940,7 @@ function AddSeller() {
                 <div className="mt-4">
                   <button
                     onClick={addNewRow}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-md flex items-center gap-2 text-sm"
+                    className="px-5 py-2 bg-orange-500/100 hover:bg-orange-400 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-md flex items-center gap-2 text-sm"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

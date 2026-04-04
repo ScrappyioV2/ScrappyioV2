@@ -561,28 +561,28 @@ export default function RudraRetailPage() {
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
     return (
-      <div className="sticky bottom-0 z-40 bg-slate-900 border-t border-slate-800 p-4">
+      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.06] p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-400">
-            Showing <span className="text-slate-200 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
-            <span className="text-slate-200 font-medium">{Math.min(currentPage * rowsPerPage, totalCount)}</span> of{' '}
+          <div className="text-sm text-gray-300">
+            Showing <span className="text-gray-100 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
+            <span className="text-gray-100 font-medium">{Math.min(currentPage * rowsPerPage, totalCount)}</span> of{' '}
             <span className="text-white font-bold">{totalCount}</span> products
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
-            <span className="px-4 py-2 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg font-mono flex items-center">
+            <span className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg font-mono flex items-center">
               Page {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
@@ -631,7 +631,7 @@ export default function RudraRetailPage() {
         onDragStart={() => handleDragStart(columnKey)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
-        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none group"
+        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.06] cursor-move hover:bg-[#111111] transition-colors select-none group"
         style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
         <div className="flex items-center justify-center gap-2">
@@ -639,7 +639,7 @@ export default function RudraRetailPage() {
         </div>
         <div
           onMouseDown={(e) => startResize(columnKey, e)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-500/50 z-10"
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.05]0/100/50 z-10"
           onClick={(e) => e.stopPropagation()}
         />
       </th>
@@ -658,14 +658,14 @@ export default function RudraRetailPage() {
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
-        ? `text-white bg-slate-800 shadow-[0_0_20px_-5px_currentColor] ${colorClass}`
-        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-transparent hover:border-slate-800'
+        ? `bg-orange-500/100 text-white font-semibold shadow-sm`
+        : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
         }`}
     >
       <span className="relative z-10 flex items-center gap-2">
         {label}
       </span>
-      {activeTab === tabName && (
+      {false && (
         <div className={`absolute inset-0 opacity-10 ${colorClass.replace('text-', 'bg-')}`} />
       )}
     </button>
@@ -673,60 +673,60 @@ export default function RudraRetailPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30">
         {/* HEADER */}
-        <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-6 px-6">
+        <div className="sticky top-0 z-50 bg-[#1a1a1a] border-b border-white/[0.06] pb-4 pt-6 px-6">
           <div className="max-w-[1920px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                    <LayoutList className="w-6 h-6 text-indigo-400" />
+                  <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                    <LayoutList className="w-6 h-6 text-orange-500" />
                   </div>
                   <h1 className="text-2xl font-bold tracking-tight text-white">Rudra Retail - Brand Checking</h1>
                 </div>
-                <p className="text-slate-400 pl-[3.25rem] text-sm">
+                <p className="text-gray-400 pl-[3.25rem] text-sm">
                   Decide which products to list or not list
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
                 <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
-                <span className="w-px h-3 bg-slate-700 mx-2" />
-                <span>SELECTED: <span className="text-indigo-400 font-bold">{selectedIds.size}</span></span>
+                <span className="w-px h-3 bg-[#1a1a1a] mx-2" />
+                <span>SELECTED: <span className="text-orange-500 font-bold">{selectedIds.size}</span></span>
               </div>
             </div>
 
             {/* TABS */}
-            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-fit">
+            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-fit">
               {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
               {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
             </div>
 
             {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900/40 p-3 rounded-xl border border-slate-800 mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.06] mb-2">
               <div className="flex gap-3 w-full md:w-auto">
                 <div className="relative">
                   <button
                     onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 text-sm font-medium transition-colors"
+                    className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] flex items-center gap-2 text-sm font-medium transition-colors"
                   >
                     <Columns className="w-4 h-4" /> Columns
                   </button>
                   {isColumnDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
-                      <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
                         {Object.keys(visibleColumns).map((col) => (
-                          <label key={col} className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
+                          <label key={col} className="flex items-center gap-3 p-2 hover:bg-[#111111] rounded-lg cursor-pointer transition-colors">
                             <input
                               type="checkbox"
                               checked={visibleColumns[col as keyof typeof visibleColumns]}
                               onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
-                              className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                              className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                             />
-                            <span className="text-sm text-slate-300 capitalize">{col.replace('_', ' ')}</span>
+                            <span className="text-sm text-gray-300 capitalize">{col.replace('_', ' ')}</span>
                           </label>
                         ))}
                       </div>
@@ -737,7 +737,7 @@ export default function RudraRetailPage() {
 
               <div className="flex gap-3 items-center w-full md:w-auto">
                 <div className="relative w-full md:w-72 group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
                   <input
                     type="text"
                     placeholder="Search by ASIN, Name, Brand..."
@@ -753,7 +753,7 @@ export default function RudraRetailPage() {
                       }
                       setSearchQuery(value);
                     }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-100 placeholder:text-gray-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
                   />
                 </div>
 
@@ -761,8 +761,8 @@ export default function RudraRetailPage() {
                   onClick={handleRollBack}
                   disabled={!hasRollback}
                   className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    ? 'bg-orange-500/100 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
+                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                     }`}
                 >
                   <RotateCcw className="w-4 h-4" /> Undo
@@ -774,29 +774,29 @@ export default function RudraRetailPage() {
 
         {/* TABLE */}
         <div className="max-w-[1920px] mx-auto px-6 pb-6">
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl shadow-black/20">
+          <div className="bg-[#111111] rounded-2xl border border-white/[0.06] overflow-hidden shadow-xl shadow-black/20">
             {loading ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
-                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
+                <div className="w-10 h-10 border-4 border-orange-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
                 <span className="text-sm font-medium tracking-wide animate-pulse">LOADING DATA...</span>
               </div>
             ) : products.length === 0 ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
-                <Filter className="w-12 h-12 text-slate-700" />
-                <p className="text-lg font-medium text-slate-400">No items found in {activeTab.replace('_', ' ')}</p>
-                <p className="text-sm text-slate-500">Try adjusting your search or filters</p>
+              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-3">
+                <Filter className="w-12 h-12 text-gray-500" />
+                <p className="text-lg font-medium text-gray-400">No items found in {activeTab.replace('_', ' ')}</p>
+                <p className="text-sm text-gray-300">Try adjusting your search or filters</p>
               </div>
             ) : (
               <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
                 <table className="w-full border-collapse text-left table-fixed" ref={tableRef}>
-                  <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
+                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.06] shadow-md">
                     <tr>
-                      <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
+                      <th className="p-4 bg-[#111111] border-r border-white/[0.06] text-center sticky left-0 z-20" style={{ width: '60px' }}>
                         <input
                           type="checkbox"
                           checked={selectedIds.size === products.length && products.length > 0}
                           onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
+                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </th>
                       {columnOrder.map((col) => {
@@ -813,18 +813,18 @@ export default function RudraRetailPage() {
                         };
                         return renderColumnHeader(col, columnNames[col]);
                       })}
-                      <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '200px' }}>Actions</th>
+                      <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-gray-400 bg-[#111111]" style={{ width: '200px' }}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-white/[0.06]">
                     {products.map((product) => (
-                      <tr key={product.id} className={`group hover:bg-slate-800/40 transition-colors ${selectedIds.has(product.id) ? 'bg-indigo-900/10' : ''}`}>
-                        <td className="p-3 text-center bg-slate-950/50 sticky left-0 z-10 border-r border-slate-800 group-hover:bg-slate-900 transition-colors" style={{ width: '60px' }}>
+                      <tr key={product.id} className={`group hover:bg-white/[0.05]0/100/5 transition-colors ${selectedIds.has(product.id) ? 'bg-orange-500/100/10' : ''}`}>
+                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.06] group-hover:bg-[#111111] transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(product.id)}
                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 w-4 h-4 cursor-pointer"
+                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
                           />
                         </td>
                         {columnOrder.map((col) => {
@@ -832,19 +832,19 @@ export default function RudraRetailPage() {
 
                           return (
                             <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-slate-800/50 truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
+                              className={`px-4 py-3 text-sm border-r border-white/[0.06] truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                               title={String(product[col as keyof ProductRow] || '-')}
                             >
                               {col === 'funnel' ? (
                                 (() => {
-                                  if (!product.funnel) return <span className="text-slate-600">-</span>;
+                                  if (!product.funnel) return <span className="text-gray-500">-</span>;
 
                                   const funnelDisplay: Record<string, { tag: string; bgColor: string }> = {
-                                    'high_demand': { tag: 'HD', bgColor: 'bg-emerald-500' },
-                                    'hd': { tag: 'HD', bgColor: 'bg-emerald-500' },
-                                    'dropshipping': { tag: 'DP', bgColor: 'bg-amber-500' },
-                                    'dp': { tag: 'DP', bgColor: 'bg-amber-500' },
+                                    'high_demand': { tag: 'HD', bgColor: 'bg-emerald-500/100' },
+                                    'hd': { tag: 'HD', bgColor: 'bg-emerald-500/100' },
+                                    'dropshipping': { tag: 'DP', bgColor: 'bg-amber-500/100' },
+                                    'dp': { tag: 'DP', bgColor: 'bg-amber-500/100' },
                                     'low_demand': { tag: 'LD', bgColor: 'bg-blue-500' },
                                     'ld': { tag: 'LD', bgColor: 'bg-blue-500' },
                                   };
@@ -864,12 +864,12 @@ export default function RudraRetailPage() {
                                 product.remark ? (
                                   <button
                                     onClick={() => setSelectedRemark(product.remark || '')}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                   >
                                     View
                                   </button>
                                 ) : (
-                                  <span className="text-slate-600">-</span>
+                                  <span className="text-gray-500">-</span>
                                 )
                               ) : col === 'link' ? (  // ✅ FIXED - added `) :`
                                 product.link ? (
@@ -881,7 +881,7 @@ export default function RudraRetailPage() {
                                   >
                                     Product
                                   </a>
-                                ) : <span className="text-slate-600">-</span>
+                                ) : <span className="text-gray-500">-</span>
 
                               ) : col === 'amz_link' ? (
                                 product.amz_link ? (
@@ -889,11 +889,11 @@ export default function RudraRetailPage() {
                                     href={formatUrl(product.amz_link) || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
+                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/100/20 text-emerald-400 hover:bg-emerald-500/100 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
                                   >
                                     Seller
                                   </a>
-                                ) : <span className="text-slate-600">-</span>
+                                ) : <span className="text-gray-500">-</span>
 
                                 // ) : col === 'funnel' ? (
                                 //   <FunnelBadge funnel={product.funnel} />
@@ -902,17 +902,17 @@ export default function RudraRetailPage() {
                                 product.remark ? (
                                   <button
                                     onClick={() => setSelectedRemark(product.remark || '')}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                   >
                                     View
                                   </button>
-                                ) : <span className="text-slate-600">-</span>
+                                ) : <span className="text-gray-500">-</span>
 
                               ) : col === 'product_name' ? (
-                                <span className="text-slate-200 font-medium">{product.product_name}</span>
+                                <span className="text-gray-100 font-medium">{product.product_name}</span>
 
                               ) : (
-                                <span className="text-slate-400">{String(product[col as keyof ProductRow] || '-')}</span>
+                                <span className="text-gray-400">{String(product[col as keyof ProductRow] || '-')}</span>
                               )}
                             </td>
                           );
@@ -922,14 +922,14 @@ export default function RudraRetailPage() {
                             <button
                               onClick={() => handleListingAction(product, 'listed')}
                               disabled={processingId === product.id}
-                              className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                              className="px-3 py-1.5 bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                             >
                               {processingId === product.id ? '...' : '✓ List'}
                             </button>
                             <button
                               onClick={() => handleListingAction(product, 'not_listed')}
                               disabled={processingId === product.id}
-                              className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                              className="px-3 py-1.5 bg-rose-500/100/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                             >
                               {processingId === product.id ? '...' : '✗ Not List'}
                             </button>
@@ -949,18 +949,18 @@ export default function RudraRetailPage() {
           <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
         {selectedRemark && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+          <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-white">Remark Details</h3>
                 <button
                   onClick={() => setSelectedRemark(null)}
-                  className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                  className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
                 >
                   ×
                 </button>
               </div>
-              <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700 max-h-96 overflow-y-auto">
+              <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06] max-h-96 overflow-y-auto">
                 {selectedRemark}
               </div>
             </div>

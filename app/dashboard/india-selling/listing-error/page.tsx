@@ -125,25 +125,25 @@ export default function ListingErrorDashboard() {
 
   return (
     <>
-      <div className="h-full bg-slate-950 text-slate-200 p-3 sm:p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-hidden">
+      <div className="h-full bg-[#111111] text-gray-100 p-3 sm:p-4 lg:p-6 font-sans selection:bg-orange-400/30 flex flex-col overflow-hidden">
 
         {/* === HEADER === */}
-        <header className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800/60 shrink-0">
+        <header className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.06] shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                <LayoutDashboard className="w-5 h-5 text-indigo-400" />
+              <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                <LayoutDashboard className="w-5 h-5 text-orange-500" />
               </div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Listing Overview</h1>
             </div>
-            <p className="text-slate-400 text-xs sm:text-sm pl-[2.5rem] max-w-lg hidden sm:block">
+            <p className="text-gray-400 text-xs sm:text-sm pl-[2.5rem] max-w-lg hidden sm:block">
               Real-time overview of product distribution, listings, and error resolution.
             </p>
           </div>
 
           <button
             onClick={() => { setLoading(true); fetchRealCounts(); }}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-slate-700"
+            className="px-4 py-2 bg-[#111111] hover:bg-[#1a1a1a] text-gray-500 text-sm font-medium rounded-lg transition-colors border border-white/[0.06]"
           >
             <span className="hidden sm:inline">Refresh Data</span><span className="sm:hidden">Refresh</span>
           </button>
@@ -161,21 +161,21 @@ export default function ListingErrorDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.4 }}
                 onClick={() => handleSellerCardClick(seller.slug)}
-                className="group relative bg-slate-900/40 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 cursor-pointer backdrop-blur-sm transition-all hover:bg-slate-900/60 hover:shadow-2xl hover:shadow-black/50 overflow-hidden"
+                className="group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-white/[0.06]/80 rounded-xl p-4 cursor-pointer transition-all hover:bg-[#111111]/60 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
               >
                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 bg-gradient-to-br ${seller.color}`} />
 
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div>
-                    <h3 className="text-base font-bold text-slate-100 group-hover:text-white transition-colors">{seller.name}</h3>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mt-0.5">INDIA Marketplace</p>
+                    <h3 className="text-base font-bold text-white group-hover:text-white transition-colors">{seller.name}</h3>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mt-0.5">INDIA Marketplace</p>
                   </div>
                   <div className="flex flex-col items-end">
                     <div className="flex items-center gap-1.5 text-amber-400 bg-amber-400/10 px-2 py-1 rounded-lg border border-amber-400/20">
                       <Clock className="w-3.5 h-3.5" />
                       <span className="font-bold font-mono text-sm">{seller.totalPending}</span>
                     </div>
-                    <span className="text-[9px] text-slate-500 font-medium mt-0.5">PENDING</span>
+                    <span className="text-[9px] text-gray-500 font-medium mt-0.5">PENDING</span>
                   </div>
                 </div>
 
@@ -186,14 +186,14 @@ export default function ListingErrorDashboard() {
                         <CheckCircle2 className="w-3 h-3" />
                         <span>Listed</span>
                       </div>
-                      <span className="text-slate-300 font-mono">{seller.listed}</span>
+                      <span className="text-gray-500 font-mono">{seller.listed}</span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${totalProcessed === 0 ? 0 : (seller.listed / totalProcessed) * 100}%` }}
                         transition={{ duration: 1, ease: "easeOut" }}
-                        className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                        className="h-full bg-emerald-500/100 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                       />
                     </div>
                   </div>
@@ -204,23 +204,23 @@ export default function ListingErrorDashboard() {
                         <AlertOctagon className="w-3 h-3" />
                         <span>Errors</span>
                       </div>
-                      <span className="text-slate-300 font-mono">{seller.error}</span>
+                      <span className="text-gray-500 font-mono">{seller.error}</span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${totalProcessed === 0 ? 0 : (seller.error / totalProcessed) * 100}%` }}
                         transition={{ duration: 1, ease: "easeOut" }}
-                        className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
+                        className="h-full bg-rose-500/100 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-800/50 flex items-center justify-between text-xs group-hover:text-white transition-colors relative z-10">
-                  <span className="text-slate-500 group-hover:text-slate-300 transition-colors">Manage Listings</span>
-                  <div className={`p-1.5 rounded-full bg-slate-800 group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" />
+                <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between text-xs group-hover:text-white transition-colors relative z-10">
+                  <span className="text-gray-500 group-hover:text-gray-200 transition-colors">Manage Listings</span>
+                  <div className={`p-1.5 rounded-full bg-[#111111] group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-white" />
                   </div>
                 </div>
 

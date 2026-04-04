@@ -82,10 +82,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="w-full max-w-md">
-        <div className="bg-white shadow-2xl rounded-2xl p-8 border border-gray-100">
+        <div className="bg-[#111111] shadow-2xl rounded-2xl p-8 border border-gray-100">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">🚀 Scrappy V2</h1>
-            <p className="text-gray-600">Sign in to your account</p>
+            <h1 className="text-3xl font-bold text-white mb-2">🚀 Scrappy V2</h1>
+            <p className="text-gray-500">Sign in to your account</p>
           </div>
 
           {message.text && (
@@ -96,12 +96,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-semibold text-gray-500 mb-2">Email Address</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-white/[0.06] rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+              <label className="block text-sm font-semibold text-gray-500 mb-2">Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} className="w-full px-4 py-3 border border-white/[0.06] rounded-lg" />
             </div>
             <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
               {loading ? 'Signing In...' : 'Sign In'}

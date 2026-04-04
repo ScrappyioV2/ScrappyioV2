@@ -30,8 +30,8 @@ export default function StatusCell({
   }
 
   return (
-    <div className="border rounded p-3 text-xs bg-white">
-      <div className="flex justify-between border-b pb-1 mb-2 text-gray-600">
+    <div className="border rounded p-3 text-xs bg-[#111111]">
+      <div className="flex justify-between border-b pb-1 mb-2 text-gray-500">
         <span>{leftLabel}</span>
         <span>{rightLabel}</span>
       </div>

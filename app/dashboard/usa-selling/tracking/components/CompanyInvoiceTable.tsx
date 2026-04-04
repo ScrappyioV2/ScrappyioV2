@@ -309,7 +309,7 @@ export default function CompanyInvoiceTable({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-slate-400">Loading invoice details...</div>
+        <div className="text-lg text-gray-400">Loading invoice details...</div>
       </div>
     );
   }
@@ -323,14 +323,14 @@ export default function CompanyInvoiceTable({
           placeholder="Search by Invoice Number..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 max-w-md px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+          className="flex-1 max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
         />
 
         {/* Hide Columns Button */}
         <div className="relative">
           <button
             onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-            className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+            className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-sm font-medium flex items-center gap-2 whitespace-nowrap"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -345,8 +345,8 @@ export default function CompanyInvoiceTable({
                 onClick={() => setIsColumnMenuOpen(false)}
               />
 
-              <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 z-20 w-64">
-                <h3 className="font-semibold text-slate-200 mb-3 text-sm">Toggle Columns</h3>
+              <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-lg shadow-xl p-4 z-20 w-64">
+                <h3 className="font-semibold text-gray-100 mb-3 text-sm">Toggle Columns</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {Object.keys(visibleColumns).map((col) => {
                     const columnDisplayNames: { [key: string]: string } = {
@@ -364,7 +364,7 @@ export default function CompanyInvoiceTable({
                     };
 
                     return (
-                      <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-2 rounded">
+                      <label key={col} className="flex items-center gap-2 cursor-pointer hover:bg-[#111111] p-2 rounded">
                         <input
                           type="checkbox"
                           checked={visibleColumns[col as keyof typeof visibleColumns]}
@@ -374,9 +374,9 @@ export default function CompanyInvoiceTable({
                               [col]: !prev[col as keyof typeof visibleColumns]
                             }));
                           }}
-                          className="rounded border-slate-600 bg-slate-800 text-indigo-500"
+                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500"
                         />
-                        <span className="text-sm text-slate-300">
+                        <span className="text-sm text-gray-300">
                           {columnDisplayNames[col] || col}
                         </span>
                       </label>
@@ -384,14 +384,14 @@ export default function CompanyInvoiceTable({
                   })}
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-slate-700 flex gap-2">
+                <div className="mt-3 pt-3 border-t border-white/[0.06] flex gap-2">
                   <button
                     onClick={() =>
                       setVisibleColumns(
                         Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: true }), {} as typeof visibleColumns)
                       )
                     }
-                    className="flex-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-500 text-xs font-medium"
+                    className="flex-1 px-3 py-1.5 bg-orange-500/100 text-white rounded hover:bg-orange-400 text-xs font-medium"
                   >
                     Show All
                   </button>
@@ -401,7 +401,7 @@ export default function CompanyInvoiceTable({
                         Object.keys(visibleColumns).reduce((acc, key) => ({ ...acc, [key]: key === 'invoice_no' }), {} as typeof visibleColumns)
                       )
                     }
-                    className="flex-1 px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 text-xs font-medium"
+                    className="flex-1 px-3 py-1.5 bg-[#111111] text-gray-500 rounded hover:bg-[#1a1a1a] text-xs font-medium"
                   >
                     Reset
                   </button>
@@ -414,57 +414,57 @@ export default function CompanyInvoiceTable({
 
       {/* Table Wrapper */}
       <div className="flex-1 overflow-hidden">
-        <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-700 h-full flex flex-col">
+        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
           {/* Table Scroll Container */}
           <div className="flex-1 overflow-y-auto">
             <table className="w-full">
-              <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10">
+              <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10">
                 <tr>
                   {visibleColumns.expand && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400 w-8"></th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 w-8"></th>
                   )}
                   {visibleColumns.invoice_no && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice No</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice No</th>
                   )}
                   {visibleColumns.invoice_date && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Invoice Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Invoice Date</th>
                   )}
                   {visibleColumns.gst_number && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">GST Number</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">GST Number</th>
                   )}
                   {visibleColumns.amount && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Amount</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Amount</th>
                   )}
                   {visibleColumns.tax_amount && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tax Amount</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Tax Amount</th>
                   )}
                   {visibleColumns.total_amount && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-slate-800">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-white/[0.06]">
                       Total Amount
                     </th>
                   )}
 
                   {visibleColumns.tracking_details && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Tracking Details</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Tracking Details</th>
                   )}
                   {visibleColumns.delivery_date && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Delivery Date</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Delivery Date</th>
                   )}
                   {visibleColumns.company && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Company</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Company</th>
                   )}
                   {visibleColumns.upload && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Upload</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Upload</th>
                   )}
                   {visibleColumns.action && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">Action</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Action</th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-white/[0.06]">
                 {filteredInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center py-8 text-slate-500">
+                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center py-8 text-gray-300">
                       {searchQuery ? 'No invoices found' : 'No invoice items available'}
                     </td>
                   </tr>
@@ -477,95 +477,95 @@ export default function CompanyInvoiceTable({
                       <React.Fragment key={group.invoice_number}>
                         {/* Main Invoice Row */}
                         <tr
-                          className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer transition-colors"
+                          className="border-t border-white/[0.06] hover:bg-white/[0.05]0/100/5 cursor-pointer transition-colors"
                           onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
                         >
                           {visibleColumns.expand && (
-                            <td className="px-4 py-3">
+                            <td className="px-6 py-4">
                               {hasMultipleItems ? (
                                 isExpanded ? (
-                                  <ChevronDown size={16} className="text-slate-400" />
+                                  <ChevronDown size={16} className="text-gray-400" />
                                 ) : (
-                                  <ChevronRight size={16} className="text-slate-400" />
+                                  <ChevronRight size={16} className="text-gray-400" />
                                 )
                               ) : null}
                             </td>
                           )}
                           {visibleColumns.invoice_no && (
-                            <td className="px-4 py-3 font-semibold text-slate-200">
+                            <td className="px-6 py-4 font-semibold text-gray-100">
                               {group.invoice_number}
                               {hasMultipleItems && (
-                                <span className="ml-2 text-xs bg-indigo-600 text-white px-2 py-1 rounded">
+                                <span className="ml-2 text-xs bg-orange-500/100 text-white px-2 py-1 rounded">
                                   {group.items.length} items
                                 </span>
                               )}
                             </td>
                           )}
                           {visibleColumns.invoice_date && (
-                            <td className="px-4 py-3 text-slate-300">
+                            <td className="px-6 py-4 text-gray-300">
                               {group.invoice_date
                                 ? new Date(group.invoice_date).toLocaleDateString()
                                 : '-'}
                             </td>
                           )}
                           {visibleColumns.gst_number && (
-                            <td className="px-4 py-3 text-slate-300">{group.gst_number || '-'}</td>
+                            <td className="px-6 py-4 text-gray-300">{group.gst_number || '-'}</td>
                           )}
                           {visibleColumns.amount && (
-                            <td className="px-4 py-3 font-semibold text-green-400">
+                            <td className="px-6 py-4 font-semibold text-green-400">
                               ₹ {group.total_amount.toFixed(2)}
                             </td>
                           )}
                           {visibleColumns.tax_amount && (
-                            <td className="px-4 py-3 text-slate-300">
+                            <td className="px-6 py-4 text-gray-300">
                               {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
                             </td>
                           )}
                           {visibleColumns.total_amount && (
-                            <td className="px-4 py-3 text-sm font-bold text-green-400 bg-green-900/10 border-r border-slate-800/50">
+                            <td className="px-6 py-4 text-sm font-bold text-green-400 bg-green-900/10 border-r border-white/[0.06]">
                               ₹ {(group.total_amount + group.total_tax).toFixed(2)}
                             </td>
                           )}
 
                           {visibleColumns.tracking_details && (
-                            <td className="px-4 py-3 text-slate-300">
+                            <td className="px-6 py-4 text-gray-300">
                               {!hasMultipleItems ? (
                                 group.items[0].tracking_details || '-'
                               ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
+                                <span className="text-gray-500 text-sm">Multiple</span>
                               )}
                             </td>
                           )}
                           {visibleColumns.delivery_date && (
-                            <td className="px-4 py-3 text-slate-300">
+                            <td className="px-6 py-4 text-gray-300">
                               {!hasMultipleItems && group.items[0].delivery_date ? (
                                 new Date(group.items[0].delivery_date).toLocaleDateString()
                               ) : !hasMultipleItems ? (
                                 '-'
                               ) : (
-                                <span className="text-slate-500 text-sm">Multiple</span>
+                                <span className="text-gray-500 text-sm">Multiple</span>
                               )}
                             </td>
                           )}
                           {visibleColumns.company && (
-                            <td className="px-4 py-3">
+                            <td className="px-6 py-4">
                               {group.seller_company ? (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedCompany(group.seller_company);
                                   }}
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                                  className="bg-orange-500/100 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                                 >
                                   View
                                 </button>
                               ) : (
-                                <span className="text-slate-600">-</span>
+                                <span className="text-gray-500">-</span>
                               )}
                             </td>
                           )}
                           {visibleColumns.upload && (
-                            <td className="px-4 py-3">
+                            <td className="px-6 py-4">
                               {group.uploaded_invoice_url ? (
                                 <button
                                   onClick={(e) => {
@@ -580,12 +580,12 @@ export default function CompanyInvoiceTable({
                                   View
                                 </button>
                               ) : (
-                                <span className="text-slate-600">-</span>
+                                <span className="text-gray-500">-</span>
                               )}
                             </td>
                           )}
                           {visibleColumns.action && (
-                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-3">
                                 <button
                                   onClick={() => handleActionChange(group.invoice_number, 'pass')}
@@ -611,31 +611,31 @@ export default function CompanyInvoiceTable({
                         {/* Expanded Card - Show individual items */}
                         {isExpanded && hasMultipleItems && (
                           <tr>
-                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-slate-800/30 px-4 py-2">
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-orange-500/100/5 px-6 py-4">
                               <div className="ml-8 space-y-2">
                                 {group.items.map((item) => (
                                   <div
                                     key={item.id}
-                                    className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-sm"
+                                    className="bg-[#111111] border border-white/[0.06] rounded-lg p-3 shadow-sm"
                                   >
                                     <div className="grid grid-cols-4 gap-4 text-sm">
                                       <div>
-                                        <span className="font-semibold text-slate-400">ASIN:</span>{' '}
-                                        <span className="text-slate-200">{item.asin}</span>
+                                        <span className="font-semibold text-gray-400">ASIN:</span>{' '}
+                                        <span className="text-gray-100">{item.asin}</span>
                                       </div>
                                       <div>
-                                        <span className="font-semibold text-slate-400">Amount:</span>{' '}
+                                        <span className="font-semibold text-gray-400">Amount:</span>{' '}
                                         <span className="text-green-400">
                                           {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="font-semibold text-slate-400">Tracking:</span>{' '}
-                                        <span className="text-slate-200">{item.tracking_details || '-'}</span>
+                                        <span className="font-semibold text-gray-400">Tracking:</span>{' '}
+                                        <span className="text-gray-100">{item.tracking_details || '-'}</span>
                                       </div>
                                       <div>
-                                        <span className="font-semibold text-slate-400">Delivery:</span>{' '}
-                                        <span className="text-slate-200">
+                                        <span className="font-semibold text-gray-400">Delivery:</span>{' '}
+                                        <span className="text-gray-100">
                                           {item.delivery_date
                                             ? new Date(item.delivery_date).toLocaleDateString()
                                             : '-'}
@@ -657,8 +657,8 @@ export default function CompanyInvoiceTable({
           </div>
 
           {/* Footer Count - STICKY AT BOTTOM */}
-          <div className="flex-none border-t border-slate-800 bg-slate-950 px-4 py-3">
-            <div className="text-sm text-slate-400">
+          <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+            <div className="text-sm text-gray-300">
               Showing {filteredInvoices.length} of {groupedInvoices.length} invoices
             </div>
           </div>
@@ -677,18 +677,18 @@ export default function CompanyInvoiceTable({
 
       {/* Company Info Modal */}
       {selectedCompany && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
               <button
                 onClick={() => setSelectedCompany(null)}
-                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
               >
                 ✕
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700">
+            <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.06]">
               {selectedCompany}
             </div>
           </div>

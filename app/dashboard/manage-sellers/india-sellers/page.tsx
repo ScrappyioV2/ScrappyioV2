@@ -761,7 +761,7 @@ export default function IndiaSellersPage() {
   // --- UPDATED UI RETURN ---
   return (
     <>
-      <div className="min-h-screen bg-slate-950 text-slate-200 p-6 lg:p-10 font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-[#111111] text-gray-100 p-6 lg:p-10 font-sans selection:bg-orange-400/30">
         <Toaster position="top-right"
           toastOptions={{
             style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' },
@@ -769,49 +769,49 @@ export default function IndiaSellersPage() {
         />
 
         {/* === HEADER === */}
-        <div className="sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 -mx-10 px-10 py-4 mb-8">
+        <div className="sticky top-0 z-40 bg-[#1a1a1a] border-b border-white/[0.06] -mx-10 px-10 py-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Title */}
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-lg shadow-indigo-500/10">
-                <Database className="w-6 h-6 text-indigo-400" />
+              <div className="p-2.5 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-lg shadow-indigo-500/10">
+                <Database className="w-6 h-6 text-orange-500" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white tracking-tight">INDIA Sellers Database</h1>
-                <p className="text-sm text-slate-400">Master inventory records</p>
+                <p className="text-sm text-gray-300">Master inventory records</p>
               </div>
             </div>
 
             {/* Controls */}
             <div className="flex items-center gap-3">
               <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
                 <input
                   type="text"
                   placeholder="Search by ASIN, Brand..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-72 pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder:text-slate-600"
+                  className="w-72 pl-10 pr-4 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-gray-500"
                 />
               </div>
 
               <button
                 onClick={() => setIsColumnToggleOpen(true)}
-                className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg hover:bg-slate-800 text-slate-300 text-sm font-medium flex items-center gap-2 transition-colors"
+                className="px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg hover:bg-[#111111] text-gray-500 text-sm font-medium flex items-center gap-2 transition-colors"
               >
                 <Columns className="w-4 h-4" /> Columns
               </button>
 
               <div onClick={() => handleExport('csv')} className="cursor-pointer">
                 {/* Re-using your Export Button logic but styling wrapper or passing styles if supported */}
-                <button className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 text-sm font-medium flex items-center gap-2 transition-colors">
+                <button className="px-3 py-2 bg-emerald-500/100/20 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/100/20 text-sm font-medium flex items-center gap-2 transition-colors">
                   <Download className="w-4 h-4" /> Export
                 </button>
               </div>
 
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 text-sm font-medium flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all"
+                className="px-3 py-2 bg-orange-500/100 text-white rounded-lg hover:bg-orange-400 text-sm font-medium flex items-center gap-2 shadow-lg shadow-orange-500/20 transition-all"
               >
                 <Upload className="w-4 h-4" /> Upload
               </button>
@@ -821,43 +821,43 @@ export default function IndiaSellersPage() {
 
         {/* Inline Progress Bars */}
         {isUploading && uploadProgress.total > 0 && (
-          <div className="mb-4 bg-slate-900 border border-indigo-500/30 rounded-xl p-4">
+          <div className="mb-4 bg-[#111111] border border-orange-500/30 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
-                <span className="text-sm font-medium text-indigo-300">Uploading Products</span>
+                <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
+                <span className="text-sm font-medium text-orange-400">Uploading Products</span>
               </div>
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-gray-300">
                 Batch {uploadProgress.batch}/{uploadProgress.totalBatches} &middot; {uploadProgress.current.toLocaleString()}/{uploadProgress.total.toLocaleString()}
               </span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-indigo-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }} />
+            <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden">
+              <div className="bg-orange-400 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }} />
             </div>
-            <p className="text-xs text-slate-500 mt-1.5 text-right">{Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete</p>
+            <p className="text-xs text-gray-300 mt-1.5 text-right">{Math.round((uploadProgress.current / uploadProgress.total) * 100)}% complete</p>
           </div>
         )}
 
         {partialProgress.total > 0 && (
-          <div className="mb-4 bg-slate-900 border border-amber-500/30 rounded-xl p-4">
+          <div className="mb-4 bg-[#111111] border border-amber-500/30 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
                 <span className="text-sm font-medium text-amber-300">Partial Update in Progress</span>
               </div>
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-gray-300">
                 {partialProgress.current.toLocaleString()}/{partialProgress.total.toLocaleString()} records
               </span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-amber-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((partialProgress.current / partialProgress.total) * 100)}%` }} />
+            <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden">
+              <div className="bg-amber-500/100 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((partialProgress.current / partialProgress.total) * 100)}%` }} />
             </div>
-            <p className="text-xs text-slate-500 mt-1.5 text-right">{Math.round((partialProgress.current / partialProgress.total) * 100)}% complete</p>
+            <p className="text-xs text-gray-300 mt-1.5 text-right">{Math.round((partialProgress.current / partialProgress.total) * 100)}% complete</p>
           </div>
         )}
 
         {isDistributing && (
-          <div className="mb-4 bg-slate-900 border border-emerald-500/30 rounded-xl p-4">
+          <div className="mb-4 bg-[#111111] border border-emerald-500/30 rounded-xl p-4">
             <div className="flex items-center gap-2">
               <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
               <span className="text-sm font-medium text-emerald-300">Distributing to seller tables...</span>
@@ -866,35 +866,35 @@ export default function IndiaSellersPage() {
         )}
 
         {isExporting && (
-          <div className="mb-4 bg-slate-900 border border-emerald-500/30 rounded-xl p-4">
+          <div className="mb-4 bg-[#111111] border border-emerald-500/30 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
                 <span className="text-sm font-medium text-emerald-300">Exporting Data</span>
               </div>
               {exportProgress.total > 0 && (
-                <span className="text-sm text-slate-400">
+                <span className="text-sm text-gray-300">
                   {exportProgress.current.toLocaleString()}/{exportProgress.total.toLocaleString()} products
                 </span>
               )}
             </div>
             {exportProgress.total > 0 && (
               <>
-                <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                  <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }} />
+                <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden">
+                  <div className="bg-emerald-500/100 h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.round((exportProgress.current / exportProgress.total) * 100)}%` }} />
                 </div>
-                <p className="text-xs text-slate-500 mt-1.5 text-right">{Math.round((exportProgress.current / exportProgress.total) * 100)}% complete</p>
+                <p className="text-xs text-gray-300 mt-1.5 text-right">{Math.round((exportProgress.current / exportProgress.total) * 100)}% complete</p>
               </>
             )}
           </div>
         )}
 
-        <div className="text-xs text-slate-500 font-mono mb-4">
-          Showing <span className="text-slate-200">{totalProducts > 0 ? startItem : 0}-{endItem}</span> of <span className="text-white font-bold">{totalProducts.toLocaleString()}</span> records
+        <div className="text-xs text-gray-300 font-mono mb-4">
+          Showing <span className="text-gray-100">{totalProducts > 0 ? startItem : 0}-{endItem}</span> of <span className="text-white font-bold">{totalProducts.toLocaleString()}</span> records
         </div>
 
         {/* Table Component */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl overflow-hidden shadow-xl">
           <IndiaMasterTable
             searchTerm={searchTerm}
             hiddenColumns={hiddenColumns}
@@ -912,23 +912,23 @@ export default function IndiaSellersPage() {
           />
 
           {/* Pagination */}
-          <div className="border-t border-slate-800 bg-slate-900/50 p-4 flex items-center justify-between">
+          <div className="border-t border-white/[0.06] bg-[#1a1a1a] p-4 flex items-center justify-between">
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
                 >
                   <ChevronLeft className="w-3 h-3" /> Previous
                 </button>
-                <span className="text-xs text-slate-500">
-                  Page <span className="text-slate-200">{currentPage}</span> of {totalPages}
+                <span className="text-xs text-gray-300">
+                  Page <span className="text-gray-100">{currentPage}</span> of {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center gap-1"
                 >
                   Next <ChevronRight className="w-3 h-3" />
                 </button>

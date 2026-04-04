@@ -8,9 +8,9 @@ type Props = {
 
 export default function SellerMatrix({ data }: Props) {
   return (
-    <div className="bg-white border rounded">
+    <div className="bg-[#111111] border rounded">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-white border-b">
+      <div className="sticky top-0 z-10 bg-[#111111] border-b">
         <div className="grid grid-cols-[120px_repeat(4,1fr)] gap-4 text-sm font-semibold p-4">
           <div></div>
           <div>Brand Checking Status</div>

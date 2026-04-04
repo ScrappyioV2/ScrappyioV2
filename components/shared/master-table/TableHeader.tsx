@@ -25,18 +25,18 @@ export default function TableHeader({
   };
 
   return (
-    <div className="w-full bg-white border-b px-6 py-4 sticky top-0 z-10 shadow-sm">
+    <div className="w-full bg-[#111111] border-b px-6 py-4 sticky top-0 z-10 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         {/* LEFT SIDE - Search */}
         <div className="flex-1 max-w-md">
   <div className="relative">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
     <input
   type="search"
   placeholder="Search all columns..."
   value={searchTerm}
   onChange={handleSearchChange}
-  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:!text-black placeholder:opacity-100 placeholder:font-medium"
+  className="w-full pl-10 pr-4 py-2 border border-white/[0.06] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:!text-black placeholder:opacity-100 placeholder:font-medium"
 />
 
   </div>
@@ -48,7 +48,7 @@ export default function TableHeader({
         <div className="flex items-center gap-3">
           <button
             onClick={onColumnToggle}
-            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#111111] transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

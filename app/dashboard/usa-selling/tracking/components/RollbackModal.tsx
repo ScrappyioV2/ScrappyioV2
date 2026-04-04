@@ -284,27 +284,27 @@ export default function RollbackModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+                <div className="bg-[#111111] border-b border-white/[0.06] px-6 py-4 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-white">Rollback Invoices to Main File</h2>
                     <button
                         onClick={onClose}
-                        className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#111111] rounded-lg"
                     >
                         <X size={24} />
                     </button>
                 </div>
 
                 {/* Search Bar */}
-                <div className="px-6 py-4 border-b border-slate-800">
+                <div className="px-6 py-4 border-b border-white/[0.06]">
                     <input
                         type="text"
                         placeholder="Search by Invoice Number..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                        className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-4 py-2.5 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/50 transition-all"
                     />
                 </div>
 
@@ -312,19 +312,19 @@ export default function RollbackModal({
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {loading ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="text-lg text-slate-400">Loading invoices...</div>
+                            <div className="text-lg text-gray-400">Loading invoices...</div>
                         </div>
                     ) : filteredInvoices.length === 0 ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="text-lg text-slate-500">
+                            <div className="text-lg text-gray-500">
                                 {searchQuery ? 'No invoices found' : 'No invoices available'}
                             </div>
                         </div>
                     ) : (
                         <table className="w-full">
-                            <thead className="bg-slate-950 border-b border-slate-800 sticky top-0">
+                            <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0">
                                 <tr>
-                                    <th className="px-4 py-3 text-left w-12">
+                                    <th className="px-6 py-4 text-left w-12">
                                         <input
                                             type="checkbox"
                                             checked={
@@ -335,29 +335,29 @@ export default function RollbackModal({
                                             className="w-5 h-5 cursor-pointer accent-indigo-600"
                                         />
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
                                         Invoice No
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
                                         Invoice Date
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
                                         ASINs Count
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-400">
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">
                                         Total Amount
                                     </th>
 
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800">
+                            <tbody className="divide-y divide-white/[0.06]">
                                 {filteredInvoices.map((invoice) => (
                                     <tr
                                         key={invoice.invoice_number}
-                                        className="hover:bg-slate-800/40 cursor-pointer transition-colors"
+                                        className="hover:bg-white/[0.05]0/100/5 cursor-pointer transition-colors"
                                         onClick={() => handleSelect(invoice.invoice_number, !selectedInvoices.has(invoice.invoice_number))}
                                     >
-                                        <td className="px-4 py-3">
+                                        <td className="px-6 py-4">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedInvoices.has(invoice.invoice_number)}
@@ -368,20 +368,20 @@ export default function RollbackModal({
                                                 className="w-5 h-5 cursor-pointer accent-indigo-600"
                                             />
                                         </td>
-                                        <td className="px-4 py-3 font-mono text-sm text-slate-200">
+                                        <td className="px-6 py-4 font-mono text-sm text-gray-100">
                                             {invoice.invoice_number}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-slate-300">
+                                        <td className="px-6 py-4 text-sm text-gray-300">
                                             {invoice.invoice_date
                                                 ? new Date(invoice.invoice_date).toLocaleDateString()
                                                 : '-'}
                                         </td>
-                                        <td className="px-4 py-3 text-sm">
-                                            <span className="bg-indigo-600 text-white px-3 py-1 rounded-full font-semibold text-xs">
+                                        <td className="px-6 py-4 text-sm">
+                                            <span className="bg-orange-500/100 text-white px-3 py-1 rounded-full font-semibold text-xs">
                                                 {invoice.asin_count}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-sm font-semibold text-green-400">
+                                        <td className="px-6 py-4 text-sm font-semibold text-green-400">
                                             ₹ {invoice.total_amount.toFixed(2)}
                                         </td>
                                     </tr>
@@ -392,10 +392,10 @@ export default function RollbackModal({
                 </div>
 
                 {/* Footer */}
-                <div className="bg-slate-950 border-t border-slate-800 px-6 py-4 flex items-center justify-between">
-                    <div className="text-sm text-slate-400">
+                <div className="bg-[#111111] border-t border-white/[0.06] px-6 py-4 flex items-center justify-between">
+                    <div className="text-sm text-gray-300">
                         {selectedInvoices.size > 0 && (
-                            <span className="font-semibold text-indigo-400">
+                            <span className="font-semibold text-orange-500">
                                 {selectedInvoices.size} invoice(s) selected
                             </span>
                         )}
@@ -403,7 +403,7 @@ export default function RollbackModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="px-6 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-all font-medium"
+                            className="px-6 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-500 hover:bg-[#1a1a1a] hover:text-white transition-all font-medium"
                             disabled={processing}
                         >
                             Cancel
@@ -412,7 +412,7 @@ export default function RollbackModal({
                             onClick={handleRollback}
                             disabled={selectedInvoices.size === 0 || processing}
                             className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all shadow-lg ${selectedInvoices.size === 0 || processing
-                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                                ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                                 : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/50'
                                 }`}
                         >
@@ -437,7 +437,7 @@ export default function RollbackModal({
                         <span className="font-semibold flex-1">{toast.message}</span>
                         <button
                             onClick={() => setToast(null)}
-                            className="text-white hover:text-gray-200 transition-colors p-1 hover:bg-white/20 rounded"
+                            className="text-white hover:text-gray-200 transition-colors p-1 hover:bg-[#111111]/20 rounded"
                         >
                             ✕
                         </button>

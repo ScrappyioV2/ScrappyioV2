@@ -768,11 +768,11 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     // ============================================
     const OriginBadge = ({ product }: { product: InboundProduct }) => (
         <div className="flex flex-col gap-1 items-center">
-            {product.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}
+            {product.origin_india && <span className="px-2 py-0.5 bg-orange-500/100 text-white rounded text-xs font-semibold">India</span>}
             {product.origin_china && <span className="px-2 py-0.5 bg-red-500 text-white rounded text-xs font-semibold">China</span>}
             {product.origin_us && <span className="px-2 py-0.5 bg-sky-500 text-white rounded text-xs font-semibold">US</span>}
             {!product.origin_india && !product.origin_china && !product.origin_us && (
-                <span className="text-xs text-slate-600">-</span>
+                <span className="text-xs text-gray-300">-</span>
             )}
         </div>
     );
@@ -782,7 +782,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     // ============================================
     const FunnelBadge = ({ funnel }: { funnel: string | null }) => {
         const { display, color } = getFunnelBadgeStyle(funnel);
-        if (!funnel) return <span className="text-xs text-slate-600">-</span>;
+        if (!funnel) return <span className="text-xs text-gray-300">-</span>;
         return (
             <span className={`w-9 h-9 inline-flex items-center justify-center rounded-lg font-bold text-sm ${color}`}>
                 {display}
@@ -794,14 +794,14 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     // SELLER TAG BADGES
     // ============================================
     const SellerTagBadge = ({ tag }: { tag: string | null }) => {
-        if (!tag) return <span className="text-xs text-slate-600">-</span>;
+        if (!tag) return <span className="text-xs text-gray-300">-</span>;
 
         const tagColors: Record<string, string> = {
             GR: 'bg-yellow-400 text-black',
             RR: 'bg-gray-400 text-black',
             UB: 'bg-pink-500 text-white',
             VV: 'bg-purple-600 text-white',
-            DE: 'bg-orange-500 text-white',
+            DE: 'bg-orange-500/100 text-white',
             CV: 'bg-green-600 text-white',
             MV: 'bg-orange-600 text-white',
             KL: 'bg-lime-500 text-black',
@@ -812,7 +812,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                 {tag.split(',').map(t => {
                     const clean = t.trim();
                     return (
-                        <span key={clean} className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tagColors[clean] || 'bg-slate-700 text-white'}`}>
+                        <span key={clean} className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tagColors[clean] || 'bg-[#1a1a1a] text-white'}`}>
                             {clean}
                         </span>
                     );
@@ -841,7 +841,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={saveEdit}
                     onKeyDown={handleKeyDown}
-                    className="w-full px-2 py-1 bg-slate-800 border border-indigo-500 rounded text-sm text-slate-200 focus:outline-none"
+                    className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-sm text-gray-100 focus:outline-none"
                 />
             );
         }
@@ -849,13 +849,13 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
         return (
             <div
                 onClick={() => startEditing(id, field, value || "")}
-                className={`flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-800 px-2 py-1 rounded transition-colors min-h-[28px] ${className ?? ""}`}
+                className={`flex items-center justify-center gap-1 cursor-pointer hover:bg-[#111111] px-2 py-1 rounded transition-colors min-h-[28px] ${className ?? ""}`}
                 title="Click to edit value"
             >
-                <span className={value ? "text-slate-200" : "text-slate-600 italic"}>
+                <span className={value ? "text-gray-100" : "text-gray-500 italic"}>
                     {value || "-"}
                 </span>
-                <span className="text-[10px] text-slate-500">✏</span>
+                <span className="text-[10px] text-gray-500">✏</span>
             </div>
         );
     };
@@ -865,7 +865,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             <span className="inline-flex items-center gap-1">
                 <span>{label}</span>
                 <span
-                    className="text-[10px] text-slate-500"
+                    className="text-[10px] text-gray-500"
                     title="Cells in this column are editable"
                 >
                     ✏
@@ -917,7 +917,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-lg text-slate-400">Loading inbound tracking...</div>
+                <div className="text-lg text-gray-400">Loading inbound tracking...</div>
             </div>
         );
     }
@@ -941,18 +941,18 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     return (
         <div className="h-full flex flex-col">
             {/* Toolbar */}
-            <div className="flex-none pt-4 sm:pt-5 pb-3 sm:pb-4 flex gap-2 sm:gap-4 items-center flex-wrap">
+            <div className="flex-none pt-6 pb-6 flex gap-4 items-center flex-wrap">
                 {/* Search */}
                 <input
                     type="text"
                     placeholder="Search by ASIN, Name, SKU, or Tracking..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 min-w-0 max-w-md px-3 sm:px-4 py-2 sm:py-2.5 text-sm bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-200 placeholder:text-slate-500"
+                    className="flex-1 min-w-0 max-w-md px-4 sm:px-6 py-2 sm:py-2.5 text-sm bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
                 />
 
                 {/* Status Filter */}
-                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1 overflow-x-auto scrollbar-none">
+                <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1 overflow-x-auto scrollbar-none">
                     {(['ALL', 'pending', 'in_transit', 'delivered'] as const).map(opt => (
                         <button
                             key={opt}
@@ -961,8 +961,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                 ? opt === 'pending' ? 'bg-yellow-600 text-white shadow-lg'
                                     : opt === 'in_transit' ? 'bg-blue-600 text-white shadow-lg'
                                         : opt === 'delivered' ? 'bg-green-600 text-white shadow-lg'
-                                            : 'bg-indigo-600 text-white shadow-lg'
-                                : 'text-slate-500 hover:text-slate-300'
+                                            : 'bg-orange-500/100 text-white shadow-lg'
+                                : 'text-gray-500 hover:text-gray-200'
                                 }`}
                         >
                             {opt === 'ALL' ? 'All' : opt === 'in_transit' ? 'In Transit' : opt.charAt(0).toUpperCase() + opt.slice(1)}
@@ -971,17 +971,17 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                 </div>
 
                 {/* Origin Filter */}
-                <div className="flex items-center bg-slate-800/50 rounded-xl border border-slate-700 p-1 overflow-x-auto scrollbar-none">
+                <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.06] p-1 overflow-x-auto scrollbar-none">
                     {(['ALL', 'India', 'China', 'US'] as const).map(opt => (
                         <button
                             key={opt}
                             onClick={() => setOriginFilter(opt)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${originFilter === opt
-                                ? opt === 'India' ? 'bg-orange-500 text-white'
-                                    : opt === 'China' ? 'bg-rose-500 text-white'
+                                ? opt === 'India' ? 'bg-orange-500/100 text-white'
+                                    : opt === 'China' ? 'bg-rose-500/100 text-white'
                                         : opt === 'US' ? 'bg-sky-500 text-white'
-                                            : 'bg-indigo-600 text-white'
-                                : 'text-slate-500 hover:text-slate-300'
+                                            : 'bg-orange-500/100 text-white'
+                                : 'text-gray-500 hover:text-gray-200'
                                 }`}
                         >
                             {opt === 'ALL' ? 'All' : opt}
@@ -990,7 +990,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                 </div>
 
                 {/* Overdue Highlight */}
-                <div className="flex items-center gap-2 bg-slate-800/50 rounded-xl border border-slate-700 px-3 py-1.5">
+                <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-xl border border-white/[0.06] px-3 py-1.5">
                     <span className="text-xs font-bold text-red-400 whitespace-nowrap">🔴 Overdue</span>
                     <input
                         type="number"
@@ -1001,22 +1001,22 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                             const val = e.target.value;
                             setOverdueDays(val === '' ? null : parseInt(val, 10));
                         }}
-                        className="w-14 px-2 py-1 text-xs text-center bg-slate-900 border border-slate-600 rounded-lg focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-slate-200 placeholder:text-slate-600"
+                        className="w-14 px-2 py-1 text-xs text-center bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-gray-100 placeholder:text-gray-500"
                     />
                     {overdueDays !== null && overdueDays > 0 && (
                         <button
                             onClick={() => setOverdueDays(null)}
-                            className="text-slate-500 hover:text-red-400 text-xs transition-colors"
+                            className="text-gray-500 hover:text-red-400 text-xs transition-colors"
                             title="Clear overdue filter"
                         >✕</button>
                     )}
                 </div>
             </div>
             <div className="flex-1 overflow-hidden">
-                <div className="bg-slate-900 rounded-lg border border-slate-800 h-full flex flex-col">
+                <div className="bg-[#1a1a1a] rounded-lg border border-white/[0.06] h-full flex flex-col">
                     <div className="flex-1 overflow-auto">
-                        <table className="w-full divide-y divide-slate-800" style={{ minWidth: '1600px' }}>
-                            <thead className="bg-slate-950 sticky top-0 z-10">
+                        <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '1600px' }}>
+                            <thead className="bg-[#111111] sticky top-0 z-10">
                                 <tr>
                                     {columnOrder.map(key => {
                                         const col = DEFAULT_COLUMNS.find(c => c.key === key);
@@ -1029,7 +1029,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                 onDragStart={() => handleDragStart(key)}
                                                 onDragOver={(e) => handleDragOver(e, key)}
                                                 onDrop={() => handleDrop(key)}
-                                                className={`px-3 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 select-none relative cursor-grab ${dragOverCol === key ? 'bg-indigo-500/20' : ''
+                                                className={`px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06] select-none relative cursor-grab ${dragOverCol === key ? 'bg-orange-500/100/10' : ''
                                                     }`}
                                                 style={{ width, minWidth: col.minWidth }}
                                             >
@@ -1037,17 +1037,17 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                 {/* Resize handle */}
                                                 <div
                                                     onMouseDown={(e) => handleResizeStart(key, e)}
-                                                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-500/50 transition-colors"
+                                                    className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.05]0/100/50 transition-colors"
                                                 />
                                             </th>
                                         );
                                     })}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800/50">
+                            <tbody className="divide-y divide-white/[0.06]">
                                 {mergedProducts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={DEFAULT_COLUMNS.length} className="px-4 py-12 text-center text-slate-500">
+                                        <td colSpan={DEFAULT_COLUMNS.length} className="px-4 py-12 text-center text-gray-300">
                                             {products.length === 0
                                                 ? "No inbound items yet. Products will appear here when moved from Purchases."
                                                 : "No items match your current filters."}
@@ -1058,7 +1058,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                         const primaryRow = merged.rows[0];
                                         const tagColors: Record<string, string> = {
                                             GR: 'bg-yellow-500 text-black border border-yellow-600',
-                                            RR: 'bg-slate-500 text-white border border-slate-600',
+                                            RR: 'bg-slate-500 text-white border border-white/[0.06]',
                                             UB: 'bg-pink-500 text-white border border-pink-600',
                                             VV: 'bg-purple-500 text-white border border-purple-600',
                                             DE: 'bg-cyan-500 text-black border border-cyan-600',
@@ -1069,33 +1069,33 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                         const overdue = isRowOverdue(merged.delivery_date);
                                         return (
                                             <Fragment key={merged.asin}>
-                                                <tr className={`group transition-colors ${overdue ? 'bg-red-950/60 hover:bg-red-900/50 border-l-2 border-l-red-500' : 'hover:bg-slate-800/40'}`}>
+                                                <tr className={`group transition-colors ${overdue ? 'bg-red-950/60 hover:bg-red-900/50 border-l-2 border-l-red-500' : 'hover:bg-white/[0.05]0/100/5'}`}>
                                                     {columnOrder.map(key => {
                                                         const col = DEFAULT_COLUMNS.find(c => c.key === key);
                                                         if (!col) return null;
                                                         const width = columnWidths[key] || col.minWidth;
                                                         const style = { width, minWidth: col.minWidth };
-                                                        const base = "px-3 py-3 text-sm border-r border-slate-800";
+                                                        const base = "px-3 py-3 text-sm border-r border-white/[0.06]";
 
                                                         switch (key) {
                                                             case 'sr':
-                                                                return <td key={key} className={`${base} text-center text-slate-500`} style={style}>{filteredIndex + 1}</td>;
+                                                                return <td key={key} className={`${base} text-center text-gray-300`} style={style}>{filteredIndex + 1}</td>;
                                                             case 'asin':
-                                                                return <td key={key} className={`${base} font-mono text-slate-200`} style={style}><div className="truncate max-w-[120px]" title={merged.asin}>{merged.asin}</div></td>;
+                                                                return <td key={key} className={`${base} font-mono text-gray-100`} style={style}><div className="truncate max-w-[120px]" title={merged.asin}>{merged.asin}</div></td>;
                                                             case 'sku':
-                                                                return <td key={key} className={`${base} text-slate-400`} style={style}><div className="truncate max-w-[100px]">{merged.sku || '-'}</div></td>;
+                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="truncate max-w-[100px]">{merged.sku || '-'}</div></td>;
                                                             case 'product_name':
-                                                                return <td key={key} className={`${base} text-slate-300`} style={style}><div className="truncate max-w-[180px]" title={merged.product_name || ''}>{merged.product_name || '-'}</div></td>;
+                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="truncate max-w-[180px]" title={merged.product_name || ''}>{merged.product_name || '-'}</div></td>;
                                                             case 'product_link':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
-                                                                        {merged.product_link ? <a href={merged.product_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 no-underline">🔗 Link</a> : <span className="text-slate-600">-</span>}
+                                                                        {merged.product_link ? <a href={merged.product_link} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 no-underline">🔗 Link</a> : <span className="text-gray-500">-</span>}
                                                                     </td>
                                                                 );
                                                             case 'seller_link':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
-                                                                        {merged.seller_link ? <a href={merged.seller_link.startsWith('http') ? merged.seller_link : `https://${merged.seller_link}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 no-underline text-xs">🔗 Seller</a> : <span className="text-slate-600">-</span>}
+                                                                        {merged.seller_link ? <a href={merged.seller_link.startsWith('http') ? merged.seller_link : `https://${merged.seller_link}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 no-underline text-xs">🔗 Seller</a> : <span className="text-gray-500">-</span>}
                                                                     </td>
                                                                 );
                                                             case 'funnel':
@@ -1106,7 +1106,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                         <div className="grid grid-cols-2 gap-x-1.5 gap-y-1 w-fit mx-auto">
                                                                             {merged.sellerEntries.map(entry => (
                                                                                 <div key={entry.id} className="flex items-center gap-0.5">
-                                                                                    <span className={`w-6 h-5 flex items-center justify-center rounded text-[8px] font-bold flex-shrink-0 ${tagColors[entry.tag] ?? 'bg-slate-700 text-white'}`}>
+                                                                                    <span className={`w-6 h-5 flex items-center justify-center rounded text-[8px] font-bold flex-shrink-0 ${tagColors[entry.tag] ?? 'bg-[#1a1a1a] text-white'}`}>
                                                                                         {entry.tag}
                                                                                     </span>
                                                                                     <input
@@ -1136,7 +1136,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                                                 ));
                                                                                             } catch (err) { console.error('Failed to update qty:', err); }
                                                                                         }}
-                                                                                        className="w-10 px-1 py-0.5 bg-slate-950 border border-slate-700 rounded text-[10px] text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-center"
+                                                                                        className="w-10 px-1 py-0.5 bg-[#111111] border border-white/[0.06] rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-orange-500 text-center"
                                                                                     />
                                                                                 </div>
                                                                             )
@@ -1149,7 +1149,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                             case 'buying_price':
                                                                 return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}>{EditableCell(primaryRow.id, "buying_price", merged.buying_price?.toString() ?? null)}</td>;
                                                             case 'buying_qty':
-                                                                return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}><span className="text-slate-200 font-semibold">{merged.totalQty}</span></td>;
+                                                                return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}><span className="text-gray-100 font-semibold">{merged.totalQty}</span></td>;
                                                             case 'qty_pending': {
                                                                 const liveRows = products.filter(p => p.asin === merged.asin);
                                                                 const liveTotal = liveRows.reduce((sum, p) => sum + (p.buying_quantity ?? 0), 0);
@@ -1157,16 +1157,16 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                 return (
                                                                     <td key={key} className={`${base} text-center bg-green-900/10`} style={{ ...style, minWidth: '160px' }}>
                                                                         <div className="flex flex-col items-center gap-1.5">
-                                                                            <span className="text-sm font-semibold text-slate-200">{`${liveTotal} (${livePending})`}</span>
+                                                                            <span className="text-sm font-semibold text-gray-100">{`${liveTotal} (${livePending})`}</span>
                                                                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 w-fit">
                                                                                 {merged.sellerEntries.map(entry => {
                                                                                     const liveSeller = liveRows.find(p => p.id === entry.id);
                                                                                     const sellerPending = liveSeller ? (liveSeller.pending_quantity ?? liveSeller.buying_quantity ?? 0) : entry.pendingQty;
                                                                                     return (
                                                                                         <div key={entry.id} className="flex items-center gap-1 whitespace-nowrap">
-                                                                                            <span className={`w-6 h-4 flex items-center justify-center rounded text-[8px] font-bold flex-shrink-0 ${tagColors[entry.tag] ?? 'bg-slate-700 text-white'}`}>{entry.tag}</span>
+                                                                                            <span className={`w-6 h-4 flex items-center justify-center rounded text-[8px] font-bold flex-shrink-0 ${tagColors[entry.tag] ?? 'bg-[#1a1a1a] text-white'}`}>{entry.tag}</span>
                                                                                             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sellerPending === 0 ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                                                                                            <span className="text-[11px] text-slate-300">{sellerPending}</span>
+                                                                                            <span className="text-[11px] text-gray-500">{sellerPending}</span>
                                                                                         </div>
                                                                                     );
                                                                                 })}
@@ -1185,10 +1185,10 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                 return (
                                                                     <td key={key} className={`${base} text-center`} style={style}>
                                                                         {merged.address ? (
-                                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${merged.address === 'A' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${merged.address === 'A' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-amber-500/100/20 text-amber-400 border border-amber-500/30'}`}>
                                                                                 {merged.address}
                                                                             </span>
-                                                                        ) : <span className="text-slate-600">-</span>}
+                                                                        ) : <span className="text-gray-500">-</span>}
                                                                     </td>
                                                                 );
                                                             case 'status':
@@ -1198,9 +1198,9 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                             {(['pending', 'in_transit', 'delivered'] as const).map((s) => {
                                                                                 const isActive = primaryRow.status === s;
                                                                                 const config = {
-                                                                                    pending: { label: 'P', color: 'border-amber-500 bg-amber-500/20 text-amber-400', active: 'bg-amber-500 text-white border-amber-500' },
+                                                                                    pending: { label: 'P', color: 'border-amber-500 bg-amber-500/100/20 text-amber-400', active: 'bg-amber-500/100 text-white border-amber-500' },
                                                                                     in_transit: { label: 'T', color: 'border-blue-500 bg-blue-500/20 text-blue-400', active: 'bg-blue-500 text-white border-blue-500' },
-                                                                                    delivered: { label: 'D', color: 'border-emerald-500 bg-emerald-500/20 text-emerald-400', active: 'bg-emerald-500 text-white border-emerald-500' },
+                                                                                    delivered: { label: 'D', color: 'border-emerald-500 bg-emerald-500/100/20 text-emerald-400', active: 'bg-emerald-500/100 text-white border-emerald-500' },
                                                                                 }[s];
                                                                                 return (
                                                                                     <button key={s} onClick={() => handleStatusChange(primaryRow.id, s)} title={s.replace('_', ' ').toUpperCase()}
@@ -1219,17 +1219,17 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                 </tr>
                                                 {/* Box history expansion row */}
                                                 {openHistory.has(primaryRow.id) && (
-                                                    <tr className="bg-slate-900/50">
-                                                        <td colSpan={DEFAULT_COLUMNS.length} className="px-4 py-3">
+                                                    <tr className="bg-[#1a1a1a]">
+                                                        <td colSpan={DEFAULT_COLUMNS.length} className="px-6 py-4">
                                                             {historyLoading[primaryRow.id] ? (
-                                                                <span className="text-slate-500 text-xs">Loading history...</span>
+                                                                <span className="text-gray-500 text-xs">Loading history...</span>
                                                             ) : (historyByInbound[primaryRow.id] || []).length === 0 ? (
-                                                                <span className="text-slate-600 text-xs">No box assignments yet.</span>
+                                                                <span className="text-gray-500 text-xs">No box assignments yet.</span>
                                                             ) : (
                                                                 <div className="space-y-1">
                                                                     {(historyByInbound[primaryRow.id] || []).map((h: any, i: number) => (
-                                                                        <div key={i} className="text-xs text-slate-400">
-                                                                            📦 Box <span className="font-bold text-slate-200">{h.box_number}</span> — Qty: {h.quantity_assigned} — {new Date(h.created_at).toLocaleDateString()}
+                                                                        <div key={i} className="text-xs text-gray-400">
+                                                                            📦 Box <span className="font-bold text-gray-100">{h.box_number}</span> — Qty: {h.quantity_assigned} — {new Date(h.created_at).toLocaleDateString()}
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -1246,8 +1246,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none borde-t border-slate-800 bg-slate-950 px-3 sm:px-4 py-2 sm:py-3">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-slate-400">
+                    <div className="flex-none borde-t border-white/[0.06] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-gray-300">
                             <span>
                                 Showing {mergedProducts.length} unique ASINs ({products.length} total rows)
                                 {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}
@@ -1284,20 +1284,20 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                 }}
             />
             {viewBoxOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-                    <div className="w-full max-w-6xl max-h-[90vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
-                        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a1a1a]">
+                    <div className="w-full max-w-6xl max-h-[90vh] bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl flex flex-col mx-2 sm:mx-0">
+                        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold text-white">
                                     Box details — {viewBoxNumber}
                                 </h2>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-gray-300">
                                     Edit quantities or weights for items inside this box.
                                 </p>
                             </div>
                             <button
                                 onClick={() => setViewBoxOpen(false)}
-                                className="text-slate-400 hover:text-slate-100 text-xl"
+                                className="text-gray-400 hover:text-white text-xl"
                             >
                                 ×
                             </button>
@@ -1305,28 +1305,28 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
 
                         <div className="flex-1 overflow-auto px-5 py-4">
                             {viewBoxLoading ? (
-                                <div className="h-40 flex items-center justify-center text-slate-400">
+                                <div className="h-40 flex items-center justify-center text-gray-400">
                                     Loading box contents...
                                 </div>
                             ) : viewBoxItems.length === 0 ? (
-                                <div className="h-40 flex items-center justify-center text-slate-500">
+                                <div className="h-40 flex items-center justify-center text-gray-500">
                                     No items in this box.
                                 </div>
                             ) : (
                                 <table className="w-full text-xs border-separate border-spacing-y-1" style={{ minWidth: "1100px" }}>
                                     <thead>
-                                        <tr className="bg-slate-900">
-                                            <th className="px-2 py-2 text-left text-slate-400">ASIN</th>
-                                            <th className="px-2 py-2 text-left text-slate-400">Product</th>
-                                            <th className="px-2 py-2 text-left text-slate-400">SKU</th>
-                                            <th className="px-2 py-2 text-center text-slate-400">Ordered</th>
-                                            <th className="px-2 py-2 text-center text-slate-400">
+                                        <tr className="bg-[#111111]">
+                                            <th className="px-2 py-2 text-left text-gray-400">ASIN</th>
+                                            <th className="px-2 py-2 text-left text-gray-400">Product</th>
+                                            <th className="px-2 py-2 text-left text-gray-400">SKU</th>
+                                            <th className="px-2 py-2 text-center text-gray-400">Ordered</th>
+                                            <th className="px-2 py-2 text-center text-gray-400">
                                                 Qty in this box
                                             </th>
-                                            <th className="px-2 py-2 text-center text-slate-400">
+                                            <th className="px-2 py-2 text-center text-gray-400">
                                                 Product weight (kg)
                                             </th>
-                                            <th className="px-2 py-2 text-center text-slate-400">
+                                            <th className="px-2 py-2 text-center text-gray-400">
                                                 Seller tag
                                             </th>
                                         </tr>
@@ -1335,20 +1335,20 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                         {viewBoxItems.map((row) => (
                                             <tr
                                                 key={row.id}
-                                                className="bg-slate-900/60 hover:bg-slate-900"
+                                                className="bg-[#111111]/60 hover:bg-[#111111]"
                                             >
-                                                <td className="px-2 py-2 font-mono text-slate-200">
+                                                <td className="px-2 py-2 font-mono text-gray-100">
                                                     {row.asin}
                                                 </td>
-                                                <td className="px-2 py-2 text-slate-200">
+                                                <td className="px-2 py-2 text-gray-100">
                                                     <div className="truncate max-w-[260px]">
                                                         {row.product_name || "-"}
                                                     </div>
                                                 </td>
-                                                <td className="px-2 py-2 font-mono text-slate-400">
+                                                <td className="px-2 py-2 font-mono text-gray-300">
                                                     {row.sku || "-"}
                                                 </td>
-                                                <td className="px-2 py-2 text-center text-slate-300">
+                                                <td className="px-2 py-2 text-center text-gray-300">
                                                     {row.ordered_quantity ?? row.buying_quantity ?? 0}
                                                 </td>
                                                 <td className="px-2 py-2 text-center">
@@ -1361,7 +1361,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                 quantity_assigned: Number(e.target.value || 0),
                                                             })
                                                         }
-                                                        className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                     />
                                                 </td>
                                                 <td className="px-2 py-2 text-center">
@@ -1375,10 +1375,10 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                 product_weight: Number(e.target.value || 0),
                                                             })
                                                         }
-                                                        className="w-24 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                     />
                                                 </td>
-                                                <td className="px-2 py-2 text-center text-slate-300">
+                                                <td className="px-2 py-2 text-center text-gray-300">
                                                     {row.seller_tag || "-"}
                                                 </td>
                                             </tr>
@@ -1388,10 +1388,10 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                             )}
                         </div>
 
-                        <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-end">
+                        <div className="px-5 py-3 border-t border-white/[0.06] flex items-center justify-end">
                             <button
                                 onClick={() => setViewBoxOpen(false)}
-                                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800"
+                                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-white hover:bg-[#111111]"
                             >
                                 Close
                             </button>

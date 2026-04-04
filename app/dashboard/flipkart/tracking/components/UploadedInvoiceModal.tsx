@@ -73,10 +73,10 @@ export default function UploadedInvoiceModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex items-center justify-center">
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-2xl overflow-hidden"
+        className="bg-[#111111] rounded-lg shadow-2xl overflow-hidden"
         style={{
           position: 'absolute',
           left: `${position.x}px`,

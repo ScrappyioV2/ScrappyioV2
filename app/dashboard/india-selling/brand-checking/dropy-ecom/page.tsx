@@ -7,7 +7,9 @@ import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
 import FunnelBadge from '../../../../components/FunnelBadge';
+import BotControlPanel from '@/components/india-selling/BotControlPanel';
 import { generateAmazonLink , ensureAbsoluteUrl } from '@/lib/utils';
+import { batchCheckPipeline, PipelineResult } from '@/lib/utils/pipelineCheck';
 import {
   Search,
   RotateCcw,
@@ -147,6 +149,7 @@ export default function DropyEcomPage() {
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
+  const [blockedAsins, setBlockedAsins] = useState<Map<string, PipelineResult>>(new Map());
 
 
   const SELLER_ID = 5;
@@ -289,6 +292,11 @@ export default function DropyEcomPage() {
 
       setProducts(data || []);
       setTotalCount(count || 0);
+        if (data && data.length > 0) {
+          const asins = data.map((p: any) => p.asin);
+          const pipelineMap = await batchCheckPipeline(asins);
+          setBlockedAsins(pipelineMap);
+        }
     } catch (error: any) {
       console.error('Error fetching products:', error);
       setToast({
@@ -395,6 +403,15 @@ export default function DropyEcomPage() {
       const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
 
       if (action === 'approved') {
+        const pipelineInfo = blockedAsins.get(product.asin);
+        if (pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation') {
+          if (!pipelineInfo.can_merge) {
+            setProducts(prev => [...prev, product]);
+            setToast({ message: `ASIN ${product.asin} is in ${pipelineInfo.stage_label} (${pipelineInfo.seller_tags}). Cannot approve until current journey completes.`, type: 'error' });
+            setProcessingId(null);
+            return;
+          }
+        }
         targetTable = `india_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
@@ -735,28 +752,28 @@ export default function DropyEcomPage() {
   const PaginationControls = () => {
     const totalPages = Math.ceil(totalCount / rowsPerPage);
     return (
-      <div className="sticky bottom-0 z-40 bg-slate-900 border-t border-slate-800 p-3 sm:p-4">
+      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.06] p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="text-xs sm:text-sm text-slate-400">
-            Showing <span className="text-slate-200 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
-            <span className="text-slate-200 font-medium">{Math.min(currentPage * rowsPerPage, totalCount)}</span> of{' '}
+          <div className="text-xs sm:text-sm text-gray-300">
+            Showing <span className="text-gray-100 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
+            <span className="text-gray-100 font-medium">{Math.min(currentPage * rowsPerPage, totalCount)}</span> of{' '}
             <span className="text-white font-bold">{totalCount}</span> products
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
-            <span className="px-4 py-2 bg-slate-950 border border-slate-800 text-slate-300 rounded-lg font-mono flex items-center">
+            <span className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg font-mono flex items-center">
               Page {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
@@ -821,7 +838,7 @@ export default function DropyEcomPage() {
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(columnKey)}
         // Added 'relative' and 'text-center'
-        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-400 border-r border-slate-800 cursor-move hover:bg-slate-800 transition-colors select-none group"
+        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.06] cursor-move hover:bg-[#111111] transition-colors select-none group"
         style={{ width: columnWidths[columnKey], minWidth: 80 }}
       >
         <div className="flex items-center justify-center gap-2">
@@ -831,7 +848,7 @@ export default function DropyEcomPage() {
         {/* Resize Handle */}
         <div
           onMouseDown={(e) => startResize(columnKey, e)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-indigo-500/50 z-10"
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.05]0/100/50 z-10"
           onClick={(e) => e.stopPropagation()}
         />
       </th>
@@ -846,14 +863,14 @@ export default function DropyEcomPage() {
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-xl whitespace-nowrap transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
-        ? `text-white bg-slate-800 shadow-[0_0_20px_-5px_currentColor] ${colorClass}`
-        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-transparent hover:border-slate-800'
+        ? `bg-orange-500/100 text-white font-semibold shadow-sm`
+        : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
         }`}
     >
       <span className="relative z-10 flex items-center gap-2">
         {label}
       </span>
-      {activeTab === tabName && (
+      {false && (
         <div className={`absolute inset-0 opacity-10 ${colorClass.replace('text-', 'bg-')}`} />
       )}
     </button>
@@ -863,61 +880,68 @@ export default function DropyEcomPage() {
   // ------------------------------------------------------------------
   return (
     <>
-      <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-500/100/20">
         {/* HEADER */}
-        <div className="sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 pb-4 pt-4 sm:pt-6 px-3 sm:px-4 lg:px-6">
+        <div className="sticky top-0 z-50 bg-[#1a1a1a] border-b border-white/[0.06] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6">
           <div className="max-w-[1920px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                    <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
+                  <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                    <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                   </div>
                   <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Dropy Ecom Listing</h1>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-400 pl-[3.25rem]">
+                <p className="text-xs sm:text-sm text-gray-300 pl-[3.25rem]">
                   Review and process listing errors and approvals
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.06]">
                 <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
-                <span className="w-px h-3 bg-slate-700 mx-2" />
-                <span>SELECTED: <span className="text-indigo-400 font-bold">{selectedIds.size}</span></span>
+                <span className="w-px h-3 bg-[#1a1a1a] mx-2" />
+                <span>SELECTED: <span className="text-orange-500 font-bold">{selectedIds.size}</span></span>
               </div>
             </div>
 
             {/* TABS */}
-            <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 p-1 bg-slate-900/50 rounded-2xl border border-slate-800 w-full sm:w-fit overflow-x-auto scrollbar-none">
+            <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
               {tabStyles('high_demand', 'text-emerald-400', 'Restock')}
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
               {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
-              {tabStyles('reject', 'text-slate-400', 'Reject')}
+              {tabStyles('reject', 'text-gray-400', 'Reject')}
+              {(activeTab === 'high_demand' || activeTab === 'dropshipping') && (
+                <BotControlPanel
+                  products={products}
+                  moveProduct={moveProduct}
+                  sellerName="Dropy Ecom"
+                />
+              )}
             </div>
 
             {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4 bg-slate-900/40 p-2 sm:p-3 rounded-xl border border-slate-800 mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.06] mb-2">
               <div className="flex gap-3 w-full md:w-auto">
                 <div className="relative">
                   <button
                     onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors"
+                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors"
                   >
                     <Columns className="w-4 h-4" /> Columns
                   </button>
                   {isColumnDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
-                      <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
                         {Object.keys(visibleColumns).map((col) => (
-                          <label key={col} className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
+                          <label key={col} className="flex items-center gap-3 p-2 hover:bg-white/[0.05]0/10 rounded-lg cursor-pointer transition-colors">
                             <input
                               type="checkbox"
                               checked={visibleColumns[col as keyof typeof visibleColumns]}
                               onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
-                              className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                              className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                             />
-                            <span className="text-sm text-slate-300 capitalize">{col.replace('_', ' ')}</span>
+                            <span className="text-sm text-gray-300 capitalize">{col.replace('_', ' ')}</span>
                           </label>
                         ))}
                       </div>
@@ -928,7 +952,7 @@ export default function DropyEcomPage() {
 
               <div className="flex gap-3 items-center w-full md:w-auto">
                 <div className="relative w-full md:w-72 group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
                   <input
                     type="text"
                     placeholder="Search by ASIN, Name, Brand, SKU..."
@@ -944,7 +968,7 @@ export default function DropyEcomPage() {
                       }
                       setSearchQuery(value);                        // ← Update search if OK
                     }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#111111]..."
                   />
 
                 </div>
@@ -955,9 +979,9 @@ export default function DropyEcomPage() {
                     <button
                       onClick={() => setIsMoveToDropdownOpen(!isMoveToDropdownOpen)}
                       disabled={selectedIds.size === 0}
-                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium transition-all ${selectedIds.size > 0
-                        ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-lg shadow-amber-900/20'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium transition-all ${selectedIds.size > 0
+                        ? 'bg-amber-600 text-white hover:bg-amber-500/100 shadow-lg shadow-amber-900/20'
+                        : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                         }`}
                     >
                       <ArrowUpDown className="w-4 h-4" /> Move To
@@ -967,21 +991,21 @@ export default function DropyEcomPage() {
                     {isMoveToDropdownOpen && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
-                        <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
-                          <button onClick={() => handleMoveFromReject('high_demand')} className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2">
+                        <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.06] rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
+                          <button onClick={() => handleMoveFromReject('high_demand')} className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-emerald-500/100/20 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                             Restock
                           </button>
                           <button
                             onClick={() => handleMoveFromReject('dropshipping')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-amber-500/10 hover:text-amber-400 rounded-lg transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-amber-500/100/20 hover:text-amber-400 rounded-lg transition-colors flex items-center gap-2"
                           >
                             <div className="w-2 h-2 rounded-full bg-amber-400"></div>
                             Dropshipping
                           </button>
                           <button
                             onClick={() => handleMoveFromReject('not_approved')}
-                            className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-rose-500/100/20 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-2"
                           >
                             <div className="w-2 h-2 rounded-full bg-rose-400"></div>
                             Not Approved
@@ -995,9 +1019,9 @@ export default function DropyEcomPage() {
                 <button
                   onClick={handleRollBack}
                   disabled={!hasRollback}
-                  className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium transition-all ${hasRollback
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg flex items-center gap-2 text-xs sm:text-sm font-medium transition-all ${hasRollback
+                    ? 'bg-orange-500/100 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
+                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                     }`}
                 >
                   <RotateCcw className="w-4 h-4" /> Undo
@@ -1009,30 +1033,30 @@ export default function DropyEcomPage() {
         </div>
 
         {/* TABLE */}
-        <div className="max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pb-4 sm:pb-6">
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl shadow-black/20">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-6 pb-4 sm:pb-6">
+          <div className="bg-[#111111] rounded-2xl border border-white/[0.06] overflow-hidden shadow-xl shadow-black/20">
             {loading ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-500 gap-4">
-                <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
+                <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
                 <span className="text-sm font-medium tracking-wide animate-pulse">LOADING DATA...</span>
               </div>
             ) : products.length === 0 ? (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-600 gap-3">
-                <Filter className="w-12 h-12 text-slate-700" />
-                <p className="text-lg font-medium text-slate-400">No items found in {activeTab.replace('_', ' ')}</p>
-                <p className="text-sm text-slate-500">Try adjusting your search or filters</p>
+              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-3">
+                <Filter className="w-12 h-12 text-gray-500" />
+                <p className="text-lg font-medium text-gray-400">No items found in {activeTab.replace('_', ' ')}</p>
+                <p className="text-sm text-gray-300">Try adjusting your search or filters</p>
               </div>
             ) : (
-              <div className="relative h-[calc(100vh-380px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+              <div className="relative h-[calc(100vh-380px)] overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 <table className="w-full border-collapse text-left" ref={tableRef}>
-                  <thead className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800 shadow-md">
+                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.06] shadow-md">
                     <tr>
-                      <th className="p-4 bg-slate-900 border-r border-slate-800 text-center sticky left-0 z-20" style={{ width: '60px' }}>
+                      <th className="p-4 bg-[#111111] border-r border-white/[0.06] text-center sticky left-0 z-20" style={{ width: '60px' }}>
                         <input
                           type="checkbox"
                           checked={selectedIds.size === products.length && products.length > 0}
                           onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 cursor-pointer"
+                          className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                         />
                       </th>
                       {columnOrder.map((col) => {
@@ -1045,19 +1069,23 @@ export default function DropyEcomPage() {
                         return renderColumnHeader(col, columnNames[col]);
                       })}
                       {activeTab !== 'reject' && (
-                        <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-slate-400 bg-slate-900" style={{ width: '220px' }}>Actions</th>
+                        <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-gray-400 bg-[#111111]" style={{ width: '220px' }}>Actions</th>
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    {products.map((product, index) => (
-                      <tr key={product.id} className={`group hover:bg-slate-800/40 transition-colors ${selectedIds.has(product.id) ? 'bg-indigo-900/10' : ''}`}>
-                        <td className="p-3 text-center bg-slate-950/50 sticky left-0 z-10 border-r border-slate-800 group-hover:bg-slate-900 transition-colors" style={{ width: '60px' }}>
+                  <tbody className="divide-y divide-white/[0.06]">
+                    {products.map((product, index) => {
+                    const pipelineInfo = blockedAsins.get(product.asin);
+                    const isBlockedInPipeline = pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation' && !pipelineInfo.can_merge;
+                    const isInPipeline = pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation';
+                    return (
+                      <tr key={product.id} className={`group transition-colors ${isBlockedInPipeline ? 'bg-orange-900/20 hover:bg-orange-900/30' : isInPipeline ? 'bg-amber-900/10 hover:bg-amber-900/20' : 'hover:bg-white/[0.05]0/100/5'} ${selectedIds.has(product.id) ? 'bg-orange-500/100/10' : ''}`}>
+                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.06] group-hover:bg-white/[0.03]0/100/10 transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(product.id)}
                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50 w-4 h-4 cursor-pointer"
+                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
                           />
                         </td>
                         {columnOrder.map((col) => {
@@ -1067,7 +1095,7 @@ export default function DropyEcomPage() {
                           return (
                             <td
                               key={col}
-                              className={`px-4 py-3 text-sm border-r border-slate-800/50 ${col === 'product_name' ? 'text-left' : 'text-center'
+                              className={`px-4 py-3 text-sm border-r border-white/[0.06] ${col === 'product_name' ? 'text-left' : 'text-center'
                                 } ${col === 'product_link' || col === 'amz_link' ? '' : 'truncate'}`}
                               style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
                             >
@@ -1085,30 +1113,30 @@ export default function DropyEcomPage() {
                                       href={ensureAbsoluteUrl(String(product[col as keyof ProductRow]))}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-orange-500/100/10 text-orange-500 hover:bg-orange-400 hover:text-white transition-all text-xs font-medium border border-orange-500/20"
                                     >
                                       View Link
                                     </a>
                                   ) : (
-                                    <span className="text-slate-600">-</span>
+                                    <span className="text-gray-500">-</span>
                                   )}
                                 </>
                               ) : col === 'funnel' ? (
                                 <FunnelBadge funnel={product.funnel} />
                               ) : col === 'sku' ? (
-                                <span className="font-mono text-slate-400 text-[10px]">
+                                <span className="font-mono text-gray-300 text-[10px]">
                                   {product.sku || '-'}
                                 </span>
                               ) : col === 'remark' ? (
                                 product.remark ? (
                                   <button
                                     onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+                                    className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                                   >
                                     View
                                   </button>
                                 ) : (
-                                  <button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>
+                                  <button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-gray-500 hover:text-gray-500 text-xs cursor-pointer">+ Add</button>
                                 )
 
                               ) : col === 'reason' ? (
@@ -1116,11 +1144,23 @@ export default function DropyEcomPage() {
                                   {product.reason || 'No reason'}
                                 </span>
                               ) : col === 'product_name' ? (
-                                <span className="text-slate-200 font-medium" title={product.product_name || '-'}>
+                                <span className="text-gray-100 font-medium" title={product.product_name || '-'}>
                                   {product.product_name}
                                 </span>
+                              ) : col === 'asin' ? (
+                                <div>
+                                  <span className="text-gray-400" title={String(product.asin || '-')}>
+                                    {String(product.asin || '-')}
+                                  </span>
+                              {isBlockedInPipeline && (
+                                <div className="text-[10px] text-orange-400 mt-0.5">{pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
+                              )}
+                              {isInPipeline && !isBlockedInPipeline && (
+                                <div className="text-[10px] text-amber-400 mt-0.5">{pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
+                              )}
+                                </div>
                               ) : (
-                                <span className="text-slate-400" title={String(product[col as keyof ProductRow] || '-')}>
+                                <span className="text-gray-400" title={String(product[col as keyof ProductRow] || '-')}>
                                   {String(product[col as keyof ProductRow] || '-')}
                                 </span>
                               )}
@@ -1134,7 +1174,7 @@ export default function DropyEcomPage() {
                               <button
                                 onClick={() => moveProduct(product, 'approved')}
                                 disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                className="px-3 py-1.5 bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                               >
                                 {processingId === product.id ? '...' : 'Approve'}
                               </button>
@@ -1142,7 +1182,7 @@ export default function DropyEcomPage() {
                                 <button
                                   onClick={() => moveProduct(product, 'not_approved')}
                                   disabled={processingId === product.id}
-                                  className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                  className="px-3 py-1.5 bg-rose-500/100/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/100 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                                 >
                                   Not Appr.
                                 </button>
@@ -1150,7 +1190,7 @@ export default function DropyEcomPage() {
                               <button
                                 onClick={() => setRejectModal({ isOpen: true, product })}
                                 disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-700 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                className="px-3 py-1.5 bg-[#111111] text-gray-400 border border-white/[0.06] rounded-lg hover:bg-[#1a1a1a] hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
                               >
                                 Reject
                               </button>
@@ -1158,7 +1198,8 @@ export default function DropyEcomPage() {
                           </td>
                         )}
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1179,44 +1220,44 @@ export default function DropyEcomPage() {
         )}
         {/* ✅ ADD THIS - Remark Modal */}
         {selectedRemark && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}>
-            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4" onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}>
+            <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between p-4 sm:p-6 pb-0">
                 <h3 className="text-xl font-bold text-white">Remark Details</h3>
                 <button
                   onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                  className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                  className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
                 >
                   ×
                 </button>
               </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
                     <textarea
                       value={editingRemarkText}
                       onChange={(e) => setEditingRemarkText(e.target.value)}
-                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-gray-500"
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
-                  <div className="text-xs text-slate-500">
-                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                  <div className="text-xs text-gray-300">
+                    Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => navigator.clipboard.writeText(editingRemarkText)}
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm"
+                      className="px-4 py-2 bg-[#1a1a1a] hover:bg-gray-200 text-gray-100 rounded-lg font-medium transition-colors text-sm"
                     >
                       Copy
                     </button>
@@ -1229,14 +1270,14 @@ export default function DropyEcomPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>
@@ -1246,6 +1287,7 @@ export default function DropyEcomPage() {
           </div>
         )}
       </div>
+
     </>
   )
 }

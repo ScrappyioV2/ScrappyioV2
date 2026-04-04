@@ -212,29 +212,29 @@ export default function BrandCheckingPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-orange-400/30">
 
         {/* === HEADER === */}
         <div className="mb-8">
           <Link
             href="/dashboard/uk-selling"
-            className="inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 mb-6 transition-colors group font-medium text-sm"
+            className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 mb-6 transition-colors group font-medium text-sm"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Back to UK Selling Dashboard
           </Link>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/60 pb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/[0.06] pb-8">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
-                  <ShieldCheck className="w-6 h-6 text-indigo-400" />
+                <div className="p-3 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+                  <ShieldCheck className="w-6 h-6 text-orange-500" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-white">Brand Checking Dashboard</h1>
               </div>
-              <p className="text-slate-400 pl-[3.75rem] max-w-2xl">
+              <p className="text-gray-400 pl-[3.75rem] max-w-2xl">
                 Monitor real-time brand approval progress across all sellers.
-                <span className="ml-3 inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-xs font-mono text-slate-300">
+                <span className="ml-3 inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#111111] border border-white/[0.06] text-xs font-mono text-gray-500">
                   Total Sellers: {sellers.length}
                 </span>
               </p>
@@ -255,7 +255,7 @@ export default function BrandCheckingPage() {
               <div
                 key={seller.id}
                 onClick={() => handleSellerCardClick(seller.id)}
-                className="group relative bg-slate-900/40 border border-slate-800 hover:border-indigo-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/50 backdrop-blur-sm overflow-hidden"
+                className="group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-orange-500/30 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
               >
                 {/* Hover Glow Effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -264,17 +264,17 @@ export default function BrandCheckingPage() {
 
                   {/* Left: Seller Card */}
                   <div className="col-span-2 flex flex-col">
-                    <div className="flex-1 bg-slate-950/50 border border-slate-800 rounded-xl p-5 flex flex-col items-center justify-center text-center group-hover:border-indigo-500/20 transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-3 text-slate-400 group-hover:text-indigo-400 group-hover:scale-110 transition-all shadow-inner">
+                    <div className="flex-1 bg-[#1a1a1a] border border-white/[0.06] rounded-xl p-5 flex flex-col items-center justify-center text-center group-hover:border-orange-500/20 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-[#111111] border border-white/[0.06] flex items-center justify-center mb-3 text-gray-400 group-hover:text-orange-500 group-hover:scale-110 transition-all shadow-inner">
                         <LayoutDashboard className="w-6 h-6" />
                       </div>
-                      <h3 className="text-sm font-semibold text-slate-300 mb-1 pb-1 w-full text-center">
+                      <h3 className="text-sm font-semibold text-gray-500 mb-1 pb-1 w-full text-center">
                         {seller.name}
                       </h3>
                       <div className="text-3xl font-bold text-white tracking-tight">
                         {seller.totalProducts.toLocaleString()}
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-1 font-semibold">Total Products</span>
+                      <span className="text-[10px] uppercase tracking-wider text-gray-500 mt-1 font-semibold">Total Products</span>
                     </div>
                   </div>
 
@@ -282,9 +282,9 @@ export default function BrandCheckingPage() {
                   <div className="col-span-3 flex flex-col justify-center space-y-6">
 
                     <div>
-                      <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                         Brand Check Status
-                        <div className="h-px flex-1 bg-slate-800"></div>
+                        <div className="h-px flex-1 bg-[#111111]"></div>
                       </h4>
 
                       {/* Approved Progress Bar */}
@@ -293,19 +293,19 @@ export default function BrandCheckingPage() {
                           <span className="text-sm text-emerald-400 font-medium flex items-center gap-1.5">
                             <CheckCircle2 className="w-4 h-4" /> Approved
                           </span>
-                          <span className="text-xs font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                          <span className="text-xs font-mono text-gray-400 bg-[#111111] px-1.5 py-0.5 rounded border border-white/[0.06]">
                             {seller.approved.toLocaleString()}
                           </span>
                         </div>
-                        <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
+                        <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden border border-white/[0.06]">
                           <div
-                            className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out"
+                            className="bg-emerald-500/100 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out"
                             style={{ width: `${approvedPercentage}%` }}
                           >
                           </div>
                         </div>
                         <div className="text-right mt-1">
-                          <span className="text-[10px] text-slate-500">{Math.round(approvedPercentage)}%</span>
+                          <span className="text-[10px] text-gray-500">{Math.round(approvedPercentage)}%</span>
                         </div>
                       </div>
 
@@ -315,19 +315,19 @@ export default function BrandCheckingPage() {
                           <span className="text-sm text-rose-400 font-medium flex items-center gap-1.5">
                             <AlertCircle className="w-4 h-4" /> Not Approved
                           </span>
-                          <span className="text-xs font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                          <span className="text-xs font-mono text-gray-400 bg-[#111111] px-1.5 py-0.5 rounded border border-white/[0.06]">
                             {seller.notApproved.toLocaleString()}
                           </span>
                         </div>
-                        <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/50">
+                        <div className="w-full bg-[#111111] rounded-full h-2.5 overflow-hidden border border-white/[0.06]">
                           <div
-                            className="bg-rose-500 h-full rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all duration-700 ease-out"
+                            className="bg-rose-500/100 h-full rounded-full shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all duration-700 ease-out"
                             style={{ width: `${notApprovedPercentage}%` }}
                           >
                           </div>
                         </div>
                         <div className="text-right mt-1">
-                          <span className="text-[10px] text-slate-500">{Math.round(notApprovedPercentage)}%</span>
+                          <span className="text-[10px] text-gray-500">{Math.round(notApprovedPercentage)}%</span>
                         </div>
                       </div>
                     </div>

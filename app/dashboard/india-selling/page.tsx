@@ -19,10 +19,10 @@ import {
 
 /* ================= CONFIGURATION ================= */
 const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; border: string }> = {
-  1: { name: "Golden Aura", color: "#f59e0b", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-  2: { name: "Rudra Retail", color: "#6366f1", bg: "bg-indigo-500/10", border: "border-indigo-500/20" },
+  1: { name: "Golden Aura", color: "#f59e0b", bg: "bg-amber-500/100/20", border: "border-amber-500/20" },
+  2: { name: "Rudra Retail", color: "#6366f1", bg: "bg-orange-500/100/10", border: "border-orange-500/20" },
   3: { name: "UBeauty", color: "#ec4899", bg: "bg-pink-500/10", border: "border-pink-500/20" },
-  4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/10", border: "border-emerald-500/20" }
+  4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/100/20", border: "border-emerald-500/20" }
 };
 
 
@@ -30,13 +30,13 @@ const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; b
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900 border border-slate-700 p-3 sm:p-4 rounded-xl shadow-2xl">
-        <p className="text-slate-300 font-bold mb-2">{label}</p>
+      <div className="bg-[#111111] border border-white/[0.06] p-3 sm:p-4 rounded-xl shadow-2xl">
+        <p className="text-gray-500 font-bold mb-2">{label}</p>
         <div className="space-y-1">
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-slate-400 w-24">{entry.name}:</span>
+              <span className="text-gray-400 w-24">{entry.name}:</span>
               <span className="font-mono font-bold text-white">
                 {entry.value.toLocaleString()}
               </span>
@@ -103,26 +103,26 @@ export default function IndiaSellingPage() {
 
   return (
     <>
-      <div className="h-full bg-slate-950 text-slate-200 p-3 sm:p-4 lg:p-6 font-sans selection:bg-indigo-500/30 flex flex-col overflow-y-auto xl:overflow-hidden">
+      <div className="h-full bg-[#111111] text-gray-100 p-3 sm:p-4 lg:p-6 font-sans selection:bg-orange-400/30 flex flex-col overflow-y-auto xl:overflow-hidden">
 
 
         {/* === HEADER — COMPACT === */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-0 mb-3 sm:mb-4 border-b border-slate-800/60 pb-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-0 mb-6 border-b border-white/[0.06] pb-3 shrink-0">
           <div>
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                <TrendingUp className="w-5 h-5 text-indigo-400" />
+              <div className="p-2 bg-orange-500/100/10 rounded-lg border border-orange-500/20">
+                <TrendingUp className="w-5 h-5 text-orange-500" />
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">INDIA Overview</h1>
             </div>
-            <p className="text-slate-400 text-xs sm:text-sm pl-1">
-              Live pipeline metrics for <span className="text-indigo-400 font-bold">4 Brands</span>
+            <p className="text-gray-400 text-xs sm:text-sm pl-1">
+              Live pipeline metrics for <span className="text-orange-500 font-bold">4 Brands</span>
             </p>
           </div>
 
 
-          <div className="bg-slate-900 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-800 shadow-xl flex flex-col items-center min-w-0 sm:min-w-[140px] self-end sm:self-auto">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Total Active</span>
+          <div className="bg-[#111111] px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-white/[0.06] shadow-xl flex flex-col items-center min-w-0 sm:min-w-[140px] self-end sm:self-auto">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Total Active</span>
             <span className="text-xl sm:text-2xl font-mono font-bold text-white">{totalActive.toLocaleString()}</span>
           </div>
         </div>
@@ -130,8 +130,8 @@ export default function IndiaSellingPage() {
 
         {/* === CONTENT === */}
         {(!stats || statsLoading) ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-4">
-            <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 gap-4">
+            <div className="w-10 h-10 border-4 border-orange-500/30 border-t-indigo-500 rounded-full animate-spin" />
             <span className="text-sm font-medium tracking-wide animate-pulse">SYNCING LIVE DATA...</span>
           </div>
         ) : (
@@ -140,13 +140,13 @@ export default function IndiaSellingPage() {
 
             {/* === LEFT: PIPELINE CHART + STATS === */}
             <div className="xl:col-span-2 flex flex-col gap-3 sm:gap-4 xl:min-h-0">
-              <div className="bg-slate-900/40 border border-slate-800 p-3 sm:p-4 rounded-2xl shadow-xl backdrop-blur-sm xl:flex-1 min-h-[250px] flex flex-col">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <div className="bg-[#1a1a1a] border border-white/[0.06] p-3 sm:p-4 rounded-2xl shadow-xl xl:flex-1 min-h-[250px] flex flex-col">
+                <div className="flex justify-between items-center mb-6">
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-indigo-400" />
+                    <TrendingUp className="w-4 h-4 text-orange-500" />
                     Pipeline Volume
                   </h2>
-                  <div className="text-[10px] text-slate-500 hidden sm:flex gap-3">
+                  <div className="text-[10px] text-gray-500 hidden sm:flex gap-3">
                     <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Right Scale</span>
                     <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div> Left Scale</span>
                   </div>
@@ -184,26 +184,26 @@ export default function IndiaSellingPage() {
 
 
               {/* LISTING ERRORS */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl shrink-0">
-                <div className="px-4 py-2.5 bg-rose-500/5 border-b border-rose-500/10 flex justify-between items-center">
+              <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl shrink-0">
+                <div className="px-4 py-2.5 bg-rose-500/100/5 border-b border-rose-500/10 flex justify-between items-center">
                   <h2 className="font-bold text-sm text-rose-200 flex items-center gap-2">
                     <LayoutList className="w-4 h-4 text-rose-500" /> Listing Errors
                   </h2>
-                  <span className="animate-pulse w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_10px_#f43f5e]"></span>
+                  <span className="animate-pulse w-2 h-2 bg-rose-500/100 rounded-full shadow-[0_0_10px_#f43f5e]"></span>
                 </div>
-                <div className="divide-y divide-slate-800/50 p-1.5">
+                <div className="divide-y divide-white/[0.06] p-1.5">
                   {stats.listing.sellers.map((seller: any) => (
-                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between hover:bg-slate-800/30 rounded-lg transition-colors">
+                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between hover:bg-white/[0.05]0/100/5 rounded-lg transition-colors">
                       <div className="flex items-center gap-2.5">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SELLER_CONFIG[seller.id].color }}></div>
-                        <span className="text-xs text-slate-300 font-medium">{SELLER_CONFIG[seller.id].name}</span>
+                        <span className="text-xs text-gray-500 font-medium">{SELLER_CONFIG[seller.id].name}</span>
                       </div>
                       {seller.notApproved > 0 ? (
                         <span className="text-xs font-bold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-md">
                           {seller.notApproved} Errors
                         </span>
                       ) : (
-                        <span className="text-[10px] text-slate-600 font-medium">Clean</span>
+                        <span className="text-[10px] text-gray-500 font-medium">Clean</span>
                       )}
                     </div>
                   ))}
@@ -212,23 +212,23 @@ export default function IndiaSellingPage() {
 
 
               {/* PURCHASING QUEUE */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl xl:flex-1 min-h-0">
-                <div className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
+              <div className="bg-[#111111]/60 border border-white/[0.06] rounded-2xl overflow-hidden shadow-xl xl:flex-1 min-h-0">
+                <div className="px-4 py-2.5 border-b border-white/[0.06] flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4 text-emerald-400" />
                   <h2 className="font-bold text-sm text-white">Ready to Buy</h2>
                 </div>
                 <div className="p-1.5 space-y-1">
                   {stats.purchasing.sellers.map((seller: any) => (
-                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between rounded-lg bg-slate-950/50 border border-slate-800/50">
-                      <span className="text-xs text-slate-300 font-medium">{SELLER_CONFIG[seller.id].name}</span>
+                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between rounded-lg bg-[#1a1a1a] border border-white/[0.06]">
+                      <span className="text-xs text-gray-500 font-medium">{SELLER_CONFIG[seller.id].name}</span>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <div className="text-[10px] text-slate-500">Pending</div>
+                          <div className="text-[10px] text-gray-500">Pending</div>
                           <div className="text-xs font-bold text-emerald-400">{seller.pending}</div>
                         </div>
-                        <div className="w-px h-6 bg-slate-800"></div>
+                        <div className="w-px h-6 bg-[#111111]"></div>
                         <div className="text-right">
-                          <div className="text-[10px] text-slate-500">Done</div>
+                          <div className="text-[10px] text-gray-500">Done</div>
                           <div className="text-xs font-bold text-white">{seller.approved}</div>
                         </div>
                       </div>
@@ -252,32 +252,32 @@ export default function IndiaSellingPage() {
 // === HELPER COMPONENT ===
 function StatCard({ title, icon, data, type }: { title: string, icon: any, data: any[], type: 'pending' | 'mixed' }) {
   return (
-    <div className="bg-slate-900/40 border border-slate-800 p-3 sm:p-3.5 rounded-2xl shadow-lg backdrop-blur-sm">
+    <div className="bg-[#1a1a1a] border border-white/[0.06] p-3 sm:p-3.5 rounded-2xl shadow-lg">
       <div className="flex items-center gap-2 mb-2.5">
-        <div className="p-1.5 bg-slate-800 rounded-lg">{icon}</div>
-        <h3 className="font-bold text-sm text-slate-200">{title}</h3>
+        <div className="p-1.5 bg-[#111111] rounded-lg">{icon}</div>
+        <h3 className="font-bold text-sm text-gray-100">{title}</h3>
       </div>
       <div className="space-y-1.5">
         {data.map((item: any) => {
           const cfg = SELLER_CONFIG[item.id];
           return (
-            <div key={item.id} className="flex items-center justify-between px-2 sm:px-2.5 py-2 bg-slate-950/50 border border-slate-800/50 rounded-lg gap-2">
+            <div key={item.id} className="flex items-center justify-between px-2 sm:px-2.5 py-2 bg-[#1a1a1a] border border-white/[0.06] rounded-lg gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                <span className="text-[11px] text-slate-400 font-medium truncate">{cfg.name}</span>
+                <span className="text-[11px] text-gray-400 font-medium truncate">{cfg.name}</span>
               </div>
               <div className="flex gap-2 sm:gap-3 text-[11px] shrink-0">
                 {type === 'pending' ? (
                   <>
                     <span className="font-bold text-blue-400">{item.pending?.toLocaleString()} Pending</span>
-                    <span className="text-slate-600">|</span>
-                    <span className="text-slate-400">{(item.pending + item.approved + item.notApproved).toLocaleString()} Total</span>
+                    <span className="text-gray-500">|</span>
+                    <span className="text-gray-400">{(item.pending + item.approved + item.notApproved).toLocaleString()} Total</span>
                   </>
                 ) : (
                   <>
                     <span className="text-emerald-400 font-bold">{item.approved?.toLocaleString()} Pass</span>
-                    <span className="text-slate-600">|</span>
-                    <span className="text-slate-300">{item.pending?.toLocaleString()} Wait</span>
+                    <span className="text-gray-500">|</span>
+                    <span className="text-gray-500">{item.pending?.toLocaleString()} Wait</span>
                   </>
                 )}
               </div>

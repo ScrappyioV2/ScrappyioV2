@@ -20,12 +20,12 @@ export default function ActionQueue({ data }: { data: ActionItem[] }) {
       case "success":
         return "bg-green-100 text-green-800 border-green-300";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-[#1a1a1a] text-gray-100 border-white/[0.06]";
     }
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="bg-[#111111] p-6 rounded-lg shadow">
       <h2 className="text-xl font-semibold mb-4">Action Queue</h2>
       <div className="space-y-3">
         {data.map((item, index) => (

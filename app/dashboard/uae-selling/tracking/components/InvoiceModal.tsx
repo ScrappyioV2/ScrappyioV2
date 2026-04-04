@@ -339,14 +339,14 @@ export default function InvoiceModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-auto">
-      <div className="bg-slate-900 rounded-xl shadow-2xl border border-slate-700 w-full max-w-7xl max-h-[95vh] overflow-auto">
+    <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex items-center justify-center p-4 overflow-auto">
+      <div className="bg-[#111111] rounded-xl shadow-2xl border border-white/[0.06] w-full max-w-7xl max-h-[95vh] overflow-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-slate-950 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-[#111111] border-b border-white/[0.06] px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-white">TAX INVOICE</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-gray-400 hover:text-gray-100 transition-colors"
           >
             <X size={24} />
           </button>
@@ -357,29 +357,29 @@ export default function InvoiceModal({
           {/* Invoice Info Row */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-300">
+              <label className="block text-sm font-semibold mb-1 text-gray-500">
                 Invoice No.
               </label>
               <input
                 type="text"
                 value={invoiceNo}
                 onChange={(e) => setInvoiceNo(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-300">
+              <label className="block text-sm font-semibold mb-1 text-gray-500">
                 Invoice Date
               </label>
               <input
                 type="date"
                 value={invoiceDate}
                 onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-300">
+              <label className="block text-sm font-semibold mb-1 text-gray-500">
                 GST Number
               </label>
               <input
@@ -387,7 +387,7 @@ export default function InvoiceModal({
                 value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value)}
                 placeholder="Enter GST Number"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function InvoiceModal({
           <div className="grid grid-cols-2 gap-4">
             {/* Seller Company */}
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-300">
+              <label className="block text-sm font-semibold mb-1 text-gray-500">
                 Seller Company
               </label>
               <textarea
@@ -404,13 +404,13 @@ export default function InvoiceModal({
                 onChange={(e) => setSellerCompany(e.target.value)}
                 rows={5}
                 placeholder="Seller Company Name&#10;Street Address&#10;City&#10;State&#10;Pincode&#10;India"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
 
             {/* Shipping Address */}
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-300">
+              <label className="block text-sm font-semibold mb-1 text-gray-500">
                 Shipping Address
               </label>
               <textarea
@@ -418,13 +418,13 @@ export default function InvoiceModal({
                 onChange={(e) => setShippingAddress(e.target.value)}
                 rows={5}
                 placeholder="Company Name&#10;Street Address&#10;City&#10;State&#10;Pincode&#10;India"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
 
             {/* Bill To */}
             <div>
-              <label className="block text-sm font-semibold mb-1 text-slate-300">
+              <label className="block text-sm font-semibold mb-1 text-gray-500">
                 Bill To
               </label>
               <textarea
@@ -432,92 +432,92 @@ export default function InvoiceModal({
                 onChange={(e) => setBillTo(e.target.value)}
                 rows={5}
                 placeholder="Company Name&#10;Street Address&#10;City&#10;State&#10;Pincode&#10;India"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
           </div>
 
 
           {/* Invoice Items Table */}
-          <div className="overflow-x-auto border border-slate-700 rounded-lg">
+          <div className="overflow-x-auto border border-white/[0.06] rounded-lg">
             <table className="w-full">
-              <thead className="bg-indigo-600 text-white">
+              <thead className="bg-orange-500/100 text-white">
                 <tr>
-                  <th className="px-3 py-2 text-left">ASIN</th>
-                  <th className="px-3 py-2 text-left">Product Name</th>
-                  <th className="px-3 py-2 text-left">Weight</th>
-                  <th className="px-3 py-2 text-left">Qty</th>
-                  <th className="px-3 py-2 text-left">Price</th>
-                  <th className="px-3 py-2 text-left">Amount</th>
-                  <th className="px-3 py-2 text-left">Tracking Details</th>
-                  <th className="px-3 py-2 text-left">Delivery Date</th>
+                  <th className="px-6 py-4 text-left">ASIN</th>
+                  <th className="px-6 py-4 text-left">Product Name</th>
+                  <th className="px-6 py-4 text-left">Weight</th>
+                  <th className="px-6 py-4 text-left">Qty</th>
+                  <th className="px-6 py-4 text-left">Price</th>
+                  <th className="px-6 py-4 text-left">Amount</th>
+                  <th className="px-6 py-4 text-left">Tracking Details</th>
+                  <th className="px-6 py-4 text-left">Delivery Date</th>
                 </tr>
               </thead>
               <tbody>
                 {editableItems.map((item, index) => (
-                  <tr key={index} className="border-t border-slate-800">
-                    <td className="px-3 py-2 text-slate-300">{item.asin}</td>
-                    <td className="px-3 py-2">
+                  <tr key={index} className="border-t border-white/[0.06]">
+                    <td className="px-6 py-4 text-gray-300">{item.asin}</td>
+                    <td className="px-6 py-4">
                       <input
                         type="text"
                         value={item.product_name}
                         onChange={(e) =>
                           updateItem(index, 'product_name', e.target.value)
                         }
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 focus:outline-none focus:border-orange-500"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
                         type="number"
                         value={item.weight}
                         onChange={(e) =>
                           updateItem(index, 'weight', parseFloat(e.target.value) || 0)
                         }
-                        className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-20 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 focus:outline-none focus:border-orange-500"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
                         type="number"
                         value={item.qty}
                         onChange={(e) =>
                           updateItem(index, 'qty', parseFloat(e.target.value) || 0)
                         }
-                        className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-20 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 focus:outline-none focus:border-orange-500"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
                         type="number"
                         value={item.price}
                         onChange={(e) =>
                           updateItem(index, 'price', parseFloat(e.target.value) || 0)
                         }
-                        className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-24 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 focus:outline-none focus:border-orange-500"
                       />
                     </td>
-                    <td className="px-3 py-2 font-semibold text-slate-200">
+                    <td className="px-6 py-4 font-semibold text-gray-100">
                       ₹ {item.amount.toFixed(2)}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
                         type="text"
                         value={item.tracking_details}
                         onChange={(e) =>
                           updateItem(index, 'tracking_details', e.target.value)
                         }
-                        className="w-32 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-32 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 focus:outline-none focus:border-orange-500"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
                         type="date"
                         value={item.delivery_date}
                         onChange={(e) =>
                           updateItem(index, 'delivery_date', e.target.value)
                         }
-                        className="w-36 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-36 bg-[#111111] border border-white/[0.06] rounded px-2 py-1 text-gray-100 focus:outline-none focus:border-orange-500"
                       />
                     </td>
                   </tr>
@@ -528,17 +528,17 @@ export default function InvoiceModal({
 
           {/* Tax Calculations */}
           <div className="flex justify-end">
-            <div className="w-80 space-y-2 bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="w-80 space-y-2 bg-[#111111] border border-white/[0.06] rounded-lg p-4">
               <div className="flex justify-between items-center">
-                <span className="font-semibold text-slate-300">Amount:</span>
-                <span className="text-lg text-slate-200">₹ {totalAmount.toFixed(2)}</span>
+                <span className="font-semibold text-gray-500">Amount:</span>
+                <span className="text-lg text-gray-100">₹ {totalAmount.toFixed(2)}</span>
               </div>
               <input
                 type="number"
                 value={cgst}
                 onChange={(e) => setCgst(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                 placeholder="Enter CGST"
-                className="w-32 bg-slate-900 border border-slate-700 rounded px-3 py-1 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-32 bg-[#111111] border border-white/[0.06] rounded px-3 py-1 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500"
               />
 
               <input
@@ -546,15 +546,15 @@ export default function InvoiceModal({
                 value={sgst}
                 onChange={(e) => setSgst(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                 placeholder="Enter SGST"
-                className="w-32 bg-slate-900 border border-slate-700 rounded px-3 py-1 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-32 bg-[#111111] border border-white/[0.06] rounded px-3 py-1 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500"
               />
 
-              <div className="flex justify-between items-center pt-2 border-t-2 border-slate-700">
-                <span className="font-semibold text-slate-300">Tax:</span>
-                <span className="text-lg text-slate-200">₹ {tax.toFixed(2)}</span>
+              <div className="flex justify-between items-center pt-2 border-t-2 border-white/[0.06]">
+                <span className="font-semibold text-gray-500">Tax:</span>
+                <span className="text-lg text-gray-100">₹ {tax.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t-2 border-slate-700">
-                <span className="font-bold text-lg text-slate-200">Total:</span>
+              <div className="flex justify-between items-center pt-2 border-t-2 border-white/[0.06]">
+                <span className="font-bold text-lg text-gray-100">Total:</span>
                 <span className="text-xl font-bold text-green-400">
                   ₹ {grandTotal.toFixed(2)}
                 </span>
@@ -564,7 +564,7 @@ export default function InvoiceModal({
 
           {/* Authorized Signature */}
           <div>
-            <label className="block text-sm font-semibold mb-1 text-slate-300">
+            <label className="block text-sm font-semibold mb-1 text-gray-500">
               Authorized Signature
             </label>
             <input
@@ -572,15 +572,15 @@ export default function InvoiceModal({
               value={authorizedSignature}
               onChange={(e) => setAuthorizedSignature(e.target.value)}
               placeholder="Enter authorized signature"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-[#111111] border border-white/[0.06] rounded-lg px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             />
           </div>
         </div>
 
         {/* Footer Buttons */}
-        <div className="sticky bottom-0 bg-slate-950 border-t border-slate-800 px-6 py-4 flex justify-between items-center">
+        <div className="sticky bottom-0 bg-[#111111] border-t border-white/[0.06] px-6 py-4 flex justify-between items-center">
           <div>
-            <label className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg cursor-pointer inline-flex items-center gap-2 font-semibold transition-colors">
+            <label className="bg-orange-500/100 hover:bg-orange-600 text-white px-6 py-2 rounded-lg cursor-pointer inline-flex items-center gap-2 font-semibold transition-colors">
               <Upload size={18} />
               {uploading ? 'Uploading...' : 'Upload Invoice'}
               <input
@@ -603,7 +603,7 @@ export default function InvoiceModal({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors font-semibold"
+              className="px-6 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-gray-500 hover:bg-[#1a1a1a] transition-colors font-semibold"
             >
               Cancel
             </button>

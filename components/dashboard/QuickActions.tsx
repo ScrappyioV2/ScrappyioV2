@@ -16,7 +16,7 @@ export default function QuickActions() {
         {actions.map((action) => (
           <button
             key={action}
-            className="border rounded px-3 py-2 text-sm hover:bg-gray-50"
+            className="border rounded px-3 py-2 text-sm hover:bg-[#111111]"
           >
             {action}
           </button>

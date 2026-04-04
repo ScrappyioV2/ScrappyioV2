@@ -206,7 +206,7 @@ const renderSellerTags = (sellerTag: string | null) => {
             {sellerTag.split(',').map((tag) => {
                 const cleanTag = tag.trim();
                 return (
-                    <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-sm ${SELLER_STYLES[cleanTag] ?? 'bg-slate-700 text-white'}`}>
+                    <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-sm ${SELLER_STYLES[cleanTag] ?? 'bg-[#1a1a1a] text-white'}`}>
                         {cleanTag}
                     </span>
                 );
@@ -266,14 +266,14 @@ const ResizableTH = ({
                 minWidth: width,
                 width: isFlex ? 'auto' : width,
             }}
-            className={`relative px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-950 ${align === 'center' ? 'text-center' : 'text-left'
+            className={`relative px-4 py-3 text-xs font-bold text-white uppercase tracking-wider bg-[#111111] ${align === 'center' ? 'text-center' : 'text-left'
                 } select-none cursor-grab active:cursor-grabbing`}
         >
             <div className={isFlex ? 'truncate' : ''}>{label}</div>
 
             <span
                 onMouseDown={(e) => { e.stopPropagation(); onResizeStart(columnKey, e.clientX); }}
-                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500"
+                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400"
             />
         </th>
     );
@@ -2310,11 +2310,11 @@ export default function ValidationPage() {
             case 'asin':
                 if (!visibleColumns.asin) return null;
                 return (
-                    <td key={col_key} className="p-3 font-mono text-sm text-slate-300" style={{ minWidth: 160 }}>
+                    <td key={col_key} className="p-3 font-mono text-sm text-gray-300" style={{ minWidth: 160 }}>
                         <div className="flex items-center gap-2 whitespace-nowrap">
                             <span>{product.asin}</span>
                             {product.is_new && (
-                                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded uppercase tracking-wider animate-pulse">
+                                <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30 rounded uppercase tracking-wider animate-pulse">
                                     New
                                 </span>
                             )}
@@ -2325,7 +2325,7 @@ export default function ValidationPage() {
             case 'sku':
                 if (!visibleColumns.sku) return null;
                 return (
-                    <td key={col_key} className="px-4 py-3 text-sm" style={{ maxWidth: columnWidths.sku || 150 }}>
+                    <td key={col_key} className="px-6 py-4 text-sm" style={{ maxWidth: columnWidths.sku || 150 }}>
                         <div className="w-40">
                             {editingSkuId === product.id ? (
                                 <div className="flex items-center gap-1">
@@ -2333,7 +2333,7 @@ export default function ValidationPage() {
                                         type="text"
                                         value={editingSkuValue}
                                         onChange={(e) => setEditingSkuValue(e.target.value)}
-                                        className="w-full px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                         placeholder="Enter SKU..."
                                         autoFocus
                                         onKeyDown={(e) => {
@@ -2369,10 +2369,10 @@ export default function ValidationPage() {
                                 </div>
                             ) : product.sku ? (
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-200 text-xs truncate" title={product.sku}>{product.sku}</span>
+                                    <span className="text-gray-100 text-xs truncate" title={product.sku}>{product.sku}</span>
                                     <button
                                         onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(product.sku || ''); }}
-                                        className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
+                                        className="text-gray-300 hover:text-amber-500 transition-colors flex-shrink-0"
                                         title="Edit SKU"
                                     >
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2397,10 +2397,10 @@ export default function ValidationPage() {
 
             case 'history':
                 return (
-                    <td key={col_key} className="px-6 py-4 text-center border-r border-slate-800/50">
+                    <td key={col_key} className="px-6 py-4 text-center border-r border-white/[0.06]">
                         <button
                             onClick={() => fetchHistory(product.asin)}
-                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
                             title="View Journey History"
                         >
                             <History className="w-4 h-4" />
@@ -2411,8 +2411,8 @@ export default function ValidationPage() {
             case 'product_name':
                 if (!visibleColumns.product_name) return null;
                 return (
-                    <td key={col_key} style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-slate-800/50">
-                        <div className="truncate max-w-full text-slate-300 text-xs" title={product.product_name || ''}>
+                    <td key={col_key} style={{ width: columnWidths.product_name, maxWidth: columnWidths.product_name }} className="p-3 border-b border-white/[0.06]">
+                        <div className="truncate max-w-full text-gray-500 text-xs" title={product.product_name || ''}>
                             {product.product_name || '-'}
                         </div>
                     </td>
@@ -2420,7 +2420,7 @@ export default function ValidationPage() {
 
             case 'brand':
                 if (!visibleColumns.brand) return null;
-                return <td key={col_key} className="p-3 text-slate-300">{product.brand || '-'}</td>;
+                return <td key={col_key} className="p-3 text-gray-300">{product.brand || '-'}</td>;
 
             case 'seller_tag':
                 if (!visibleColumns.seller_tag) return null;
@@ -2450,11 +2450,11 @@ export default function ValidationPage() {
                                             setOpenOriginId(null);
                                         }
                                     }}
-                                    className={`group/funnel relative cursor-pointer transition-all hover:scale-110 ${openFunnelId === product.id ? 'ring-2 ring-indigo-500 rounded-lg' : ''}`}
+                                    className={`group/funnel relative cursor-pointer transition-all hover:scale-110 ${openFunnelId === product.id ? 'ring-2 ring-orange-500 rounded-lg' : ''}`}
                                     title="Click to change funnel"
                                 >
                                     {renderFunnelBadge(product.funnel)}
-                                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full flex items-center justify-center opacity-0 group-hover/funnel:opacity-100 transition-opacity shadow-lg">
+                                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-orange-400 rounded-full flex items-center justify-center opacity-0 group-hover/funnel:opacity-100 transition-opacity shadow-lg">
                                         <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                         </svg>
@@ -2464,15 +2464,15 @@ export default function ValidationPage() {
                                 {openFunnelId === product.id && dropdownPos && (
                                     <div
                                         style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
-                                        className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150"
+                                        className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150"
                                     >
                                         {['RS', 'DP'].map((f) => (
                                             <button
                                                 key={f}
                                                 onClick={() => handleFunnelChange(product.id, f)}
                                                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${product.funnel === f
-                                                    ? 'bg-indigo-500/20 text-indigo-300'
-                                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                                    ? 'bg-orange-500/100/10 text-orange-400'
+                                                    : 'text-gray-500 hover:bg-[#111111] hover:text-white'
                                                     }`}
                                             >
                                                 {renderFunnelBadge(f)}
@@ -2490,13 +2490,13 @@ export default function ValidationPage() {
 
             case 'no_of_seller':
                 if (!visibleColumns.no_of_seller) return null;
-                return <td key={col_key} className="p-3 text-slate-300">{product.no_of_seller || '-'}</td>;
+                return <td key={col_key} className="p-3 text-gray-300">{product.no_of_seller || '-'}</td>;
 
             case 'india_link': {
                 if (!visibleColumns.india_link) return null;
                 const isEditingIndia = editingLinkId === product.id;
                 return (
-                    <td key={col_key} className="px-4 py-3 text-sm"
+                    <td key={col_key} className="px-6 py-4 text-sm"
                         style={isEditingIndia ? { minWidth: '350px' } : undefined}
                     >
                         {isEditingIndia ? (
@@ -2505,7 +2505,7 @@ export default function ValidationPage() {
                                     type="text"
                                     value={editingLinkValue}
                                     onChange={(e) => setEditingLinkValue(e.target.value)}
-                                    className="flex-1 min-w-0 px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                    className="flex-1 min-w-0 px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                     placeholder="Paste URL..."
                                     autoFocus
                                     onKeyDown={(e) => {
@@ -2537,12 +2537,12 @@ export default function ValidationPage() {
                                     <>
                                         <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
                                             target="_blank" rel="noopener noreferrer"
-                                            className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs">
+                                            className="text-orange-500 hover:text-orange-400 hover:underline font-medium whitespace-nowrap text-xs">
                                             View Link
                                         </a>
                                         <button
                                             onClick={() => { setEditingLinkId(product.id); setEditingLinkValue(product.india_link || ''); }}
-                                            className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link"
+                                            className="text-gray-300 hover:text-amber-500 transition-colors flex-shrink-0" title="Edit link"
                                         >
                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -2567,14 +2567,14 @@ export default function ValidationPage() {
             case 'usa_link': {
                 const isEditingUsa = editingUsaLinkId === product.id;
                 return (
-                    <td key={col_key} className="px-4 py-3 text-sm">
+                    <td key={col_key} className="px-6 py-4 text-sm">
                         {isEditingUsa ? (
                             <div className="flex items-center gap-1">
                                 <input
                                     type="text"
                                     value={editingUsaLinkValue}
                                     onChange={(e) => setEditingUsaLinkValue(e.target.value)}
-                                    className="flex-1 min-w-0 px-2 py-1 bg-slate-950 border border-indigo-500 rounded text-xs text-white focus:ring-1 focus:ring-indigo-500"
+                                    className="flex-1 min-w-0 px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                     placeholder="Paste URL..."
                                     autoFocus
                                     onKeyDown={(e) => {
@@ -2638,7 +2638,7 @@ export default function ValidationPage() {
                                             href={product.usa_link || `https://www.amazon.com/dp/${product.asin}?th=1&psc=1`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap text-xs"
+                                            className="inline-flex items-center gap-1.5 text-orange-500 hover:text-orange-400 hover:underline font-medium whitespace-nowrap text-xs"
                                         >
                                             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -2652,7 +2652,7 @@ export default function ValidationPage() {
                                                 setEditingUsaLinkValue(product.usa_link || `https://www.amazon.com/dp/${product.asin}?th=1&psc=1`);
                                                 setColumnWidths(prev => ({ ...prev, usa_link: 350 }));
                                             }}
-                                            className="text-slate-500 hover:text-amber-500 transition-colors flex-shrink-0"
+                                            className="text-gray-300 hover:text-amber-500 transition-colors flex-shrink-0"
                                             title="Edit link"
                                         >
                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2713,26 +2713,26 @@ export default function ValidationPage() {
                                             setOpenChecklistId(null);
                                         }
                                     }}
-                                    className={`w-full min-w-[100px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'}`}
+                                    className={`w-full min-w-[100px] px-3 py-1.5 bg-[#111111] border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-white/[0.06] hover:border-white/[0.06]'}`}
                                 >
                                     {selected.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                             {selected.map(o => (
-                                                <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px] font-medium">{o.label}</span>
+                                                <span key={o.key} className="px-1.5 py-0.5 bg-emerald-500/100/20 text-emerald-400 rounded text-[10px] font-medium">{o.label}</span>
                                             ))}
                                         </div>
-                                    ) : (<span className="text-slate-500">Select...</span>)}
-                                    <svg className={`w-3 h-3 text-slate-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    ) : (<span className="text-gray-300">Select...</span>)}
+                                    <svg className={`w-3 h-3 text-gray-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
                                 {isOpen && dropdownPos && (
                                     <>
                                         <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenOriginId(null); setDropdownPos(null); }} />
-                                        <div className="fixed w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+                                        <div className="fixed w-40 bg-[#111111] border border-white/[0.06] rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
                                             {origins.map(o => (
-                                                <label key={o.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors">
-                                                    <input type="checkbox" checked={o.checked} onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50" />
+                                                <label key={o.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#111111] cursor-pointer text-xs text-gray-300 transition-colors">
+                                                    <input type="checkbox" checked={o.checked} onChange={(e) => handleOriginToggle(product.id, o.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50" />
                                                     <span className={o.checked ? 'text-emerald-400 font-medium' : ''}>{o.label}</span>
                                                     {o.checked && (<svg className="w-3 h-3 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
                                                 </label>
@@ -2748,13 +2748,13 @@ export default function ValidationPage() {
             case 'product_weight':
                 if (!visibleColumns.product_weight) return null;
                 return (
-                    <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
+                    <td key={col_key} className="p-3 text-gray-300 overflow-hidden">
                         {/* ✅ ADD 'reworking' */}
                         {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <input type="number" key={`${product.id}-pw-${product.product_weight}`} defaultValue={product.product_weight ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'product_weight', e.target.value)}
                                 onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
-                                className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (product.product_weight ?? '-')}
                     </td>
@@ -2763,13 +2763,13 @@ export default function ValidationPage() {
             case 'usd_price':
                 if (!visibleColumns.usd_price) return null;
                 return (
-                    <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
+                    <td key={col_key} className="p-3 text-gray-300 overflow-hidden">
                         {/* ✅ ADD 'reworking' */}
                         {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <input type="text" key={`${product.id}-usd-${product.usd_price}`} defaultValue={product.usd_price ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'usd_price', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
-                                className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (formatUSD(product.usd_price))}
                     </td>
@@ -2778,13 +2778,13 @@ export default function ValidationPage() {
             case 'inr_purchase':
                 if (!visibleColumns.inr_purchase) return null;
                 return (
-                    <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
+                    <td key={col_key} className="p-3 text-gray-300 overflow-hidden">
                         {/* ✅ ADD 'reworking' */}
                         {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <input type="text" key={`${product.id}-inr-${product.inr_purchase}`} defaultValue={product.inr_purchase ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'inr_purchase', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
-                                className="w-full max-w-[90px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
+                                className="w-full max-w-[90px] px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (formatINR(product.inr_purchase))}
                     </td>
@@ -2794,7 +2794,7 @@ export default function ValidationPage() {
                 if (activeTab !== 'main_file' && activeTab !== 'reworking') return null;
                 if (!visibleColumns.inr_purchase_link) return null;
                 return (
-                    <td key={col_key} className="px-4 py-3 text-sm overflow-hidden">
+                    <td key={col_key} className="px-6 py-4 text-sm overflow-hidden">
                         <input
                             type="url"
                             defaultValue={product.inr_purchase_link || ''}
@@ -2802,7 +2802,7 @@ export default function ValidationPage() {
                             onBlur={(e) => { const val = e.target.value.trim(); if (val) { handleCellEdit(product.id, 'inr_purchase_link', val); } }}
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                             placeholder="Paste source link"
-                            className="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 truncate text-xs"
+                            className="w-full px-2 py-1 bg-[#111111] border border-white/[0.06] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate text-xs"
                         />
                     </td>
                 );
@@ -2842,25 +2842,25 @@ export default function ValidationPage() {
                                             setOpenOriginId(null);
                                         }
                                     }}
-                                    className={`w-full min-w-[130px] px-3 py-1.5 bg-slate-900 border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-slate-600'}`}
+                                    className={`w-full min-w-[130px] px-3 py-1.5 bg-[#111111] border rounded-lg text-xs text-left flex items-center justify-between gap-2 transition-colors ${isOpen ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-white/[0.06] hover:border-white/[0.06]'}`}
                                 >
                                     {checkedCount > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                             {checkedItems.map(c => (
-                                                <span key={c.key} className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-medium">{c.label}</span>
+                                                <span key={c.key} className="px-1.5 py-0.5 bg-orange-500/100/10 text-orange-500 rounded text-[10px] font-medium">{c.label}</span>
                                             ))}
                                         </div>
-                                    ) : (<span className="text-slate-600">-</span>)}
+                                    ) : (<span className="text-gray-300">-</span>)}
                                 </button>
                                 {isOpen && dropdownPos && (
                                     <>
                                         <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenChecklistId(null); setDropdownPos(null); }} />
-                                        <div className="fixed w-44 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+                                        <div className="fixed w-44 bg-[#111111] border border-white/[0.06] rounded-lg shadow-2xl z-[9999] py-1" style={{ top: dropdownPos.top, left: dropdownPos.left }}>
                                             {checks.map(c => (
-                                                <label key={c.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-800 cursor-pointer text-xs text-slate-300 transition-colors">
-                                                    <input type="checkbox" checked={c.checked} onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50" />
-                                                    <span className={c.checked ? 'text-indigo-400 font-medium' : ''}>{c.label}</span>
-                                                    {c.checked && (<svg className="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
+                                                <label key={c.key} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#111111] cursor-pointer text-xs text-gray-300 transition-colors">
+                                                    <input type="checkbox" checked={c.checked} onChange={(e) => handleChecklistToggle(product.id, c.key, e.target.checked)} className="w-3.5 h-3.5 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50" />
+                                                    <span className={c.checked ? 'text-orange-500 font-medium' : ''}>{c.label}</span>
+                                                    {c.checked && (<svg className="w-3 h-3 text-orange-500 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>)}
                                                 </label>
                                             ))}
                                         </div>
@@ -2882,7 +2882,7 @@ export default function ValidationPage() {
                     <td key={col_key} className="p-3 text-center">
                         {product.reject_reason ? (
                             <button onClick={() => setSelectedRejectReason(product.reject_reason || null)} className="bg-violet-600 hover:bg-violet-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">View</button>
-                        ) : (<span className="text-slate-600">-</span>)}
+                        ) : (<span className="text-gray-300">-</span>)}
                     </td>
                 );
 
@@ -2893,19 +2893,19 @@ export default function ValidationPage() {
                         <div className="flex flex-col items-center gap-1.5">
                             {product.calculated_judgement && product.calculated_judgement !== 'PENDING' ? (
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${product.calculated_judgement === 'PASS'
-                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                    : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                    ? 'bg-emerald-500/100/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-rose-500/100/20 text-rose-400 border border-rose-500/30'
                                     }`}>
                                     {product.calculated_judgement}
                                 </span>
-                            ) : (<span className="text-slate-500 text-xs"></span>)}
+                            ) : (<span className="text-gray-300 text-xs"></span>)}
 
                             {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') && isReadyToMove(product) && (
                                 <button
                                     onClick={() => handleMoveByJudgement(product)}
                                     className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${product.calculated_judgement === 'PASS'
-                                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/50'
-                                        : 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/50'
+                                        ? 'bg-emerald-600 hover:bg-emerald-500/100 text-white shadow-lg shadow-emerald-900/50'
+                                        : 'bg-rose-600 hover:bg-rose-500/100 text-white shadow-lg shadow-rose-900/50'
                                         }`}
                                 >
                                     Move {product.calculated_judgement === 'PASS' ? 'Pass' : 'Fail'}
@@ -2920,10 +2920,10 @@ export default function ValidationPage() {
                 return (
                     <td key={col_key} className="p-3 text-center">
                         {product.remark ? (
-                            <button onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">
+                            <button onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }} className="bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">
                                 View
                             </button>
-                        ) : (<button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-slate-600 hover:text-slate-400 text-xs cursor-pointer">+ Add</button>)}
+                        ) : (<button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer">+ Add</button>)}
                     </td>
                 );
 
@@ -2935,20 +2935,20 @@ export default function ValidationPage() {
 
     return (
         <>
-            <div className="h-screen flex flex-col overflow-hidden bg-slate-950 p-3 sm:p-4 lg:p-6 text-slate-200 font-sans selection:bg-indigo-500/30">
+            <div className="h-screen flex flex-col overflow-hidden bg-[#111111] p-3 sm:p-4 lg:p-6 text-gray-100 font-sans selection:bg-orange-400/30">
                 <div className="w-full flex flex-col flex-1 overflow-hidden">
                     {/* Fixed Header Section */}
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
                             <h1 className="text-xl sm:text-3xl font-bold text-white">INDIA Selling - Validation</h1>
-                            <p className="text-xs sm:text-sm text-slate-400 mt-1">Manage validation files and product status</p>
+                            <p className="text-xs sm:text-sm text-gray-300 mt-1">Manage validation files and product status</p>
                         </div>
 
                         {/* Stats Cards - Compact */}
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-                            <div className="flex items-center gap-2.5 bg-slate-800/80 rounded-lg px-3.5 py-2 border border-slate-700/50">
-                                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-6">
+                            <div className="flex items-center gap-2.5 bg-[#1a1a1a] rounded-lg px-3.5 py-2 border border-white/[0.06]">
+                                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Total</span>
                                 <span className="text-sm sm:text-lg font-bold text-white">{stats.total}</span>
                             </div>
                             <div className="flex items-center gap-2.5 bg-emerald-900/30 rounded-lg px-3.5 py-2 border border-emerald-500/20">
@@ -2973,7 +2973,7 @@ export default function ValidationPage() {
                             </div>
                         </div>
                         {/* File Tabs */}
-                        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-5 p-1 sm:p-1.5 bg-slate-900/50 rounded-2xl border border-slate-800 w-full sm:w-fit overflow-x-auto scrollbar-none backdrop-blur-sm">
+                        <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-5 p-1 sm:p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.06] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
                             {[
                                 { id: 'main_file', label: 'Main File' },
                                 { id: 'pass_file', label: 'Pass File' },
@@ -2985,8 +2985,8 @@ export default function ValidationPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as FileTab)}
                                     className={`px-3 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === tab.id
-                                        ? 'text-white bg-slate-800 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)] border border-slate-700'
-                                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'
+                                        ? 'bg-orange-500/100 text-white font-semibold shadow-sm'
+                                        : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
                                         }`}
                                 >
                                     {tab.label}
@@ -2995,16 +2995,11 @@ export default function ValidationPage() {
                         </div>
 
                         {/* Action Buttons */}
-                        {/* Action Buttons */}
-                        <div className="mb-3 sm:mb-4 space-y-2 sm:space-y-3">
-                            {/* ROW 1: Search + Filter + Funnel + Action Buttons */}
-                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                                {/* LEFT SIDE - Search + Filter */}
-                                <div className="flex gap-2 sm:gap-3 min-w-0 sm:min-w-[300px] w-full sm:w-auto">
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
                                     {/* Search Bar */}
-                                    <div className="relative flex-1 min-w-0 max-w-md group">
+                                    <div className="relative flex-1 min-w-0 max-w-xs group">
                                         <svg
-                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-indigo-400 transition-colors"
+                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-orange-500 transition-colors"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -3016,12 +3011,12 @@ export default function ValidationPage() {
                                             placeholder="Search by ASIN, SKU, Product Name, or Brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-slate-200 placeholder-slate-600 transition-all shadow-sm"
+                                            className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-[#111111] border border-white/[0.06] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
                                         />
                                         {searchQuery && (
                                             <button
                                                 onClick={() => setSearchQuery('')}
-                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-200"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3034,7 +3029,7 @@ export default function ValidationPage() {
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 hover:text-white border border-slate-700 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.06] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -3045,42 +3040,42 @@ export default function ValidationPage() {
                                         {isFilterOpen && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                <div className="absolute top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
-                                                    <h3 className="font-semibold text-slate-200 mb-3">Filter Products</h3>
+                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                                    <h3 className="font-semibold text-gray-100 mb-3">Filter Products</h3>
                                                     <div className="space-y-3">
                                                         <div>
-                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Seller Tag</label>
+                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Seller Tag</label>
                                                             <input
                                                                 type="text"
                                                                 value={filters.seller_tag}
                                                                 onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter seller name"
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Brand</label>
+                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Brand</label>
                                                             <input
                                                                 type="text"
                                                                 value={filters.brand}
                                                                 onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter brand"
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="block text-xs font-medium text-slate-400 mb-1">Funnel</label>
+                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Funnel</label>
                                                             <input
                                                                 type="text"
                                                                 value={filters.funnel}
                                                                 onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600"
+                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.06] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
                                                                 placeholder="Enter funnel"
                                                             />
                                                         </div>
                                                         <button
                                                             onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
-                                                            className="w-full px-3 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white font-medium text-sm transition-colors"
+                                                            className="w-full px-3 py-2 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white font-medium text-sm transition-colors"
                                                         >
                                                             Clear Filters
                                                         </button>
@@ -3089,19 +3084,15 @@ export default function ValidationPage() {
                                             </>
                                         )}
                                     </div>
-                                </div>
-
-                                {/* Spacer */}
-                                <div className="flex-1" />
 
                                 {/* Move to Main */}
                                 {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
                                     <button
                                         onClick={handleMoveToMainClick}
                                         disabled={selectedIds.size === 0}
-                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                            : 'bg-slate-700 text-white hover:bg-slate-600 border border-slate-600'
+                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                            : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.06]'
                                             }`}
                                     >
                                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3115,8 +3106,8 @@ export default function ValidationPage() {
                                     <button
                                         onClick={handleMoveToReworkingClick}
                                         disabled={selectedIds.size === 0}
-                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
-                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                                             : 'bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500'
                                             }`}
                                     >
@@ -3133,8 +3124,8 @@ export default function ValidationPage() {
         onClick={handleMoveToPassClick}
         disabled={selectedIds.size === 0}
         className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-emerald-900/20 ${selectedIds.size === 0
-          ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-          : 'bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500'
+          ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+          : 'bg-emerald-600 text-white hover:bg-emerald-500/100 border border-emerald-500'
           }`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3150,8 +3141,8 @@ export default function ValidationPage() {
         onClick={handleMoveToFailClick}
         disabled={selectedIds.size === 0}
         className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-rose-900/20 ${selectedIds.size === 0
-          ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-          : 'bg-rose-600 text-white hover:bg-rose-500 border border-rose-500'
+          ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+          : 'bg-rose-600 text-white hover:bg-rose-500/100 border border-rose-500'
           }`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3162,12 +3153,12 @@ export default function ValidationPage() {
     )} */}
 
                                 {/* Funnel Quick Filters */}
-                                <div className="flex items-center gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-800">
+                                <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.06]">
                                     <button
                                         onClick={() => setFunnelFilter('ALL')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'ALL'
-                                            ? 'bg-indigo-600 text-white shadow-lg'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            ? 'bg-orange-500/100 text-white shadow-lg'
+                                            : 'text-gray-400 hover:text-white hover:bg-[#111111]'
                                             }`}
                                     >
                                         ALL
@@ -3176,7 +3167,7 @@ export default function ValidationPage() {
                                         onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
                                             ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            : 'text-gray-400 hover:text-white hover:bg-[#111111]'
                                             }`}
                                     >
                                         RS
@@ -3185,7 +3176,7 @@ export default function ValidationPage() {
                                         onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
                                             ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                            : 'text-gray-400 hover:text-white hover:bg-[#111111]'
                                             }`}
                                     >
                                         DP
@@ -3196,8 +3187,8 @@ export default function ValidationPage() {
                                     <button
                                         onClick={handleMoveToRejectClick}
                                         disabled={selectedIds.size === 0}
-                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
-                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
                                             : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
                                             }`}
                                     >
@@ -3216,11 +3207,11 @@ export default function ValidationPage() {
                                             (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
                                             (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
                                         }
-                                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
                                             (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
                                             (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
-                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-                                            : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
+                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.06]'
+                                            : 'bg-amber-600 text-white hover:bg-amber-500/100 border border-amber-500'
                                             }`}
                                         title={
                                             activeTab === 'main_file' ? 'Roll back last ASIN from Pass File' :
@@ -3234,18 +3225,12 @@ export default function ValidationPage() {
                                         <span className="hidden sm:inline">Roll Back</span>
                                     </button>
                                 )}
-                            </div>
-
-                            {/* ROW 2: Download + Upload + Bulk Update + Constants */}
-                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                                {/* Spacer to push everything right */}
-                                <div className="flex-1" />
 
                                 {/* Download CSV Dropdown */}
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                        className="px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500/100 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
                                     >
                                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -3259,35 +3244,35 @@ export default function ValidationPage() {
                                     {isDownloadDropdownOpen && (
                                         <>
                                             <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                                            <div className="absolute top-full right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
 
                                                 {/* Download Selected - only if items selected */}
                                                 {selectedIds.size > 0 && (
                                                     <button
                                                         onClick={() => downloadCSV('selected')}
-                                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                                                        className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
                                                     >
                                                         <span>📋 Download Selected</span>
-                                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                                                        <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{selectedIds.size}</span>
                                                     </button>
                                                 )}
 
                                                 {/* Download Current Page */}
                                                 <button
                                                     onClick={() => downloadCSV('page')}
-                                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
                                                 >
                                                     <span>📄 Download Page</span>
-                                                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                                                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
                                                 </button>
 
                                                 {/* Download All */}
                                                 <button
                                                     onClick={() => downloadCSV('all')}
-                                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
                                                 >
                                                     <span>📦 Download All</span>
-                                                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
+                                                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
                                                 </button>
 
                                             </div>
@@ -3298,7 +3283,7 @@ export default function ValidationPage() {
                                 {/* Upload CSV */}
                                 <button
                                     onClick={handleUploadCSV}
-                                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
                                 >
                                     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -3310,7 +3295,7 @@ export default function ValidationPage() {
                                 {/* Bulk india Price Update */}
                                 <button
                                     onClick={() => indiaPriceCSVInputRef.current?.click()}
-                                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-indigo-900/20 transition-all border border-indigo-500/50"
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500/100 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
                                 >
                                     Bulk INDIA Price Update
                                 </button>
@@ -3319,7 +3304,7 @@ export default function ValidationPage() {
                                 {/* Configure Constants */}
                                 <button
                                     onClick={openConstantsModal}
-                                    className="px-3 sm:px-4 py-2 sm:py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
                                 >
                                     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -3327,27 +3312,26 @@ export default function ValidationPage() {
                                     </svg>
                                     <span className="hidden sm:inline">Configure Constants</span>
                                 </button>
-                            </div>
                         </div>
                     </div>
 
                     {/* Scrollable Table Section - ONLY THIS SCROLLS */}
-                    <div className="flex-1 min-h-0 bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-800">
+                    <div className="flex-1 min-h-0 bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/[0.06]">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-8 sm:p-16">
                                 <div className="relative">
-                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500/30"></div>
+                                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-orange-500/30"></div>
                                     <div className="absolute top-0 left-0 inline-block animate-spin rounded-full h-12 w-12 border-4 border-transparent border-t-indigo-500"></div>
                                 </div>
-                                <p className="mt-4 text-slate-400 font-medium tracking-wide animate-pulse">Loading products...</p>
+                                <p className="mt-4 text-gray-400 font-medium tracking-wide animate-pulse">Loading products...</p>
                             </div>
                         ) : filteredProducts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-6 sm:p-12 text-slate-500">
-                                <svg className="w-16 h-16 mb-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="flex flex-col items-center justify-center p-6 sm:p-12 text-gray-500">
+                                <svg className="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                 </svg>
-                                <p className="text-lg font-semibold text-slate-400 mb-2">No products found</p>
-                                <p className="text-sm text-slate-600 max-w-md text-center">
+                                <p className="text-lg font-semibold text-gray-400 mb-2">No products found</p>
+                                <p className="text-sm text-gray-300 max-w-md text-center">
                                     {activeTab === 'pending'
                                         ? 'Products with incomplete data will appear here'
                                         : activeTab === 'pass_file'
@@ -3363,10 +3347,10 @@ export default function ValidationPage() {
                                 <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50" style={{ overflow: 'auto visible' }}>
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
-                                        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50">
-                                            <div className="flex items-center gap-3 bg-slate-800 px-6 py-4 rounded-xl shadow-2xl border border-slate-700">
-                                                <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-                                                <span className="text-slate-200 font-semibold">
+                                        <div className="absolute inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">
+                                            <div className="flex items-center gap-3 bg-[#111111] px-6 py-4 rounded-xl shadow-2xl border border-white/[0.06]">
+                                                <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                                                <span className="text-gray-100 font-semibold">
                                                     Loading {activeTab.replace('_', ' ')}...
                                                 </span>
                                             </div>
@@ -3374,19 +3358,19 @@ export default function ValidationPage() {
                                     )}
 
                                     <table className="w-full table-fixed max-w-full">
-                                        <thead className="bg-slate-950 border-b border-slate-800 sticky top-0 z-10 shadow-md">
+                                        <thead className="bg-[#111111] border-b border-white/[0.06] sticky top-0 z-10 shadow-md">
                                             <tr>
                                                 {/* Checkbox — always first, not draggable */}
-                                                <th className="px-4 py-3 text-left bg-slate-950 sticky left-0 z-20" style={{ width: 50, minWidth: 50 }}>
+                                                <th className="px-6 py-4 text-left bg-[#111111] sticky left-0 z-20" style={{ width: 50, minWidth: 50 }}>
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                                                         onChange={(e) => handleSelectAll(e.target.checked)}
-                                                        className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                        className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                     />
                                                 </th>
 
-                                                <th className="px-3 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-950"
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider bg-[#111111]"
                                                     style={{ width: 50, minWidth: 50 }}>Sr.</th>
 
                                                 {columnOrder.map((col_key) => {
@@ -3448,15 +3432,15 @@ export default function ValidationPage() {
                                             </tr>
                                         </thead>
 
-                                        <tbody className="divide-y divide-slate-800 overflow-visible">
+                                        <tbody className="divide-y divide-white/[0.06] overflow-visible">
                                             {filteredProducts.map((product, idx) => (
                                                 <tr
                                                     key={product.id}
                                                     onClick={() => markRowActive(product.id)}
                                                     className={
                                                         product.id === activeRowId
-                                                            ? 'bg-emerald-900/80 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)] transition-colors'
-                                                            : 'hover:bg-slate-800/50 transition-colors'
+                                                            ? 'bg-emerald-500/10 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)] transition-colors'
+                                                            : 'hover:bg-[#1a1a1a]/50 transition-colors'
                                                     }
                                                 >
                                                     <td className="p-3">
@@ -3464,11 +3448,11 @@ export default function ValidationPage() {
                                                             type="checkbox"
                                                             checked={selectedIds.has(product.id)}
                                                             onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                            className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+                                                            className="rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
                                                         />
                                                     </td>
 
-                                                    <td className="px-3 py-2 text-center text-xs font-mono text-slate-500">
+                                                    <td className="px-6 py-4 text-center text-xs font-mono text-gray-300">
                                                         {(currentPage - 1) * rowsPerPage + idx + 1}
                                                     </td>
 
@@ -3480,12 +3464,12 @@ export default function ValidationPage() {
                                 </div>
 
                                 {allFilteredProducts.length > rowsPerPage && (
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-slate-800 bg-slate-900">
-                                        <div className="text-sm text-slate-400">
-                                            Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{allFilteredProducts.length}</span> products
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 sm:px-6 py-3 sm:py-4 border-t border-white/[0.06] bg-[#111111]">
+                                        <div className="text-sm text-gray-300">
+                                            Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{allFilteredProducts.length}</span> products
                                             {selectedIds.size > 0 && (
                                                 <span className="ml-4">
-                                                    (<span className="font-bold text-indigo-400">{selectedIds.size}</span> selected)
+                                                    (<span className="font-bold text-orange-500">{selectedIds.size}</span> selected)
                                                 </span>
                                             )}
                                         </div>
@@ -3494,7 +3478,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(1)}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 First
                                             </button>
@@ -3502,19 +3486,19 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 Previous
                                             </button>
 
-                                            <span className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold">
+                                            <span className="px-4 py-1.5 bg-orange-500/100 text-white rounded-lg text-sm font-semibold">
                                                 Page {currentPage} of {totalPages}
                                             </span>
 
                                             <button
                                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 Next
                                             </button>
@@ -3522,7 +3506,7 @@ export default function ValidationPage() {
                                             <button
                                                 onClick={() => setCurrentPage(totalPages)}
                                                 disabled={currentPage === totalPages}
-                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                                                className="px-3 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-[#111111] text-gray-500 hover:bg-[#1a1a1a] border border-white/[0.06]"
                                             >
                                                 Last
                                             </button>
@@ -3531,13 +3515,13 @@ export default function ValidationPage() {
                                 )}
 
                                 {/* Footer Stats - Fixed at bottom of table
-                                <div className="flex-none border-t border-slate-800 bg-slate-900 px-4 py-3">
-                                    <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
+                                <div className="flex-none border-t border-white/[0.06] bg-[#111111] px-4 py-3">
+                                    <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap gap-2">
                                         <span className="font-medium">
-                                            Showing <span className="font-bold text-slate-200">{filteredProducts.length}</span> of <span className="font-bold text-slate-200">{products.length}</span> products
+                                            Showing <span className="font-bold text-gray-100">{filteredProducts.length}</span> of <span className="font-bold text-gray-100">{products.length}</span> products
                                         </span>
                                         {selectedIds.size > 0 && (
-                                            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full font-semibold border border-indigo-500/30">
+                                            <span className="px-3 py-1 bg-orange-500/100/10 text-orange-400 rounded-full font-semibold border border-orange-500/30">
                                                 {selectedIds.size} selected
                                             </span>
                                         )}
@@ -3551,9 +3535,9 @@ export default function ValidationPage() {
                 {/* Constants Configuration Modal */}
                 {isConstantsModalOpen && (
                     <>
-                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsConstantsModalOpen(false)} />
+                        <div className="fixed inset-0 bg-[#111111] z-40" onClick={() => setIsConstantsModalOpen(false)} />
                         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                            <div className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full border border-white/[0.06] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
                                 <div className="bg-gradient-to-r from-purple-700 to-indigo-700 text-white p-4 sm:p-6">
                                     <h2 className="text-lg sm:text-2xl font-bold">Calculation Constants Configuration</h2>
                                     <p className="text-purple-100 mt-1 opacity-80">Update global constants for automatic calculations</p>
@@ -3561,37 +3545,37 @@ export default function ValidationPage() {
 
                                 <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Dollar Rate (₹)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Dollar Rate (₹)</label>
                                         <input
                                             type="number"
                                             value={constants.dollar_rate ?? ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, dollar_rate: isNaN(val) ? 0 : val }); }}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Bank Fee (%)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Bank Fee (%)</label>
                                         <input
                                             type="number"
                                             value={constants.bank_conversion_rate != null && !isNaN(constants.bank_conversion_rate) ? constants.bank_conversion_rate * 100 : ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, bank_conversion_rate: isNaN(val) ? 0 : val / 100 }); }}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Shipping per 1000g (₹)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Shipping per 1000g (₹)</label>
                                         <input
                                             type="number"
                                             value={constants.shipping_charge_per_kg ?? ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, shipping_charge_per_kg: isNaN(val) ? 0 : val }); }}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Commission Rate (%)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Commission Rate (%)</label>
                                         <input
                                             type="number"
                                             value={constants.commission_rate != null && !isNaN(constants.commission_rate) ? constants.commission_rate * 100 : ''}
@@ -3599,26 +3583,26 @@ export default function ValidationPage() {
                                                 const val = parseFloat(e.target.value);
                                                 setConstants({ ...constants, commission_rate: isNaN(val) ? 0 : val / 100 });
                                             }}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Packing Cost (₹)</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Packing Cost (₹)</label>
                                         <input
                                             type="number"
                                             value={constants.packing_cost ?? ''}
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, packing_cost: isNaN(val) ? 0 : val }); }}
-                                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/50 flex items-center justify-end gap-3">
+                                <div className="p-4 sm:p-6 border-t border-white/[0.06] bg-[#1a1a1a] flex items-center justify-end gap-3">
                                     <button
                                         onClick={() => setIsConstantsModalOpen(false)}
-                                        className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
+                                        className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
                                     >
                                         Cancel
                                     </button>
@@ -3667,7 +3651,7 @@ export default function ValidationPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setSelectedHistoryAsin(null)}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+                            className="absolute inset-0 bg-[#111111]/60 z-40"
                         />
 
                         {/* Sidebar */}
@@ -3676,17 +3660,17 @@ export default function ValidationPage() {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
+                            className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-4 sm:p-6 flex flex-col"
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between mb-8">
                                 <div>
                                     <h2 className="text-xl font-bold text-white">Journey History</h2>
-                                    <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                                    <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
                                 </div>
                                 <button
                                     onClick={() => setSelectedHistoryAsin(null)}
-                                    className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                                    className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors"
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -3696,29 +3680,29 @@ export default function ValidationPage() {
                             <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                                 {historyLoading ? (
                                     <div className="flex justify-center py-10">
-                                        <Loader2 className="animate-spin w-8 h-8 text-indigo-500" />
+                                        <Loader2 className="animate-spin w-8 h-8 text-orange-500" />
                                     </div>
                                 ) : historyData.length === 0 ? (
-                                    <div className="text-center text-slate-500 py-10">
+                                    <div className="text-center text-gray-500 py-10">
                                         No history found for this item.
                                     </div>
                                 ) : (
                                     historyData.map((snapshot, idx) => (
                                         <div
                                             key={snapshot.id}
-                                            className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6"
+                                            className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6"
                                         >
                                             {/* Timeline Dot */}
-                                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+                                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
                                             {/* Card */}
-                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                                            <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
                                                 {/* Journey Info */}
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                                                    <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
                                                         Journey #{snapshot.journey_number}
                                                     </span>
-                                                    <span className="text-xs text-slate-500">
+                                                    <span className="text-xs text-gray-300">
                                                         {new Date(snapshot.created_at).toLocaleDateString()}
                                                     </span>
                                                 </div>
@@ -3729,7 +3713,7 @@ export default function ValidationPage() {
                                                 </h3>
 
                                                 {/* Snapshot Details */}
-                                                <div className="space-y-1 text-xs text-slate-300">
+                                                <div className="space-y-1 text-xs text-gray-300">
                                                     {snapshot.profit && (
                                                         <div className="flex justify-between">
                                                             <span>Profit:</span>
@@ -3771,30 +3755,30 @@ export default function ValidationPage() {
             </AnimatePresence>
             {/* REJECT REASON MODAL */}
             {isRejectModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
+                <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-white">Reject {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''}</h3>
                             <button
                                 onClick={() => { setIsRejectModalOpen(false); setRejectReason(''); }}
-                                className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg"
+                                className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
                             >
                                 ×
                             </button>
                         </div>
-                        <p className="text-slate-400 text-sm mb-3">Please provide a reason for rejection:</p>
+                        <p className="text-gray-400 text-sm mb-3">Please provide a reason for rejection:</p>
                         <textarea
                             value={rejectReason}
                             onChange={(e) => setRejectReason(e.target.value)}
                             placeholder="Enter rejection reason..."
                             rows={4}
                             autoFocus
-                            className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder-slate-600 transition-all resize-none"
+                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.06] rounded-xl text-gray-100 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 placeholder-slate-600 transition-all resize-none"
                         />
                         <div className="flex items-center justify-end gap-3 mt-4">
                             <button
                                 onClick={() => { setIsRejectModalOpen(false); setRejectReason(''); }}
-                                className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium transition-colors border border-slate-700"
+                                className="px-5 py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] font-medium transition-colors border border-white/[0.06]"
                             >
                                 Cancel
                             </button>
@@ -3811,39 +3795,39 @@ export default function ValidationPage() {
             )}
             {/* REMARK VIEWER MODAL */}
             {selectedRemark !== null && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}>
-                    <div className="bg-slate-900 border border-indigo-700/50 rounded-xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4" onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}>
+                    <div className="bg-[#111111] border border-indigo-700/50 rounded-xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-4 sm:px-6 sm:pt-6">
-                            <h3 className="text-xl font-bold text-indigo-300">Remark</h3>
-                            <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg">×</button>
+                            <h3 className="text-xl font-bold text-orange-400">Remark</h3>
+                            <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg">×</button>
                         </div>
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-700/50">
-                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Validation Remark</span>
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.06]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.06]">
+                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
                     <textarea
                       value={editingRemarkText}
                       onChange={(e) => setEditingRemarkText(e.target.value)}
-                      className="w-full bg-transparent text-slate-200 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-slate-600"
+                      className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-gray-500"
                       placeholder="Enter remark..."
                       rows={4}
                     />
-                    <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                    <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-gray-300">
                       <span>{editingRemarkText.length} characters</span>
                       <span>{editingRemarkText.split('\n').length} lines</span>
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-slate-800/50 border-t border-slate-700 flex items-center justify-between">
-                  <div className="text-xs text-slate-500">
-                    Press <kbd className="px-2 py-1 bg-slate-700 rounded text-slate-300">Esc</kbd> to close
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.06] flex items-center justify-between">
+                  <div className="text-xs text-gray-300">
+                    Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => navigator.clipboard.writeText(editingRemarkText)}
-                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors text-sm"
+                      className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm"
                     >
                       Copy
                     </button>
@@ -3856,14 +3840,14 @@ export default function ValidationPage() {
                           setEditingRemarkText('');
                           setEditingRemarkProductId(null);
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500/100 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
                       >
                         Save
                       </button>
                     )}
                     <button
                       onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                      className="px-6 py-2 bg-orange-500/100 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
                     >
                       Close
                     </button>
@@ -3874,13 +3858,13 @@ export default function ValidationPage() {
             )}
             {/* REJECT REASON VIEWER MODAL */}
             {selectedRejectReason !== null && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedRejectReason(null)}>
-                    <div className="bg-slate-900 border border-violet-700/50 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4" onClick={() => setSelectedRejectReason(null)}>
+                    <div className="bg-[#111111] border border-violet-700/50 rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-violet-300">Reject Reason</h3>
-                            <button onClick={() => setSelectedRejectReason(null)} className="text-slate-400 hover:text-white text-2xl transition-colors p-2 hover:bg-slate-800 rounded-lg">×</button>
+                            <button onClick={() => setSelectedRejectReason(null)} className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg">×</button>
                         </div>
-                        <p className="text-slate-300 whitespace-pre-wrap">{selectedRejectReason}</p>
+                        <p className="text-gray-300 whitespace-pre-wrap">{selectedRejectReason}</p>
                     </div>
                 </div>
             )}

@@ -64,21 +64,21 @@ export default function TextFilter({
   return (
     <div className="flex flex-col h-full">
       {/* Search Box */}
-      <div className="p-3 border-b border-gray-200">
+      <div className="p-3 border-b border-white/[0.06]">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={placeholder}
-            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 text-sm border border-white/[0.06] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
       {/* Select All */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+      <div className="px-4 py-3 border-b border-white/[0.06] bg-[#111111]">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -87,9 +87,9 @@ export default function TextFilter({
               if (input) input.indeterminate = isSomeSelected;
             }}
             onChange={handleSelectAll}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="w-4 h-4 rounded border-white/[0.06] text-blue-600 focus:ring-blue-500"
           />
-          <span className="text-xs font-medium text-gray-700">
+          <span className="text-xs font-medium text-gray-500">
             SELECT ALL ({values.length})
           </span>
         </label>
@@ -98,7 +98,7 @@ export default function TextFilter({
       {/* Value List */}
       <div className="flex-1 overflow-y-auto px-4 py-2 max-h-64">
         {filteredValues.length === 0 ? (
-          <div className="text-center py-4 text-sm text-gray-500">
+          <div className="text-center py-4 text-sm text-gray-300">
             No results found
           </div>
         ) : (
@@ -106,15 +106,15 @@ export default function TextFilter({
             {filteredValues.map((item) => (
               <label
                 key={item}
-                className="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer"
+                className="flex items-center gap-2 py-1.5 px-2 hover:bg-[#111111] rounded cursor-pointer"
               >
                 <input
                   type="checkbox"
                   checked={selected.has(item)}
                   onChange={() => handleToggle(item)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded border-white/[0.06] text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-700 truncate" title={item}>
+                <span className="text-xs text-gray-300 truncate" title={item}>
                   {item}
                 </span>
               </label>
@@ -124,7 +124,7 @@ export default function TextFilter({
       </div>
 
       {/* Action Buttons */}
-      <div className="p-3 border-t border-gray-200 flex gap-2">
+      <div className="p-3 border-t border-white/[0.06] flex gap-2">
         <button
           onClick={handleApply}
           className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
@@ -133,7 +133,7 @@ export default function TextFilter({
         </button>
         <button
           onClick={handleClear}
-          className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
+          className="flex-1 px-4 py-2 bg-[#111111] border border-white/[0.06] text-gray-500 text-sm font-medium rounded-lg hover:bg-[#111111] transition"
         >
           Clear
         </button>

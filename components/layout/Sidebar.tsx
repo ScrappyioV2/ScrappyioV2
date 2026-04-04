@@ -59,18 +59,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   if (loading) {
     return (
-      <aside className="w-64 bg-slate-950 border-r border-slate-800 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.06] flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
       </aside>
     )
   }
 
   // ✅ The actual sidebar content (shared between mobile overlay & desktop)
   const sidebarContent = (
-    <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full">
+    <aside className="w-64 bg-[#0a0a0a] border-r border-white/[0.06] flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex items-center gap-2">
-        <Rocket className="w-5 h-5 text-indigo-500" />
+      <div className="p-4 border-b border-white/[0.06] flex items-center gap-2">
+        <Rocket className="w-5 h-5 text-orange-500" />
         <span className="font-bold text-white text-lg tracking-tight">Scrappy v2</span>
       </div>
 
@@ -80,12 +80,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* User Role Badge */}
       {userRole && (
-        <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-4 py-2 border-b border-white/[0.06] flex items-center justify-between">
           <div>
             {userRole.full_name && (
-              <p className="text-xs text-slate-400 mb-1 truncate">{userRole.full_name}</p>
+              <p className="text-xs text-gray-400 mb-1 truncate">{userRole.full_name}</p>
             )}
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-600 border border-orange-200">
               <ShieldCheck className="w-3 h-3" />
               {userRole.role}
             </span>
@@ -109,10 +109,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Logout */}
-      <div className="p-3 border-t border-slate-800">
+      <div className="p-3 border-t border-white/[0.06]">
         <button
           onClick={logout}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Logout
@@ -132,7 +132,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <div className="md:hidden">
         {/* Backdrop */}
         <div
-          className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          className={`fixed inset-0 bg-[#111111]/60 z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
           onClick={onClose}
         />
@@ -185,9 +185,9 @@ function SidebarItem({
     ghost.textContent = `🔗 ${item.label}`
     ghost.style.cssText = `
       position: fixed; top: -200px; left: -200px;
-      padding: 6px 14px; background: #1e293b; color: #e2e8f0;
+      padding: 6px 14px; background: #1a1a2e; color: #f97316;
       border-radius: 8px; font-size: 12px; font-weight: 600;
-      border: 1px solid #6366f1; white-space: nowrap;
+      border: 1px solid #f97316; white-space: nowrap;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     `
     document.body.appendChild(ghost)
@@ -222,9 +222,9 @@ function SidebarItem({
           flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all duration-150
           select-none
           ${depth > 0 ? 'mt-1' : ''}
-          ${isActive ? 'bg-indigo-600 text-white shadow-md' : ''}
-          ${!isActive && isParentOfActive ? 'text-indigo-400 bg-indigo-500/5' : ''}
-          ${!isActive && !isParentOfActive ? 'hover:bg-slate-900 hover:text-slate-200 text-slate-500' : ''}
+          ${isActive ? 'bg-orange-500/100 text-white shadow-md shadow-orange-500/20' : ''}
+          ${!isActive && isParentOfActive ? 'text-orange-600 bg-orange-500/10' : ''}
+          ${!isActive && !isParentOfActive ? 'hover:bg-white/[0.03] hover:text-white text-gray-400' : ''}
           ${depth === 1 ? 'text-xs' : ''}
           ${depth === 2 ? 'text-xs' : ''}
           ${depth === 3 ? 'text-[11px]' : ''}
@@ -235,7 +235,7 @@ function SidebarItem({
         title={`Drag to tab bar → open "${item.label}" in new tab`}
       >
         <Icon className={`w-${depth > 1 ? 3 : 4} h-${depth > 1 ? 3 : 4}`} />
-        <span className="flex-1 truncate">{item.label}</span>
+        <span className="flex-1 truncate font-semibold">{item.label}</span>
         {hasSubRoutes && (
           <ChevronDown
             className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}

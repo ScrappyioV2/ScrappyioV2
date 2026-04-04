@@ -78,7 +78,7 @@ type Seller = {
 // Configured Sellers
 const SELLERS: Seller[] = [
   { id: 4, name: 'Velvet Vista', table_suffix: 'seller_4', tag: 'VV', emoji: '💜', activeColor: 'bg-violet-600', activeShadow: 'shadow-violet-500/40' },
-  { id: 1, name: 'Golden Aura', table_suffix: 'seller_1', tag: 'GA', emoji: '✨', activeColor: 'bg-amber-500', activeShadow: 'shadow-amber-500/40' },
+  { id: 1, name: 'Golden Aura', table_suffix: 'seller_1', tag: 'GA', emoji: '✨', activeColor: 'bg-amber-500/100', activeShadow: 'shadow-amber-500/40' },
   { id: 2, name: 'Rudra Retail', table_suffix: 'seller_2', tag: 'RR', emoji: '🔴', activeColor: 'bg-red-600', activeShadow: 'shadow-red-500/40' },
   { id: 3, name: 'UBeauty', table_suffix: 'seller_3', tag: 'UB', emoji: '💄', activeColor: 'bg-pink-500', activeShadow: 'shadow-pink-500/40' },
 ]
@@ -864,25 +864,25 @@ export default function ReorderPage() {
   })
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-slate-200 relative overflow-hidden">
+    <div className="h-screen flex flex-col bg-[#111111] text-gray-100 relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex-none px-6 pt-6 pb-4 border-b border-slate-800">
+      <div className="flex-none px-6 pt-6 pb-4 border-b border-white/[0.06]">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-white">Replenishment Manager</h1>
-            <p className="text-slate-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
+            <p className="text-gray-400 mt-1">Calculate reorder quantities based on sales velocity and inventory</p>
           </div>
 
           {/* SELLER TABS */}
-          <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shadow-xl">
+          <div className="flex bg-[#111111] p-1.5 rounded-xl border border-white/[0.06] shadow-xl">
             {SELLERS.map(s => (
               <button
                 key={s.id}
                 onClick={() => setActiveSeller(s)}
                 className={`relative px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2 ${activeSeller.id === s.id
                   ? `${s.activeColor} text-white ${s.activeShadow} shadow-lg scale-105 z-10`
-                  : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
+                  : 'text-gray-500 hover:text-gray-100 hover:bg-[#111111]'
                   }`}
               >
                 <span className="text-base">{s.emoji}</span>
@@ -897,8 +897,8 @@ export default function ReorderPage() {
           <button
             onClick={() => setActiveTab('main')}
             className={`px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-300 ${activeTab === 'main'
-              ? 'bg-slate-800 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+              ? 'bg-[#111111] text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.06]'
               }`}
           >
             Main Workspace ({products.filter(p => p.is_in_final_reorder === false || p.is_in_final_reorder === null || p.is_in_final_reorder === undefined).length})
@@ -907,8 +907,8 @@ export default function ReorderPage() {
           <button
             onClick={() => setActiveTab('final')}
             className={`px-6 py-3 font-semibold text-sm rounded-xl flex items-center gap-2 transition-all duration-300 ${activeTab === 'final'
-              ? 'bg-slate-800 text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-slate-800'
+              ? 'bg-[#111111] text-rose-400 shadow-[0_0_20px_-5px_rgba(244,63,94,0.5)]'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111] border border-white/[0.06]'
               }`}
           >
             <AlertTriangle className="w-4 h-4" />
@@ -920,30 +920,30 @@ export default function ReorderPage() {
       {/* CONTROLS */}
       <div className="flex gap-3 items-center mb-6 px-6 pt-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
             type="text"
             placeholder="Search by ASIN or Name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 text-slate-200 placeholder:text-slate-600"
+            className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.06] rounded-lg focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 text-gray-100 placeholder:text-gray-500"
           />
         </div>
 
         {activeTab === 'main' && (
           <div className="flex gap-2">
-            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors">
+            <button onClick={handleSyncListings} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-sm font-medium transition-colors">
               <RefreshCw className={`w-4 h-4 ${processing ? 'animate-spin' : ''}`} />
               Sync Listed
             </button>
             <div className="relative">
               <input type="file" accept=".csv,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 text-sm font-medium transition-colors">
+              <button onClick={() => fileInputRef.current?.click()} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.06] text-sm font-medium transition-colors">
                 <Upload className="w-4 h-4" />
                 Upload Inventory
               </button>
             </div>
-            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 shadow-lg text-sm font-medium transition-colors">
+            <button onClick={handleRecalculate} disabled={processing} className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/100 text-white rounded-lg hover:bg-orange-400 shadow-lg text-sm font-medium transition-colors">
               <Save className="w-4 h-4" />
               Run Calculation
             </button>
@@ -953,45 +953,45 @@ export default function ReorderPage() {
 
       {/* MAIN TABLE */}
       <div className="flex-1 overflow-hidden px-6 pb-6">
-        <div className="bg-slate-900 rounded-lg shadow-xl border border-slate-800 h-full flex flex-col">
+        <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.06] h-full flex flex-col">
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full divide-y divide-slate-800">
-              <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
+            <table className="w-full divide-y divide-white/[0.06]">
+              <thead className="bg-[#111111] sticky top-0 z-10 border-b border-white/[0.06]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">ASIN</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase border-r border-slate-800 w-1/4">Product Name</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">History</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Remark</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-indigo-400 uppercase bg-indigo-900/20 border-r border-slate-800">Target Qty</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-900/20 border-r border-slate-800">Current</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Deficit</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-slate-800">Tracking</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase border-r border-slate-800">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-900/20 border-r border-slate-800">Final Order</th>
-                  {activeTab === 'final' && <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase">Action</th>}
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">ASIN</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06] w-1/4">Product Name</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">History</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">Remark</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-500 uppercase bg-orange-500/15/60 border-r border-white/[0.06]">Target Qty</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-orange-400 uppercase bg-orange-500/15 border-r border-white/[0.06]">Current</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Deficit</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-blue-400 uppercase bg-blue-900/20 border-r border-white/[0.06]">Tracking</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.06]">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-rose-400 uppercase bg-rose-500/10 border-r border-white/[0.06]">Final Order</th>
+                  {activeTab === 'final' && <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase">Action</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className="divide-y divide-white/[0.06]">
                 {loading ? (
-                  <tr><td colSpan={9} className="p-12 text-center text-slate-500"><Loader2 className="animate-spin w-8 h-8 mx-auto mb-2 text-indigo-500" />Loading data...</td></tr>
+                  <tr><td colSpan={9} className="p-12 text-center text-gray-300"><Loader2 className="animate-spin w-8 h-8 mx-auto mb-2 text-orange-500" />Loading data...</td></tr>
                 ) : filteredProducts.length === 0 ? (
-                  <tr><td colSpan={9} className="p-12 text-center text-slate-500">No products found.</td></tr>
+                  <tr><td colSpan={9} className="p-12 text-center text-gray-300">No products found.</td></tr>
                 ) : (
                   filteredProducts.map(product => {
                     const deficit = product.admin_target_qty - product.current_qty
                     return (
-                      <tr key={product.id} className="hover:bg-slate-800/40 transition-colors group">
-                        <td className="px-6 py-4 text-sm font-mono text-slate-300 font-medium border-r border-slate-800/50">{product.asin}</td>
-                        <td className="px-6 py-4 border-r border-slate-800/50">
-                          <span className="text-sm text-slate-200 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
-                          {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-indigo-400 hover:text-indigo-300 mt-1 inline-block">View Link</a>}
+                      <tr key={product.id} className="hover:bg-white/[0.05]0/100/5 transition-colors group">
+                        <td className="px-6 py-4 text-sm font-mono text-gray-300 font-medium border-r border-white/[0.06]">{product.asin}</td>
+                        <td className="px-6 py-4 border-r border-white/[0.06]">
+                          <span className="text-sm text-gray-100 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
+                          {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-orange-500 hover:text-orange-400 mt-1 inline-block">View Link</a>}
                         </td>
 
                         {/* ✅ HISTORY BUTTON */}
-                        <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                        <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                           <button
                             onClick={() => fetchHistory(product.asin)}
-                            className="p-2 rounded-full hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-colors"
+                            className="p-2 rounded-full hover:bg-white/[0.05]0/100/10 text-gray-400 hover:text-orange-500 transition-colors"
                             title="View Journey History"
                           >
                             <History className="w-4 h-4" />
@@ -999,7 +999,7 @@ export default function ReorderPage() {
                         </td>
 
                         {/* ✅ REMARK BUTTON */}
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-6 py-4 text-center">
                           {product.remark ? (
                             <button
                               onClick={() => {
@@ -1010,38 +1010,38 @@ export default function ReorderPage() {
                                 });
                                 setRemarkModalOpen(true);
                               }}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium transition-colors"
+                              className="px-3 py-1.5 bg-orange-500/100 hover:bg-orange-600 text-white rounded-md text-xs font-medium transition-colors"
                             >
                               View
                             </button>
                           ) : (
-                            <span className="text-xs text-slate-600 italic">-</span>
+                            <span className="text-xs text-gray-300 italic">-</span>
                           )}
                         </td>
 
-                        <td className="px-6 py-4 text-center bg-indigo-900/10 border-r border-slate-800/50">
+                        <td className="px-6 py-4 text-center bg-orange-500/100/10 border-r border-white/[0.06]">
                           <input
                             type="number"
                             value={product.admin_target_qty}
                             onChange={(e) => updateTargetQty(product.id, parseInt(e.target.value) || 0)}
-                            className="w-24 text-center py-1.5 px-2 bg-slate-800 border border-indigo-500/30 rounded-md text-sm text-white font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
+                            className="w-24 text-center py-1.5 px-2 bg-[#111111] border border-orange-500/30 rounded-md text-sm text-white font-medium focus:ring-1 focus:ring-orange-500 outline-none"
                           />
                         </td>
-                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-slate-800/50">{product.current_qty}</td>
-                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-slate-800/50 ${deficit > 0 ? 'text-rose-400' : 'text-slate-500'}`}>{deficit}</td>
-                        <td className="px-6 py-4 text-center bg-blue-900/10 text-blue-300 font-medium text-sm border-r border-slate-800/50">{product.tracking_qty}</td>
-                        <td className="px-6 py-4 text-center border-r border-slate-800/50">
+                        <td className="px-6 py-4 text-center bg-orange-900/10 text-orange-300 font-medium text-sm border-r border-white/[0.06]">{product.current_qty}</td>
+                        <td className={`px-6 py-4 text-center font-bold text-sm border-r border-white/[0.06] ${deficit > 0 ? 'text-rose-400' : 'text-gray-300'}`}>{deficit}</td>
+                        <td className="px-6 py-4 text-center bg-blue-900/10 text-blue-300 font-medium text-sm border-r border-white/[0.06]">{product.tracking_qty}</td>
+                        <td className="px-6 py-4 text-center border-r border-white/[0.06]">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${product.status === 'Reorder'
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            ? 'bg-rose-500/100/20 text-rose-400 border-rose-500/20'
                             : product.status === 'Covered'
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              ? 'bg-amber-500/100/20 text-amber-400 border-amber-500/20'
+                              : 'bg-emerald-500/100/20 text-emerald-400 border-emerald-500/20'
                             }`}>
                             {product.status || 'Safe'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-center bg-rose-900/10 border-r border-slate-800/50">
-                          {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-slate-600">-</span>}
+                        <td className="px-6 py-4 text-center bg-rose-500/100/5 border-r border-white/[0.06]">
+                          {product.final_reorder_qty > 0 ? <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full text-sm font-bold bg-rose-500/100/20 text-rose-300">{product.final_reorder_qty}</span> : <span className="text-gray-500">-</span>}
                         </td>
 
                         {/* ✅ RESTART LOOP BUTTON */}
@@ -1049,7 +1049,7 @@ export default function ReorderPage() {
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => sendToValidation(product)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white rounded-lg border border-indigo-500/30 transition-all text-xs font-medium"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/100/10 text-orange-400 hover:bg-white/[0.05]0/100 hover:text-white rounded-lg border border-orange-500/30 transition-all text-xs font-medium"
                             >
                               <Send className="w-3 h-3" />
                               To Validation
@@ -1076,7 +1076,7 @@ export default function ReorderPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedHistoryAsin(null)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="absolute inset-0 bg-[#111111]/60 z-40"
             />
 
             {/* Sidebar */}
@@ -1085,34 +1085,34 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-xl font-bold text-white">Journey History</h2>
-                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedHistoryAsin}</p>
+                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
                 </div>
-                <button onClick={() => setSelectedHistoryAsin(null)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setSelectedHistoryAsin(null)} className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                 {historyLoading ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin w-8 h-8 text-indigo-500" /></div>
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin w-8 h-8 text-orange-500" /></div>
                 ) : historyData.length === 0 ? (
-                  <div className="text-center text-slate-500 py-10">No history found for this item.</div>
+                  <div className="text-center text-gray-500 py-10">No history found for this item.</div>
                 ) : (
                   historyData.map((snapshot, idx) => (
-                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-indigo-500/30 last:border-0 pb-6">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-indigo-500" />
+                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6">
+                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
 
-                      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.06] hover:border-orange-500/30 transition-colors">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                          <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
                             Journey #{snapshot.journey_number}
                           </span>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-gray-300">
                             {new Date(snapshot.created_at).toLocaleDateString()}
                           </span>
                         </div>
@@ -1122,7 +1122,7 @@ export default function ReorderPage() {
                         </h3>
 
                         {/* Snapshot Details */}
-                        <div className="space-y-1 text-xs text-slate-300">
+                        <div className="space-y-1 text-xs text-gray-300">
                           {snapshot.profit && (
                             <div className="flex justify-between">
                               <span>Profit:</span>
@@ -1163,7 +1163,7 @@ export default function ReorderPage() {
                 setRemarkModalOpen(false);
                 setSelectedRemark(null);
               }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="absolute inset-0 bg-[#111111]/60 z-40"
             />
 
             {/* Sidebar */}
@@ -1172,19 +1172,19 @@ export default function ReorderPage() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 p-6 flex flex-col"
+              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.06] shadow-2xl z-50 p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-xl font-bold text-white">Remark</h2>
-                  <p className="text-sm text-slate-400 font-mono mt-1">{selectedRemark.asin}</p>
+                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedRemark.asin}</p>
                 </div>
                 <button
                   onClick={() => {
                     setRemarkModalOpen(false);
                     setSelectedRemark(null);
                   }}
-                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                  className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1201,7 +1201,7 @@ export default function ReorderPage() {
                   }
                   placeholder="Enter remark..."
                   rows={10}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
+                  className="flex-1 bg-[#111111] border border-white/[0.06] rounded-lg px-4 py-3 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 resize-none"
                 />
 
                 {/* Save Button */}
@@ -1232,7 +1232,7 @@ export default function ReorderPage() {
                       setToast({ message: `Error: ${error.message}`, type: 'error' });
                     }
                   }}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold transition-all shadow-lg"
+                  className="px-6 py-3 bg-orange-500/100 hover:bg-orange-400 text-white rounded-lg font-semibold transition-all shadow-lg"
                 >
                   <Save className="w-4 h-4 inline mr-2" />
                   Save Remark

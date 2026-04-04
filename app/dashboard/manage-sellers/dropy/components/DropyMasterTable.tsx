@@ -397,24 +397,24 @@ export default function DropyMasterTable({
   const getSortIcon = (columnKey: string) => {
     if (!SORTABLE_COLUMNS.includes(columnKey)) return null;
     const sortKey = columnKey === 's_no' ? 'display_number' : columnKey;
-    if (sortConfig.key !== sortKey) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
-    return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-400" /> : <ArrowDown className="w-3 h-3 text-indigo-400" />;
+    if (sortConfig.key !== sortKey) return <ArrowUpDown className="w-3 h-3 text-gray-500" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-orange-500" /> : <ArrowDown className="w-3 h-3 text-orange-500" />;
   };
 
   return (
     <div>
       {/* Loading Modal for Select All */}
       {isSelectingAll && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 max-w-md w-full mx-4 text-center">
-            <Loader2 className="h-10 w-10 text-indigo-500 animate-spin mx-auto mb-4" />
+        <div className="fixed inset-0 bg-[#111111] flex items-center justify-center z-50">
+          <div className="bg-[#111111] border border-white/[0.06] rounded-lg p-8 max-w-md w-full mx-4 text-center">
+            <Loader2 className="h-10 w-10 text-orange-500 animate-spin mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">Selecting Products...</h3>
             {selectAllProgress.total > 0 && (
               <div>
-                <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden mb-2">
-                  <div className="bg-indigo-600 h-3 transition-all duration-300" style={{ width: `${(selectAllProgress.current / selectAllProgress.total) * 100}%` }}></div>
+                <div className="w-full bg-[#111111] rounded-full h-3 overflow-hidden mb-2">
+                  <div className="bg-orange-500/100 h-3 transition-all duration-300" style={{ width: `${(selectAllProgress.current / selectAllProgress.total) * 100}%` }}></div>
                 </div>
-                <p className="text-sm text-slate-400">{selectAllProgress.current.toLocaleString()} / {selectAllProgress.total.toLocaleString()} products</p>
+                <p className="text-sm text-gray-300">{selectAllProgress.current.toLocaleString()} / {selectAllProgress.total.toLocaleString()} products</p>
               </div>
             )}
           </div>
@@ -430,21 +430,21 @@ export default function DropyMasterTable({
       />
 
       {/* Main Table Container */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+      <div className="bg-[#111111] rounded-2xl border border-white/[0.06] overflow-hidden shadow-xl">
         <div className="overflow-x-auto h-[calc(100vh-320px)] scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-          <table className="min-w-full divide-y divide-slate-800 text-xs">
+          <table className="min-w-full divide-y divide-white/[0.06] text-xs">
 
             {/* Table Header */}
-            <thead className="bg-slate-950 sticky top-0 z-20 shadow-md">
+            <thead className="bg-[#111111] sticky top-0 z-20 shadow-md">
               <tr>
                 {/* Checkbox Column */}
-                <th className="px-2 py-3 w-12 sticky left-0 bg-slate-950 z-10 border-r border-slate-800/80">
+                <th className="px-2 py-3 w-12 sticky left-0 bg-[#111111] z-10 border-r border-white/[0.06]/80">
                   <input
                     ref={selectAllCheckboxRef}
                     type="checkbox"
                     checked={isAllCurrentPageSelected}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
+                    className="w-4 h-4 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer"
                   />
                 </th>
 
@@ -452,7 +452,7 @@ export default function DropyMasterTable({
                 {visibleColumns.map((column) => (
                   <th
                     key={column}
-                    className="px-2 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider relative select-none bg-slate-950 border-r border-slate-800/50 group"
+                    className="px-2 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider relative select-none bg-[#111111] border-r border-white/[0.06] group"
                     style={{
                       width: `${columnWidths[column] || 100}px`,
                       minWidth: `${columnWidths[column] || 100}px`,
@@ -478,8 +478,8 @@ export default function DropyMasterTable({
                           <button
                             onClick={() => handleOpenFilter(column, getColumnType(column))}
                             className={`p-1 rounded transition-colors ${hasActiveFilter(column)
-                              ? 'text-indigo-400 bg-indigo-500/10'
-                              : 'text-slate-600 hover:text-slate-300 hover:bg-slate-800'
+                              ? 'text-orange-500 bg-orange-500/100/10'
+                              : 'text-gray-500 hover:text-gray-200 hover:bg-[#111111]'
                               }`}
                             title="Filter"
                           >
@@ -525,7 +525,7 @@ export default function DropyMasterTable({
                     {/* Resize Handle */}
                     <div
                       onMouseDown={(e) => handleResizeStart(e, column)}
-                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-500 hover:w-1.5 transition-all z-20 opacity-0 group-hover:opacity-100"
+                      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-400 hover:w-1.5 transition-all z-20 opacity-0 group-hover:opacity-100"
                     />
                   </th>
                 ))}
@@ -533,30 +533,30 @@ export default function DropyMasterTable({
             </thead>
 
             {/* Table Body */}
-            <tbody className="bg-slate-900 divide-y divide-slate-800/50">
+            <tbody className="bg-[#111111] divide-y divide-white/[0.06]">
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-gray-300">
                     No data found
                   </td>
                 </tr>
               ) : (
                 data.map((row) => (
-                  <tr key={row.id} className={`group hover:bg-slate-800/60 transition-colors ${selectedIds.has(row.id) ? 'bg-indigo-500/10' : ''}`}>
+                  <tr key={row.id} className={`group hover:bg-[#111111]/60 transition-colors ${selectedIds.has(row.id) ? 'bg-orange-500/100/10' : ''}`}>
                     {/* Checkbox Cell */}
-                    <td className="px-2 py-2 sticky left-0 bg-slate-900 group-hover:bg-slate-800/60 z-10 border-r border-slate-800/50">
+                    <td className="px-2 py-2 sticky left-0 bg-[#111111] group-hover:bg-[#111111]/60 z-10 border-r border-white/[0.06]">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(row.id)}
                         onChange={(e) => handleSelectRow(row.id, e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
+                        className="w-4 h-4 rounded border-white/[0.06] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer"
                       />
                     </td>
 
                     {visibleColumns.map((column) => (
                       <td
                         key={column}
-                        className="px-2 py-2 text-xs text-slate-300"
+                        className="px-2 py-2 text-xs text-gray-300"
                         style={{
                           width: `${columnWidths[column] || 100}px`,
                           maxWidth: `${columnWidths[column] || 100}px`,
@@ -564,7 +564,7 @@ export default function DropyMasterTable({
                       >
                         <div className="truncate" title={String(row[column as keyof MasterData] || '')}>
                           {column === 's_no' ? (
-                            <span className="font-mono text-slate-500">{row.display_number}</span>
+                            <span className="font-mono text-gray-300">{row.display_number}</span>
                           ) : column === 'country_tag' ? (
                             <div className="flex gap-1 flex-wrap">
                               {/* ✅ SPLIT TAGS AND RENDER EACH BADGE */}
@@ -573,13 +573,13 @@ export default function DropyMasterTable({
 
                                 if (cleanTag === 'IN' || cleanTag === 'INDIA') {
                                   return (
-                                    <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                                    <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/100/10 text-orange-400 border border-orange-500/20">
                                       IN
                                     </span>
                                   );
                                 } else {
                                   return (
-                                    <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                    <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/100/10 text-orange-500 border border-orange-500/20">
                                       USA
                                     </span>
                                   );
@@ -587,7 +587,7 @@ export default function DropyMasterTable({
                               })}
                             </div>
                           ) : column === 'asin' ? (
-                            <span className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono text-[10px] select-all">
+                            <span className="px-1.5 py-0.5 bg-[#111111] rounded border border-white/[0.06] text-gray-500 font-mono text-[10px] select-all">
                               {row.asin}
                             </span>
                           ) : column === 'amz_link' ? (
@@ -595,7 +595,7 @@ export default function DropyMasterTable({
                               href={row.amz_link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
+                              className="text-orange-500 hover:text-orange-400 hover:underline flex items-center gap-1"
                             >
                               View
                             </a>

@@ -12,7 +12,7 @@ export default function ScrapingProgressList({
   data: ProgressItem[];
 }) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow mt-6">
+    <div className="bg-[#111111] p-6 rounded-lg shadow mt-6">
       <h2 className="text-xl font-semibold mb-4">Scraping Progress</h2>
       <div className="space-y-4">
         {data.map((item) => {
@@ -21,7 +21,7 @@ export default function ScrapingProgressList({
             <div key={item.country}>
               <div className="flex justify-between mb-1">
                 <span className="font-medium">{item.country}</span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-500">
                   {item.copied} / {item.total} ({percent}%)
                 </span>
               </div>

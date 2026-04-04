@@ -141,7 +141,7 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
     <div className="relative" ref={bellRef as any}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+        className="relative p-2 hover:bg-[#111111] rounded-lg transition-colors text-gray-400 hover:text-white"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -157,12 +157,12 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full left-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl overflow-hidden z-50"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-indigo-400" />
+                <Bell className="w-4 h-4 text-orange-500" />
                 <span className="text-sm font-bold text-white">Notifications</span>
                 {unreadCount > 0 && (
                   <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full font-bold">
@@ -170,8 +170,8 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
                   </span>
                 )}
               </div>
-              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-slate-800 rounded-lg transition-colors">
-                <X className="w-4 h-4 text-slate-500" />
+              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-[#111111] rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
 
@@ -179,42 +179,42 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
             <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
               {notifications.length === 0 ? (
                 <div className="py-8 text-center">
-                  <Bell className="w-8 h-8 text-slate-700 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500">No notifications yet</p>
+                  <Bell className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">No notifications yet</p>
                 </div>
               ) : (
                 notifications.map(notif => (
                   <button
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-800/60 transition-colors text-left border-b border-slate-800/50 ${!notif.read ? 'bg-indigo-500/5' : ''}`}
+                    className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-[#111111]/60 transition-colors text-left border-b border-white/[0.06] ${!notif.read ? 'bg-orange-500/100/5' : ''}`}
                   >
                     {/* Icon */}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'broadcast' ? 'bg-amber-500/20' :
-                      notif.type === 'pinned' ? 'bg-amber-500/10' :
-                        'bg-indigo-500/20'
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'broadcast' ? 'bg-amber-500/100/20' :
+                      notif.type === 'pinned' ? 'bg-amber-500/100/20' :
+                        'bg-orange-500/100/10'
                       }`}>
                       {notif.type === 'broadcast' ? <Megaphone className="w-4 h-4 text-amber-400" /> :
                         notif.type === 'pinned' ? <Pin className="w-4 h-4 text-amber-400" /> :
-                          <MessageCircle className="w-4 h-4 text-indigo-400" />}
+                          <MessageCircle className="w-4 h-4 text-orange-500" />}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className={`text-xs font-semibold truncate ${!notif.read ? 'text-white' : 'text-slate-400'}`}>
+                        <span className={`text-xs font-semibold truncate ${!notif.read ? 'text-white' : 'text-gray-400'}`}>
                           {notif.title}
                         </span>
-                        <span className="text-[9px] text-slate-600 flex-shrink-0 ml-2">{timeAgo(notif.created_at)}</span>
+                        <span className="text-[9px] text-gray-500 flex-shrink-0 ml-2">{timeAgo(notif.created_at)}</span>
                       </div>
-                      <p className={`text-[11px] truncate mt-0.5 ${!notif.read ? 'text-slate-300' : 'text-slate-500'}`}>
+                      <p className={`text-[11px] truncate mt-0.5 ${!notif.read ? 'text-gray-500' : 'text-gray-500'}`}>
                         {notif.body}
                       </p>
                     </div>
 
                     {/* Unread dot */}
                     {!notif.read && (
-                      <div className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2" />
+                      <div className="w-2 h-2 bg-orange-400 rounded-full flex-shrink-0 mt-2" />
                     )}
                   </button>
                 ))

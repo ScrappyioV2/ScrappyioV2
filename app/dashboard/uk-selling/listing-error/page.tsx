@@ -121,25 +121,25 @@ export default function ListingErrorDashboard() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-indigo-500/30">
+      <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-orange-400/30">
 
         {/* === HEADER === */}
-        <header className="flex items-center justify-between mb-10 pb-6 border-b border-slate-800/60">
+        <header className="flex items-center justify-between mb-10 pb-6 border-b border-white/[0.06]">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
-                <LayoutDashboard className="w-6 h-6 text-indigo-400" />
+              <div className="p-2.5 bg-orange-500/100/10 rounded-xl border border-orange-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]">
+                <LayoutDashboard className="w-6 h-6 text-orange-500" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Listing Overview</h1>
             </div>
-            <p className="text-slate-400 pl-[3.5rem] max-w-lg">
+            <p className="text-gray-400 pl-[3.5rem] max-w-lg">
               Real-time overview of product distribution, listings, and error resolution.
             </p>
           </div>
           
           <button 
              onClick={() => { setLoading(true); fetchRealCounts(); }}
-             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors border border-slate-700"
+             className="px-4 py-2 bg-[#111111] hover:bg-[#1a1a1a] text-gray-500 text-sm font-medium rounded-lg transition-colors border border-white/[0.06]"
           >
              Refresh Data
           </button>
@@ -147,8 +147,8 @@ export default function ListingErrorDashboard() {
 
         {/* === GRID === */}
         {loading && sellers[0].totalPending === 0 ? (
-          <div className="flex items-center justify-center h-64 text-slate-500 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <div className="flex items-center justify-center h-64 text-gray-500 gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
             <span className="text-sm font-medium tracking-widest">CALCULATING METRICS...</span>
           </div>
         ) : (
@@ -165,14 +165,14 @@ export default function ListingErrorDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.4 }}
                   onClick={() => handleSellerCardClick(seller.slug)}
-                  className="group relative bg-slate-900/40 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-6 cursor-pointer backdrop-blur-sm transition-all hover:bg-slate-900/60 hover:shadow-2xl hover:shadow-black/50 overflow-hidden"
+                  className="group relative bg-[#1a1a1a] border border-white/[0.06] hover:border-white/[0.06]/80 rounded-2xl p-6 cursor-pointer transition-all hover:bg-[#111111]/60 hover:shadow-2xl hover:shadow-black/30 overflow-hidden"
                 >
                   <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 bg-gradient-to-br ${seller.color}`} />
 
                   <div className="flex justify-between items-start mb-6 relative z-10">
                     <div>
-                      <h3 className="text-xl font-bold text-slate-100 group-hover:text-white transition-colors">{seller.name}</h3>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">USA Marketplace</p>
+                      <h3 className="text-xl font-bold text-white group-hover:text-white transition-colors">{seller.name}</h3>
+                      <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mt-1">USA Marketplace</p>
                     </div>
 
                     <div className="flex flex-col items-end">
@@ -180,7 +180,7 @@ export default function ListingErrorDashboard() {
                         <Clock className="w-4 h-4" />
                         <span className="font-bold font-mono">{seller.totalPending}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-medium">PENDING</span>
+                      <span className="text-[10px] text-gray-500 font-medium">PENDING</span>
                     </div>
                   </div>
 
@@ -191,14 +191,14 @@ export default function ListingErrorDashboard() {
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>Listed</span>
                         </div>
-                        <span className="text-slate-300 font-mono">{seller.listed}</span>
+                        <span className="text-gray-500 font-mono">{seller.listed}</span>
                       </div>
-                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-[#111111] rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${listedPercent}%` }}
                           transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                          className="h-full bg-emerald-500/100 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                         />
                       </div>
                     </div>
@@ -209,23 +209,23 @@ export default function ListingErrorDashboard() {
                           <AlertOctagon className="w-3.5 h-3.5" />
                           <span>Errors</span>
                         </div>
-                        <span className="text-slate-300 font-mono">{seller.error}</span>
+                        <span className="text-gray-500 font-mono">{seller.error}</span>
                       </div>
-                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-[#111111] rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${errorPercent}%` }}
                           transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
+                          className="h-full bg-rose-500/100 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-slate-800/50 flex items-center justify-between text-sm group-hover:text-white transition-colors relative z-10">
-                    <span className="text-slate-500 group-hover:text-slate-300 transition-colors">Manage Listings</span>
-                    <div className={`p-2 rounded-full bg-slate-800 group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
-                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                  <div className="mt-6 pt-4 border-t border-white/[0.06] flex items-center justify-between text-sm group-hover:text-white transition-colors relative z-10">
+                    <span className="text-gray-500 group-hover:text-gray-200 transition-colors">Manage Listings</span>
+                    <div className={`p-2 rounded-full bg-[#111111] group-hover:bg-gradient-to-r ${seller.color} transition-all duration-300`}>
+                      <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-white" />
                     </div>
                   </div>
 

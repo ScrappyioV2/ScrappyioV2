@@ -88,17 +88,17 @@ const MARKETPLACE_MAP: Record<string, MarketplaceInfo> = {
 // ─── STAGE COLORS ────────────────────────────────────────
 const SC: Record<string, { dot: string; text: string; bg: string; border: string }> = {
     'brand-checking': { dot: 'bg-purple-400', text: 'text-purple-300', bg: 'bg-purple-500/15', border: 'border-purple-500/30' },
-    'listed-bc': { dot: 'bg-indigo-400', text: 'text-indigo-300', bg: 'bg-indigo-500/15', border: 'border-indigo-500/30' },
+    'listed-bc': { dot: 'bg-indigo-400', text: 'text-orange-400', bg: 'bg-orange-400/15', border: 'border-orange-500/30' },
     'not-listed-bc': { dot: 'bg-violet-400', text: 'text-violet-300', bg: 'bg-violet-500/15', border: 'border-violet-500/30' },
     'validation': { dot: 'bg-blue-400', text: 'text-blue-300', bg: 'bg-blue-500/15', border: 'border-blue-500/30' },
-    'admin-validation': { dot: 'bg-amber-400', text: 'text-amber-300', bg: 'bg-amber-500/15', border: 'border-amber-500/30' },
+    'admin-validation': { dot: 'bg-amber-400', text: 'text-amber-300', bg: 'bg-amber-500/100/15', border: 'border-amber-500/30' },
     'purchases': { dot: 'bg-cyan-400', text: 'text-cyan-300', bg: 'bg-cyan-500/15', border: 'border-cyan-500/30' },
-    'tracking': { dot: 'bg-emerald-400', text: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
-    'listing-error': { dot: 'bg-orange-400', text: 'text-orange-300', bg: 'bg-orange-500/15', border: 'border-orange-500/30' },
+    'tracking': { dot: 'bg-emerald-400', text: 'text-emerald-300', bg: 'bg-emerald-500/100/15', border: 'border-emerald-500/30' },
+    'listing-error': { dot: 'bg-orange-400', text: 'text-orange-300', bg: 'bg-orange-500/100/15', border: 'border-orange-500/30' },
     'restock': { dot: 'bg-sky-400', text: 'text-sky-300', bg: 'bg-sky-500/15', border: 'border-sky-500/30' },
     'reorder': { dot: 'bg-pink-400', text: 'text-pink-300', bg: 'bg-pink-500/15', border: 'border-pink-500/30' },
-    'manage-sellers': { dot: 'bg-rose-400', text: 'text-rose-300', bg: 'bg-rose-500/15', border: 'border-rose-500/30' },
-    'master': { dot: 'bg-slate-400', text: 'text-slate-300', bg: 'bg-slate-500/15', border: 'border-slate-500/30' },
+    'manage-sellers': { dot: 'bg-rose-400', text: 'text-rose-300', bg: 'bg-rose-500/100/15', border: 'border-rose-500/30' },
+    'master': { dot: 'bg-slate-400', text: 'text-gray-500', bg: 'bg-slate-500/15', border: 'border-slate-500/30' },
 }
 function sc(key: string) { return SC[key] || SC['master'] }
 
@@ -367,26 +367,26 @@ export default function UniversalAsinSearch() {
             {/* Trigger */}
             <button
                 onClick={() => { setIsOpen(true); setTimeout(() => inputRef.current?.focus(), 100) }}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-slate-900/50 border border-slate-800
-                    rounded-lg text-slate-500 hover:text-slate-300 hover:border-slate-700
-                    hover:bg-slate-900 transition-all text-xs group"
+                className="w-full flex items-center gap-2 px-3 py-2 bg-[#1a1a1a] border border-white/[0.06]
+                    rounded-lg text-gray-500 hover:text-gray-200 hover:border-white/[0.06]
+                    hover:bg-[#111111] transition-all text-xs group"
             >
                 <Search className="w-3.5 h-3.5" />
                 <span className="flex-1 text-left">Find ASIN...</span>
-                <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] font-mono border border-slate-700
-                    group-hover:border-slate-600">⌘K</kbd>
+                <kbd className="px-1.5 py-0.5 bg-[#111111] rounded text-[10px] font-mono border border-white/[0.06]
+                    group-hover:border-white/[0.06]">⌘K</kbd>
             </button>
 
             {/* Panel */}
             {isOpen && createPortal(
                 <>
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999]" onClick={() => setIsOpen(false)} />
+                    <div className="fixed inset-0 bg-[#111111]/60 z-[9999]" onClick={() => setIsOpen(false)} />
                     <div ref={panelRef} className="fixed top-[10%] left-1/2 -translate-x-1/2 w-full max-w-2xl z-[9999] px-4">
-                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl shadow-2xl overflow-hidden">
 
                             {/* Input */}
-                            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
-                                <Search className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+                            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
+                                <Search className="w-5 h-5 text-orange-500 flex-shrink-0" />
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -399,13 +399,13 @@ export default function UniversalAsinSearch() {
                                     autoFocus
                                 />
                                 {loading ? (
-                                    <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+                                    <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
                                 ) : query ? (
-                                    <button onClick={() => { setQuery(''); setResults([]); setSearched(false) }} className="text-slate-500 hover:text-slate-300">
+                                    <button onClick={() => { setQuery(''); setResults([]); setSearched(false) }} className="text-gray-500 hover:text-gray-200">
                                         <X className="w-4 h-4" />
                                     </button>
                                 ) : null}
-                                <button onClick={handleSearch} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg font-medium transition-colors">
+                                <button onClick={handleSearch} className="px-3 py-1 bg-orange-500/100 hover:bg-orange-400 text-white text-xs rounded-lg font-medium transition-colors">
                                     Search
                                 </button>
                             </div>
@@ -416,32 +416,32 @@ export default function UniversalAsinSearch() {
                                 {!searched && !loading && (
                                     <div className="p-8 text-center">
                                         <div className="text-3xl mb-2">🔍</div>
-                                        <p className="text-slate-400 text-sm">Type an ASIN and press Enter</p>
-                                        <p className="text-slate-600 text-xs mt-1">Searches across India, USA, UK, UAE & Flipkart</p>
+                                        <p className="text-gray-400 text-sm">Type an ASIN and press Enter</p>
+                                        <p className="text-gray-500 text-xs mt-1">Searches across India, USA, UK, UAE & Flipkart</p>
                                     </div>
                                 )}
 
                                 {searched && !loading && results.length === 0 && (
                                     <div className="p-8 text-center">
                                         <div className="text-3xl mb-2">😕</div>
-                                        <p className="text-slate-300 font-medium">ASIN not found</p>
-                                        <p className="text-slate-500 text-sm mt-1">
-                                            <span className="font-mono text-indigo-400">{query}</span> doesn&apos;t exist in any marketplace
+                                        <p className="text-gray-500 font-medium">ASIN not found</p>
+                                        <p className="text-gray-500 text-sm mt-1">
+                                            <span className="font-mono text-orange-500">{query}</span> doesn&apos;t exist in any marketplace
                                         </p>
                                     </div>
                                 )}
 
                                 {searched && !loading && results.length > 0 && (
-                                    <div className="divide-y divide-slate-800/50">
+                                    <div className="divide-y divide-white/[0.06]">
                                         {/* Summary bar */}
-                                        <div className="px-4 py-2.5 bg-indigo-500/5 flex items-center gap-2">
+                                        <div className="px-4 py-2.5 bg-orange-500/100/5 flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                            <span className="text-xs text-slate-300">
-                                                Found in <span className="text-indigo-400 font-bold">{Object.keys(grouped).length + (adminHits.length > 0 ? 1 : 0)}</span> section{(Object.keys(grouped).length + (adminHits.length > 0 ? 1 : 0)) !== 1 ? 's' : ''},
-                                                {' '}<span className="text-indigo-400 font-bold">{results.length}</span> page{results.length !== 1 ? 's' : ''}
+                                            <span className="text-xs text-gray-500">
+                                                Found in <span className="text-orange-500 font-bold">{Object.keys(grouped).length + (adminHits.length > 0 ? 1 : 0)}</span> section{(Object.keys(grouped).length + (adminHits.length > 0 ? 1 : 0)) !== 1 ? 's' : ''},
+                                                {' '}<span className="text-orange-500 font-bold">{results.length}</span> page{results.length !== 1 ? 's' : ''}
                                             </span>
                                             {results[0]?.productName && (
-                                                <span className="text-xs text-slate-500 truncate ml-auto max-w-[200px]">{results[0].productName}</span>
+                                                <span className="text-xs text-gray-500 truncate ml-auto max-w-[200px]">{results[0].productName}</span>
                                             )}
                                         </div>
 
@@ -457,7 +457,7 @@ export default function UniversalAsinSearch() {
                                                     <div className="flex items-center gap-2 mb-3">
                                                         <span className="text-lg">{mp.emoji}</span>
                                                         <span className="text-sm font-semibold text-white">{mp.label}</span>
-                                                        <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                                                        <span className="text-[10px] text-gray-500 bg-[#111111] px-2 py-0.5 rounded-full">
                                                             {hits.length} page{hits.length !== 1 ? 's' : ''}
                                                         </span>
                                                     </div>
@@ -473,16 +473,16 @@ export default function UniversalAsinSearch() {
                                                                     <div className="flex flex-col items-center gap-1 min-w-[48px]">
                                                                         <div className={`w-3 h-3 rounded-full transition-all ${active
                                                                             ? `${colors.dot} ring-2 ring-offset-1 ring-offset-slate-900 ring-current`
-                                                                            : 'bg-slate-700/50'}`}
+                                                                            : 'bg-[#1a1a1a]/50'}`}
                                                                         />
-                                                                        <span className={`text-[8px] sm:text-[9px] font-medium whitespace-nowrap leading-tight text-center ${active ? colors.text : 'text-slate-600'}`}>
+                                                                        <span className={`text-[8px] sm:text-[9px] font-medium whitespace-nowrap leading-tight text-center ${active ? colors.text : 'text-gray-500'}`}>
                                                                             {stage.label}
                                                                         </span>
                                                                     </div>
                                                                     {i < mp.pipeline.length - 1 && (
                                                                         <div className="flex items-center mt-[5px] -mx-0.5">
-                                                                            <div className={`w-3 sm:w-5 h-px ${active && nextActive ? 'bg-indigo-500/40' : 'bg-slate-800'}`} />
-                                                                            <ChevronRight className={`w-2 h-2 -ml-1 ${active && nextActive ? 'text-indigo-500/40' : 'text-slate-800'}`} />
+                                                                            <div className={`w-3 sm:w-5 h-px ${active && nextActive ? 'bg-orange-400/40' : 'bg-[#111111]'}`} />
+                                                                            <ChevronRight className={`w-2 h-2 -ml-1 ${active && nextActive ? 'text-orange-500/40' : 'text-slate-800'}`} />
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -507,23 +507,23 @@ export default function UniversalAsinSearch() {
                                                                         <span className={`text-xs font-semibold ${colors.text}`}>{h.stageLabel}</span>
                                                                         {h.seller && (
                                                                             <>
-                                                                                <ChevronRight className="w-3 h-3 text-slate-600 flex-shrink-0" />
-                                                                                <span className="text-xs text-slate-300">{h.seller}</span>
+                                                                                <ChevronRight className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                                                                                <span className="text-xs text-gray-500">{h.seller}</span>
                                                                             </>
                                                                         )}
                                                                         {h.detail && (
                                                                             <>
-                                                                                <ChevronRight className="w-3 h-3 text-slate-600 flex-shrink-0" />
-                                                                                <span className="text-xs text-slate-400">{h.detail}</span>
+                                                                                <ChevronRight className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                                                                                <span className="text-xs text-gray-400">{h.detail}</span>
                                                                             </>
                                                                         )}
                                                                         {h.status && (
-                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 rounded ml-1 border border-amber-500/20">
+                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/100/15 text-amber-400 rounded ml-1 border border-amber-500/20">
                                                                                 {h.status}
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+                                                                    <ExternalLink className="w-3.5 h-3.5 text-gray-500 group-hover:text-orange-500 transition-colors flex-shrink-0" />
                                                                 </button>
                                                             )
                                                         })}
@@ -537,7 +537,7 @@ export default function UniversalAsinSearch() {
                                             <div className="py-3 px-4">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <span className="text-sm">📋</span>
-                                                    <span className="text-xs font-semibold text-slate-400">Also in Manage Sellers</span>
+                                                    <span className="text-xs font-semibold text-gray-400">Also in Manage Sellers</span>
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     {adminHits.map((h, i) => {
@@ -547,13 +547,13 @@ export default function UniversalAsinSearch() {
                                                                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border ${colors.bg} ${colors.border} hover:brightness-125 transition-all text-left group`}>
                                                                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
                                                                 <div className="flex-1 flex items-center gap-1 min-w-0">
-                                                                    <span className="text-xs text-slate-300">{h.emoji} {h.marketplace}</span>
+                                                                    <span className="text-xs text-gray-500">{h.emoji} {h.marketplace}</span>
                                                                     {h.seller && (
-                                                                        <><ChevronRight className="w-3 h-3 text-slate-600" /><span className="text-xs text-slate-400">{h.seller}</span></>
+                                                                        <><ChevronRight className="w-3 h-3 text-gray-500" /><span className="text-xs text-gray-400">{h.seller}</span></>
                                                                     )}
-                                                                    {h.detail && <span className="text-[10px] text-slate-500 ml-1">({h.detail})</span>}
+                                                                    {h.detail && <span className="text-[10px] text-gray-500 ml-1">({h.detail})</span>}
                                                                 </div>
-                                                                <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+                                                                <ExternalLink className="w-3.5 h-3.5 text-gray-500 group-hover:text-orange-500 transition-colors flex-shrink-0" />
                                                             </button>
                                                         )
                                                     })}
@@ -565,11 +565,11 @@ export default function UniversalAsinSearch() {
                             </div>
 
                             {/* Footer */}
-                            <div className="px-4 py-2 border-t border-slate-800 flex items-center justify-between bg-slate-900/80">
-                                <span className="text-[10px] text-slate-600">{Object.keys(MARKETPLACE_MAP).length} marketplaces</span>
-                                <div className="flex items-center gap-3 text-[10px] text-slate-600">
-                                    <span><kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-500">Enter</kbd> Search</span>
-                                    <span><kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-500">Esc</kbd> Close</span>
+                            <div className="px-4 py-2 border-t border-white/[0.06] flex items-center justify-between bg-[#1a1a1a]">
+                                <span className="text-[10px] text-gray-500">{Object.keys(MARKETPLACE_MAP).length} marketplaces</span>
+                                <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                                    <span><kbd className="px-1 py-0.5 bg-[#111111] rounded border border-white/[0.06] text-gray-500">Enter</kbd> Search</span>
+                                    <span><kbd className="px-1 py-0.5 bg-[#111111] rounded border border-white/[0.06] text-gray-500">Esc</kbd> Close</span>
                                 </div>
                             </div>
                         </div>
