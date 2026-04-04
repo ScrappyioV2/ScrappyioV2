@@ -163,6 +163,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 
 export default function IndiaSellersPage() {
   // --- EXISTING STATE & LOGIC (PRESERVED) ---
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -669,7 +670,7 @@ export default function IndiaSellersPage() {
       const totalCount = count || 0;
 
       if (totalCount === 0) {
-        alert('No data to export');
+        setToast({ message: 'No data to export', type: 'error' });
         setIsExporting(false);
         return;
       }
@@ -743,10 +744,11 @@ export default function IndiaSellersPage() {
       }));
 
       exportData(formattedData, TABLE_NAME, format);
-      alert(`Successfully exported ${allData.length} products!`);
+      setToast({ message: `Successfully exported ${allData.length} products!`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export data');
+      setToast({ message: 'Failed to export data', type: 'error' });
     } finally {
       setIsExporting(false);
       setExportProgress({ current: 0, total: 0 });
@@ -949,6 +951,15 @@ export default function IndiaSellersPage() {
           onUpload={handleUpload}
           multiple={true}
         />
+        {toast && (
+          <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+            <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+              <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+              <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+              <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

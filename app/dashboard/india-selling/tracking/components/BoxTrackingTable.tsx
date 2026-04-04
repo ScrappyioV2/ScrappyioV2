@@ -460,7 +460,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
             onCountsChange();
         } catch (error: any) {
             console.error('Error moving to inbound:', error);
-            alert(`Failed: ${error.message}`);
+            setToast({ message: `Failed: ${error.message}`, type: 'error' });
         }
     };
 
@@ -530,10 +530,10 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
             // 4. Refresh
             await refreshSilently();
             onCountsChange();
-            alert(`✅ Box "${boxNumber}" (${boxItems.length} items) moved to Checking!`);
+            setToast({ message: `Box "${boxNumber}" (${boxItems.length} items) moved to Checking!`, type: 'success' });
         } catch (error: any) {
             console.error('Error moving to checking:', error);
-            alert(`Failed: ${error.message}`);
+            setToast({ message: `Failed: ${error.message}`, type: 'error' });
         } finally {
             setMoving(false);
         }

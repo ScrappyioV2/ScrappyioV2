@@ -533,7 +533,7 @@ export default function ValidationPage() {
             setHistoryData(data || []);
         } catch (err) {
             console.error(err);
-            alert('Failed to load history');
+            setToast({ message: 'Failed to load history', type: 'error' });
         } finally {
             setHistoryLoading(false);
         }

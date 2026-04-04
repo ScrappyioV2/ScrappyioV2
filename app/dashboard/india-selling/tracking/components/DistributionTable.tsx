@@ -74,6 +74,7 @@ const SELLER_COLORS: Record<string, string> = {
 // COMPONENT
 // ============================================
 export default function DistributionTable({ sellerId, onCountsChange }: DistributionTableProps) {
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [products, setProducts] = useState<DistributionProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -252,10 +253,10 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
 
             setSelectedIds(new Set());
             await refreshSilently();
-            alert(`✅ ${ids.length} items marked as ${newStatus}!`);
+            setToast({ message: `${ids.length} items marked as ${newStatus}!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
         } catch (error: any) {
             console.error('Error bulk updating:', error);
-            alert(`Failed: ${error.message}`);
+            setToast({ message: `Failed: ${error.message}`, type: 'error' }); setTimeout(() => setToast(null), 3000);
         } finally {
             setUpdating(false);
         }
@@ -268,7 +269,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
         const nonCompleted = selectedProducts.filter(p => p.distribution_status !== 'completed');
 
         if (nonCompleted.length > 0) {
-            alert(`${nonCompleted.length} item(s) are not "completed". Only completed items can move to Restock.`);
+            setToast({ message: `${nonCompleted.length} item(s) are not completed. Only completed items can move to Restock.`, type: 'error' }); setTimeout(() => setToast(null), 3000);
             return;
         }
 
@@ -329,10 +330,10 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
             setSelectedIds(new Set());
             await refreshSilently();
             onCountsChange();
-            alert(`✅ ${selectedProducts.length} item(s) moved to Restock for ${sellerName}!`);
+            setToast({ message: `${selectedProducts.length} item(s) moved to Restock for ${sellerName}!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
         } catch (error: any) {
             console.error('Error moving to restock:', error);
-            alert(`Failed: ${error.message}`);
+            setToast({ message: `Failed: ${error.message}`, type: 'error' }); setTimeout(() => setToast(null), 3000);
         } finally {
             setUpdating(false);
         }
@@ -651,6 +652,17 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                 sourceTableName={getIndiaTrackingTableName('RESTOCK', SELLER_TAG_MAPPING[sellerTag as SellerTag] || sellerId)}
                 targetTableName="india_seller_distribution"
             />
+
+            {/* Toast */}
+            {toast && (
+                <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+                    <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+                        <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+                        <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+                        <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

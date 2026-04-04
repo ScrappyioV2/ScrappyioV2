@@ -36,6 +36,7 @@ export default function ShipmentTable({
     sellerId,
     onCountsChange
 }: ShipmentTableProps) {
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [items, setItems] = useState<ShipmentItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -84,7 +85,7 @@ export default function ShipmentTable({
             if (fetchError) throw fetchError;
 
             if (!itemsToMove || itemsToMove.length === 0) {
-                alert('No items found.');
+                setToast({ message: 'No items found.', type: 'error' });
                 return;
             }
 
@@ -118,10 +119,10 @@ export default function ShipmentTable({
                 onCountsChange();
             }
 
-            alert(`✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Restock!`);
+            setToast({ message: `Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Restock!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
         } catch (error: any) {
             console.error('Error moving to Restock:', error);
-            alert('Failed: ' + error.message);
+            setToast({ message: `Failed: ${error.message}`, type: 'error' });
         }
     };
 
@@ -231,7 +232,16 @@ export default function ShipmentTable({
                     </div>
                 </div>
             </div>
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
         </div>
     );
 }
-//ShipmentTable.tsx file for uae 
+//ShipmentTable.tsx file for uae

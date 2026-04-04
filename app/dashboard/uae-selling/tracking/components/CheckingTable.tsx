@@ -67,6 +67,7 @@ export default function CheckingTable({
   sellerId,
   onCountsChange
 }: CheckingTableProps) {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<{
@@ -228,7 +229,7 @@ export default function CheckingTable({
       console.log('✅ Product received status updated');
     } catch (error: any) {
       console.error('❌ Error updating received status:', error);
-      alert(`Failed to update: ${error.message}`);
+      setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
     }
   };
 
@@ -248,7 +249,7 @@ export default function CheckingTable({
       if (fetchError) throw fetchError
 
       if (!itemsToMove || itemsToMove.length === 0) {
-        alert('No items found to move.')
+        setToast({ message: 'No items found to move.', type: 'error' })
         return
       }
 
@@ -330,10 +331,10 @@ export default function CheckingTable({
         onCountsChange();
       }
 
-      alert(`✅ ${itemsToMove.length} item(s) moved to Shipment + Vyapar!`);
+      setToast({ message: `${itemsToMove.length} item(s) moved to Shipment + Vyapar!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
     } catch (error: any) {
       console.error('❌ Error moving items:', error);
-      alert(`Failed to move items: ${error.message}`);
+      setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
     }
   };
 
@@ -385,7 +386,7 @@ export default function CheckingTable({
       console.log(`✅ Updated ${field} for item ${itemId}: ${value}`);
     } catch (error: any) {
       console.error('Error updating field:', error);
-      alert('Failed to update: ' + error.message);
+      setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
       // Revert on error
       fetchCheckingData();
     }
@@ -420,7 +421,7 @@ export default function CheckingTable({
   // Handle bulk move all selected items
   const handleBulkMoveToShipment = async () => {
     if (selectedItemIds.size === 0) {
-      alert('No items selected');
+      setToast({ message: 'No items selected', type: 'error' });
       return;
     }
 
@@ -439,7 +440,7 @@ export default function CheckingTable({
 
       if (fetchError) throw fetchError;
       if (!itemsToMove || itemsToMove.length === 0) {
-        alert('No items found to move.');
+        setToast({ message: 'No items found to move.', type: 'error' });
         return;
       }
 
@@ -491,10 +492,10 @@ export default function CheckingTable({
         onCountsChange();
       }
 
-      alert(`✅ ${itemsToMove.length} item(s) moved to Shipment & Vyapar!`);
+      setToast({ message: `${itemsToMove.length} item(s) moved to Shipment & Vyapar!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
     } catch (error: any) {
       console.error('❌ Error moving items:', error);
-      alert('Failed to move items: ' + error.message);
+      setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
     }
   };
 
@@ -1495,6 +1496,15 @@ export default function CheckingTable({
             <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700">
               {selectedCompany}
             </div>
+          </div>
+        </div>
+      )}
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
           </div>
         </div>
       )}

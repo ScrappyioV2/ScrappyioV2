@@ -52,6 +52,7 @@ export default function CompanyInvoiceTable({
   sellerId,
   onCountsChange
 }: CompanyInvoiceTableProps) {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,7 +168,7 @@ export default function CompanyInvoiceTable({
   const handleActionChange = async (invoiceNumber: string, action: 'pass' | 'fail') => {
     // Fail button - Do nothing for now
     if (action === 'fail') {
-      alert('Fail action is not implemented yet.');
+      setToast({ message: 'Fail action is not implemented yet.', type: 'error' });
       return;
     }
 
@@ -188,7 +189,7 @@ export default function CompanyInvoiceTable({
         if (fetchError) throw fetchError;
 
         if (!itemsToMove || itemsToMove.length === 0) {
-          alert('No items found for this invoice.');
+          setToast({ message: 'No items found for this invoice.', type: 'error' });
           return;
         }
 
@@ -297,10 +298,10 @@ export default function CompanyInvoiceTable({
           onCountsChange();
         }
 
-        alert(`✅ Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`);
+        setToast({ message: `Invoice ${invoiceNumber} (${itemsToMove.length} items) moved to Checking!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       } catch (error: any) {
         console.error('❌ Error moving invoice to checking:', error);
-        alert(`Failed to move invoice: ${error.message}`);
+        setToast({ message: `Failed to move invoice: ${error.message}`, type: 'error' });
       }
     }
   };
@@ -690,6 +691,15 @@ export default function CompanyInvoiceTable({
             <div className="whitespace-pre-wrap text-slate-200 bg-slate-800 p-4 rounded-lg border border-slate-700">
               {selectedCompany}
             </div>
+          </div>
+        </div>
+      )}
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
           </div>
         </div>
       )}

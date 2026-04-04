@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { ensureAbsoluteUrl } from '@/lib/utils'
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -93,6 +94,7 @@ const SELLERS: Seller[] = [
 
 export default function ReorderPage() {
   // State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [activeSeller, setActiveSeller] = useState<Seller>(SELLERS[0])
   const [activeTab, setActiveTab] = useState<'main' | 'final'>('main')
   const [products, setProducts] = useState<ReorderProduct[]>([])
@@ -183,7 +185,7 @@ export default function ReorderPage() {
 
       if (listError) throw listError
       if (!listedItems || listedItems.length === 0) {
-        alert('No listed items found to sync.')
+        setToast({ message: 'No listed items found to sync.', type: 'error' })
         return
       }
 
@@ -216,7 +218,7 @@ export default function ReorderPage() {
           .insert(newItems)
 
         if (insertError) throw insertError
-        alert(`Synced ${newItems.length} new products with history links!`);
+        setToast({ message: `Synced ${newItems.length} new products with history links!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
         // ✅ ADD THIS:
         logActivity({
           action: 'submit',
@@ -228,12 +230,12 @@ export default function ReorderPage() {
         });
         fetchReorderData()
       } else {
-        alert('All listed products are already in Reorder.')
+        setToast({ message: 'All listed products are already in Reorder.', type: 'success' })
       }
 
     } catch (err: any) {
       console.error('Sync error:', err)
-      alert('Failed to sync: ' + err.message)
+      setToast({ message: `Failed to sync: ${err.message}`, type: 'error' })
     } finally {
       setProcessing(false)
     }
@@ -298,7 +300,7 @@ export default function ReorderPage() {
   //           })
 
   //         if (matchCount === 0) {
-  //           alert(`No matches found! \n\nWe checked ${rows.length} CSV rows against your listed products, but none matched.\n\nExample CSV ASIN: ${rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+  //           setToast({ message: `No matches found in ${rows.length} rows`, type: 'error' })
   //           setProcessing(false)
   //           return
   //         }
@@ -315,7 +317,7 @@ export default function ReorderPage() {
 
   //       } catch (err: any) {
   //         console.error(err)
-  //         alert('Error processing file: ' + err.message)
+  //         setToast({ message: `Error processing file: ${err.message}`, type: 'error' })
   //       } finally {
   //         setProcessing(false)
   //         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -345,7 +347,7 @@ export default function ReorderPage() {
         },
         error: (error) => {
           console.error('CSV Parse Error:', error)
-          alert('Failed to parse CSV file: ' + error.message)
+          setToast({ message: `Failed to parse CSV file: ${error.message}`, type: 'error' })
           setProcessing(false)
           if (fileInputRef.current) fileInputRef.current.value = ''
         }
@@ -374,7 +376,7 @@ export default function ReorderPage() {
 
         } catch (error: any) {
           console.error('Excel Parse Error:', error)
-          alert('Failed to parse Excel file: ' + error.message)
+          setToast({ message: `Failed to parse Excel file: ${error.message}`, type: 'error' })
           setProcessing(false)
           if (fileInputRef.current) fileInputRef.current.value = ''
         }
@@ -382,7 +384,7 @@ export default function ReorderPage() {
 
       reader.onerror = (error) => {
         console.error('File Read Error:', error)
-        alert('Failed to read file')
+        setToast({ message: 'Failed to read file', type: 'error' })
         setProcessing(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
@@ -390,7 +392,7 @@ export default function ReorderPage() {
       reader.readAsBinaryString(file)
 
     } else {
-      alert('Unsupported file format. Please upload CSV, XLSX, or XLS files.')
+      setToast({ message: 'Unsupported file format. Please upload CSV, XLSX, or XLS files.', type: 'error' })
       setProcessing(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -456,7 +458,7 @@ export default function ReorderPage() {
         })
 
       if (matchCount === 0) {
-        alert(`No matches found! \n\nWe checked ${rows.length} rows against your listed products, but none matched.\n\nExample File ASIN: ${rows[0]?.ASIN || rows[0]?.asin || rows[0]?.Asin || 'N/A'}\nExample Screen ASIN: ${products[0]?.asin || 'N/A'}`)
+        setToast({ message: `No matches found in ${rows.length} rows`, type: 'error' })
         setProcessing(false)
         return
       }
@@ -490,7 +492,7 @@ export default function ReorderPage() {
 
     } catch (err: any) {
       console.error(err)
-      alert('Error processing file: ' + err.message)
+      setToast({ message: `Error processing file: ${err.message}`, type: 'error' })
       setProcessing(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -509,7 +511,7 @@ export default function ReorderPage() {
         .select('*')
 
       if (!currentReorderData || currentReorderData.length === 0) {
-        alert('No products in reorder table.')
+        setToast({ message: 'No products in reorder table.', type: 'error' })
         return
       }
 
@@ -682,7 +684,7 @@ export default function ReorderPage() {
         }
       }))
 
-      alert(`✅ Calculation complete! Tracked ${Object.keys(trackingMap).length} ASINs across Inbound → Boxes → Checking → Restock.`);
+      setToast({ message: `Calculation complete! Tracked ${Object.keys(trackingMap).length} ASINs across pipeline.`, type: 'success' }); setTimeout(() => setToast(null), 4000);
       logActivity({
         action: 'submit',
         marketplace: 'india',
@@ -693,7 +695,7 @@ export default function ReorderPage() {
       });
 
     } catch (err: any) {
-      alert('Calculation failed: ' + err.message)
+      setToast({ message: `Calculation failed: ${err.message}`, type: 'error' })
     } finally {
       setProcessing(false)
     }
@@ -770,7 +772,7 @@ export default function ReorderPage() {
       setHistoryData(data || [])
     } catch (err) {
       console.error(err)
-      alert('Failed to load history')
+      setToast({ message: 'Failed to load history', type: 'error' })
     } finally {
       setHistoryLoading(false)
     }
@@ -873,7 +875,7 @@ export default function ReorderPage() {
 
           // 6. Update UI instantly
           setProducts(prev => prev.filter(p => p.id !== product.id))
-          alert(`✅ ASIN ${product.asin} sent to Validation! Journey #${nextJourneyNum}`);
+          setToast({ message: `ASIN ${product.asin} sent to Validation! Journey #${nextJourneyNum}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
           // ✅ ADD THIS:
           logActivity({
             action: 'move',
@@ -886,7 +888,7 @@ export default function ReorderPage() {
 
         } catch (err: any) {
           console.error(err)
-          alert('Failed to send: ' + err.message)
+          setToast({ message: `Failed to send: ${err.message}`, type: 'error' })
         } finally {
           setProcessing(false)
         }
@@ -1156,7 +1158,7 @@ export default function ReorderPage() {
                         <td className="px-6 py-4 text-sm font-mono text-slate-500 border-r border-slate-800/50">{product.sku || '-'}</td>
                         <td className="px-6 py-4 border-r border-slate-800/50">
                           <span className="text-sm text-slate-200 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
-                          {product.seller_link && <a href={product.seller_link} target="_blank" className="text-xs text-indigo-400 hover:text-indigo-300 mt-1 inline-block">View Link</a>}
+                          {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-indigo-400 hover:text-indigo-300 mt-1 inline-block">View Link</a>}
                         </td>
 
                         {/* ✅ HISTORY BUTTON */}
@@ -1476,6 +1478,17 @@ export default function ReorderPage() {
           onConfirm={confirmDialog.onConfirm}
           onCancel={() => setConfirmDialog(null)}
         />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
       )}
     </div>
   )

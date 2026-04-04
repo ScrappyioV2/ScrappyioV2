@@ -523,7 +523,7 @@ export default function AdminValidationPage() {
       setHistoryData(data || [])
     } catch (err) {
       console.error(err)
-      alert('Failed to load history')
+      setToast({ message: 'Failed to load history', type: 'error' })
     } finally {
       setHistoryLoading(false)
     }
@@ -879,7 +879,7 @@ export default function AdminValidationPage() {
   // Handle confirm selected products
   const handleConfirmSelected = async () => {
     if (selectedIds.size === 0) {
-      alert('Please select at least one product to confirm');
+      setToast({ message: 'Please select at least one product to confirm', type: 'error' });
       return;
     }
 
@@ -977,7 +977,7 @@ export default function AdminValidationPage() {
         if (updateAdminError) throw updateAdminError;
       }
 
-      alert(`Successfully confirmed ${selectedIds.size} products!`);
+      setToast({ message: `Successfully confirmed ${selectedIds.size} products!`, type: 'success' });
       // ✅ ADD THIS:
       selectedProducts.forEach((product) => {
         logActivity({
@@ -992,7 +992,7 @@ export default function AdminValidationPage() {
       setSelectedIds(new Set());
       fetchProducts();
     } catch (error: any) {
-      alert(`Error confirming products: ${error.message}`);
+      setToast({ message: `Error confirming products: ${error.message}`, type: 'error' });
     }
   };
 
@@ -1212,7 +1212,7 @@ export default function AdminValidationPage() {
       const rawSellerTag = validationData?.seller_tag || product.seller_tag;
 
       if (!rawSellerTag) {
-        alert("Error: Missing Seller Tag. Please check product data.");
+        setToast({ message: "Error: Missing Seller Tag. Please check product data.", type: 'error' });
         return;
       }
 
@@ -1340,7 +1340,7 @@ export default function AdminValidationPage() {
 
     } catch (error: any) {
       console.error(error);
-      alert(`Error: ${error.message}`);
+      setToast({ message: `Error: ${error.message}`, type: 'error' });
     }
   };
 
@@ -1390,7 +1390,7 @@ export default function AdminValidationPage() {
       });
 
     } catch (error: any) {
-      alert(`Error rejecting product: ${error.message}`);
+      setToast({ message: `Error rejecting product: ${error.message}`, type: 'error' });
     }
   };
 
@@ -1400,7 +1400,7 @@ export default function AdminValidationPage() {
     const lastMovement = movementHistory[activeTab];
 
     if (!lastMovement) {
-      alert('No recent movement to roll back from this tab');
+      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
       return;
     }
 
@@ -1481,7 +1481,7 @@ export default function AdminValidationPage() {
       fetchProducts();
     } catch (error) {
       console.error('Error rolling back:', error);
-      alert('Rollback failed');
+      setToast({ message: 'Rollback failed', type: 'error' });
     } finally {
       setLoading(false);
     }

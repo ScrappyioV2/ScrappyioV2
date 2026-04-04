@@ -10,6 +10,7 @@ import {
 } from '@/lib/blackboxCalculations';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ensureAbsoluteUrl } from '@/lib/utils'
 
 
 type AdminProduct = {
@@ -406,7 +407,7 @@ export default function AdminValidationPage() {
       setHistoryData(data || [])
     } catch (err) {
       console.error(err)
-      alert('Failed to load history')
+      setToast({ message: 'Failed to load history', type: 'error' })
     } finally {
       setHistoryLoading(false)
     }
@@ -621,7 +622,7 @@ export default function AdminValidationPage() {
   // Handle confirm selected products
   const handleConfirmSelected = async () => {
     if (selectedIds.size === 0) {
-      alert('Please select at least one product to confirm');
+      setToast({ message: 'Please select at least one product to confirm', type: 'error' });
       return;
     }
 
@@ -658,11 +659,11 @@ export default function AdminValidationPage() {
         if (updateAdminError) throw updateAdminError;
       }
 
-      alert(`Successfully confirmed ${selectedIds.size} products!`);
+      setToast({ message: `Successfully confirmed ${selectedIds.size} products!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       setSelectedIds(new Set());
       fetchProducts();
     } catch (error: any) {
-      alert(`Error confirming products: ${error.message}`);
+      setToast({ message: `Error confirming products: ${error.message}`, type: 'error' });
     }
   };
 
@@ -776,7 +777,7 @@ export default function AdminValidationPage() {
       const rawSellerTag = validationData?.seller_tag || product.seller_tag;
 
       if (!rawSellerTag) {
-        alert("Error: Missing Seller Tag. Please check product data.");
+        setToast({ message: "Error: Missing Seller Tag. Please check product data.", type: 'error' });
         return;
       }
 
@@ -813,7 +814,7 @@ export default function AdminValidationPage() {
       }
 
       if (validSellerIds.length === 0) {
-        alert(`Error: No valid seller tags found in '${rawSellerTag}'`);
+        setToast({ message: `Error: No valid seller tags found in '${rawSellerTag}'`, type: 'error' });
         return;
       }
 
@@ -893,7 +894,7 @@ export default function AdminValidationPage() {
 
     } catch (error: any) {
       console.error(error);
-      alert(`Error: ${error.message}`);
+      setToast({ message: `Error: ${error.message}`, type: 'error' });
     }
   };
 
@@ -934,7 +935,7 @@ export default function AdminValidationPage() {
       setToast({ message: 'Product rejected', type: 'info' });
 
     } catch (error: any) {
-      alert(`Error rejecting product: ${error.message}`);
+      setToast({ message: `Error rejecting product: ${error.message}`, type: 'error' });
     }
   };
 
@@ -944,7 +945,7 @@ export default function AdminValidationPage() {
     const lastMovement = movementHistory[activeTab];
 
     if (!lastMovement) {
-      alert('No recent movement to roll back from this tab');
+      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
       return;
     }
 
@@ -998,11 +999,11 @@ export default function AdminValidationPage() {
         return newHistory;
       });
 
-      alert(`Rolled back: ${product.product_name}`);
+      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       fetchProducts();
     } catch (error) {
       console.error('Error rolling back:', error);
-      alert('Rollback failed');
+      setToast({ message: 'Rollback failed', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -1630,7 +1631,7 @@ export default function AdminValidationPage() {
                               {product.product_link ? (
                                 <>
                                   <a
-                                    href={product.product_link}
+                                    href={ensureAbsoluteUrl(product.product_link || '')}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
@@ -1878,7 +1879,7 @@ export default function AdminValidationPage() {
                               {product.inr_purchase_link && product.inr_purchase_link.trim() !== '' ? (
                                 <>
                                   <a
-                                    href={product.inr_purchase_link}
+                                    href={ensureAbsoluteUrl(product.inr_purchase_link || '')}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"
@@ -1979,7 +1980,7 @@ export default function AdminValidationPage() {
                               {product.seller_link && product.seller_link.trim() !== '' ? (
                                 <>
                                   <a
-                                    href={product.seller_link}
+                                    href={ensureAbsoluteUrl(product.seller_link || '')}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium whitespace-nowrap"

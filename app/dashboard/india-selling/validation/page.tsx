@@ -533,9 +533,6 @@ export default function ValidationPage() {
                     return {
                         ...dbProduct,
                         calculated_judgement: p.calculated_judgement || dbProduct.calculated_judgement,
-                        total_cost: p.total_cost ?? dbProduct.total_cost,
-                        total_revenue: p.total_revenue ?? dbProduct.total_revenue,
-                        profit: p.profit ?? dbProduct.profit,
                     };
                 });
 
@@ -733,7 +730,7 @@ export default function ValidationPage() {
             setHistoryData(data || []);
         } catch (err) {
             console.error(err);
-            alert('Failed to load history');
+            setToast({ message: 'Failed to load history', type: 'error' });
         } finally {
             setHistoryLoading(false);
         }
@@ -2754,7 +2751,7 @@ export default function ValidationPage() {
                     <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
                         {/* ✅ ADD 'reworking' */}
                         {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
-                            <input type="number" key={product.id} defaultValue={product.product_weight ?? ''}
+                            <input type="number" key={`${product.id}-pw-${product.product_weight}`} defaultValue={product.product_weight ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'product_weight', e.target.value)}
                                 onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
                                 className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
@@ -2769,7 +2766,7 @@ export default function ValidationPage() {
                     <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
                         {/* ✅ ADD 'reworking' */}
                         {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
-                            <input type="text" key={product.id} defaultValue={product.usd_price ?? ''}
+                            <input type="text" key={`${product.id}-usd-${product.usd_price}`} defaultValue={product.usd_price ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'usd_price', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
                                 className="w-full max-w-[80px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
@@ -2784,7 +2781,7 @@ export default function ValidationPage() {
                     <td key={col_key} className="p-3 text-slate-300 overflow-hidden">
                         {/* ✅ ADD 'reworking' */}
                         {(activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
-                            <input type="text" key={product.id} defaultValue={product.inr_purchase ?? ''}
+                            <input type="text" key={`${product.id}-inr-${product.inr_purchase}`} defaultValue={product.inr_purchase ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'inr_purchase', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
                                 className="w-full max-w-[90px] px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs"
@@ -2801,7 +2798,7 @@ export default function ValidationPage() {
                         <input
                             type="url"
                             defaultValue={product.inr_purchase_link || ''}
-                            key={product.id}
+                            key={`${product.id}-ipl-${product.inr_purchase_link || ''}`}
                             onBlur={(e) => { const val = e.target.value.trim(); if (val) { handleCellEdit(product.id, 'inr_purchase_link', val); } }}
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                             placeholder="Paste source link"

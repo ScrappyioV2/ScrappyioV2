@@ -6,6 +6,7 @@ import Toast from '@/components/Toast';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ensureAbsoluteUrl } from '@/lib/utils';
 import {
   Search,
   RotateCcw,
@@ -495,7 +496,7 @@ export default function RudraRetailListingPage() {
                           </td>
                           <td className="px-6 py-4 text-center border-r border-slate-800/50 last:border-r-0">
                             {product.seller_link ? (
-                              <a href={product.seller_link} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200">
+                              <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all duration-200">
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             ) : <span className="text-slate-700">-</span>}

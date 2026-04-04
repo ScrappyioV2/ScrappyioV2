@@ -299,7 +299,7 @@ export default function CheckingTable({
       console.log('✅ Product received status updated');
     } catch (error: any) {
       console.error('❌ Error updating received status:', error);
-      alert(`Failed to update: ${error.message}`);
+      setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
     }
   };
 
@@ -307,7 +307,7 @@ export default function CheckingTable({
   const handleMoveToRestock = async (itemIds: string[]) => {
     try {
       if (itemIds.length === 0) {
-        alert('No items selected');
+        setToast({ message: 'No items selected', type: 'error' });
         return;
       }
 
@@ -320,7 +320,7 @@ export default function CheckingTable({
 
       if (fetchError) throw fetchError;
       if (!itemsToMove || itemsToMove.length === 0) {
-        alert('No items found to move.');
+        setToast({ message: 'No items found to move', type: 'error' });
         return;
       }
 
@@ -407,6 +407,7 @@ export default function CheckingTable({
           min_price: Math.round(salesPrice * 0.95 * 100) / 100,
           max_price: Math.round(salesPrice * 1.20 * 100) / 100,
           remark: item.remark ?? null,
+          seller_link: (item as any).seller_link ?? null,
         };
 
         const tablesToInsert = [`india_listing_error_seller_${resolvedSellerId}_pending`];
@@ -492,7 +493,7 @@ export default function CheckingTable({
       );
     } catch (error: any) {
       console.error('Error moving to restock:', error);
-      alert('Failed to move items: ' + error.message);
+      setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
     }
   };
 
@@ -592,7 +593,7 @@ export default function CheckingTable({
       setTimeout(() => setToast(null), 3000);
       fetchCheckingData();
     } catch (error: any) {
-      alert('Failed: ' + error.message);
+      setToast({ message: `Failed: ${error.message}`, type: 'error' });
     }
   };
 
@@ -630,7 +631,7 @@ export default function CheckingTable({
       console.log(`✅ Updated ${field} for item ${itemId}: ${value}`);
     } catch (error: any) {
       console.error('Error updating field:', error);
-      alert('Failed to update: ' + error.message);
+      setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
       fetchCheckingData();
     }
   };
@@ -660,7 +661,7 @@ export default function CheckingTable({
       if (error) throw error;
     } catch (e: any) {
       console.error('Checklist update failed', e);
-      alert('Failed to update checklist: ' + e.message);
+      setToast({ message: `Failed to update checklist: ${e.message}`, type: 'error' });
       fetchCheckingData();
     }
   };
@@ -680,7 +681,7 @@ export default function CheckingTable({
       if (error) throw error;
     } catch (e: any) {
       console.error('Offline sell qty update failed', e);
-      alert('Failed to update offline sell qty: ' + e.message);
+      setToast({ message: `Failed to update offline sell qty: ${e.message}`, type: 'error' });
     }
   };
 
@@ -707,7 +708,7 @@ export default function CheckingTable({
       if (error) throw error;
     } catch (e: any) {
       console.error('Damaged qty update failed', e);
-      alert('Failed to update damaged qty: ' + e.message);
+      setToast({ message: `Failed to update damaged qty: ${e.message}`, type: 'error' });
       fetchCheckingData();
     }
   };
@@ -741,7 +742,7 @@ export default function CheckingTable({
   // Bulk move all selected items to Restock
   const handleBulkMoveToRestock = async () => {
     if (selectedItemIds.size === 0) {
-      alert('No items selected');
+      setToast({ message: 'No items selected', type: 'error' });
       return;
     }
 
@@ -957,7 +958,7 @@ export default function CheckingTable({
       fetchCheckingData();
       if (onCountsChange) onCountsChange();
     } catch (err: any) {
-      alert('Rollback failed: ' + err.message);
+      setToast({ message: `Rollback failed: ${err.message}`, type: 'error' });
     }
   };
 

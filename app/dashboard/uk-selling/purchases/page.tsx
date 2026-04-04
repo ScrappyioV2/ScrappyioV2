@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ensureAbsoluteUrl } from '@/lib/utils'
 
 type PassFileProduct = {
   id: string
@@ -78,6 +79,7 @@ type HistorySnapshot = {
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -454,10 +456,10 @@ export default function PurchasesPage() {
 
       if (updateError) throw updateError
 
-      alert('Sent to Admin Validation successfully!')
+      setToast({ message: 'Sent to Admin Validation successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      alert(`Error: ${error.message}`)
+      setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
 
@@ -477,7 +479,7 @@ export default function PurchasesPage() {
       setHistoryData(data || [])
     } catch (err) {
       console.error(err)
-      alert('Failed to load history')
+      setToast({ message: 'Failed to load history', type: 'error' })
     } finally {
       setHistoryLoading(false)
     }
@@ -505,10 +507,10 @@ export default function PurchasesPage() {
 
       if (error) throw error
 
-      alert('Moved to Price Wait successfully!')
+      setToast({ message: 'Moved to Price Wait successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      alert('Error: ' + error.message)
+      setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
 
@@ -533,10 +535,10 @@ export default function PurchasesPage() {
 
       if (error) throw error
 
-      alert('Marked as Not Found successfully!')
+      setToast({ message: 'Marked as Not Found successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      alert('Error: ' + error.message)
+      setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
 
@@ -545,7 +547,7 @@ export default function PurchasesPage() {
     const lastMovement = movementHistory[activeTab]
 
     if (!lastMovement) {
-      alert('No recent movement to roll back from this tab')
+      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' })
       return
     }
 
@@ -584,17 +586,17 @@ export default function PurchasesPage() {
         return newHistory
       })
 
-      alert(`Rolled back ${product.product_name}`)
+      setToast({ message: `Rolled back ${product.product_name}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error) {
       console.error('Error rolling back:', error)
-      alert('Rollback failed')
+      setToast({ message: 'Rollback failed', type: 'error' })
     }
     // ✅ NO finally block - no setLoading(false)
   }
   const handleMoveToTracking = async (product: PassFileProduct) => {
     if (!product.admin_confirmed) {
-      alert('Only Order Confirmed items can be moved');
+      setToast({ message: 'Only Order Confirmed items can be moved', type: 'error' });
       return;
     }
 
@@ -762,11 +764,11 @@ export default function PurchasesPage() {
 
       console.log('✅ Delete successful');
 
-      alert(`✅ Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`);
+      setToast({ message: `Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently();
     } catch (error: any) {
       console.error('❌ Move error:', error);
-      alert('Failed to move: ' + error.message);
+      setToast({ message: `Failed to move: ${error.message}`, type: 'error' });
     }
   };
 
@@ -865,7 +867,7 @@ export default function PurchasesPage() {
       if (error) throw error;
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      alert('Error updating: ' + error.message);
+      setToast({ message: `Error updating: ${error.message}`, type: 'error' });
     }
   };
 
@@ -1314,7 +1316,7 @@ export default function PurchasesPage() {
                       {/* INR Link */}
                       {visibleColumns.inrpurchaselink && <td className="px-3 py-2 overflow-hidden" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                         {product.inr_purchase_link ? (
-                          <a href={product.inr_purchase_link} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
+                          <a href={ensureAbsoluteUrl(product.inr_purchase_link || '')} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 hover:underline text-xs truncate block">View</a>
                         ) : <span className="text-xs text-slate-600">-</span>}
                       </td>}
 
@@ -1643,6 +1645,15 @@ export default function PurchasesPage() {
           </>
         )}
       </AnimatePresence>
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

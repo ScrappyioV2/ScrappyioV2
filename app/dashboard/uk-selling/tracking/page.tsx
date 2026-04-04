@@ -6,7 +6,7 @@ import InvoiceModal from './components/InvoiceModal'
 import CompanyInvoiceTable from './components/CompanyInvoiceTable'
 import CheckingTable from './components/CheckingTable';
 import RollbackModal from './components/RollbackModal'
-import { SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
+import { SELLER_TAG_MAPPING, SellerTag , ensureAbsoluteUrl } from '@/lib/utils';
 import ShipmentTable from './components/ShipmentTable';
 import RestockTable from './components/RestockTable';
 import VyaparTable from './components/VyaparTable';
@@ -75,6 +75,7 @@ type TabType = 'main_file' | 'company_invoice_details' | 'checking' | 'shipment'
 
 export default function TrackingPage() {
     // ✅ NEW: Active Seller State
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [activeSeller, setActiveSeller] = useState<string>('GR');
 
     // ✅ NEW: Dynamic Seller ID Calculation
@@ -481,7 +482,7 @@ export default function TrackingPage() {
 
     const handleMoveToTracking = async (product: PassFileProduct) => {
         if (!product.admin_confirmed) {
-            alert('Only Order Confirmed items can be moved');
+            setToast({ message: 'Only Order Confirmed items can be moved', type: 'error' });
             return;
         }
 
@@ -521,7 +522,7 @@ export default function TrackingPage() {
             });
 
         if (insertError) {
-            alert(insertError.message);
+            setToast({ message: insertError.message, type: 'error' });
             return;
         }
 
@@ -1075,7 +1076,7 @@ export default function TrackingPage() {
                                                             <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: `${columnWidths.inrpurchaselink}px` }}>
                                                                 {product.inr_purchase_link ? (
                                                                     <a
-                                                                        href={product.inr_purchase_link}
+                                                                        href={ensureAbsoluteUrl(product.inr_purchase_link || '')}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium"
@@ -1120,7 +1121,7 @@ export default function TrackingPage() {
                                                             <td className="px-3 py-2 overflow-hidden text-center border-r border-slate-800/50" style={{ width: `${columnWidths.sellerlink}px` }}>
                                                                 {product.seller_link ? (
                                                                     <a
-                                                                        href={product.seller_link}
+                                                                        href={ensureAbsoluteUrl(product.seller_link || '')}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium"
@@ -1235,6 +1236,15 @@ export default function TrackingPage() {
                     setRollbackOpen(false);
                 }}
             />
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
         </PageGuard>
     );
 }

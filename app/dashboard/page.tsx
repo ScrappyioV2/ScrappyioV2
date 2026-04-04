@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const { user, userRole, logout, loading } = useAuth();
   const router = useRouter();
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [users, setUsers] = useState<UserRoleRow[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserRoleRow | null>(null);
   const [editedPages, setEditedPages] = useState<string[]>([]);
@@ -143,7 +144,7 @@ export default function DashboardPage() {
 
     const isCurrentUser = selectedUser.user_id === user?.id;
     if (isCurrentUser && editedRole !== 'admin') {
-      alert("You cannot remove your own admin access.");
+      setToast({ message: "You cannot remove your own admin access.", type: 'error' });
       setEditedRole('admin');
       return;
     }
@@ -161,7 +162,7 @@ export default function DashboardPage() {
 
     if (error) {
       console.error('Save permissions error:', error);
-      alert('Failed to save: ' + error.message);
+      setToast({ message: `Failed to save: ${error.message}`, type: 'error' });
     } else {
       const updated = { ...selectedUser, allowed_pages: editedPages, role: editedRole };
       setUsers((prev) => prev.map((u) => (u.id === selectedUser.id ? updated : u)));
@@ -191,7 +192,7 @@ export default function DashboardPage() {
 
   const handleDeleteUser = async (u: UserRoleRow) => {
     if (u.user_id === user?.id) {
-      alert("You cannot delete your own account.");
+      setToast({ message: "You cannot delete your own account.", type: 'error' });
       return;
     }
     if (!confirm(`Permanently delete ${u.full_name || u.email}? This cannot be undone.`)) return;
@@ -212,7 +213,7 @@ export default function DashboardPage() {
         setMobileView('list'); // ✅ NEW: Go back to list on delete
       }
     } catch (err: any) {
-      alert('Failed to delete user: ' + err.message);
+      setToast({ message: `Failed to delete user: ${err.message}`, type: 'error' });
     }
   };
 
@@ -638,6 +639,15 @@ export default function DashboardPage() {
         onClose={() => setShowCreateUser(false)}
         onSuccess={() => fetchUsers()}
       />
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

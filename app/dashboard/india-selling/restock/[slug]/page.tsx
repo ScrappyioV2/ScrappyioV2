@@ -133,7 +133,7 @@ function RestockRollbackModal({
             onSuccess();
             onClose();
         } catch (err: any) {
-            alert('Rollback failed: ' + err.message);
+            setToast({ message: `Rollback failed: ${err.message}`, type: 'error' });
         } finally {
             setProcessing(false);
         }
@@ -651,7 +651,7 @@ export default function RestockPage() {
                 item.id === itemId ? { ...item, status: action, ...(action === 'relisted' ? { moved_at: new Date().toISOString() } : {}), ...(action === 'disposed' ? { dispose_reason: reason } : {}), ...(action === 'pending' ? { dispose_reason: null, moved_at: null } : {}) } : item
             ))
         } catch (error: any) {
-            alert(`Failed: ${error.message}`)
+            setToast({ message: `Failed: ${error.message}`, type: 'error' })
         }
     }
 
@@ -1120,7 +1120,7 @@ export default function RestockPage() {
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
-                                        if (!disposeReason.trim()) { alert('Please enter a reason'); return; }
+                                        if (!disposeReason.trim()) { setToast({ message: 'Please enter a reason', type: 'error' }); return; }
                                         handleSingleAction(disposeModal.itemId, 'disposed', disposeReason.trim());
                                         setDisposeModal(null);
                                     }
@@ -1138,7 +1138,7 @@ export default function RestockPage() {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        if (!disposeReason.trim()) { alert('Please enter a reason'); return; }
+                                        if (!disposeReason.trim()) { setToast({ message: 'Please enter a reason', type: 'error' }); return; }
                                         handleSingleAction(disposeModal.itemId, 'disposed', disposeReason.trim());
                                         setDisposeModal(null);
                                     }}

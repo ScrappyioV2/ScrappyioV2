@@ -188,7 +188,7 @@ export default function InvoiceModal({
   // Handle Save Button
   const handleSave = async () => {
     if (!uploadedFile) {
-      alert('Please upload an invoice first!');
+      setToast({ message: 'Please upload an invoice first!', type: 'error' });
       return;
     }
 

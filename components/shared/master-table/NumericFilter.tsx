@@ -21,12 +21,13 @@ export default function NumericFilter({
   onApply,
   columnName = 'Value',
 }: NumericFilterProps) {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [operator, setOperator] = useState(currentFilter?.operator || 'gt');
   const [value, setValue] = useState(currentFilter?.value?.toString() || '');
 
   const handleApply = () => {
     if (!value || isNaN(parseFloat(value))) {
-      alert('Please enter a valid number');
+      setToast({ message: 'Please enter a valid number', type: 'error' });
       return;
     }
     onApply({
@@ -95,6 +96,15 @@ export default function NumericFilter({
           Clear
         </button>
       </div>
+      {toast && (
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+          <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+            <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

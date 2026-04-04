@@ -90,7 +90,7 @@ export default function RollbackModal({
             setInvoices(Object.values(grouped));
         } catch (error) {
             console.error('Error fetching invoices:', error);
-            alert('Failed to load invoices');
+            setToast({ message: 'Failed to load invoices', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -128,7 +128,7 @@ export default function RollbackModal({
     // Handle rollback
     const handleRollback = async () => {
         if (selectedInvoices.size === 0) {
-            alert('Please select at least one invoice to rollback');
+            setToast({ message: 'Please select at least one invoice to rollback', type: 'error' });
             return;
         }
 

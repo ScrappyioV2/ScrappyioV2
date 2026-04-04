@@ -89,6 +89,7 @@ const WIDTH_KEY = 'inbound-table-col-widths';
 // COMPONENT
 // ============================================
 export default function InboundTable({ onCountsChange, refreshKey }: InboundTableProps) {
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [products, setProducts] = useState<InboundProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -390,7 +391,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             setViewBoxItems(data || []);
         } catch (err) {
             console.error("Error loading box items:", err);
-            alert("Failed to load box contents.");
+            setToast({ message: "Failed to load box contents.", type: 'error' }); setTimeout(() => setToast(null), 3000);
             setViewBoxOpen(false);
         } finally {
             setViewBoxLoading(false);
@@ -416,7 +417,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             await fetchBoxes();
         } catch (err) {
             console.error("Error updating box item:", err);
-            alert("Failed to update box item.");
+            setToast({ message: "Failed to update box item.", type: 'error' }); setTimeout(() => setToast(null), 3000);
         }
     };
 
@@ -561,7 +562,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
 
             if (error) throw error;
             if (!data || data.length === 0) {
-                alert("No items found for this box.");
+                setToast({ message: "No items found for this box.", type: 'error' }); setTimeout(() => setToast(null), 3000);
                 return;
             }
 
@@ -646,10 +647,10 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
 
             await fetchBoxes();
             onCountsChange();
-            alert(`Box ${boxNumber} moved to Checking.`);
+            setToast({ message: `Box ${boxNumber} moved to Checking.`, type: 'success' }); setTimeout(() => setToast(null), 3000);
         } catch (err: any) {
             console.error("Error moving box to checking:", err);
-            alert(err.message || "Failed to move box to Checking.");
+            setToast({ message: err.message || "Failed to move box to Checking.", type: 'error' }); setTimeout(() => setToast(null), 3000);
         }
     };
 
@@ -904,7 +905,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             setOpenHistory(next);
         } catch (err) {
             console.error("Error fetching box history:", err);
-            alert("Failed to load box history.");
+            setToast({ message: "Failed to load box history.", type: 'error' }); setTimeout(() => setToast(null), 3000);
         } finally {
             setHistoryLoading((prev) => ({ ...prev, [inboundId]: false }));
         }
@@ -1395,6 +1396,17 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                 Close
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast */}
+            {toast && (
+                <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
+                    <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+                        <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
+                        <span className="font-semibold flex-1 text-sm">{toast.message}</span>
+                        <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
                     </div>
                 </div>
             )}
