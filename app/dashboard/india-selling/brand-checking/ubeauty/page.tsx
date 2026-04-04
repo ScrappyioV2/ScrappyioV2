@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
 import FunnelBadge from '../../../../components/FunnelBadge';
-import { generateAmazonLink } from '@/lib/utils';
+import { generateAmazonLink , ensureAbsoluteUrl } from '@/lib/utils';
 import {
   Search,
   RotateCcw,
@@ -157,6 +157,8 @@ export default function UBeautyPage() {
     4: 'VV',
     5: "DE",
     6: "CV",
+    7: "MV",
+    8: "KL",
   };
 
   // ✅ 4. ADD: Resize Handlers
@@ -215,6 +217,33 @@ export default function UBeautyPage() {
   useEffect(() => {
     fetchProducts(false);
   }, [activeTab, currentPage, debouncedSearch]);
+
+  useEffect(() => {
+    const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
+
+    const channel = supabase
+      .channel(`sync-${currentTable}-${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: currentTable },
+        (payload) => {
+          setProducts(prev => prev.filter(p => p.id !== payload.old.id));
+          setTotalCount(prev => Math.max(0, prev - 1));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: currentTable },
+        () => {
+          fetchProducts(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab]);
 
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -402,6 +431,7 @@ export default function UBeautyPage() {
           supabase.from(currentTable).delete().eq('asin', product.asin),
         ]);
         setToast({ message: 'Product moved to Validation Main File!', type: 'success' });
+        await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'approved' }).eq('asin', product.asin);
         logActivity({
           action: 'approve',
           marketplace: 'india',
@@ -423,6 +453,7 @@ export default function UBeautyPage() {
           supabase.from(currentTable).delete().eq('asin', product.asin),
         ]);
         setToast({ message: 'Product moved to Not Approved!', type: 'success' });
+        await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'not_approved' }).eq('asin', product.asin);
         logActivity({
           action: 'not_approve',
           marketplace: 'india',
@@ -444,6 +475,7 @@ export default function UBeautyPage() {
           supabase.from(currentTable).delete().eq('asin', product.asin),
         ]);
         setToast({ message: 'Product rejected!', type: 'success' });
+        await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'not_approved' }).eq('asin', product.asin);
         logActivity({
           action: 'reject',
           marketplace: 'india',
@@ -563,6 +595,7 @@ export default function UBeautyPage() {
         .limit(1);
 
       setToast({ message: `Rolled back ${product.product_name}`, type: 'success' });
+      await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'pending' }).eq('asin', product.asin);
       logActivity({
         action: 'rollback',
         marketplace: 'india',
@@ -1042,7 +1075,7 @@ export default function UBeautyPage() {
                                 <>
                                   {product[col as keyof ProductRow] ? (
                                     <a
-                                      href={String(product[col as keyof ProductRow])}
+                                      href={ensureAbsoluteUrl(String(product[col as keyof ProductRow]))}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-all text-xs font-medium border border-indigo-500/20"

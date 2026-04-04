@@ -176,7 +176,9 @@ export const APP_ROUTES: AppRoute[] = [
           { path: '/dashboard/india-selling/brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
           { path: '/dashboard/india-selling/brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
           { path: '/dashboard/india-selling/brand-checking/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
-          { path: '/dashboard/india-selling/brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
+          { path: '/dashboard/india-selling/brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' },
+          { path: '/dashboard/india-selling/brand-checking/maverick', label: 'Maverick', permission: 'view-brand-checking' },
+          { path: '/dashboard/india-selling/brand-checking/kalash', label: 'Kalash', permission: 'view-brand-checking' }
         ]
       },
       {
@@ -208,7 +210,9 @@ export const APP_ROUTES: AppRoute[] = [
           { path: '/dashboard/india-selling/listing-error/ubeauty', label: 'UBeauty', permission: 'view-listing-errors' },
           { path: '/dashboard/india-selling/listing-error/velvet-vista', label: 'Velvet Vista', permission: 'view-listing-errors' },
           { path: '/dashboard/india-selling/listing-error/dropy-ecom', label: 'Dropy Ecom', permission: 'view-listing-errors' },
-          { path: '/dashboard/india-selling/listing-error/costech-ventures', label: 'Costech Ventures', permission: 'view-listing-errors' }
+          { path: '/dashboard/india-selling/listing-error/costech-ventures', label: 'Costech Ventures', permission: 'view-listing-errors' },
+          { path: '/dashboard/india-selling/listing-error/maverick', label: 'Maverick', permission: 'view-listing-errors' },
+          { path: '/dashboard/india-selling/listing-error/kalash', label: 'Kalash', permission: 'view-listing-errors' }
         ]
       },
       // ✅ NEW — Restock (Inbound pipeline final stage, seller-wise)
@@ -223,7 +227,9 @@ export const APP_ROUTES: AppRoute[] = [
           { path: '/dashboard/india-selling/restock/ubeauty', label: 'UBeauty', permission: 'view-restock' },
           { path: '/dashboard/india-selling/restock/velvet-vista', label: 'Velvet Vista', permission: 'view-restock' },
           { path: '/dashboard/india-selling/restock/dropy-ecom', label: 'Dropy Ecom', permission: 'view-restock' },
-          { path: '/dashboard/india-selling/restock/costech-ventures', label: 'Costech Ventures', permission: 'view-restock' }
+          { path: '/dashboard/india-selling/restock/costech-ventures', label: 'Costech Ventures', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/maverick', label: 'Maverick', permission: 'view-restock' },
+          { path: '/dashboard/india-selling/restock/kalash', label: 'Kalash', permission: 'view-restock' }
         ]
       },
       {

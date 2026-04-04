@@ -129,12 +129,13 @@ export default function UBeautyListingPage() {
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
 
-  const SELLER_TAG_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV' };
+  const SELLER_TAG_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV', 7: 'MV', 8: 'KL' };
   const SELLER_NAME_MAP: Record<number, string> = {
     1: 'Golden Aura', 2: 'Rudra Retail', 3: 'UBeauty',
-    4: 'Velvet Vista', 5: 'Dropy Ecom', 6: 'Costech Ventures'
+    4: 'Velvet Vista', 5: 'Dropy Ecom', 6: 'Costech Ventures',
+    7: 'Maverick', 8: 'Kalash'
   };
-  const ALL_SELLER_IDS = [1, 2, 3, 4, 5, 6];
+  const ALL_SELLER_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
 
   type CrossSellerInfo = { tag: string; sellerName: string; listedAt: string | null };
   const [listedByOthers, setListedByOthers] = useState<Record<string, CrossSellerInfo[]>>({});
@@ -343,8 +344,6 @@ export default function UBeautyListingPage() {
         product_name: product.product_name,
         sku: product.sku,
         selling_price: product.selling_price,
-        min_price: calcMin(product.selling_price),
-        max_price: calcMax(product.selling_price),
         seller_link: product.seller_link,
         from_table: fromTable,
         to_table: toTable,

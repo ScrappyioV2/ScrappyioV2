@@ -21,6 +21,8 @@ const SELLER_TABLE_GROUPS: Record<number, string[]> = {
   4: ['india_seller_4_high_demand', 'india_seller_4_low_demand', 'india_seller_4_dropshipping', 'india_seller_4_not_approved'],
   5: ['india_seller_5_high_demand', 'india_seller_5_low_demand', 'india_seller_5_dropshipping', 'india_seller_5_not_approved'],
   6: ['india_seller_6_high_demand', 'india_seller_6_low_demand', 'india_seller_6_dropshipping', 'india_seller_6_not_approved'],
+  7: ['india_seller_7_high_demand', 'india_seller_7_low_demand', 'india_seller_7_dropshipping', 'india_seller_7_not_approved'],
+  8: ['india_seller_8_high_demand', 'india_seller_8_low_demand', 'india_seller_8_dropshipping', 'india_seller_8_not_approved'],
 };
 
 const ALL_SELLERS = [
@@ -30,6 +32,8 @@ const ALL_SELLERS = [
   { id: 4, slug: "velvet-vista", name: "Velvet Vista" },
   { id: 5, slug: "dropy-ecom", name: "Dropy Ecom" },
   { id: 6, slug: "costech-ventures", name: "Costech Ventures" },
+  { id: 7, slug: "maverick", name: "Maverick" },
+  { id: 8, slug: "kalash", name: "Kalash" },
 ];
 
 type BrandProgressRow = {
@@ -260,7 +264,7 @@ export default function BrandCheckingPage() {
                           />
                         </div>
                         <div className="text-right mt-0.5">
-                          <span className="text-[9px] text-slate-500">{Math.round(approvedPercentage)}%</span>
+                          <span className="text-[9px] text-slate-500">{seller.approved} / {seller.totalProducts}</span>
                         </div>
                       </div>
 
@@ -281,7 +285,28 @@ export default function BrandCheckingPage() {
                           />
                         </div>
                         <div className="text-right mt-0.5">
-                          <span className="text-[9px] text-slate-500">{Math.round(notApprovedPercentage)}%</span>
+                          <span className="text-[9px] text-slate-500">{seller.notApproved} / {seller.totalProducts}</span>
+                        </div>
+                      </div>
+
+                      {/* Pending */}
+                      <div>
+                        <div className="flex justify-between items-end mb-1">
+                          <span className="text-xs text-amber-400 font-medium flex items-center gap-1">
+                            <span className="w-3 h-3 inline-flex items-center justify-center text-[8px]">⏳</span> Pending
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                            {(seller.totalProducts - seller.approved - seller.notApproved).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700/50">
+                          <div
+                            className="bg-amber-500 h-full rounded-full shadow-[0_0_10px_rgba(245,158,11,0.4)] transition-all duration-700 ease-out"
+                            style={{ width: `${seller.totalProducts > 0 ? ((seller.totalProducts - seller.approved - seller.notApproved) / seller.totalProducts) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <div className="text-right mt-0.5">
+                          <span className="text-[9px] text-slate-500">{seller.totalProducts - seller.approved - seller.notApproved} / {seller.totalProducts}</span>
                         </div>
                       </div>
                     </div>

@@ -802,6 +802,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             VV: 'bg-purple-600 text-white',
             DE: 'bg-orange-500 text-white',
             CV: 'bg-green-600 text-white',
+            MV: 'bg-orange-600 text-white',
+            KL: 'bg-lime-500 text-black',
         };
 
         return (
@@ -1060,6 +1062,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                             VV: 'bg-purple-500 text-white border border-purple-600',
                                             DE: 'bg-cyan-500 text-black border border-cyan-600',
                                             CV: 'bg-teal-500 text-white border border-teal-600',
+                                            MV: 'bg-orange-600 text-white border border-orange-700',
+                                            KL: 'bg-lime-500 text-black border border-lime-600',
                                         };
                                         const overdue = isRowOverdue(merged.delivery_date);
                                         return (

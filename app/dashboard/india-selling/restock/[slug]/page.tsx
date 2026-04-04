@@ -15,6 +15,8 @@ const SELLERS = [
     { tag: 'VV', name: 'Velvet Vista', id: 4, slug: 'velvet-vista', color: 'bg-emerald-500' },
     { tag: 'DE', name: 'Dropy Ecom', id: 5, slug: 'dropy-ecom', color: 'bg-orange-500' },
     { tag: 'CV', name: 'Costech Ventures', id: 6, slug: 'costech-ventures', color: 'bg-green-600' },
+    { tag: 'MV', name: 'Maverick', id: 7, slug: 'maverick', color: 'bg-orange-600' },
+    { tag: 'KL', name: 'Kalash', id: 8, slug: 'kalash', color: 'bg-lime-500' },
 ]
 
 type RestockItem = {

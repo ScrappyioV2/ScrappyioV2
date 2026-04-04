@@ -834,6 +834,8 @@ export default function CheckingTable({
     VV: 'bg-purple-600 text-white',
     DE: 'bg-orange-500 text-white',
     CV: 'bg-green-600 text-white',
+    MV: 'bg-orange-600 text-white',
+    KL: 'bg-lime-500 text-black',
   };
 
   type MergedCheckingRow = {
@@ -884,6 +886,8 @@ export default function CheckingTable({
     4: 'VV',
     5: 'DE',
     6: 'CV',
+    7: 'MV',
+    8: 'KL',
   };
 
   // ============================================

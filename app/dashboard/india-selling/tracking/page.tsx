@@ -14,6 +14,8 @@ const SELLERS = [
     { tag: "VV", name: "Velvet Vista", id: 4, color: "bg-emerald-500" },
     { tag: "DE", name: "Dropy Ecom", id: 5, color: "bg-orange-500" },
     { tag: "CV", name: "Costech Ventures", id: 6, color: "bg-green-600" },
+    { tag: "MV", name: "Maverick", id: 7, color: "bg-orange-600" },
+    { tag: "KL", name: "Kalash", id: 8, color: "bg-lime-500" },
 ];
 
 type TabType = "inbound" | "boxes" | "checking";

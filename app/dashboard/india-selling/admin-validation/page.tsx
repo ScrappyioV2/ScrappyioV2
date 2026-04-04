@@ -79,6 +79,8 @@ const getSellerNameFromTag = (tag: string | null) => {
     case "VV": return "Velvet Vista";
     case "DE": return "Dropy Ecom";      // ✅ ADD THIS
     case "CV": return "Costech Ventures"; // ✅ ADD THIS
+    case "MV": return "Maverick";
+    case "KL": return "Kalash";
     default: return null;
   }
 };
@@ -1936,6 +1938,8 @@ export default function AdminValidationPage() {
                   else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white';
                   else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black';
                   else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white';
+                  else if (cleanTag === 'MV') badgeColor = 'bg-orange-600 text-white';
+                  else if (cleanTag === 'KL') badgeColor = 'bg-lime-500 text-black';
                   return (
                     <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>
                       {cleanTag}
@@ -2022,6 +2026,8 @@ export default function AdminValidationPage() {
           VV: 'bg-purple-500 text-white border-purple-600',
           DE: 'bg-cyan-500 text-black border-cyan-600',
           CV: 'bg-teal-500 text-white border-teal-600',
+          MV: 'bg-orange-600 text-white border-orange-700',
+          KL: 'bg-lime-500 text-black border-lime-600',
         };
 
         // ── Single seller → original single input (unchanged) ──

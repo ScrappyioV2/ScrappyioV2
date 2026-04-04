@@ -564,7 +564,7 @@ export default function UsaSellersPage() {
         'Sellers': item.seller || '',
         'Category': item.category || '',
         'Dimensions': item.dimensions || '',
-        'Weight': item.weight ? `${item.weight} ${item.weight_unit || 'kg'}` : '',
+        'Weight': item.weight ? `${item.weight} g` : '',
       }));
 
       exportData(formattedData, TABLE_NAME, format);

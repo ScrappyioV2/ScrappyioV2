@@ -3,6 +3,7 @@
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react';
+import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
@@ -39,8 +40,8 @@ type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject';
 // ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
   asin: 120,
-  product_name: 200,
   sku: 80,
+  product_name: 200,
   brand: 100,
   funnel: 90,
   monthly_unit: 90,
@@ -50,7 +51,7 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   remark: 120,
 };
 
-export default function DropyEcomPage() {
+export default function MaverickPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +63,8 @@ export default function DropyEcomPage() {
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState({
     asin: true,
-    product_name: true,
     sku: true,
+    product_name: true,
     brand: true,
     funnel: true,
     monthly_unit: true,
@@ -93,7 +94,7 @@ export default function DropyEcomPage() {
   // ✅ 2. UPDATE: Initialize widths with DEFAULT_WIDTHS
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('costech_ventures_column_widths');
+      const saved = localStorage.getItem('maverick_column_widths');
       if (saved) {
         return { ...DEFAULT_WIDTHS, ...JSON.parse(saved) };
       }
@@ -107,7 +108,7 @@ export default function DropyEcomPage() {
   // Column order state
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dropyecom_column_order');
+      const saved = localStorage.getItem('maverick_column_order');
       if (saved) {
         const parsedOrder = JSON.parse(saved);
         // ✅ Add remark if it's missing from saved order
@@ -149,7 +150,7 @@ export default function DropyEcomPage() {
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
 
 
-  const SELLER_ID = 5;
+  const SELLER_ID = 7;
 
   const SELLER_CODE_MAP: Record<number, string> = {
     1: 'GR',
@@ -179,7 +180,7 @@ export default function DropyEcomPage() {
   };
 
   const handleMouseUp = () => {
-    if (resizeRef.current) localStorage.setItem('dropy_ecom_column_widths', JSON.stringify(columnWidths));
+    if (resizeRef.current) localStorage.setItem('maverick_column_widths', JSON.stringify(columnWidths));
     resizeRef.current = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
@@ -306,7 +307,7 @@ export default function DropyEcomPage() {
   const fetchLastMovementHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from('india_seller_5_dropy_ecom_movement_history')
+        .from('india_seller_7_maverick_movement_history')
         .select('*')
         .eq('from_table', `india_seller_${SELLER_ID}_${activeTab}`)
         .order('moved_at', { ascending: false })
@@ -355,7 +356,7 @@ export default function DropyEcomPage() {
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
       const { error } = await supabase
-        .from(`india_seller_5_dropy_ecom_movement_history`)
+        .from(`india_seller_7_maverick_movement_history`)
         .insert({
           asin: product.asin,
           product_name: product.product_name,
@@ -433,13 +434,14 @@ export default function DropyEcomPage() {
         ]);
         setToast({ message: 'Product moved to Validation Main File!', type: 'success' });
         await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'approved' }).eq('asin', product.asin);
+        // ✅ ADD THIS:
         logActivity({
           action: 'approve',
           marketplace: 'india',
           page: 'brand-checking',
           table_name: currentTable,
           asin: product.asin,
-          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'dropy-ecom', target: 'india_validation_main_file' }
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', target: 'india_validation_main_file' }
         });
 
       } else if (action === 'not_approved') {
@@ -455,13 +457,14 @@ export default function DropyEcomPage() {
         ]);
         setToast({ message: 'Product moved to Not Approved!', type: 'success' });
         await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'not_approved' }).eq('asin', product.asin);
+        // ✅ ADD THIS:
         logActivity({
           action: 'not_approve',
           marketplace: 'india',
           page: 'brand-checking',
           table_name: currentTable,
           asin: product.asin,
-          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'dropy-ecom', target: targetTable }
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', target: targetTable }
         });
 
       } else if (action === 'reject') {
@@ -477,13 +480,14 @@ export default function DropyEcomPage() {
         ]);
         setToast({ message: 'Product rejected!', type: 'success' });
         await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'not_approved' }).eq('asin', product.asin);
+        // ✅ ADD THIS:
         logActivity({
           action: 'reject',
           marketplace: 'india',
           page: 'brand-checking',
           table_name: currentTable,
           asin: product.asin,
-          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'dropy-ecom', reason: reason, target: targetTable }
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', reason: reason, target: targetTable }
         });
       }
     } catch (err: any) {
@@ -529,7 +533,7 @@ export default function DropyEcomPage() {
 
         // Delete the invalid history entry from database
         await supabase
-          .from(`india_seller_${SELLER_ID}_dropy_ecom_movement_history`) // Change table name per seller
+          .from(`india_seller_7_maverick_movement_history`)
           .delete()
           .eq('asin', product.asin)
           .eq('from_table', fromTable)
@@ -587,7 +591,7 @@ export default function DropyEcomPage() {
       }
 
       await supabase
-        .from(`india_seller_${SELLER_ID}_dropy_ecom_movement_history`) // Change table name per seller
+        .from(`india_seller_7_maverick_movement_history`)
         .delete()
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
@@ -597,13 +601,14 @@ export default function DropyEcomPage() {
 
       setToast({ message: `Rolled back ${product.product_name}`, type: 'success' });
       await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'pending' }).eq('asin', product.asin);
+      // ✅ ADD THIS:
       logActivity({
         action: 'rollback',
         marketplace: 'india',
         page: 'brand-checking',
         table_name: fromTable,
         asin: product.asin,
-        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'dropy-ecom' }
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'maverick' }
       });
       setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
       fetchProducts(true);
@@ -681,13 +686,14 @@ export default function DropyEcomPage() {
         }
 
         movedCount++;
+        // ✅ ADD THIS:
         logActivity({
           action: 'move',
           marketplace: 'india',
           page: 'brand-checking',
           table_name: `india_seller_${SELLER_ID}_reject`,
           asin: product.asin,
-          details: { from: 'reject', to: targetTab, seller_id: SELLER_ID, seller_name: 'dropy-ecom' }
+          details: { from: 'reject', to: targetTab, seller_id: SELLER_ID, seller_name: 'maverick' }
         });
       }
 
@@ -778,7 +784,7 @@ export default function DropyEcomPage() {
     newOrder.splice(draggedIndex, 1);
     newOrder.splice(targetIndex, 0, draggedColumn);
     setColumnOrder(newOrder);
-    localStorage.setItem('dropy_ecom_column_order', JSON.stringify(newOrder));
+    localStorage.setItem('maverick_column_order', JSON.stringify(newOrder));
     setDraggedColumn(null);
   };
 
@@ -873,7 +879,7 @@ export default function DropyEcomPage() {
                   <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                     <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Dropy Ecom Listing</h1>
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">Maverick Listing</h1>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-400 pl-[3.25rem]">
                   Review and process listing errors and approvals
@@ -1037,8 +1043,16 @@ export default function DropyEcomPage() {
                       </th>
                       {columnOrder.map((col) => {
                         const columnNames: Record<string, string> = {
-                          asin: 'ASIN', product_name: 'Product Name', sku: 'SKU', brand: 'Brand', funnel: 'Funnel',
-                          monthly_unit: 'Monthly Unit', product_link: 'Product Link', amz_link: 'AMZ Link', reason: 'Reason', remark: 'Remark',
+                          asin: 'ASIN',
+                          product_name: 'Product Name',
+                          sku: 'SKU',
+                          brand: 'Brand',
+                          funnel: 'Funnel',
+                          monthly_unit: 'Monthly Unit',
+                          product_link: 'Product Link',
+                          amz_link: 'AMZ Link',
+                          reason: 'Reason',
+                          remark: 'Remark',
                         };
                         if (col === 'reason' && activeTab !== 'reject') return null;
 
@@ -1074,12 +1088,6 @@ export default function DropyEcomPage() {
                               {/* ✅ ADD DEBUG LOG */}
                               {col === 'product_link' || col === 'amz_link' ? (
                                 <>
-                                  {console.log('🔍 DEBUG:', {
-                                    column: col,
-                                    value: product[col as keyof ProductRow],
-                                    hasValue: !!product[col as keyof ProductRow],
-                                    type: typeof product[col as keyof ProductRow]
-                                  })}
                                   {product[col as keyof ProductRow] ? (
                                     <a
                                       href={ensureAbsoluteUrl(String(product[col as keyof ProductRow]))}
@@ -1249,5 +1257,3 @@ export default function DropyEcomPage() {
     </>
   )
 }
-
-//app\dashboard\india-selling\brand-checking\golden-aura\page.tsx

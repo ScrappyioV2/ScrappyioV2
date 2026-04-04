@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 
 /* === CONFIGURATION === */
-const SELLER_ID = 6;
-const SELLER_NAME = "Costech Ventures";
+const SELLER_ID = 7;
+const SELLER_NAME = "Maverick";
 const BASE_TABLE_PREFIX = `india_listing_error_seller_${SELLER_ID}`;
 const ITEMS_PER_PAGE = 100;
 const getTablesForTab = (tab: TabType): string[] => {
@@ -98,7 +98,7 @@ const TABS = [
   { id: 'removed', label: 'Removed', color: 'text-slate-500', glow: '' },
 ];
 
-export default function CostechVenturesListingPage() {
+export default function MaverickListingErrorPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('high_demand');
   const [products, setProducts] = useState<ListingProduct[]>([]);
@@ -437,7 +437,7 @@ export default function CostechVenturesListingPage() {
           from: activeTab,
           to: target,
           seller_id: SELLER_ID,
-          seller_name: 'rudra-retail',
+          seller_name: 'maverick',
           ...(reason ? { error_reason: reason } : {})
         }
       });
@@ -511,7 +511,7 @@ export default function CostechVenturesListingPage() {
         page: 'listing-error',
         table_name: fromTable,
         asin: product.asin,
-        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'rudra-retail' }
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'maverick' }
       });
     } catch (err: any) {
       console.error("Rollback error:", err);

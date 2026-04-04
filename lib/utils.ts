@@ -11,6 +11,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const ensureAbsoluteUrl = (url: string): string => {
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
 
 // ============================================
 // NEW FUNCTIONS FOR BRAND CHECKING
@@ -92,7 +98,9 @@ export const SELLER_TAG_MAPPING = {
   'UB': 3, // UBeauty
   'VV': 4, // Velvet Vista
   'DE': 5, // Dropy Ecom
-  'CV': 6  // Costech Ventures
+  'CV': 6, // Costech Ventures
+  'MV': 7, // Maverick
+  'KL': 8  // Kalash
 } as const;
 
 

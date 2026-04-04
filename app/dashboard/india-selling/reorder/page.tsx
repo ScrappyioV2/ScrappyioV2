@@ -87,6 +87,8 @@ const SELLERS: Seller[] = [
   { id: 4, name: "Velvet Vista", table_suffix: "seller_4", tag: "VV", emoji: "💜", activeColor: "bg-violet-600", activeShadow: "shadow-violet-500/40" },
   { id: 5, name: "Dropy Ecom", table_suffix: "seller_5", tag: "DE", emoji: "🟠", activeColor: "bg-orange-500", activeShadow: "shadow-orange-500/40" },  // ✅ NEW
   { id: 6, name: "Costech Ventures", table_suffix: "seller_6", tag: "CV", emoji: "🟢", activeColor: "bg-green-600", activeShadow: "shadow-green-500/40" },  // ✅ NEW
+  { id: 7, name: "Maverick", table_suffix: "seller_7", tag: "MV", emoji: "🟧", activeColor: "bg-orange-600", activeShadow: "shadow-orange-500/40" },
+  { id: 8, name: "Kalash", table_suffix: "seller_8", tag: "KL", emoji: "🟩", activeColor: "bg-lime-500", activeShadow: "shadow-lime-500/40" },
 ];
 
 export default function ReorderPage() {

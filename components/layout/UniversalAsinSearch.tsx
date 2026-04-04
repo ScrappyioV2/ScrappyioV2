@@ -27,6 +27,8 @@ const SELLERS = [
     { id: 4, name: 'Velvet Vista', slug: 'velvet-vista' },
     { id: 5, name: 'Dropy Ecom', slug: 'dropy-ecom' },
     { id: 6, name: 'Costech Ventures', slug: 'costech-ventures' },
+    { id: 7, name: 'Maverick', slug: 'maverick' },
+    { id: 8, name: 'Kalash', slug: 'kalash' },
 ]
 
 function seller(id: number) {

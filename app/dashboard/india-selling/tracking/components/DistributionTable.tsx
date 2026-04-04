@@ -56,16 +56,18 @@ interface DistributionTableProps {
 
 // Reverse mapping: sellerId → seller tag
 const SELLER_ID_TO_TAG: Record<number, string> = {
-    1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV',
+    1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV', 7: 'MV', 8: 'KL',
 };
 
 const SELLER_NAMES: Record<string, string> = {
     GR: 'Golden Aura', RR: 'Rudra Retail', UB: 'UBeauty',
     VV: 'Velvet Vista', DE: 'Dropy Ecom', CV: 'Costech Ventures',
+    MV: 'Maverick', KL: 'Kalash',
 };
 
 const SELLER_COLORS: Record<string, string> = {
     GR: 'yellow', RR: 'indigo', UB: 'pink', VV: 'emerald', DE: 'orange', CV: 'green',
+    MV: 'orange', KL: 'lime',
 };
 
 // ============================================

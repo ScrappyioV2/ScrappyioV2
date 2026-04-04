@@ -446,6 +446,8 @@ export default function PurchasesPage() {
                   else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
                   else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black border border-cyan-600';
                   else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white border border-teal-600';
+                  else if (cleanTag === 'MV') badgeColor = 'bg-orange-600 text-white border border-orange-700';
+                  else if (cleanTag === 'KL') badgeColor = 'bg-lime-500 text-black border border-lime-600';
                   return <span key={cleanTag} className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${badgeColor}`}>{cleanTag}</span>;
                 })}
               </div>
@@ -531,6 +533,8 @@ export default function PurchasesPage() {
           VV: 'bg-purple-500 text-white border border-purple-600',
           DE: 'bg-cyan-500 text-black border border-cyan-600',
           CV: 'bg-teal-500 text-white border border-teal-600',
+          MV: 'bg-orange-600 text-white border border-orange-700',
+          KL: 'bg-lime-500 text-black border border-lime-600',
         };
 
         return (
@@ -1387,7 +1391,7 @@ export default function PurchasesPage() {
         const rawSellerTag = product.seller_tag || '';
         const sellerTags = rawSellerTag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean);
         const sellerTagMapping: Record<string, number> = {
-          'GR': 1, 'RR': 2, 'UB': 3, 'VV': 4, 'DE': 5, 'CV': 6
+          'GR': 1, 'RR': 2, 'UB': 3, 'VV': 4, 'DE': 5, 'CV': 6, 'MV': 7, 'KL': 8
         };
 
         // Delete from each tracking table
@@ -1609,7 +1613,9 @@ export default function PurchasesPage() {
         'UB': 3, // UBeauty
         'VV': 4, // Velvet Vista
         'DE': 5, // Dropy Ecom ✅ NEW
-        'CV': 6  // Costech Ventures ✅ NEW
+        'CV': 6, // Costech Ventures ✅ NEW
+        'MV': 7, // Maverick
+        'KL': 8  // Kalash
       };
 
 
@@ -2348,7 +2354,7 @@ export default function PurchasesPage() {
             >
               All
             </button>
-            {['GR', 'RR', 'UB', 'VV', 'DE', 'CV'].map((tag) => {
+            {['GR', 'RR', 'UB', 'VV', 'DE', 'CV', 'MV', 'KL'].map((tag) => {
               const tagColors: Record<string, string> = {
                 GR: 'from-yellow-400 to-yellow-600 text-black',
                 RR: 'from-slate-400 to-slate-600 text-white',
@@ -2356,6 +2362,8 @@ export default function PurchasesPage() {
                 VV: 'from-purple-400 to-purple-600 text-white',
                 DE: 'from-cyan-400 to-cyan-600 text-black',
                 CV: 'from-teal-400 to-teal-600 text-white',
+                MV: 'from-orange-500 to-orange-700 text-white',
+                KL: 'from-lime-400 to-lime-600 text-black',
               };
               return (
                 <button

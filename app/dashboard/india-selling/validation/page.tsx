@@ -194,6 +194,8 @@ const SELLER_STYLES: Record<string, string> = {
     VV: 'bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-lg border border-purple-700/30',    // Velvet Vista - PURPLE
     DE: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',    // Dropy Ecom - ORANGE
     CV: 'bg-gradient-to-br from-green-500 to-green-700 text-white shadow-lg border border-green-600/30',       // Costech Ventures - GREEN
+    MV: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',   // Maverick - ORANGE
+    KL: 'bg-gradient-to-br from-lime-400 to-lime-600 text-black shadow-lg border border-lime-500/30',         // Kalash - LIME
 };
 
 const renderSellerTags = (sellerTag: string | null) => {

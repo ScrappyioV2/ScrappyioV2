@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
 import FunnelBadge from '../../../../components/FunnelBadge';
-import { generateAmazonLink } from '@/lib/utils';
+import { generateAmazonLink , ensureAbsoluteUrl } from '@/lib/utils';
 import {
   Search,
   RotateCcw,
@@ -978,7 +978,7 @@ export default function VelvetVistaPage() {
                               ) : col === 'product_link' || col === 'amz_link' ? (
                                 product[col as keyof ProductRow] ? (
                                   <a
-                                    href={String(product[col as keyof ProductRow])}
+                                    href={ensureAbsoluteUrl(String(product[col as keyof ProductRow]))}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center px-2.5 py-1 rounded-md

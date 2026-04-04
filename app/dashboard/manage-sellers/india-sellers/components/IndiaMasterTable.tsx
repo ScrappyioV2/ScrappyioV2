@@ -691,7 +691,7 @@ export default function IndiaMasterTable({
                               View
                             </a>
                           ) : column === 'weight' ? (
-                            `${row.weight} ${row.weight_unit}`
+                            `${row.weight} g`
                           ) : column === 'price' ? (
                             <span className="text-emerald-400 font-mono font-medium">{row.price ? `₹${row.price}` : '-'}</span>
                           ) : column === 'bsr' ? (

@@ -21,6 +21,8 @@ const ALL_SELLERS = [
   { id: 4, slug: "velvet-vista", name: "Velvet Vista", color: "from-emerald-400 to-teal-500" },
   { id: 5, slug: "dropy-ecom", name: "Dropy Ecom", color: "from-orange-400 to-red-500" },
   { id: 6, slug: "costech-ventures", name: "Costech Ventures", color: "from-green-400 to-emerald-500" },
+  { id: 7, slug: "maverick", name: "Maverick", color: "from-orange-500 to-red-600" },
+  { id: 8, slug: "kalash", name: "Kalash", color: "from-lime-400 to-green-500" },
 ];
 
 /* ================= TYPES ================= */

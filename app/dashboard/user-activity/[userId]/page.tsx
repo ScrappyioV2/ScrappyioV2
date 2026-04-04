@@ -681,6 +681,11 @@ export default function UserActivityPage() {
                               {log.details.type}
                             </span>
                           )}
+                          {log.details?.seller_name && (
+                            <span className="text-[10px] text-emerald-400 px-1.5 py-0.5 bg-emerald-500/10 rounded font-medium">
+                              {log.details.seller_name.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                            </span>
+                          )}
                           {log.table_name && (
                             <span className="text-[10px] text-slate-600">
                               {formatTableName(log.table_name)}
