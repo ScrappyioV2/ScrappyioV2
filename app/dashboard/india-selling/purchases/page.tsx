@@ -434,9 +434,9 @@ export default function PurchasesPage() {
       case 'funnelseller':
         if (!visibleColumns.funnelseller) return null;
         return (
-          <td key={colkey} className="px-6 py-4 overflow-hidden" style={{ width: columnWidths.funnelseller }}>
+          <td key={colkey} className="px-6 py-4" style={{ width: columnWidths.funnelseller, minWidth: 180 }}>
             {product.validation_seller_tag ? (
-              <div className="grid grid-cols-3 gap-0.5">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                 {product.validation_seller_tag.split(',').map((tag: string) => {
                   const cleanTag = tag.trim();
                   let badgeColor = 'bg-[#1a1a1a] text-white';
@@ -448,7 +448,7 @@ export default function PurchasesPage() {
                   else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white border border-teal-600';
                   else if (cleanTag === 'MV') badgeColor = 'bg-orange-600 text-white border border-orange-700';
                   else if (cleanTag === 'KL') badgeColor = 'bg-lime-500 text-black border border-lime-600';
-                  return <span key={cleanTag} className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold ${badgeColor}`}>{cleanTag}</span>;
+                  return <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${badgeColor}`}>{cleanTag}</span>;
                 })}
               </div>
             ) : <span className="text-xs text-gray-300">-</span>}
@@ -508,7 +508,7 @@ export default function PurchasesPage() {
         if (qtySellerTags.length <= 1) {
           return (
             <td key={colkey} className="px-6 py-4 overflow-hidden"
-              style={{ width: columnWidths.buyingquantity }}>
+              style={{ width: columnWidths.buyingquantity, minWidth: 200 }}>
               <input
                 type="number"
                 defaultValue={product.buying_quantity ?? ''}
@@ -538,13 +538,13 @@ export default function PurchasesPage() {
         };
 
         return (
-          <td key={colkey} className="px-2 py-1.5 overflow-hidden"
-            style={{ width: columnWidths.buyingquantity }}>
-            <div className="grid grid-cols-2 gap-1">
+          <td key={colkey} className="px-4 py-3 overflow-hidden"
+            style={{ width: columnWidths.buyingquantity, minWidth: 200 }}>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               {qtySellerTags.map((tag: string) => (
-                <div key={tag} className="flex items-center gap-0.5">
+                <div key={tag} className="flex items-center gap-1">
                   <span
-                    className={`w-5 h-4 flex items-center justify-center rounded text-[9px] font-bold flex-shrink-0 ${qtyTagColors[tag] ?? 'bg-[#1a1a1a] text-white'}`}
+                    className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${qtyTagColors[tag] ?? 'bg-[#1a1a1a] text-white border-white/[0.1]'}`}
                   >
                     {tag}
                   </span>
@@ -574,11 +574,17 @@ export default function PurchasesPage() {
                         product
                       )
                     }
-                    className="w-full px-1 py-0.5 bg-[#111111] border border-white/[0.1] rounded text-[11px] text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="0"
+                    className="w-14 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="Qty"
                   />
                 </div>
               ))}
+              <div className="col-span-2 border-t border-white/[0.1] pt-1 mt-0.5 flex items-center gap-1">
+                <span className="text-[10px] text-gray-300 font-medium">Total:</span>
+                <span className="text-[11px] text-white font-bold">
+                  {Object.values((product.buying_quantities as Record<string, number>) ?? {}).reduce((s, v) => s + (Number(v) || 0), 0) || '—'}
+                </span>
+              </div>
             </div>
           </td>
         );
@@ -1009,7 +1015,7 @@ export default function PurchasesPage() {
     // targetquantity: 55,
     admintargetprice: 80,
     funnelquantity: 45,
-    funnelseller: 160,
+    funnelseller: 200,
     inrpurchaselink: 55,
     origin: 60,
     buyingprice: 75,
@@ -1395,7 +1401,7 @@ export default function PurchasesPage() {
         };
 
         // Delete from each tracking table
-         // ✅ FIX: Delete from correct table (india_inbound_tracking)
+        // ✅ FIX: Delete from correct table (india_inbound_tracking)
         let trackingDeleteQuery = supabase
           .from('india_inbound_tracking')
           .delete()
