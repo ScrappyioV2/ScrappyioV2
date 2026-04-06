@@ -1497,7 +1497,7 @@ export default function ReorderPage() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
                       className="px-4 py-2 bg-[#1a1a1a] hover:bg-gray-200 text-gray-100 rounded-lg font-medium transition-colors text-sm"
                     >
                       Copy

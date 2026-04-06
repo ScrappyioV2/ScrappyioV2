@@ -1472,7 +1472,7 @@ export default function CheckingTable({
                           value={(item as any).party || ''}
                           onChange={(e) => handlePartyChange(merged.allIds[0], e.target.value)}
                           placeholder="Enter party..."
-                          className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-gray-500"
+                          className="w-32 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-gray-500"
                         />
                       </td>
                       )}

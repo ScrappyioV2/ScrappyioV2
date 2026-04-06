@@ -74,7 +74,11 @@ const TABS = [
 
 export default function VelvetVistaListingPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('high_demand');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window === 'undefined') return 'high_demand';
+    return (localStorage.getItem(`scrappy_tab_${window.location.pathname}`) as TabType) || 'high_demand';
+  });
+  useEffect(() => { localStorage.setItem(`scrappy_tab_${window.location.pathname}`, activeTab); }, [activeTab]);
   const [products, setProducts] = useState<ListingProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);

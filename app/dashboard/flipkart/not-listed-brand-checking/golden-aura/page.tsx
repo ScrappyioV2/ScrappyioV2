@@ -51,7 +51,11 @@ const DEFAULT_WIDTHS: Record<string, number> = {
 };
 
 export default function GoldenAuraNotListedPage() {
-    const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
+    const [activeTab, setActiveTab] = useState<CategoryTab>(() => {
+    if (typeof window === 'undefined') return 'high_demand';
+    return (localStorage.getItem(`scrappy_tab_${window.location.pathname}`) as CategoryTab) || 'high_demand';
+  });
+  useEffect(() => { localStorage.setItem(`scrappy_tab_${window.location.pathname}`, activeTab); }, [activeTab]);
     const [products, setProducts] = useState<ProductRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

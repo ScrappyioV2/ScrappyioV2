@@ -1595,7 +1595,7 @@ export default function AdminValidationPage() {
                                 type="text"
                                 value={editingLinkValue}
                                 onChange={(e) => setEditingLinkValue(e.target.value)}
-                                className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
+                                className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                 placeholder="URL..."
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -1676,7 +1676,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.target_price || ''}
                           onChange={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
-                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1686,7 +1686,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.target_quantity || ''}
                           onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1699,7 +1699,7 @@ export default function AdminValidationPage() {
                           onChange={(e) =>
                             handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))
                           }
-                          className="w-24 px-2 py-1 bg-[#111111] border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
+                          className="w-24 px-2 py-1.5 bg-[#111111] border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
                           placeholder="₹"
                         />
                       </td>
@@ -1765,7 +1765,7 @@ export default function AdminValidationPage() {
                                 parseFloat(e.target.value) || null
                               )
                             }
-                            className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                            className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="g"
                           />
                           {calculatingIds.has(product.id) && (
@@ -1786,7 +1786,7 @@ export default function AdminValidationPage() {
                             onBlur={(e) =>
                               handleCellEdit(product.id, 'usdprice', parseFloat(e.target.value) || null)
                             }
-                            className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                            className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="$"
                           />
                           {calculatingIds.has(product.id) && (
@@ -1845,7 +1845,7 @@ export default function AdminValidationPage() {
                                 type="text"
                                 value={editingLinkValue}
                                 onChange={(e) => setEditingLinkValue(e.target.value)}
-                                className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
+                                className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                 placeholder="Supplier URL..."
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -1923,7 +1923,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.buying_price || ''}
                           onChange={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1933,7 +1933,7 @@ export default function AdminValidationPage() {
                           type="number"
                           defaultValue={product.buying_quantity || ''}
                           onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-                          className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                         />
                       </td>
 
@@ -1946,7 +1946,7 @@ export default function AdminValidationPage() {
                                 type="text"
                                 value={editingLinkValue}
                                 onChange={(e) => setEditingLinkValue(e.target.value)}
-                                className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
+                                className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                 placeholder="Amazon URL..."
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -2024,7 +2024,7 @@ export default function AdminValidationPage() {
                           type="text"
                           defaultValue={product.seller_phone || ''}
                           onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-                          className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                           placeholder="Phone"
                         />
                       </td>
@@ -2035,7 +2035,7 @@ export default function AdminValidationPage() {
                           type="text"
                           defaultValue={product.payment_method || ''}
                           onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-                          className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                          className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                           placeholder="Method"
                         />
                       </td>

@@ -719,7 +719,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                                 <span className={`px-2 py-0.5 rounded text-[11px] font-bold min-w-[28px] text-center ${SELLER_TAG_COLORS[sellerTag] || 'bg-[#1a1a1a] text-white'}`}>{sellerTag}</span>
                                                                 <input type="number" min={1} max={maxAllowed} value={quantities[sellerItem.id] ?? 0}
                                                                     onChange={e => { const val = Number(e.target.value); if (val >= 0) setQuantities(prev => ({ ...prev, [sellerItem.id]: Math.min(val, maxAllowed) })); }}
-                                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
+                                                                    className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
                                                                 <button onClick={() => handleRemoveSellerFromEditBox(sellerItem.id)} className="text-rose-400 hover:text-rose-300 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-400/10" title={`Remove ${sellerTag}`}>✕</button>
                                                             </div>
                                                         );

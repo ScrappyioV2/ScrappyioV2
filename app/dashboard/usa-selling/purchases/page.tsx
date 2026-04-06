@@ -1313,33 +1313,33 @@ useEffect(() => {
 
                       {/* Buying Price - Input */}
                       {visibleColumns.buyingprice && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.buyingprice}px` }}>
-                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Price" />
+                        <input type="number" defaultValue={product.buying_price || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_price', parseFloat(e.target.value))} className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Price" />
                       </td>}
 
                       {/* Buying Qty - Input */}
                       {visibleColumns.buyingquantity && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.buyingquantity}px` }}>
-                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Qty" />
+                        <input type="number" defaultValue={product.buying_quantity || ''} onBlur={(e) => handleCellEdit(product.id, 'buying_quantity', parseInt(e.target.value))} className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Qty" />
                       </td>}
 
                       {/* Seller Link - Input */}
                       {visibleColumns.sellerlink && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.sellerlink}px` }}>
-                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Link" />
+                        <input type="text" defaultValue={product.seller_link || ''} onBlur={(e) => handleCellEdit(product.id, 'seller_link', e.target.value)} className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Link" />
                       </td>}
 
                       {/* Seller Phone - Input */}
                       {visibleColumns.sellerphno && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.sellerphno}px` }}>
-                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Phone" />
+                        <input type="text" defaultValue={product.seller_phone || ""} onBlur={(e) => handleCellEdit(product.id, 'seller_phone', e.target.value)} className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Phone" />
                       </td>}
 
                       {/* Payment Method - Input */}
                       {visibleColumns.paymentmethod && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.paymentmethod}px` }}>
-                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Method" />
+                        <input type="text" defaultValue={product.payment_method || ""} onBlur={(e) => handleCellEdit(product.id, 'payment_method', e.target.value)} className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" placeholder="Method" />
                       </td>}
 
                       {/* Tracking Details - Input */}
                       {visibleColumns.trackingdetails && <td className="px-6 py-4 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.trackingdetails}px` }}>
                         {activeTab === 'order_confirmed' ? (
-                          <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
+                          <input type="text" defaultValue={product.tracking_details || ""} onBlur={(e) => handleCellEdit(product.id, 'tracking_details', e.target.value)} className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Tracking #" />
                         ) : (
                           <span className="text-xs text-gray-300 italic">After confirmation</span>
                         )}
@@ -1348,7 +1348,7 @@ useEffect(() => {
                       {/* Delivery Date - Input */}
                       {visibleColumns.deliverydate && <td className="px-6 py-4 bg-emerald-900/10 overflow-hidden" style={{ width: `${columnWidths.deliverydate}px` }}>
                         {activeTab === 'order_confirmed' ? (
-                          <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                          <input type="date" defaultValue={product.delivery_date || ""} onBlur={(e) => handleCellEdit(product.id, 'delivery_date', e.target.value)} className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                         ) : (
                           <span className="text-xs text-gray-300 italic">After confirmation</span>
                         )}
@@ -1603,7 +1603,7 @@ useEffect(() => {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(selectedRemark);
+                  (() => { try { navigator.clipboard?.writeText(selectedRemark || ''); } catch { const t = document.createElement('textarea'); t.value = selectedRemark || ''; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })();
                   // Optional: Add toast notification here
                 }}
                 className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"

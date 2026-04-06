@@ -957,14 +957,19 @@ export default function ValidationPage() {
                 'INDIA'
             );
 
-            // ONLY save calculated values — NEVER touch judgement
+            // Save calculated values
             const updateData: any = {
                 total_cost: result.total_cost !== null && isFinite(result.total_cost) ? Number(result.total_cost) : null,
                 total_revenue: result.total_revenue !== null && isFinite(result.total_revenue) ? Number(result.total_revenue) : null,
                 profit: result.profit !== null && isFinite(result.profit) ? Number(result.profit) : null,
                 calculated_judgement: result.judgement || 'PENDING',
-                // ❌ NO judgement field here — this was the bug
             };
+
+            // Auto-correct judgement ONLY for products already in Pass/Fail tabs
+            // Main File products have judgement=PENDING/null — untouched (manual Move button preserved)
+            if ((product.judgement === 'PASS' || product.judgement === 'FAIL') && result.judgement && result.judgement !== 'PENDING' && result.judgement !== product.judgement) {
+                updateData.judgement = result.judgement;
+            }
 
             console.log('Updating product', id, 'asin', product.asin, 'calcJudgement', result.judgement, updateData);
 
@@ -2333,7 +2338,7 @@ export default function ValidationPage() {
                                         type="text"
                                         value={editingSkuValue}
                                         onChange={(e) => setEditingSkuValue(e.target.value)}
-                                        className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
+                                        className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                                         placeholder="Enter SKU..."
                                         autoFocus
                                         onKeyDown={(e) => {
@@ -2754,7 +2759,7 @@ export default function ValidationPage() {
                             <input type="number" key={`${product.id}-pw-${product.product_weight}`} defaultValue={product.product_weight ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'product_weight', e.target.value)}
                                 onBlur={(e) => handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)}
-                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
+                                className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (product.product_weight ?? '-')}
                     </td>
@@ -2769,7 +2774,7 @@ export default function ValidationPage() {
                             <input type="text" key={`${product.id}-usd-${product.usd_price}`} defaultValue={product.usd_price ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'usd_price', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'usd_price', parsed) }}
-                                className="w-full max-w-[80px] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
+                                className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (formatUSD(product.usd_price))}
                     </td>
@@ -2784,7 +2789,7 @@ export default function ValidationPage() {
                             <input type="text" key={`${product.id}-inr-${product.inr_purchase}`} defaultValue={product.inr_purchase ?? ''}
                                 onChange={(e) => handleInstantCalc(product.id, 'inr_purchase', e.target.value)}
                                 onBlur={(e) => { const parsed = parseCurrency(e.target.value); handleCellEdit(product.id, 'inr_purchase', parsed) }}
-                                className="w-full max-w-[90px] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
+                                className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-xs"
                             />
                         ) : (formatINR(product.inr_purchase))}
                     </td>
@@ -2802,7 +2807,7 @@ export default function ValidationPage() {
                             onBlur={(e) => { const val = e.target.value.trim(); if (val) { handleCellEdit(product.id, 'inr_purchase_link', val); } }}
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                             placeholder="Paste source link"
-                            className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate text-xs"
+                            className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate text-xs"
                         />
                     </td>
                 );
@@ -3826,7 +3831,7 @@ export default function ValidationPage() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
                       className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm"
                     >
                       Copy

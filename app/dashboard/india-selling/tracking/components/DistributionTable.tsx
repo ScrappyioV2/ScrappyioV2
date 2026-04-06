@@ -385,7 +385,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                     onChange={(e) => setEditValue(e.target.value)}
                     onBlur={saveEdit}
                     onKeyDown={handleKeyDown}
-                    className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-sm text-gray-100 focus:outline-none"
+                    className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-sm text-gray-100 focus:outline-none"
                 />
             );
         }

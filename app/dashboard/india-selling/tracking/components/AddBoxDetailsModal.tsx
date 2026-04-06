@@ -538,7 +538,7 @@ export default function AddBoxDetailsModal({
                                                         draft?.product_weight ?? (p.product_weight ?? "")
                                                     }
                                                     onChange={(e) => handleWeightChange(p, e.target.value)}
-                                                    className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                                    className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                                                 />
                                             </td>
 

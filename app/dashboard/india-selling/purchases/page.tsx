@@ -487,8 +487,8 @@ export default function PurchasesPage() {
               type="number"
               defaultValue={product.buying_price ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
-              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-              placeholder="Price"
+              className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              placeholder="Price..."
             />
           </td>
         );
@@ -515,7 +515,7 @@ export default function PurchasesPage() {
                 onBlur={(e) =>
                   handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))
                 }
-                className="w-14 min-w-[3rem] px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 placeholder="Qty"
               />
             </td>
@@ -539,7 +539,7 @@ export default function PurchasesPage() {
 
         return (
           <td key={colkey} className="px-4 py-3 overflow-hidden"
-            style={{ width: columnWidths.buyingquantity, minWidth: 200 }}>
+            style={{ width: columnWidths.buyingquantity, minWidth: 250 }}>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               {qtySellerTags.map((tag: string) => (
                 <div key={tag} className="flex items-center gap-1">
@@ -574,7 +574,7 @@ export default function PurchasesPage() {
                         product
                       )
                     }
-                    className="w-14 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-20 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="Qty"
                   />
                 </div>
@@ -647,8 +647,8 @@ export default function PurchasesPage() {
               type="text"
               defaultValue={product.seller_phone ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-              placeholder="Phone"
+              className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              placeholder="Phone..."
             />
           </td>
         );
@@ -661,8 +661,8 @@ export default function PurchasesPage() {
               type="text"
               defaultValue={product.payment_method ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-              className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-              placeholder="Method"
+              className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              placeholder="Method..."
             />
           </td>
         );
@@ -675,7 +675,7 @@ export default function PurchasesPage() {
             <select
               value={product.address ?? ''}
               onChange={(e) => handleCellEdit(product.id, 'address', e.target.value || null)}
-              className="w-full px-2 py-1 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             >
               <option value="">-</option>
               <option value="A">A</option>
@@ -694,7 +694,7 @@ export default function PurchasesPage() {
                 type="text"
                 defaultValue={product.tracking_details ?? ''}
                 onBlur={(e) => handleCellEdit(product.id, 'trackingdetails', e.target.value)}
-                className="w-full px-2 py-1 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 placeholder="Tracking"
               />
             ) : <span className="text-xs text-gray-300 italic">After confirmation</span>}
@@ -717,7 +717,7 @@ export default function PurchasesPage() {
                   if (val && val.split('-')[0].length !== 4) { e.target.value = product.delivery_date ?? ''; return; }
                   handleCellEdit(product.id, 'deliverydate', val);
                 }}
-                className="w-full px-2 py-1 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
+                className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             ) : <span className="text-xs text-gray-300 italic">After confirmation</span>}
           </td>
@@ -739,7 +739,7 @@ export default function PurchasesPage() {
                   if (val && val.split('-')[0].length !== 4) { e.target.value = product.order_date ?? ''; return; }
                   handleCellEdit(product.id, 'orderdate', val);
                 }}
-                className="w-full px-2 py-1 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
+                className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark]"
               />
             ) : <span className="text-xs text-gray-300 italic">After confirmation</span>}
           </td>
@@ -1021,8 +1021,8 @@ export default function PurchasesPage() {
     buyingprice: 75,
     buyingquantity: 200,
     sellerlink: 120,
-    sellerphno: 85,
-    paymentmethod: 85,
+    sellerphno: 140,
+    paymentmethod: 140,
     address: 80,
     trackingdetails: 100,
     deliverydate: 140,
@@ -2578,8 +2578,8 @@ export default function PurchasesPage() {
       {/* Table Container */}
       <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-          <table className="w-full divide-y divide-white/[0.06] table-auto" style={{ minWidth: '1600px' }}>
-            <thead className="bg-[#111111] sticky top-0 z-10 shadow-md">
+          <table className="w-full table-auto max-w-full">
+            <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
               <tr>
                 {/* Checkbox - always first, NOT draggable */}
                 {visibleColumns.checkbox && (
@@ -2637,8 +2637,8 @@ export default function PurchasesPage() {
                       onDragStart={() => handleColumnDragStart(colkey)}
                       onDragOver={(e) => handleColumnDragOver(e, colkey)}
                       onDrop={handleColumnDrop}
-                      className={`px-3 py-3 text-center text-xs font-bold ${textColor} uppercase relative group ${bgColor} cursor-grab active:cursor-grabbing select-none`}
-                      style={{ width: w }}
+                      className={`px-4 py-3 text-left text-xs font-bold ${textColor} uppercase tracking-wider relative group ${bgColor} cursor-grab active:cursor-grabbing select-none`}
+                      style={{ minWidth: w, width: w }}
                     >
                       {labels[colkey] || colkey}
                       <div
@@ -2651,7 +2651,7 @@ export default function PurchasesPage() {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-white/[0.06]">
+            <tbody className="divide-y divide-white/[0.06] overflow-visible">
               {filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={99} className="px-4 py-16 text-center text-gray-300">
@@ -2980,7 +2980,7 @@ export default function PurchasesPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(editingRemarkText);
+                        (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })();
                       }}
                       className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
                     >

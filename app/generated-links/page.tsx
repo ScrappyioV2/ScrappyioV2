@@ -248,7 +248,7 @@ function GeneratedLinks() {
   }
 
   const copyToClipboard = async (text: string, linkId?: string) => {
-    navigator.clipboard.writeText(text)
+    (() => { try { navigator.clipboard?.writeText(text); } catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()
     setCopiedLinks(prev => new Set([...prev, text]))
 
     // Mark as copied in database if linkId is provided
@@ -291,7 +291,7 @@ function GeneratedLinks() {
     const allLinksText = links.map(link => link.profile_link).join('\n')
 
     // Copy to clipboard
-    await navigator.clipboard.writeText(allLinksText)
+    await (() => { try { navigator.clipboard?.writeText(allLinksText); } catch { const t = document.createElement('textarea'); t.value = allLinksText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()
 
     // Mark all as copied in database
     if (supabase) {

@@ -662,7 +662,7 @@ export default function CheckingTable({
         <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
           {/* Table Scroll Container */}
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full divide-y divide-white/[0.06]" style={{ minWidth: '2000px' }}>
+            <table className="w-full divide-y divide-white/[0.06]">
 
               <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10">
                 <tr>

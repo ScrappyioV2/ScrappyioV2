@@ -53,7 +53,11 @@ const DEFAULT_WIDTHS: Record<string, number> = {
 };
 
 export default function RudraRetailPage() {
-  const [activeTab, setActiveTab] = useState<CategoryTab>('high_demand');
+  const [activeTab, setActiveTab] = useState<CategoryTab>(() => {
+    if (typeof window === 'undefined') return 'high_demand';
+    return (localStorage.getItem(`scrappy_tab_${window.location.pathname}`) as CategoryTab) || 'high_demand';
+  });
+  useEffect(() => { localStorage.setItem(`scrappy_tab_${window.location.pathname}`, activeTab); }, [activeTab]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1250,7 +1254,7 @@ export default function RudraRetailPage() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
                       className="px-4 py-2 bg-[#1a1a1a] hover:bg-gray-200 text-gray-100 rounded-lg font-medium transition-colors text-sm"
                     >
                       Copy

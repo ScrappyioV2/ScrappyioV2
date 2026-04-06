@@ -2096,7 +2096,7 @@ export default function ValidationPage() {
                                                                     onBlur={(e) =>
                                                                         handleCellEdit(product.id, 'product_weight', Number(e.target.value) || null)
                                                                     }
-                                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 product.product_weight ?? '-'
@@ -2136,7 +2136,7 @@ export default function ValidationPage() {
                                                                         const parsed = parseCurrency(e.target.value);
                                                                         handleCellEdit(product.id, 'inr_purchase', parsed);
                                                                     }}
-                                                                    className="w-32 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                                    className="w-32 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                                                                 />
                                                             ) : (
                                                                 formatINR(product.inr_purchase)
@@ -2187,7 +2187,7 @@ export default function ValidationPage() {
                                                                     }
                                                                 }}
                                                                 placeholder="Enter link + press Enter ↵"
-                                                                className="w-full px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate"
+                                                                className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 truncate"
                                                             />
                                                         </td>
                                                     )}

@@ -1185,7 +1185,7 @@ function AddSeller() {
   const copyToClipboard = async (text: string, index: number) => {
     try {
       // Copy to clipboard
-      await navigator.clipboard.writeText(text)
+      await (() => { try { navigator.clipboard?.writeText(text); } catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()
 
       // Update local state immediately
       setGeneratedLinks(prev => prev.map((link, i) =>
@@ -1262,7 +1262,7 @@ function AddSeller() {
 
   const copyAllLinks = () => {
     const allLinks = generatedLinks.map(link => link.profile_link).join('\n')
-    navigator.clipboard.writeText(allLinks)
+    (() => { try { navigator.clipboard?.writeText(allLinks); } catch { const t = document.createElement('textarea'); t.value = allLinks; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()
     showToast(`Copied ${generatedLinks.length} links to clipboard!`, 'success')
   }
 

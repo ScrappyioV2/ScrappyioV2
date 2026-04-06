@@ -1859,7 +1859,7 @@ export default function AdminValidationPage() {
               {editingLinkId === product.id ? (
                 <div className="flex items-center gap-1">
                   <input type="text" value={editingLinkValue} onChange={(e) => setEditingLinkValue(e.target.value)}
-                    className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
+                    className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                     placeholder="URL..." autoFocus
                     onKeyDown={(e) => { if (e.key === 'Enter') { handleCellEdit(product.id, 'productlink', editingLinkValue); setEditingLinkId(null); } else if (e.key === 'Escape') { setEditingLinkId(null); } }}
                   />
@@ -1897,7 +1897,7 @@ export default function AdminValidationPage() {
             <input type="number" defaultValue={product.target_price}
               onBlur={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             />
           </td>
         );
@@ -1907,7 +1907,7 @@ export default function AdminValidationPage() {
       //     <td key={col_key} className="px-6 py-4">
       //       <input type="number" defaultValue={product.target_quantity}
       //         onChange={(e) => handleCellEdit(product.id, 'targetquantity', parseInt(e.target.value))}
-      //         className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+      //         className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
       //       />
       //     </td>
       //   );
@@ -1918,7 +1918,7 @@ export default function AdminValidationPage() {
             <input type="number" step="0.01" defaultValue={product.admin_target_price ?? ''}
               onBlur={(e) => handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className="w-24 px-2 py-1 bg-[#111111] border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
+              className="w-24 px-2 py-1.5 bg-[#111111] border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
               placeholder="₹"
             />
           </td>
@@ -1957,7 +1957,7 @@ export default function AdminValidationPage() {
             <div className="relative">
               <input type="number" step="0.01" defaultValue={product.product_weight}
                 onBlur={(e) => handleCellEdit(product.id, 'productweight', parseFloat(e.target.value) || null)}
-                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 placeholder="g"
               />
               {calculatingIds.has(product.id) && (
@@ -2002,7 +2002,7 @@ export default function AdminValidationPage() {
               <input type="number" defaultValue={product.buying_price}
                 onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
             </div>
           </td>
@@ -2045,7 +2045,7 @@ export default function AdminValidationPage() {
                   key={`${product.id}-single-${product.buying_quantity ?? ''}`}
                   defaultValue={product.buying_quantity ?? ''}
                   onChange={(e) => handleCellEdit(product.id, 'buyingquantity', parseInt(e.target.value))}
-                  className="w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                  className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 />
               </div>
             </td>
@@ -2057,12 +2057,12 @@ export default function AdminValidationPage() {
           .reduce((s, v) => s + (Number(v) || 0), 0);
 
         return (
-          <td key={col_key} className="px-6 py-4">
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+           <td key={col_key} className="px-3 py-3" style={{ minWidth: 280 }}>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               {qtyTags.map((tag: string) => (
                 <div key={tag} className="flex items-center gap-1">
                   <span
-                    className={`w-6 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[tag] ?? 'bg-[#1a1a1a] text-white border-white/[0.1]'
+                    className={`w-7 h-5 flex items-center justify-center rounded text-[10px] font-bold flex-shrink-0 border ${tagColors[tag] ?? 'bg-[#1a1a1a] text-white border-white/[0.1]'
                       }`}
                   >
                     {tag}
@@ -2082,7 +2082,7 @@ export default function AdminValidationPage() {
                         product
                       )
                     }
-                    className="w-14 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    className="w-20 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                     placeholder="Qty"
                   />
                 </div>
@@ -2105,7 +2105,7 @@ export default function AdminValidationPage() {
               {editingLinkId === `seller_${product.id}` ? (
                 <div className="flex items-center gap-1">
                   <input type="text" value={editingLinkValue} onChange={(e) => setEditingLinkValue(e.target.value)}
-                    className="w-full px-2 py-1 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
+                    className="w-full px-2 py-1.5 bg-[#111111] border border-orange-500 rounded text-xs text-white focus:ring-1 focus:ring-orange-500"
                     placeholder="Amazon URL..." autoFocus
                     onKeyDown={(e) => { if (e.key === 'Enter') { handleCellEdit(product.id, 'sellerlink', editingLinkValue); setEditingLinkId(null); } else if (e.key === 'Escape') { setEditingLinkId(null); } }}
                   />
@@ -2141,7 +2141,7 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4">
             <input type="text" defaultValue={product.seller_phone}
               onChange={(e) => handleCellEdit(product.id, 'sellerphone', e.target.value)}
-              className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Phone"
             />
           </td>
@@ -2152,7 +2152,7 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4">
             <input type="text" defaultValue={product.payment_method}
               onChange={(e) => handleCellEdit(product.id, 'paymentmethod', e.target.value)}
-              className="w-24 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="Method"
             />
           </td>
@@ -2955,7 +2955,7 @@ export default function AdminValidationPage() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigator.clipboard.writeText(editingRemarkText)}
+                      onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
                       className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm flex items-center gap-2"
                     >
                       Copy
