@@ -9,6 +9,7 @@ import Papa from 'papaparse';
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateProductValues, type CalculationConstants } from '@/lib/blackboxCalculations'
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 
 type AdminProduct = {
   id: string;
@@ -875,6 +876,55 @@ export default function AdminValidationPage() {
     }
   });
 
+
+  const handleSendBackToPurchases = async () => {
+    if (selectedIds.size === 0) {
+      setToast({ message: 'Please select at least one product', type: 'error' });
+      return;
+    }
+
+    try {
+      const selectedProducts = products.filter(p => selectedIds.has(p.id));
+
+      for (const product of selectedProducts) {
+        // Reset flags in india_purchases
+        let query = supabase
+          .from('india_purchases')
+          .update({ sent_to_admin: false, admin_confirmed: false })
+          .eq('asin', product.asin);
+
+        if (product.journey_id) {
+          query = query.eq('journey_id', product.journey_id);
+        }
+
+        const { error: updateError } = await query;
+        if (updateError) throw updateError;
+
+        // Delete from india_admin_validation
+        const { error: deleteError } = await supabase
+          .from('india_admin_validation')
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) throw deleteError;
+
+        logActivity({
+          action: 'send_back',
+          marketplace: 'india',
+          page: 'admin-validation',
+          table_name: 'india_admin_validation',
+          asin: product.asin,
+          details: { type: 'send_back_to_purchases', journey: product.journey_number }
+        });
+      }
+
+      setToast({ message: `Sent ${selectedIds.size} products back to Purchases`, type: 'success' });
+      setSelectedIds(new Set());
+      fetchProducts();
+    } catch (error: any) {
+      setToast({ message: `Error: ${error.message}`, type: 'error' });
+    }
+  };
 
   // Handle confirm selected products
   const handleConfirmSelected = async () => {
@@ -1931,17 +1981,8 @@ export default function AdminValidationPage() {
               <div className="flex flex-wrap gap-2">
                 {product.seller_tag.split(',').map((tag) => {
                   const cleanTag = tag.trim();
-                  let badgeColor = 'bg-slate-600 text-white';
-                  if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black';
-                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white';
-                  else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white';
-                  else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white';
-                  else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black';
-                  else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white';
-                  else if (cleanTag === 'MV') badgeColor = 'bg-orange-600 text-white';
-                  else if (cleanTag === 'KL') badgeColor = 'bg-lime-500 text-black';
                   return (
-                    <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>
+                    <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${SELLER_STYLES[cleanTag] || 'bg-slate-600 text-white'}`}>
                       {cleanTag}
                     </span>
                   );
@@ -2535,6 +2576,14 @@ export default function AdminValidationPage() {
                 </div>
               )}
             </div>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleSendBackToPurchases}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all shadow-md"
+              >
+                Send Back to Purchases ({selectedIds.size})
+              </button>
+            )}
             <button
               onClick={() => {
                 setModalInputs({

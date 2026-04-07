@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabaseClient";
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getFunnelBadgeStyle } from "@/lib/utils";
 import GenericRollbackModal from "@/components/india-selling/GenericRollbackModal";
@@ -377,14 +378,6 @@ interface BoxesTabProps {
     refreshKey?: number;
 }
 
-const SELLER_TAG_COLORS: Record<string, string> = {
-    GR: 'bg-yellow-400 text-black',
-    RR: 'bg-gray-400 text-black',
-    UB: 'bg-pink-500 text-white',
-    VV: 'bg-purple-600 text-white',
-    DE: 'bg-orange-500 text-white',
-    CV: 'bg-green-600 text-white',
-};
 
 // ============================================
 // ✅ NEW: EDIT BOX MODAL
@@ -662,7 +655,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         {group.sellers.map((s: any) => (
                                                             <div key={s.id} className="flex items-center gap-1.5 bg-[#111111] px-2 py-1 rounded">
-                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-[#1a1a1a] text-white'}`}>{s.tag}</span>
+                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>{s.tag}</span>
                                                                 <span className="text-xs text-amber-300 font-semibold">{s.pending} pending</span>
                                                             </div>
                                                         ))}
@@ -716,7 +709,7 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDe
                                                         const sellerTag = sellerItem.seller_tag || '??';
                                                         return (
                                                             <div key={sellerItem.id} className="flex items-center justify-center gap-2">
-                                                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold min-w-[28px] text-center ${SELLER_TAG_COLORS[sellerTag] || 'bg-[#1a1a1a] text-white'}`}>{sellerTag}</span>
+                                                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold min-w-[28px] text-center ${SELLER_STYLES[sellerTag] || 'bg-[#1a1a1a] text-white'}`}>{sellerTag}</span>
                                                                 <input type="number" min={1} max={maxAllowed} value={quantities[sellerItem.id] ?? 0}
                                                                     onChange={e => { const val = Number(e.target.value); if (val >= 0) setQuantities(prev => ({ ...prev, [sellerItem.id]: Math.min(val, maxAllowed) })); }}
                                                                     className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
@@ -1951,7 +1944,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                                     <div className="flex flex-wrap gap-1.5 justify-center items-center">
                                                                                         {merged.sellers.map(s => (
                                                                                             <div key={s.id} className="flex items-center gap-1">
-                                                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
+                                                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
                                                                                                     {s.tag}
                                                                                                 </span>
                                                                                                 <span className="text-xs text-gray-300 font-semibold">{s.qty}</span>
@@ -2215,7 +2208,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                     <td className="px-6 py-4 text-gray-300"><div className="truncate max-w-[200px]">{item.product_name || '-'}</div></td>
                                                                     <td className="px-6 py-4 text-center">
                                                                         {item.seller_tag ? (
-                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[item.seller_tag] || 'bg-[#1a1a1a] text-white'}`}>{item.seller_tag}</span>
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[item.seller_tag] || 'bg-[#1a1a1a] text-white'}`}>{item.seller_tag}</span>
                                                                         ) : '-'}
                                                                     </td>
                                                                     <td className="px-6 py-4 text-center">

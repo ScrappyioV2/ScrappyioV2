@@ -4,6 +4,7 @@ import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { getIndiaTrackingTableName, SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -828,16 +829,6 @@ export default function CheckingTable({
     };
   }, [openChecklistId]);
 
-  const SELLER_TAG_COLORS: Record<string, string> = {
-    GR: 'bg-yellow-400 text-black',
-    RR: 'bg-gray-400 text-black',
-    UB: 'bg-pink-500 text-white',
-    VV: 'bg-purple-600 text-white',
-    DE: 'bg-orange-500 text-white',
-    CV: 'bg-green-600 text-white',
-    MV: 'bg-orange-600 text-white',
-    KL: 'bg-lime-500 text-black',
-  };
 
   type MergedCheckingRow = {
     asin: string;
@@ -1323,7 +1314,7 @@ export default function CheckingTable({
                         <div className="flex flex-wrap gap-1.5 justify-center items-center">
                           {merged.sellers.map(s => (
                             <div key={s.id} className="flex items-center gap-1">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
                                 {s.tag}
                               </span>
                               <input

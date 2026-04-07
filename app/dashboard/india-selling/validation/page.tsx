@@ -326,6 +326,7 @@ export default function ValidationPage() {
         localStorage.setItem('indiaValidationFunnelFilter', funnelFilter);
     }, [funnelFilter]);
     const localEditCountRef = useRef(0);
+    const recentEditsRef = useRef<Map<string, number>>(new Map());
     const lastVisibilityRefreshRef = useRef(0);
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
@@ -529,6 +530,8 @@ export default function ValidationPage() {
                     if (!dbProduct) return null;
                     dbMap.delete(p.id);
                     if (movingIds.has(p.id)) return p;
+                    const editTime = recentEditsRef.current.get(p.id);
+                    if (editTime && Date.now() - editTime < 10000) return p;
                     // Keep local calculated_judgement if it exists (user just calculated)
                     return {
                         ...dbProduct,
@@ -804,6 +807,7 @@ export default function ValidationPage() {
 
     const handleCellEdit = async (id: string, field: string, value: any) => {
         localEditCountRef.current += 1;
+        recentEditsRef.current.set(id, Date.now());
         try {
             // Fields that indicate someone is working on this ASIN — clears NEW badge
             const WORK_FIELDS = ['usd_price', 'product_weight', 'inr_purchase', 'inr_purchase_link', 'sku', 'india_link', 'usa_link'];
@@ -1354,6 +1358,7 @@ export default function ValidationPage() {
 
     const handleFunnelChange = async (id: string, newFunnel: string) => {
         localEditCountRef.current += 1;
+        recentEditsRef.current.set(id, Date.now());
         const oldFunnel = products.find(p => p.id === id)?.funnel;
         // Optimistic UI
         setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: newFunnel } : p));
@@ -1374,8 +1379,9 @@ export default function ValidationPage() {
                 setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
             }
         } finally {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 3000));
             localEditCountRef.current -= 1;
+            setTimeout(() => recentEditsRef.current.delete(id), 10000);
         }
     };
 
@@ -1428,10 +1434,10 @@ export default function ValidationPage() {
         const journeyNum = product.journey_number || 1;
 
         try {
-            // 1. Fetch fresh data from DB to get the correct links
+            // 1. Fetch fresh data from DB to get the correct links + funnel + seller_tag
             const { data: realData, error: fetchError } = await supabase
                 .from('india_validation_main_file')
-                .select('india_link, inr_purchase_link')
+                .select('india_link, inr_purchase_link, funnel, seller_tag')
                 .eq('id', id)
                 .single();
 
@@ -1484,8 +1490,8 @@ export default function ValidationPage() {
                     asin: product.asin,
                     product_name: product.product_name,
                     brand: product.brand,
-                    seller_tag: product.seller_tag,
-                    funnel: product.funnel,
+                    seller_tag: realData?.seller_tag || product.seller_tag,
+                    funnel: realData?.funnel || product.funnel,
                     origin: originText,
                     origin_india: product.origin_india ?? false,
                     origin_china: product.origin_china ?? false,
@@ -2438,24 +2444,18 @@ export default function ValidationPage() {
                         {(activeTab === 'main_file' || activeTab === 'pending' || activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reworking') ? (
                             <div className="relative">
                                 <button
-                                    onClick={(e) => {
+                                    onClick={() => {
                                         if (openFunnelId === product.id) {
                                             setOpenFunnelId(null);
                                             setDropdownPos(null);
                                         } else {
-                                            const rect = e.currentTarget.getBoundingClientRect();
-                                            const spaceBelow = window.innerHeight - rect.bottom;
-                                            const dropdownHeight = 140;
-                                            const top = spaceBelow < dropdownHeight
-                                                ? rect.top - dropdownHeight - 4
-                                                : rect.bottom + 4;
-                                            setDropdownPos({ top, left: rect.left });
+                                            setDropdownPos({ top: 0, left: 0 });
                                             setOpenFunnelId(product.id);
                                             setOpenChecklistId(null);
                                             setOpenOriginId(null);
                                         }
                                     }}
-                                    className={`group/funnel relative cursor-pointer transition-all hover:scale-110 ${openFunnelId === product.id ? 'ring-2 ring-orange-500 rounded-lg' : ''}`}
+                                    className={`group/funnel relative cursor-pointer transition-all ${openFunnelId === product.id ? 'ring-2 ring-orange-500 rounded-lg' : ''}`}
                                     title="Click to change funnel"
                                 >
                                     {renderFunnelBadge(product.funnel)}
@@ -2468,7 +2468,7 @@ export default function ValidationPage() {
 
                                 {openFunnelId === product.id && dropdownPos && (
                                     <div
-                                        style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: 9999 }}
+                                        style={{ position: 'absolute', top: '100%', left: '0', zIndex: 9999 }}
                                         className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-1.5 min-w-[120px] animate-in fade-in zoom-in-95 duration-150"
                                     >
                                         {['RS', 'DP'].map((f) => (
@@ -3349,7 +3349,7 @@ export default function ValidationPage() {
                             </div>
                         ) : (
                             <>
-                                <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50" style={{ overflow: 'auto visible' }}>
+                                <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50" style={{ overflow: 'auto visible' }} onScroll={() => { setOpenFunnelId(null); setDropdownPos(null); setOpenChecklistId(null); setOpenOriginId(null); }}>
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
                                         <div className="absolute inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">

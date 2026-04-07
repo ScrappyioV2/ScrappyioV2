@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -1283,12 +1284,7 @@ export default function PurchasesPage() {
                           <div className="flex flex-wrap gap-1">
                             {product.validation_seller_tag.split(',').map(tag => {
                               const cleanTag = tag.trim();
-                              let badgeColor = 'bg-[#1a1a1a] text-white';
-                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-gray-100 border border-slate-500';
-                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
-                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-                              return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}>{cleanTag}</span>
+                              return <span key={cleanTag} className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${SELLER_STYLES[cleanTag] || 'bg-[#1a1a1a] text-white'}`}>{cleanTag}</span>
                             })}
                           </div>
                         ) : <span className="text-xs text-gray-300">-</span>}
@@ -1371,8 +1367,8 @@ export default function PurchasesPage() {
                           >
                             D
                           </button>
-                          <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
-                          <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
+                          <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500 text-black border border-yellow-600 rounded-md hover:bg-yellow-400 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
+                          <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500 text-white border border-red-600 rounded-md hover:bg-red-600 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
                         </div>
                       </td>}
                     </tr>

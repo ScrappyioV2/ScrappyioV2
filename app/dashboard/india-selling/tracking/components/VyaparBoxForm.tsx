@@ -2,17 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { Search, Trash2, Plus, X, GripVertical, Package, ArrowLeft, Save, Loader2 } from "lucide-react";
 
 // ─── CONSTANTS ──────────────────────────────────────────
-const SELLER_TAG_COLORS: Record<string, string> = {
-    GR: "bg-yellow-400 text-black",
-    RR: "bg-gray-400 text-black",
-    UB: "bg-pink-500 text-white",
-    VV: "bg-purple-600 text-white",
-    DE: "bg-orange-500 text-white",
-    CV: "bg-green-600 text-white",
-};
 
 // ─── TYPES ──────────────────────────────────────────────
 type FormRow = {
@@ -717,7 +710,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                                     <div className="flex gap-1.5">
                                                                         {group.sellers.map((s: any) => (
                                                                             <span key={s.id} className="flex items-center gap-1 text-[10px]">
-                                                                                <span className={`px-1.5 py-0.5 rounded font-bold ${SELLER_TAG_COLORS[s.tag] || "bg-[#1a1a1a] text-white"}`}>{s.tag}</span>
+                                                                                <span className={`px-1.5 py-0.5 rounded font-bold ${SELLER_STYLES[s.tag] || "bg-[#1a1a1a] text-white"}`}>{s.tag}</span>
                                                                                 <span className="text-gray-400">{s.pending}</span>
                                                                             </span>
                                                                         ))}
@@ -752,7 +745,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                             <div className="flex flex-col gap-1.5 items-center">
                                                 {row.sellerEntries.map((se, si) => (
                                                     <div key={se.id || si} className="flex items-center gap-1.5">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold min-w-[26px] text-center ${SELLER_TAG_COLORS[se.tag] || "bg-[#1a1a1a] text-white"}`}>
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold min-w-[26px] text-center ${SELLER_STYLES[se.tag] || "bg-[#1a1a1a] text-white"}`}>
                                                             {se.tag}
                                                         </span>
                                                         <input

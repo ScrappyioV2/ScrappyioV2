@@ -1178,7 +1178,7 @@ export default function DropyEcomPage() {
                               <button
                                 onClick={() => moveProduct(product, 'approved')}
                                 disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                className="px-3 py-1.5 bg-green-600 border border-green-700 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all text-xs font-bold"
                               >
                                 {processingId === product.id ? '...' : 'Approve'}
                               </button>
@@ -1186,7 +1186,7 @@ export default function DropyEcomPage() {
                                 <button
                                   onClick={() => moveProduct(product, 'not_approved')}
                                   disabled={processingId === product.id}
-                                  className="px-3 py-1.5 bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500 hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                  className="px-3 py-1.5 bg-amber-500 border border-amber-600 text-black rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-all text-xs font-bold"
                                 >
                                   Not Appr.
                                 </button>
@@ -1194,7 +1194,7 @@ export default function DropyEcomPage() {
                               <button
                                 onClick={() => setRejectModal({ isOpen: true, product })}
                                 disabled={processingId === product.id}
-                                className="px-3 py-1.5 bg-[#111111] text-gray-400 border border-white/[0.1] rounded-lg hover:bg-[#1a1a1a] hover:text-white disabled:opacity-50 transition-all text-xs font-bold"
+                                className="px-3 py-1.5 bg-red-600 border border-red-700 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all text-xs font-bold"
                               >
                                 Reject
                               </button>

@@ -1,5 +1,6 @@
 'use client';
 import { supabase } from '@/lib/supabaseClient';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, Fragment, useRef, useMemo } from "react";
 import { getFunnelBadgeStyle } from '@/lib/utils';
 import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
@@ -796,16 +797,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     const SellerTagBadge = ({ tag }: { tag: string | null }) => {
         if (!tag) return <span className="text-xs text-gray-300">-</span>;
 
-        const tagColors: Record<string, string> = {
-            GR: 'bg-yellow-400 text-black',
-            RR: 'bg-gray-400 text-black',
-            UB: 'bg-pink-500 text-white',
-            VV: 'bg-purple-600 text-white',
-            DE: 'bg-orange-500 text-white',
-            CV: 'bg-green-600 text-white',
-            MV: 'bg-orange-600 text-white',
-            KL: 'bg-lime-500 text-black',
-        };
+        const tagColors = SELLER_STYLES;
 
         return (
             <div className="flex flex-wrap gap-1 justify-center">
@@ -1056,16 +1048,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                 ) : (
                                     mergedProducts.map((merged, filteredIndex) => {
                                         const primaryRow = merged.rows[0];
-                                        const tagColors: Record<string, string> = {
-                                            GR: 'bg-yellow-500 text-black border border-yellow-600',
-                                            RR: 'bg-slate-500 text-white border border-white/[0.1]',
-                                            UB: 'bg-pink-500 text-white border border-pink-600',
-                                            VV: 'bg-purple-500 text-white border border-purple-600',
-                                            DE: 'bg-cyan-500 text-black border border-cyan-600',
-                                            CV: 'bg-teal-500 text-white border border-teal-600',
-                                            MV: 'bg-orange-600 text-white border border-orange-700',
-                                            KL: 'bg-lime-500 text-black border border-lime-600',
-                                        };
+                                        const tagColors = SELLER_STYLES;
                                         const overdue = isRowOverdue(merged.delivery_date);
                                         return (
                                             <Fragment key={merged.asin}>

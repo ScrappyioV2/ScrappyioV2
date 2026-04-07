@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { ensureAbsoluteUrl } from '@/lib/utils';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import {
   Search,
   RotateCcw,
@@ -48,26 +49,6 @@ const generateUUID = (): string => {
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
-};
-
-// 🆕 SELLER TAG COLORS (same as purchases page)
-const SELLER_TAG_COLORS: Record<string, string> = {
-  GR: 'bg-yellow-500 text-black border border-yellow-600',
-  RR: 'bg-slate-500 text-white border border-white/[0.1]',
-  UB: 'bg-pink-500 text-white border border-pink-600',
-  VV: 'bg-purple-500 text-white border border-purple-600',
-  DE: 'bg-cyan-500 text-black border border-cyan-600',
-  CV: 'bg-teal-500 text-white border border-teal-600',
-};
-
-// 🆕 SELLER TAG FILTER COLORS (gradient style for filter buttons)
-const SELLER_TAG_FILTER_COLORS: Record<string, string> = {
-  GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg',
-  RR: 'bg-gradient-to-br from-slate-400 to-slate-600 text-white shadow-lg',
-  UB: 'bg-gradient-to-br from-pink-400 to-pink-600 text-white shadow-lg',
-  VV: 'bg-gradient-to-br from-purple-400 to-purple-600 text-white shadow-lg',
-  DE: 'bg-gradient-to-br from-cyan-400 to-cyan-600 text-black shadow-lg',
-  CV: 'bg-gradient-to-br from-teal-400 to-teal-600 text-white shadow-lg',
 };
 
 interface ListingProduct {
@@ -770,7 +751,7 @@ export default function VelvetVistaListingPage() {
                                     ? `✓ Listed by ${crossInfo.sellerName}${crossInfo.listedAt ? ` on ${new Date(crossInfo.listedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`
                                     : cleanTag;
                                   return (
-                                    <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_TAG_COLORS[cleanTag] || 'bg-[#1a1a1a] text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
+                                    <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_STYLES[cleanTag] || 'bg-[#1a1a1a] text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
                                       {cleanTag}
                                       {isListedByOther && (
                                         <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">

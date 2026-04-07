@@ -7,7 +7,7 @@ import {
   // filterDuplicateASINs,
 } from '@/lib/utils/master-table/dataHelpers'
 import { useState, useEffect, useCallback } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
 import UploadModal from '@/components/shared/master-table/UploadModal';
 import ExportButton from '@/components/shared/master-table/ExportButton';

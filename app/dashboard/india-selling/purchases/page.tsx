@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, useRef } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -439,16 +440,7 @@ export default function PurchasesPage() {
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                 {product.validation_seller_tag.split(',').map((tag: string) => {
                   const cleanTag = tag.trim();
-                  let badgeColor = 'bg-[#1a1a1a] text-white';
-                  if (cleanTag === 'GR') badgeColor = 'bg-yellow-500 text-black border border-yellow-600';
-                  else if (cleanTag === 'RR') badgeColor = 'bg-slate-500 text-white border border-white/[0.1]';
-                  else if (cleanTag === 'UB') badgeColor = 'bg-pink-500 text-white border border-pink-600';
-                  else if (cleanTag === 'VV') badgeColor = 'bg-purple-500 text-white border border-purple-600';
-                  else if (cleanTag === 'DE') badgeColor = 'bg-cyan-500 text-black border border-cyan-600';
-                  else if (cleanTag === 'CV') badgeColor = 'bg-teal-500 text-white border border-teal-600';
-                  else if (cleanTag === 'MV') badgeColor = 'bg-orange-600 text-white border border-orange-700';
-                  else if (cleanTag === 'KL') badgeColor = 'bg-lime-500 text-black border border-lime-600';
-                  return <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${badgeColor}`}>{cleanTag}</span>;
+                  return <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${SELLER_STYLES[cleanTag] || 'bg-[#1a1a1a] text-white'}`}>{cleanTag}</span>;
                 })}
               </div>
             ) : <span className="text-xs text-gray-300">-</span>}
@@ -526,16 +518,7 @@ export default function PurchasesPage() {
         const perSellerQty: Record<string, number> =
           (product.buying_quantities as Record<string, number>) ?? {};
 
-        const qtyTagColors: Record<string, string> = {
-          GR: 'bg-yellow-500 text-black border border-yellow-600',
-          RR: 'bg-slate-500 text-white border border-white/[0.1]',
-          UB: 'bg-pink-500 text-white border border-pink-600',
-          VV: 'bg-purple-500 text-white border border-purple-600',
-          DE: 'bg-cyan-500 text-black border border-cyan-600',
-          CV: 'bg-teal-500 text-white border border-teal-600',
-          MV: 'bg-orange-600 text-white border border-orange-700',
-          KL: 'bg-lime-500 text-black border border-lime-600',
-        };
+        const qtyTagColors = SELLER_STYLES;
 
         return (
           <td key={colkey} className="px-4 py-3 overflow-hidden"
@@ -760,7 +743,7 @@ export default function PurchasesPage() {
                 <button
                   type="button"
                   onClick={() => handlePriceWait(product)}
-                  className="w-8 h-8 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded hover:bg-yellow-500 hover:text-black flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                  className="w-8 h-8 bg-yellow-500 text-black border border-yellow-600 rounded-md hover:bg-yellow-400 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
                   title="Price Wait"
                 >PW</button>
               )}
@@ -768,7 +751,7 @@ export default function PurchasesPage() {
                 <button
                   type="button"
                   onClick={() => handleNotFound(product)}
-                  className="w-8 h-8 bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                  className="w-8 h-8 bg-red-500 text-white border border-red-600 rounded-md hover:bg-red-600 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
                   title="Not Found"
                 >NF</button>
               )}

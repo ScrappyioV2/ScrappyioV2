@@ -1,5 +1,6 @@
 'use client';
 import { supabase } from '@/lib/supabaseClient';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getFunnelBadgeStyle } from '@/lib/utils';
 import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
@@ -640,14 +641,6 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
         assigned: '📦',
     };
 
-    const SELLER_TAG_COLORS: Record<string, string> = {
-        GR: 'bg-yellow-400 text-black',
-        RR: 'bg-gray-400 text-black',
-        UB: 'bg-pink-500 text-white',
-        VV: 'bg-purple-600 text-white',
-        DE: 'bg-orange-500 text-white',
-        CV: 'bg-green-600 text-white',
-    };
 
     const mergeBoxItems = (items: BoxProduct[]) => {
         const grouped: Record<string, { representative: BoxProduct; sellers: { tag: string; qty: number; id: string }[] }> = {};
@@ -868,7 +861,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                                                 <div className="flex flex-wrap gap-1.5 justify-center items-center">
                                                                                     {merged.sellers.map(s => (
                                                                                         <div key={s.id} className="flex items-center gap-1">
-                                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_TAG_COLORS[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
+                                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
                                                                                                 {s.tag}
                                                                                             </span>
                                                                                             <span className="text-xs text-gray-300 font-semibold">{s.qty}</span>

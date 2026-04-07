@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, useRef } from 'react'
 import Toast from '@/components/Toast';
 import {
@@ -1707,16 +1708,11 @@ export default function AdminValidationPage() {
                           <div className="flex flex-wrap gap-2">
                             {product.seller_tag.split(',').map((tag) => {
                               const cleanTag = tag.trim();
-                              let badgeColor = 'bg-[#1a1a1a] text-white';
-                              if (cleanTag === 'GR') badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-                              else if (cleanTag === 'RR') badgeColor = 'bg-slate-600 text-gray-100 border border-slate-500';
-                              else if (cleanTag === 'UB') badgeColor = 'bg-pink-500/20 text-pink-300 border border-pink-500/30';
-                              else if (cleanTag === 'VV') badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
 
                               return (
                                 <span
                                   key={cleanTag}
-                                  className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${badgeColor}`}
+                                  className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs ${SELLER_STYLES[cleanTag] || 'bg-[#1a1a1a] text-white'}`}
                                 >
                                   {cleanTag}
                                 </span>
