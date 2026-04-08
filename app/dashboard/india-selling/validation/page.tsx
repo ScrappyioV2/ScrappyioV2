@@ -1377,6 +1377,15 @@ export default function ValidationPage() {
                 setToast({ message: 'Failed to update funnel', type: 'error' });
             } else {
                 setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
+                const product = products.find(p => p.id === id);
+                logActivity({
+                    action: 'funnel_change',
+                    marketplace: 'india',
+                    page: 'validation',
+                    table_name: 'india_validation_main_file',
+                    asin: product?.asin || '',
+                    details: { from: oldFunnel, to: newFunnel }
+                });
             }
         } finally {
             await new Promise(resolve => setTimeout(resolve, 3000));
@@ -3001,130 +3010,130 @@ export default function ValidationPage() {
 
                         {/* Action Buttons */}
                         <div className="flex flex-wrap items-center gap-3 mb-6">
-                                    {/* Search Bar */}
-                                    <div className="relative flex-1 min-w-0 max-w-xs group">
-                                        <svg
-                                            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-orange-500 transition-colors"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            {/* Search Bar */}
+                            <div className="relative flex-1 min-w-0 max-w-xs group">
+                                <svg
+                                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-orange-500 transition-colors"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    placeholder="Search by ASIN, SKU, Product Name, or Brand..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-200"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                         </svg>
-                                        <input
-                                            type="text"
-                                            placeholder="Search by ASIN, SKU, Product Name, or Brand..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-9 pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-[#111111] border border-white/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 text-gray-100 placeholder-slate-600 transition-all shadow-sm"
-                                        />
-                                        {searchQuery && (
-                                            <button
-                                                onClick={() => setSearchQuery('')}
-                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-200"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        )}
-                                    </div>
+                                    </button>
+                                )}
+                            </div>
 
-                                    {/* Filter Button */}
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.1] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                                            </svg>
-                                            Add Filter
-                                        </button>
+                            {/* Filter Button */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-xl hover:bg-[#1a1a1a] hover:text-white border border-white/[0.1] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors shadow-sm"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                    </svg>
+                                    Add Filter
+                                </button>
 
-                                        {isFilterOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
-                                                <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
-                                                    <h3 className="font-semibold text-gray-100 mb-3">Filter Products</h3>
-                                                    <div className="space-y-3">
-                                                        <div>
-                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Seller Tag</label>
-                                                            <input
-                                                                type="text"
-                                                                value={filters.seller_tag}
-                                                                onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
-                                                                placeholder="Enter seller name"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Brand</label>
-                                                            <input
-                                                                type="text"
-                                                                value={filters.brand}
-                                                                onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
-                                                                placeholder="Enter brand"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs font-medium text-gray-400 mb-1">Funnel</label>
-                                                            <input
-                                                                type="text"
-                                                                value={filters.funnel}
-                                                                onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
-                                                                className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
-                                                                placeholder="Enter funnel"
-                                                            />
-                                                        </div>
-                                                        <button
-                                                            onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
-                                                            className="w-full px-3 py-2 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white font-medium text-sm transition-colors"
-                                                        >
-                                                            Clear Filters
-                                                        </button>
-                                                    </div>
+                                {isFilterOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setIsFilterOpen(false)}></div>
+                                        <div className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-4 z-20 w-72 animate-in fade-in zoom-in-95 duration-200">
+                                            <h3 className="font-semibold text-gray-100 mb-3">Filter Products</h3>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-400 mb-1">Seller Tag</label>
+                                                    <input
+                                                        type="text"
+                                                        value={filters.seller_tag}
+                                                        onChange={(e) => setFilters({ ...filters, seller_tag: e.target.value })}
+                                                        className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                        placeholder="Enter seller name"
+                                                    />
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
-
-                                {/* Move to Main */}
-                                {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
-                                    <button
-                                        onClick={handleMoveToMainClick}
-                                        disabled={selectedIds.size === 0}
-                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
-                                            : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.1]'
-                                            }`}
-                                    >
-                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Move to Main</span>
-                                    </button>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-400 mb-1">Brand</label>
+                                                    <input
+                                                        type="text"
+                                                        value={filters.brand}
+                                                        onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
+                                                        className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                        placeholder="Enter brand"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-400 mb-1">Funnel</label>
+                                                    <input
+                                                        type="text"
+                                                        value={filters.funnel}
+                                                        onChange={(e) => setFilters({ ...filters, funnel: e.target.value })}
+                                                        className="w-full px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+                                                        placeholder="Enter funnel"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => setFilters({ seller_tag: '', brand: '', funnel: '' } as Filters)}
+                                                    className="w-full px-3 py-2 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white font-medium text-sm transition-colors"
+                                                >
+                                                    Clear Filters
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
+                            </div>
 
-                                {activeTab === 'fail_file' && (
-                                    <button
-                                        onClick={handleMoveToReworkingClick}
-                                        disabled={selectedIds.size === 0}
-                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
-                                            : 'bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500'
-                                            }`}
-                                    >
-                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Move to Reworking</span>
-                                    </button>
-                                )}
+                            {/* Move to Main */}
+                            {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
+                                <button
+                                    onClick={handleMoveToMainClick}
+                                    disabled={selectedIds.size === 0}
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-sm ${selectedIds.size === 0
+                                        ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                        : 'bg-[#1a1a1a] text-white hover:bg-slate-600 border border-white/[0.1]'
+                                        }`}
+                                >
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    <span className="hidden sm:inline">Move to Main</span>
+                                </button>
+                            )}
 
-                                {/* Move to Pass */}
-                                {/* {activeTab === 'pending' && (
+                            {(activeTab === 'fail_file' || activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                <button
+                                    onClick={handleMoveToReworkingClick}
+                                    disabled={selectedIds.size === 0}
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-cyan-900/20 ${selectedIds.size === 0
+                                        ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                        : 'bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500'
+                                        }`}
+                                >
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    <span className="hidden sm:inline">Move to Reworking</span>
+                                </button>
+                            )}
+
+                            {/* Move to Pass */}
+                            {/* {activeTab === 'pending' && (
       <button
         onClick={handleMoveToPassClick}
         disabled={selectedIds.size === 0}
@@ -3140,8 +3149,8 @@ export default function ValidationPage() {
       </button>
     )} */}
 
-                                {/* Move to Fail */}
-                                {/* {activeTab === 'pending' && (
+                            {/* Move to Fail */}
+                            {/* {activeTab === 'pending' && (
       <button
         onClick={handleMoveToFailClick}
         disabled={selectedIds.size === 0}
@@ -3157,166 +3166,166 @@ export default function ValidationPage() {
       </button>
     )} */}
 
-                                {/* Funnel Quick Filters */}
-                                <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
-                                    <button
-                                        onClick={() => setFunnelFilter('ALL')}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'ALL'
-                                            ? 'bg-orange-500 text-white shadow-lg'
-                                            : 'text-gray-400 hover:text-white hover:bg-[#111111]'
-                                            }`}
-                                    >
-                                        ALL
-                                    </button>
-                                    <button
-                                        onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
-                                            ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
-                                            : 'text-gray-400 hover:text-white hover:bg-[#111111]'
-                                            }`}
-                                    >
-                                        RS
-                                    </button>
-                                    <button
-                                        onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
-                                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
-                                            : 'text-gray-400 hover:text-white hover:bg-[#111111]'
-                                            }`}
-                                    >
-                                        DP
-                                    </button>
-                                </div>
-
-                                {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
-                                    <button
-                                        onClick={handleMoveToRejectClick}
-                                        disabled={selectedIds.size === 0}
-                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
-                                            : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
-                                            }`}
-                                    >
-                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Move to Reject</span>
-                                    </button>
-                                )}
-
-                                {(activeTab === 'main_file' || activeTab === 'pass_file' || activeTab === 'reworking') && (
-                                    <button
-                                        onClick={handleRollBack}
-                                        disabled={
-                                            (activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
-                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
-                                            (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
-                                        }
-                                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
-                                            (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
-                                            (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
-                                            ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
-                                            : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
-                                            }`}
-                                        title={
-                                            activeTab === 'main_file' ? 'Roll back last ASIN from Pass File' :
-                                                activeTab === 'reworking' ? 'Roll back last ASIN to Fail File' :
-                                                    'Roll back last ASIN from Purchases'
-                                        }
-                                    >
-                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Roll Back</span>
-                                    </button>
-                                )}
-
-                                {/* Download CSV Dropdown */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
-                                        className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
-                                    >
-                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Download CSV</span>
-                                        <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </button>
-
-                                    {isDownloadDropdownOpen && (
-                                        <>
-                                            <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
-                                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
-
-                                                {/* Download Selected - only if items selected */}
-                                                {selectedIds.size > 0 && (
-                                                    <button
-                                                        onClick={() => downloadCSV('selected')}
-                                                        className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
-                                                    >
-                                                        <span>📋 Download Selected</span>
-                                                        <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{selectedIds.size}</span>
-                                                    </button>
-                                                )}
-
-                                                {/* Download Current Page */}
-                                                <button
-                                                    onClick={() => downloadCSV('page')}
-                                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
-                                                >
-                                                    <span>📄 Download Page</span>
-                                                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
-                                                </button>
-
-                                                {/* Download All */}
-                                                <button
-                                                    onClick={() => downloadCSV('all')}
-                                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
-                                                >
-                                                    <span>📦 Download All</span>
-                                                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
-                                                </button>
-
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Upload CSV */}
+                            {/* Funnel Quick Filters */}
+                            <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
                                 <button
-                                    onClick={handleUploadCSV}
-                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                                    onClick={() => setFunnelFilter('ALL')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'ALL'
+                                        ? 'bg-orange-500 text-white shadow-lg'
+                                        : 'text-gray-400 hover:text-white hover:bg-[#111111]'
+                                        }`}
+                                >
+                                    ALL
+                                </button>
+                                <button
+                                    onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
+                                        ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
+                                        : 'text-gray-400 hover:text-white hover:bg-[#111111]'
+                                        }`}
+                                >
+                                    RS
+                                </button>
+                                <button
+                                    onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
+                                        ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
+                                        : 'text-gray-400 hover:text-white hover:bg-[#111111]'
+                                        }`}
+                                >
+                                    DP
+                                </button>
+                            </div>
+
+                            {(activeTab === 'pending' || activeTab === 'main_file' || activeTab === 'pass_file') && (
+                                <button
+                                    onClick={handleMoveToRejectClick}
+                                    disabled={selectedIds.size === 0}
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-violet-900/20 ${selectedIds.size === 0
+                                        ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                        : 'bg-violet-600 text-white hover:bg-violet-500 border border-violet-500'
+                                        }`}
                                 >
                                     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                                     </svg>
-                                    <span className="hidden sm:inline">Upload CSV</span>
+                                    <span className="hidden sm:inline">Move to Reject</span>
                                 </button>
-                                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
+                            )}
 
-                                {/* Bulk india Price Update */}
+                            {(activeTab === 'main_file' || activeTab === 'pass_file' || activeTab === 'reworking') && (
                                 <button
-                                    onClick={() => indiaPriceCSVInputRef.current?.click()}
-                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
-                                >
-                                    Bulk INDIA Price Update
-                                </button>
-                                <input type="file" accept=".csv" ref={indiaPriceCSVInputRef} onChange={handleindiaPriceCSVUpload} className="hidden" />
-
-                                {/* Configure Constants */}
-                                <button
-                                    onClick={openConstantsModal}
-                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                                    onClick={handleRollBack}
+                                    disabled={
+                                        (activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                        (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
+                                        (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
+                                    }
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${(activeTab === 'main_file' && !rollbackHistory['pass_move']) ||
+                                        (activeTab === 'pass_file' && !rollbackHistory['purchase_move']) ||
+                                        (activeTab === 'reworking' && !rollbackHistory['reworking_move_out'])
+                                        ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                        : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
+                                        }`}
+                                    title={
+                                        activeTab === 'main_file' ? 'Roll back last ASIN from Pass File' :
+                                            activeTab === 'reworking' ? 'Roll back last ASIN to Fail File' :
+                                                'Roll back last ASIN from Purchases'
+                                    }
                                 >
                                     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                     </svg>
-                                    <span className="hidden sm:inline">Configure Constants</span>
+                                    <span className="hidden sm:inline">Roll Back</span>
                                 </button>
+                            )}
+
+                            {/* Download CSV Dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsDownloadDropdownOpen(!isDownloadDropdownOpen)}
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-emerald-900/20 transition-all border border-emerald-500/50"
+                                >
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    <span className="hidden sm:inline">Download CSV</span>
+                                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                {isDownloadDropdownOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setIsDownloadDropdownOpen(false)} />
+                                        <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl p-2 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
+
+                                            {/* Download Selected - only if items selected */}
+                                            {selectedIds.size > 0 && (
+                                                <button
+                                                    onClick={() => downloadCSV('selected')}
+                                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-emerald-600/20 hover:text-emerald-300 rounded-lg transition-colors flex items-center justify-between"
+                                                >
+                                                    <span>📋 Download Selected</span>
+                                                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{selectedIds.size}</span>
+                                                </button>
+                                            )}
+
+                                            {/* Download Current Page */}
+                                            <button
+                                                onClick={() => downloadCSV('page')}
+                                                className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-blue-600/20 hover:text-blue-300 rounded-lg transition-colors flex items-center justify-between"
+                                            >
+                                                <span>📄 Download Page</span>
+                                                <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{filteredProducts.length}</span>
+                                            </button>
+
+                                            {/* Download All */}
+                                            <button
+                                                onClick={() => downloadCSV('all')}
+                                                className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
+                                            >
+                                                <span>📦 Download All</span>
+                                                <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
+                                            </button>
+
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Upload CSV */}
+                            <button
+                                onClick={handleUploadCSV}
+                                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-blue-900/20 transition-all border border-blue-500/50"
+                            >
+                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                <span className="hidden sm:inline">Upload CSV</span>
+                            </button>
+                            <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={processCSVFile} className="hidden" />
+
+                            {/* Bulk india Price Update */}
+                            <button
+                                onClick={() => indiaPriceCSVInputRef.current?.click()}
+                                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
+                            >
+                                Bulk INDIA Price Update
+                            </button>
+                            <input type="file" accept=".csv" ref={indiaPriceCSVInputRef} onChange={handleindiaPriceCSVUpload} className="hidden" />
+
+                            {/* Configure Constants */}
+                            <button
+                                onClick={openConstantsModal}
+                                className="px-4 sm:px-6 py-2 sm:py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-500 text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-purple-900/20 transition-all border border-purple-500/50"
+                            >
+                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span className="hidden sm:inline">Configure Constants</span>
+                            </button>
                         </div>
                     </div>
 
@@ -3806,58 +3815,58 @@ export default function ValidationPage() {
                             <h3 className="text-xl font-bold text-orange-400">Remark</h3>
                             <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg">×</button>
                         </div>
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
-                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
-                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
-                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
-                    </div>
-                    <textarea
-                      value={editingRemarkText}
-                      onChange={(e) => setEditingRemarkText(e.target.value)}
-                      className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-gray-500"
-                      placeholder="Enter remark..."
-                      rows={4}
-                    />
-                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
-                      <span>{editingRemarkText.length} characters</span>
-                      <span>{editingRemarkText.split('\n').length} lines</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
-                  <div className="text-xs text-gray-300">
-                    Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
-                      className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm"
-                    >
-                      Copy
-                    </button>
-                    {editingRemarkText.trim() !== (selectedRemark || '').trim() && editingRemarkProductId && (
-                      <button
-                        onClick={async () => {
-                          if (!editingRemarkProductId) return;
-                          await handleCellEdit(editingRemarkProductId, 'remark', editingRemarkText.trim() || null);
-                          setSelectedRemark(null);
-                          setEditingRemarkText('');
-                          setEditingRemarkProductId(null);
-                        }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
-                      >
-                        Save
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
-                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
+                        <div className="p-6 max-h-[70vh] overflow-y-auto">
+                            <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
+                                    <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
+                                </div>
+                                <textarea
+                                    value={editingRemarkText}
+                                    onChange={(e) => setEditingRemarkText(e.target.value)}
+                                    className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-gray-500"
+                                    placeholder="Enter remark..."
+                                    rows={4}
+                                />
+                                <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
+                                    <span>{editingRemarkText.length} characters</span>
+                                    <span>{editingRemarkText.split('\n').length} lines</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
+                            <div className="text-xs text-gray-300">
+                                Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
+                                    className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm"
+                                >
+                                    Copy
+                                </button>
+                                {editingRemarkText.trim() !== (selectedRemark || '').trim() && editingRemarkProductId && (
+                                    <button
+                                        onClick={async () => {
+                                            if (!editingRemarkProductId) return;
+                                            await handleCellEdit(editingRemarkProductId, 'remark', editingRemarkText.trim() || null);
+                                            setSelectedRemark(null);
+                                            setEditingRemarkText('');
+                                            setEditingRemarkProductId(null);
+                                        }}
+                                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                                    >
+                                        Save
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
+                                    className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -76,6 +76,10 @@ const getActionDescription = (log: ActivityLog): string => {
     case 'rollback':
       if (from && to) return `Rolled back from ${from} → ${to}`;
       return `Rolled back in ${page}`;
+    case 'funnel_change':
+      if (from && to) return `Funnel changed from ${from} → ${to}`;
+      if (to) return `Funnel changed to ${to}`;
+      return `Funnel changed in ${page}`;
     case 'delete':
       return `Deleted from ${page}`;
     case 'edit':

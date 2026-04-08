@@ -299,7 +299,7 @@ export default function PurchasesPage() {
               ) : (
                 <button onClick={() => { setEditingSkuId(product.id); setEditingSkuValue(''); }} className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                  + Add SKU
+                  Add SKU
                 </button>
               )}
             </div>
@@ -615,7 +615,7 @@ export default function PurchasesPage() {
               ) : (
                 <button onClick={() => { setEditingSellerLinkId(product.id); setEditingSellerLinkValue(''); }} className="text-emerald-500 hover:text-emerald-400 font-medium text-xs whitespace-nowrap flex items-center gap-1 justify-center w-full">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                  + Add Link
+                  Add Link
                 </button>
               )}
             </div>
