@@ -80,7 +80,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 
 export default function UsaSellersPage() {
   // --- EXISTING STATE & LOGIC (PRESERVED) ---
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toastState, setToastState] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -493,7 +493,7 @@ export default function UsaSellersPage() {
       const totalCount = count || 0;
 
       if (totalCount === 0) {
-        setToast({ message: 'No data to export', type: 'error' });
+        setToastState({ message: 'No data to export', type: 'error' });
         setIsExporting(false);
         return;
       }
@@ -566,11 +566,11 @@ export default function UsaSellersPage() {
       }));
 
       exportData(formattedData, TABLE_NAME, format);
-      setToast({ message: `Successfully exported ${allData.length} products!`, type: 'success' });
-      setTimeout(() => setToast(null), 3000);
+      setToastState({ message: `Successfully exported ${allData.length} products!`, type: 'success' });
+      setTimeout(() => setToastState(null), 3000);
     } catch (error) {
       console.error('Export error:', error);
-      setToast({ message: 'Failed to export data', type: 'error' });
+      setToastState({ message: 'Failed to export data', type: 'error' });
     } finally {
       setIsExporting(false);
       setExportProgress({ current: 0, total: 0 });
@@ -750,12 +750,12 @@ export default function UsaSellersPage() {
           onUpload={handleUpload}
           multiple={true}
         />
-        {toast && (
+        {toastState && (
           <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
-            <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
-              <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
-              <span className="font-semibold flex-1 text-sm">{toast.message}</span>
-              <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+            <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toastState.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+              <span className="text-2xl">{toastState.type === 'success' ? '✅' : '❌'}</span>
+              <span className="font-semibold flex-1 text-sm">{toastState.message}</span>
+              <button onClick={() => setToastState(null)} className="text-white/70 hover:text-white ml-2">✕</button>
             </div>
           </div>
         )}
