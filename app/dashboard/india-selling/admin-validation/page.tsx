@@ -1945,7 +1945,7 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-6 py-4">
             <input type="number" defaultValue={product.target_price}
-              onBlur={(e) => handleCellEdit(product.id, 'targetprice', parseFloat(e.target.value))}
+              onBlur={(e) => { const v = parseFloat(e.target.value); if (v !== product.target_price) handleCellEdit(product.id, 'targetprice', v); }}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             />
@@ -1966,7 +1966,7 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-6 py-4 bg-purple-900/10">
             <input type="number" step="0.01" defaultValue={product.admin_target_price ?? ''}
-              onBlur={(e) => handleCellEdit(product.id, 'admintargetprice', e.target.value === '' ? null : parseFloat(e.target.value))}
+              onBlur={(e) => { const v = e.target.value === '' ? null : parseFloat(e.target.value); if (v !== product.admin_target_price) handleCellEdit(product.id, 'admintargetprice', v); }}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="w-24 px-2 py-1.5 bg-[#111111] border border-purple-500/50 rounded text-sm text-purple-200 focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder-purple-400/50"
               placeholder="₹"
@@ -1997,7 +1997,7 @@ export default function AdminValidationPage() {
           <td key={col_key} className="px-6 py-4 text-sm">
             <div className="relative">
               <input type="number" step="0.01" defaultValue={product.product_weight}
-                onBlur={(e) => handleCellEdit(product.id, 'productweight', parseFloat(e.target.value) || null)}
+                onBlur={(e) => { const v = parseFloat(e.target.value) || null; if (v !== product.product_weight) handleCellEdit(product.id, 'productweight', v); }}
                 className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 placeholder="g"
               />
@@ -2041,7 +2041,7 @@ export default function AdminValidationPage() {
                 <option value="USD">$</option>
               </select>
               <input type="number" defaultValue={product.buying_price}
-                onBlur={(e) => handleCellEdit(product.id, 'buyingprice', parseFloat(e.target.value))}
+                onBlur={(e) => { const v = parseFloat(e.target.value); if (v !== product.buying_price) handleCellEdit(product.id, 'buyingprice', v); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                 className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               />
@@ -2294,7 +2294,7 @@ export default function AdminValidationPage() {
           </div>
 
           {/* Right: Buttons Group */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+         <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap overflow-x-auto scrollbar-none [&>*]:flex-shrink-0 [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs">
 
             {/* Funnel Filter Pills - RS / DP */}
             <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
@@ -2579,9 +2579,9 @@ export default function AdminValidationPage() {
             {selectedIds.size > 0 && (
               <button
                 onClick={handleSendBackToPurchases}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all shadow-md"
+                className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-md whitespace-nowrap"
               >
-                Send Back to Purchases ({selectedIds.size})
+                Send Back ({selectedIds.size})
               </button>
             )}
             <button
@@ -2627,7 +2627,7 @@ export default function AdminValidationPage() {
                   <th className="px-6 py-4 bg-[#111111] border-r border-white/[0.1]">
                     <input
                       type="checkbox"
-                      checked={selectedIds.size === products.length && products.length > 0}
+                      checked={selectedIds.size === filteredProducts.length && filteredProducts.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
                     />

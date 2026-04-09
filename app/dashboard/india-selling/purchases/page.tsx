@@ -436,9 +436,9 @@ export default function PurchasesPage() {
         if (!visibleColumns.funnelseller) return null;
         return (
           <td key={colkey} className="px-6 py-4" style={{ width: columnWidths.funnelseller, minWidth: 180 }}>
-            {product.validation_seller_tag ? (
+            {(product.seller_tag || product.validation_seller_tag) ? (
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                {product.validation_seller_tag.split(',').map((tag: string) => {
+                {(product.seller_tag || product.validation_seller_tag)!.split(',').map((tag: string) => {
                   const cleanTag = tag.trim();
                   return <span key={cleanTag} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${SELLER_STYLES[cleanTag] || 'bg-[#1a1a1a] text-white'}`}>{cleanTag}</span>;
                 })}
@@ -489,8 +489,8 @@ export default function PurchasesPage() {
         if (!visibleColumns.buyingquantity) return null;
 
         // Extract seller tags for this product
-        const qtySellerTags = product.validation_seller_tag
-          ? product.validation_seller_tag
+        const qtySellerTags = (product.seller_tag || product.validation_seller_tag)
+          ? (product.seller_tag || product.validation_seller_tag)
             .split(',')
             .map((t: string) => t.trim())
             .filter(Boolean)
@@ -785,14 +785,18 @@ export default function PurchasesPage() {
       // 2. Extract all ASINs for bulk querying
       const allAsins = purchasesData.map((p) => p.asin)
 
-      // 3. Fetch ALL validation data in ONE query (Batch 2)
-      // This replaces the loop that was causing the lag
-      const { data: validationDataArray, error: valError } = await supabase
-        .from('india_validation_main_file')
-        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue, sku')
-        .in('asin', allAsins)
-
-      if (valError) console.error('Validation fetch error:', valError)
+      // 3. Fetch validation data in batches (URLs too long with 500+ ASINs)
+      const BATCH_SIZE = 200;
+      const validationDataArray: any[] = [];
+      for (let i = 0; i < allAsins.length; i += BATCH_SIZE) {
+        const batch = allAsins.slice(i, i + BATCH_SIZE);
+        const { data, error: valError } = await supabase
+          .from('india_validation_main_file')
+          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue, sku')
+          .in('asin', batch);
+        if (valError) console.error('Validation fetch error:', valError);
+        if (data) validationDataArray.push(...data);
+      }
 
       // 4. Create a Map for instant lookup (O(1) complexity)
       const validationMap = new Map(
@@ -875,12 +879,17 @@ export default function PurchasesPage() {
 
       if (purchasesError) throw purchasesError
 
-      // Fetch ALL validation data in ONE query (much faster)
+      // Fetch validation data in batches (URLs too long with 500+ ASINs)
       const allAsins = purchasesData.map((p: any) => p.asin)
-      const { data: validationDataArray } = await supabase
-        .from('india_validation_main_file')
-        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
-        .in('asin', allAsins)
+      const validationDataArray: any[] = [];
+      for (let i = 0; i < allAsins.length; i += 200) {
+        const batch = allAsins.slice(i, i + 200);
+        const { data } = await supabase
+          .from('india_validation_main_file')
+          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
+          .in('asin', batch);
+        if (data) validationDataArray.push(...data);
+      }
 
       // Create lookup map for fast access
       const validationMap = new Map(
@@ -1059,7 +1068,7 @@ export default function PurchasesPage() {
         [activeTab]: {
           product,
           fromStatus: product.move_to ?? null,
-          toStatus: 'not_found',
+          toStatus: 'sent_to_admin',
           wasAdminConfirmed: product.admin_confirmed === true,
         },
       }));
@@ -1345,6 +1354,65 @@ export default function PurchasesPage() {
       showToast(`Error: ${error.message}`, 'error')
     }
   }
+
+  // Move selected products back to Validation
+  const handleMoveToValidation = async () => {
+    if (selectedIds.size === 0) {
+      showToast('Select at least one product', 'error');
+      return;
+    }
+
+    const selectedProducts = filteredProducts.filter(p => selectedIds.has(p.id));
+    if (!confirm(`Move ${selectedProducts.length} product(s) back to Validation?`)) return;
+
+    try {
+      for (const product of selectedProducts) {
+        // 1. Reset sent_to_purchases in validation
+        let validationQuery = supabase
+          .from('india_validation_main_file')
+          .update({ sent_to_purchases: false, sent_to_purchases_at: null })
+          .eq('asin', product.asin);
+
+        if (product.journey_id) {
+          validationQuery = validationQuery.eq('current_journey_id', product.journey_id);
+        }
+
+        const { error: valError } = await validationQuery;
+        if (valError) {
+          console.error('Validation reset error:', valError);
+          // Fallback: try without journey_id
+          await supabase
+            .from('india_validation_main_file')
+            .update({ sent_to_purchases: false, sent_to_purchases_at: null })
+            .eq('asin', product.asin);
+        }
+
+        // 2. Delete from purchases
+        const { error: delError } = await supabase
+          .from('india_purchases')
+          .delete()
+          .eq('id', product.id);
+
+        if (delError) throw delError;
+
+        // 3. Log activity
+        logActivity({
+          action: 'move_to_validation',
+          marketplace: 'india',
+          page: 'purchases',
+          table_name: 'india_purchases',
+          asin: product.asin,
+          details: { from: 'purchases', to: 'validation' }
+        });
+      }
+
+      showToast(`Moved ${selectedProducts.length} product(s) back to Validation`, 'success');
+      setSelectedIds(new Set());
+      await refreshProductsSilently();
+    } catch (error: any) {
+      showToast(`Error: ${error.message}`, 'error');
+    }
+  };
 
   // Roll Back last movement
   const handleRollBack = async () => {
@@ -1845,7 +1913,7 @@ export default function PurchasesPage() {
     }
     // Seller tag filter
     if (sellerTagFilter !== 'ALL') {
-      if (!p.validation_seller_tag?.toUpperCase().includes(sellerTagFilter)) return false;
+      if (!(p.seller_tag || p.validation_seller_tag)?.toUpperCase().includes(sellerTagFilter)) return false;
     }
 
     switch (activeTab) {
@@ -2466,6 +2534,20 @@ export default function PurchasesPage() {
             </svg>
             <span className="hidden sm:inline">Roll Back</span>
           </button>
+
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleMoveToValidation}
+              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-500 flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-violet-900/20 transition-all border border-violet-500/50"
+              title="Move selected products back to Validation"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+              </svg>
+              <span className="hidden sm:inline">Move to Validation</span>
+              <span className="text-xs bg-violet-500/50 px-1.5 py-0.5 rounded-full">{selectedIds.size}</span>
+            </button>
+          )}
 
           {/* 🆕 Journey Toggle Button */}
           <button

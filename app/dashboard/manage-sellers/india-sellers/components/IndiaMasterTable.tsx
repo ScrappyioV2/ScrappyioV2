@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Filter, ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from 'lucide-react';
 import FilterDropdown from '@/components/shared/master-table/FilterDropdown';
+import { ensureAbsoluteUrl } from '@/lib/utils';
 import NumericFilter from '@/components/shared/master-table/NumericFilter';
 import TextFilter from '@/components/shared/master-table/TextFilter';
 import MultiSelectFilter from '@/components/shared/master-table/MultiSelectFilter';
@@ -683,7 +684,7 @@ export default function IndiaMasterTable({
                             </span>
                           ) : column === 'amz_link' ? (
                             <a
-                              href={row.amz_link}
+                              href={ensureAbsoluteUrl(row.amz_link)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-orange-500 hover:text-orange-400 hover:underline flex items-center gap-1"

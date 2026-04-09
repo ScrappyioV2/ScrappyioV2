@@ -147,12 +147,18 @@ export default function PurchasesPage() {
       // 2. Extract all ASINs for bulk querying
       const allAsins = purchasesData.map((p) => p.asin)
 
-      // 3. Fetch ALL validation data in ONE query (Batch 2)
-      // This replaces the loop that was causing the lag
-      const { data: validationDataArray, error: valError } = await supabase
-        .from('uk_validation_main_file')
-        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue')
-        .in('asin', allAsins)
+      // 3. Fetch validation data in batches (URLs too long with 500+ ASINs)
+      const validationDataArray: any[] = [];
+      let valError: any = null;
+      for (let i = 0; i < allAsins.length; i += 200) {
+        const batch = allAsins.slice(i, i + 200);
+        const { data, error } = await supabase
+          .from('uk_validation_main_file')
+          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase, profit, total_cost, total_revenue')
+          .in('asin', batch);
+        if (error) valError = error;
+        if (data) validationDataArray.push(...data);
+      }
 
       if (valError) console.error('Validation fetch error:', valError)
 
@@ -221,12 +227,17 @@ export default function PurchasesPage() {
 
       if (purchasesError) throw purchasesError
 
-      // Fetch ALL validation data in ONE query (much faster)
+      // Fetch validation data in batches (URLs too long with 500+ ASINs)
       const allAsins = purchasesData.map((p: any) => p.asin)
-      const { data: validationDataArray } = await supabase
-        .from('uk_validation_main_file')
-        .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
-        .in('asin', allAsins)
+      const validationDataArray: any[] = [];
+      for (let i = 0; i < allAsins.length; i += 200) {
+        const batch = allAsins.slice(i, i + 200);
+        const { data } = await supabase
+          .from('uk_validation_main_file')
+          .select('asin, seller_tag, funnel, product_weight, usd_price, inr_purchase')
+          .in('asin', batch);
+        if (data) validationDataArray.push(...data);
+      }
 
       // Create lookup map for fast access
       const validationMap = new Map(
