@@ -512,6 +512,8 @@ export default function PurchasesPage() {
         },
       }))
 
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+
       const { error } = await supabase
         .from('uk_purchases')  // ✅ Underscore
         .update({ move_to: 'pricewait' })  // ✅ Underscore
@@ -522,6 +524,7 @@ export default function PurchasesPage() {
       setToast({ message: 'Moved to Price Wait successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
+      setProducts(prev => [...prev, product]);
       setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
@@ -540,6 +543,8 @@ export default function PurchasesPage() {
         },
       }))
 
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+
       const { error } = await supabase
         .from('uk_purchases')  // ✅ Underscore
         .update({ move_to: 'notfound' })  // ✅ Underscore
@@ -550,6 +555,7 @@ export default function PurchasesPage() {
       setToast({ message: 'Marked as Not Found successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
+      setProducts(prev => [...prev, product]);
       setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
@@ -599,6 +605,9 @@ export default function PurchasesPage() {
       })
 
       setToast({ message: `Rolled back ${product.product_name}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
+      if (lastMovement?.product) {
+        setProducts(prev => [...prev, lastMovement.product]);
+      }
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error) {
       console.error('Error rolling back:', error)
@@ -613,6 +622,7 @@ export default function PurchasesPage() {
     }
 
     try {
+      setProducts(prev => prev.filter(p => p.id !== product.id));
 
       // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
       const { data: freshProduct, error: fetchError } = await supabase
@@ -766,6 +776,7 @@ export default function PurchasesPage() {
       setToast({ message: `Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently();
     } catch (error: any) {
+      setProducts(prev => [...prev, product]);
       console.error('❌ Move error:', error);
       setToast({ message: `Failed to move: ${error.message}`, type: 'error' });
     }

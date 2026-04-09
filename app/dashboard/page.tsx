@@ -2,8 +2,9 @@
 
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import useSWR from 'swr';
 import { supabase } from '@/lib/supabaseClient';
 import {
   LogOut, ShieldCheck, LayoutDashboard, Users,
@@ -64,19 +65,15 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [users, setUsers] = useState<UserRoleRow[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserRoleRow | null>(null);
   const [editedPages, setEditedPages] = useState<string[]>([]);
   const [editedRole, setEditedRole] = useState<string>('viewer');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [todayStats, setTodayStats] = useState<Record<string, number>>({});
-  const [loadingUsers, setLoadingUsers] = useState(true);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
-  // ✅ NEW: Mobile view state — 'list' shows user cards, 'detail' shows permission panel
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
 
   useEffect(() => {
@@ -93,36 +90,37 @@ export default function DashboardPage() {
     }
   }, [user, userRole, loading, router]);
 
-  const fetchUsers = useCallback(async () => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('*')
-      .order('created_at', { ascending: true });
-    if (data) setUsers(data);
-    setLoadingUsers(false);
-  }, []);
+  const isAdmin = !!(user && userRole?.role === 'admin');
 
-  const fetchTodayStats = useCallback(async () => {
-    const { data } = await supabase
-      .from('user_daily_summary')
-      .select('user_id, total_actions')
-      .eq('summary_date', selectedDate);
+  const { data: users = [], isLoading: loadingUsers, mutate: mutateUsers } = useSWR(
+    isAdmin ? 'dashboard:user_roles' : null,
+    async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as UserRoleRow[];
+    },
+    { revalidateOnFocus: false, keepPreviousData: true, errorRetryCount: 3, errorRetryInterval: 3000 }
+  );
 
-    if (data) {
+  const { data: todayStats = {} } = useSWR(
+    isAdmin ? `dashboard:daily_summary:${selectedDate}` : null,
+    async () => {
+      const { data, error } = await supabase
+        .from('user_daily_summary')
+        .select('user_id, total_actions')
+        .eq('summary_date', selectedDate);
+      if (error) throw new Error(error.message);
       const counts: Record<string, number> = {};
-      data.forEach((row: any) => {
+      (data ?? []).forEach((row: any) => {
         counts[row.user_id] = (counts[row.user_id] || 0) + row.total_actions;
       });
-      setTodayStats(counts);
-    }
-  }, [selectedDate]);
-
-  useEffect(() => {
-    if (user && userRole?.role === 'admin') {
-      fetchUsers();
-      fetchTodayStats();
-    }
-  }, [user, userRole, fetchUsers, fetchTodayStats]);
+      return counts;
+    },
+    { revalidateOnFocus: false, keepPreviousData: true, errorRetryCount: 3, errorRetryInterval: 3000 }
+  );
 
   const handleSelectUser = (u: UserRoleRow) => {
     setSelectedUser(u);
@@ -163,9 +161,10 @@ export default function DashboardPage() {
     if (error) {
       console.error('Save permissions error:', error);
       setToast({ message: `Failed to save: ${error.message}`, type: 'error' });
+      mutateUsers();
     } else {
       const updated = { ...selectedUser, allowed_pages: editedPages, role: editedRole };
-      setUsers((prev) => prev.map((u) => (u.id === selectedUser.id ? updated : u)));
+      mutateUsers((prev) => (prev ?? []).map((u) => (u.id === selectedUser.id ? updated : u)), { revalidate: false });
       setSelectedUser(updated);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
@@ -183,10 +182,13 @@ export default function DashboardPage() {
       .eq('id', u.id);
 
     if (!error) {
-      setUsers((prev) => prev.map((usr) => usr.id === u.id ? { ...usr, is_active: newStatus } : usr));
+      mutateUsers((prev) => (prev ?? []).map((usr) => usr.id === u.id ? { ...usr, is_active: newStatus } : usr), { revalidate: false });
       if (selectedUser?.id === u.id) {
         setSelectedUser((prev) => prev ? { ...prev, is_active: newStatus } : null);
       }
+    } else {
+      setToast({ message: `Failed to toggle: ${error.message}`, type: 'error' });
+      mutateUsers();
     }
   };
 
@@ -207,13 +209,14 @@ export default function DashboardPage() {
         const data = await res.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(data.error || 'Delete failed');
       }
-      setUsers((prev) => prev.filter((usr) => usr.id !== u.id));
+      mutateUsers((prev) => (prev ?? []).filter((usr) => usr.id !== u.id), { revalidate: false });
       if (selectedUser?.id === u.id) {
         setSelectedUser(null);
-        setMobileView('list'); // ✅ NEW: Go back to list on delete
+        setMobileView('list');
       }
     } catch (err: any) {
       setToast({ message: `Failed to delete user: ${err.message}`, type: 'error' });
+      mutateUsers();
     }
   };
 
@@ -637,7 +640,7 @@ export default function DashboardPage() {
       <CreateUserModal
         open={showCreateUser}
         onClose={() => setShowCreateUser(false)}
-        onSuccess={() => fetchUsers()}
+        onSuccess={() => mutateUsers()}
       />
       {toast && (
         <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">

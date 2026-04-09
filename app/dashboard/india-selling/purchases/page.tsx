@@ -1292,6 +1292,8 @@ export default function PurchasesPage() {
         },
       }))
 
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+
       const { error } = await supabase
         .from('india_purchases')  // ✅ Underscore
         .update({ move_to: 'pricewait', admin_confirmed: false })   // ✅ Clear admin_confirmed so it leaves the confirmed tab
@@ -1311,6 +1313,7 @@ export default function PurchasesPage() {
       });
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
+      setProducts(prev => [...prev, product]);
       showToast(`Error: ${error.message}`, 'error')
     }
   }
@@ -1329,6 +1332,8 @@ export default function PurchasesPage() {
           wasAdminConfirmed: product.admin_confirmed === true,
         },
       }))
+
+      setProducts(prev => prev.filter(p => p.id !== product.id));
 
       const { error } = await supabase
         .from('india_purchases')  // ✅ Underscore
@@ -1349,6 +1354,7 @@ export default function PurchasesPage() {
       });
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
+      setProducts(prev => [...prev, product]);
       showToast(`Error: ${error.message}`, 'error')
     }
   }
@@ -1521,6 +1527,7 @@ export default function PurchasesPage() {
           asin: product.asin,
           details: { from: 'tracking', to: 'order_confirmed' }
         });
+        setProducts(prev => [...prev, product]);
         await refreshProductsSilently();
         return; // ← Early return to skip the generic update below
 
@@ -1555,6 +1562,7 @@ export default function PurchasesPage() {
         asin: product.asin,
         details: { from: toStatus, to: fromStatus }
       });
+      setProducts(prev => [...prev, product]);
       await refreshProductsSilently()
     } catch (error) {
       console.error('Error rolling back:', error)
@@ -1569,6 +1577,7 @@ export default function PurchasesPage() {
 
 
     try {
+      setProducts(prev => prev.filter(p => p.id !== product.id));
 
 
       // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
@@ -1845,6 +1854,7 @@ export default function PurchasesPage() {
       });
       await refreshProductsSilently();
     } catch (error: any) {
+      setProducts(prev => [...prev, product]);
       console.error('❌ Move error:', error);
       showToast(`Failed to move: ${error.message}`, 'error');
     }

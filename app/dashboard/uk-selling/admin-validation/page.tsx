@@ -627,6 +627,10 @@ export default function AdminValidationPage() {
     }
 
     try {
+      const previousProducts = [...products];
+      const selectedArray = Array.from(selectedIds);
+      setProducts(prev => prev.map(p => selectedArray.includes(p.id) ? { ...p, admin_status: 'confirmed', confirmed_at: new Date().toISOString() } : p));
+
       const selectedProducts = products.filter(p => selectedIds.has(p.id));
 
       for (const product of selectedProducts) {
@@ -663,6 +667,7 @@ export default function AdminValidationPage() {
       setSelectedIds(new Set());
       fetchProducts();
     } catch (error: any) {
+      setProducts(previousProducts);
       setToast({ message: `Error confirming products: ${error.message}`, type: 'error' });
     }
   };
@@ -755,6 +760,9 @@ export default function AdminValidationPage() {
   // =========================================================
   const handleConfirmProduct = async (productId: string) => {
     try {
+      const previousProducts = [...products];
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, admin_status: 'confirmed', confirmed_at: new Date().toISOString() } : p));
+
       const product = products.find((p) => p.id === productId);
       if (!product) return;
 
@@ -889,6 +897,7 @@ export default function AdminValidationPage() {
       });
 
     } catch (error: any) {
+      setProducts(previousProducts);
       console.error(error);
       setToast({ message: `Error: ${error.message}`, type: 'error' });
     }

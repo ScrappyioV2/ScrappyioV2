@@ -375,6 +375,7 @@ export default function ValidationPage() {
 
         } catch (err) {
             console.error('Silent refresh error:', err);
+            setToast({ message: 'Background refresh failed', type: 'error' });
         }
     };
     // ✅ ADD THIS DEBOUNCED VERSION
@@ -450,6 +451,7 @@ export default function ValidationPage() {
             }
         } catch (err) {
             console.error('Error fetching constants:', err)
+            setToast({ message: 'Failed to load calculation settings', type: 'error' })
         }
     }
 
@@ -512,6 +514,7 @@ export default function ValidationPage() {
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
+            setToast({ message: 'Failed to load stats', type: 'error' })
         }
     }
 
@@ -601,6 +604,7 @@ export default function ValidationPage() {
 
         } catch (err) {
             console.error('Fetch error:', err);
+            setToast({ message: 'Failed to load products. Please refresh.', type: 'error' });
             setProducts([]);
         } finally {
             setLoading(false);
