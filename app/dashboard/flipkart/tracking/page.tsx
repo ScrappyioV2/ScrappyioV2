@@ -131,7 +131,6 @@ export default function TrackingPage() {
             funnel_seller: p.funnel_seller || null,
         }));
 
-    console.log('✅ Selected items for invoice:', selectedItems);
 
     const [visibleColumns, setVisibleColumns] = useState({
         checkbox: true,
@@ -162,7 +161,6 @@ export default function TrackingPage() {
 
             // ✅ FIX: Fetch from seller-specific Main File table
             const mainFileTableName = `flipkart_tracking_seller_${currentSellerId}`;
-            console.log('📋 Fetching from table:', mainFileTableName);
 
             // Recursive fetch to handle 1000+ rows
             let allData: any[] = [];
@@ -237,7 +235,6 @@ export default function TrackingPage() {
                 })
             );
 
-            console.log(`✅ Loaded ${enrichedData.length} products from ${mainFileTableName}`);
             setProducts(enrichedData);
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -250,7 +247,6 @@ export default function TrackingPage() {
     const fetchSellerCounts = async () => {
         const id = currentSellerId;
         try {
-            console.log('🔢 Fetching counts for seller:', id);
 
             // Parallel fetch for speed
             const [invoiceRes, checkingRes, shipmentRes, restockRes] = await Promise.all([
@@ -267,7 +263,6 @@ export default function TrackingPage() {
                 restock: restockRes.count ?? 0
             };
 
-            console.log('✅ Updated counts:', newCounts);
             setCounts(newCounts);
         } catch (error) {
             console.error('❌ Error fetching seller counts:', error);

@@ -53,7 +53,6 @@ export default function ShipmentTable({
 
             if (error) throw error;
 
-            console.log('✅ Shipment data fetched:', data?.length || 0);
             setItems(data || []);
         } catch (error) {
             console.error('Error fetching shipment data:', error);
@@ -73,7 +72,6 @@ export default function ShipmentTable({
         if (!confirmMove) return;
 
         try {
-            console.log('📦 Moving to Restock:', invoiceNumber);
 
             // 1. Get all items for this invoice
             const shipmentTableName = getUAETrackingTableName('SHIPMENT', sellerId);

@@ -55,17 +55,14 @@ function isPartialUpdateFile(headers: string[]) {
     'sku'
   ];
 
-  console.log('🔍 [DETECTION] Filtered headers:', normalized);
 
   // 3️⃣ Must contain ASIN
   if (!normalized.includes('asin')) {
-    console.log('❌ [DETECTION] No ASIN column found');
     return false;
   }
 
   // 4️⃣ Must have ONLY 2-3 columns (ASIN + remark/monthly_unit)
   if (normalized.length > 4) {
-    console.log(`❌ [DETECTION] Too many columns (${normalized.length}) - not a partial update`);
     return false;
   }
 
@@ -73,7 +70,6 @@ function isPartialUpdateFile(headers: string[]) {
   const allAllowed = normalized.every(h => allowed.includes(h));
   if (!allAllowed) {
     const disallowed = normalized.filter(h => !allowed.includes(h));
-    console.log('❌ [DETECTION] Contains disallowed columns:', disallowed);
     return false;
   }
 
@@ -83,11 +79,9 @@ function isPartialUpdateFile(headers: string[]) {
   );
 
   if (!hasUpdateColumn) {
-    console.log('❌ [DETECTION] No update columns found');
     return false;
   }
 
-  console.log('✅ [DETECTION] Valid partial update file detected');
   return true;
 }
 
@@ -328,11 +322,6 @@ export default function IndiaSellersPage() {
         const rawHeaders = Object.keys(data[0] || {});
 
         // ✅ DEBUG LOGGING
-        console.log('🔍 [INDIA] Raw headers from CSV:', rawHeaders);
-        console.log('🔍 [INDIA] Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
-        console.log('🔍 [INDIA] First data row:', data[0]);
-        console.log('🔍 [INDIA] Is partial update?', isPartialUpdateFile(rawHeaders));
-        console.log('🔍 [INDIA] Total rows:', data.length);
 
         if (isPartialUpdateFile(rawHeaders)) {
           // ✅ Show initial toast with unique ID
@@ -371,7 +360,6 @@ export default function IndiaSellersPage() {
               );
             }
 
-            console.log(`✅ [INDIA] Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
           } catch (err: any) {
             console.error('[INDIA] Partial update failed:', err);
             toast.error(
@@ -429,7 +417,6 @@ export default function IndiaSellersPage() {
       });
       allNewProducts = Array.from(uniqueProductsMap.values());
 
-      console.log(`✅ [INDIA] After deduplication: ${allNewProducts.length} unique products`);
 
       const batchSize = 1000;
       const totalBatches = Math.ceil(allNewProducts.length / batchSize);
@@ -466,7 +453,6 @@ export default function IndiaSellersPage() {
             });
 
             // ✅ Clean console log (like Flipkart)
-            console.log(`📤 Uploading batch ${batchIndex + 1}/${totalBatches} (${cleanBatch.length} records)`);
 
             // ✅ Use RPC function directly
             const { data, error } = await supabase
@@ -480,7 +466,6 @@ export default function IndiaSellersPage() {
             }
 
             // ✅ Success log
-            console.log(`✅ Batch ${batchIndex + 1}/${totalBatches} completed (${data?.affected_in_master ?? 'done'} inserted)`);
 
             return { success: true, count: batch.length };
           } catch (error: any) {

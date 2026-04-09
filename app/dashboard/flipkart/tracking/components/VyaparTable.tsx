@@ -54,7 +54,6 @@ export default function VyaparTable({
 
             if (error) throw error;
 
-            console.log('✅ Vyapar data fetched:', data?.length || 0);
             setItems(data || []);
         } catch (error) {
             console.error('Error fetching Vyapar data:', error);
@@ -81,7 +80,6 @@ export default function VyaparTable({
                 )
             )
 
-            console.log(`Status updated to ${newStatus} for item ${itemId}`)
         } catch (error: any) {
             console.error('Error updating status:', error)
             setToast({ message: `Failed to update status: ${error.message}`, type: 'error' })

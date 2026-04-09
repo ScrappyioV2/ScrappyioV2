@@ -111,7 +111,6 @@ export function useDashboardStats(options = { enabled: true }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'usa_validation_main_file' },
         (payload) => {
-          console.log('🔄 Realtime update detected:', payload.eventType);
           fetchStats(); // Re-fetch stats when data changes
         }
       )

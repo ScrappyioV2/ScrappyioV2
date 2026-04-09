@@ -366,7 +366,6 @@ function AddSeller() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        console.log('No user logged in, skipping save')
         return
       }
 
@@ -376,7 +375,6 @@ function AddSeller() {
       )
 
       if (validSellers.length === 0) {
-        console.log('No valid sellers to save')
         return
       }
 
@@ -418,7 +416,6 @@ function AddSeller() {
         return
       }
 
-      console.log(`✅ Auto-saved ${dbSellers.length} sellers to database`)
 
       // Reload sellers to get database IDs
       await fetchSellersFromDB(selectedCountry)
@@ -849,7 +846,6 @@ function AddSeller() {
       }
 
       if (!session) {
-        console.log('No active session found')
         showToast(`Generated ${generatedLinksArray.length} links (saved locally - login to persist)`, 'info')
         await loadGeneratedLinksFromDB(selectedCountry)
         setCurrentView('links')
@@ -865,10 +861,8 @@ function AddSeller() {
         return
       }
 
-      console.log('✅ User authenticated:', user.id)
 
       const tableName = selectedCountry === 'usa' ? 'us_sellers' : `${selectedCountry}_sellers`
-      console.log('📝 Saving to table:', tableName)
 
       const { error: deleteError } = await supabase
         .from(tableName)
@@ -892,7 +886,6 @@ function AddSeller() {
         console.error('❌ Database save error:', insertError)
         showToast(`Generated ${generatedLinksArray.length} links (saved locally - DB error: ${insertError.message})`, 'error')
       } else {
-        console.log('✅ Successfully saved to database')
         showToast(`Generated ${generatedLinksArray.length} links and saved to database!`, 'success')
       }
     } catch (error) {
@@ -1205,7 +1198,6 @@ function AddSeller() {
           if (error) {
             console.error('Error updating is_copied:', error)
           } else {
-            console.log('✅ Link marked as copied in database!')
           }
         }
       }

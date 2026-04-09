@@ -271,7 +271,6 @@ export default function CostechVenturesListedPage() {
             }
 
             // ✅ ADD DEBUG: Check if link is in the data
-            console.log('🔍 FETCHED PRODUCTS:', data?.[0]);
 
             setProducts(data || []);
             setTotalCount(count || 0);

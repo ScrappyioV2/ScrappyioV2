@@ -465,7 +465,6 @@ export default function AdminValidationPage() {
         'USA'
       );
 
-      console.log('Calculated profit:', result.profit);
 
       // ✅ FIX: Update profit in CORRECT TABLE (usa_admin_validation)
       const { error } = await supabase
@@ -699,7 +698,6 @@ export default function AdminValidationPage() {
       // Use mapped field name, or original if not in mapping
       const dbField = fieldMapping[field] || field
 
-      console.log('📊 Updating product:', { id, field, dbField, value })
 
       // UPDATE usa_admin_validation table (not usa_purchases)
       const { error } = await supabase
@@ -713,7 +711,6 @@ export default function AdminValidationPage() {
         return
       }
 
-      console.log('✅ Product updated successfully')
 
       // Update local state
       setProducts((prev) =>
@@ -757,7 +754,6 @@ export default function AdminValidationPage() {
       if (!product) return;
 
       const cleanAsin = product.asin.trim();
-      console.log(`🚀 Confirming: ${cleanAsin}`);
 
       // 1. FRESH FETCH (Only existing columns)
       const { data: validationData, error: fetchError } = await supabase
@@ -814,7 +810,6 @@ export default function AdminValidationPage() {
         return;
       }
 
-      console.log(`📊 Distributing to Sellers: ${validSellerIds.join(', ')} | Funnel=${finalFunnelId}`);
 
       // 5. LOOP THROUGH ALL VALID SELLERS (Distribute to each)
       for (const sellerId of validSellerIds) {

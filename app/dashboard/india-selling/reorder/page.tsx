@@ -380,7 +380,6 @@ export default function ReorderPage() {
             allRows = allRows.concat(sheetData)
           })
 
-          console.log(`📊 Excel: Found ${workbook.SheetNames.length} sheet(s), Total rows: ${allRows.length}`)
 
           await processInventoryData(allRows)
 
@@ -525,7 +524,6 @@ export default function ReorderPage() {
         return
       }
 
-      console.log(`🚀 Recalculating for ${activeSeller.name} (${sellerTag})...`)
 
       // ✅ Build tracking quantity map by summing across ALL 4 pipeline tables
       const trackingMap: Record<string, number> = {}
@@ -569,7 +567,6 @@ export default function ReorderPage() {
             addToMap(row.asin, share)
             addToSourceMap(row.asin, share, 'inbound')
           })
-          console.log(`  📦 Inbound: ${data?.length || 0} rows matched for ${sellerTag}`)
         }
       }
 
@@ -587,7 +584,6 @@ export default function ReorderPage() {
             addToMap(row.asin, share)
             addToSourceMap(row.asin, share, 'boxes')
           })
-          console.log(`  📦 Boxes: ${data?.length || 0} rows matched for ${sellerTag}`)
         }
       }
 
@@ -606,7 +602,6 @@ export default function ReorderPage() {
             addToMap(row.asin, share)
             addToSourceMap(row.asin, share, 'checking')
           })
-          console.log(`  📦 Checking: ${data?.length || 0} rows matched for ${sellerTag}`)
         }
       }
 
@@ -623,11 +618,9 @@ export default function ReorderPage() {
             addToMap(row.asin, row.buying_quantity || 0)
             addToSourceMap(row.asin, row.buying_quantity || 0, 'restock')
           })
-          console.log(`  📦 Restock: ${data?.length || 0} rows`)
         }
       }
 
-      console.log('✅ Tracking map built:', Object.keys(trackingMap).length, 'unique ASINs')
 
       // ✅ Calculate reorder quantities
       const updates = currentReorderData.map(p => {
@@ -859,7 +852,6 @@ export default function ReorderPage() {
           const currentMaxJourney = historyData?.journey_number || 1
           const nextJourneyNum = currentMaxJourney + 1
 
-          console.log(`📊 ASIN ${product.asin}: Current max journey = ${currentMaxJourney}, Next = ${nextJourneyNum}`)
 
           // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
           const { data: masterData, error: fetchError } = await supabase

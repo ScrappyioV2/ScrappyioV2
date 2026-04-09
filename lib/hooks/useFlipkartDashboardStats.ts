@@ -109,7 +109,6 @@ export function useFlipkartDashboardStats(options = { enabled: true }) {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'flipkart_validation_main_file' }, // ✅ UPDATED
                 (payload) => {
-                    console.log('🔄 Flipkart Validation update detected:', payload.eventType);
                     fetchStats();
                 }
             )
@@ -117,7 +116,6 @@ export function useFlipkartDashboardStats(options = { enabled: true }) {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'flipkart_purchases' }, // ✅ UPDATED
                 (payload) => {
-                    console.log('🔄 Flipkart Purchases update detected:', payload.eventType);
                     fetchStats();
                 }
             )

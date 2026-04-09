@@ -946,12 +946,10 @@ export default function ValidationPage() {
         try {
             // GUARD: If this product is being moved, DO NOT touch it
             if (movingIdsRef.current.has(id)) {
-                console.log('⛔ Skipping calc — product is being moved:', product.asin);
                 return;
             }
 
             if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
-                console.log('Missing required fields for calculation');
                 return;
             }
 
@@ -975,7 +973,6 @@ export default function ValidationPage() {
                 updateData.judgement = result.judgement;
             }
 
-            console.log('Updating product', id, 'asin', product.asin, 'calcJudgement', result.judgement, updateData);
 
             // GUARD again before DB write (product may have been moved while we calculated)
             if (movingIdsRef.current.has(id)) return;
@@ -1057,7 +1054,6 @@ export default function ValidationPage() {
             }
 
             const rawHeaders = Object.keys(rows[0]);
-            console.log('📋 File Headers:', rawHeaders);
 
             // Normalize header mapping
             const headerMap: Record<string, string> = {};
@@ -1078,7 +1074,6 @@ export default function ValidationPage() {
                 return;
             }
 
-            console.log('🔍 Mapped headers:', headerMap);
 
             const updates: { asin: string; product_weight?: number | null; usd_price?: number | null; inr_purchase?: number | null; inr_purchase_link?: string | null; remark?: string | null; indialink?: string | null; sku?: string | null }[] = [];
 
@@ -1128,7 +1123,6 @@ export default function ValidationPage() {
                 return;
             }
 
-            console.log(`📊 Processing ${updates.length} rows for override...`);
 
             const productsByAsin = new Map<string, ValidationProduct>();
             products.forEach((p) => productsByAsin.set(p.asin, p));
@@ -1255,7 +1249,6 @@ export default function ValidationPage() {
                 }, 2000);
             }
 
-            console.log(`✅ Upload complete: ${updated} updated, ${passCount} pass, ${failCount} fail, ${skipped} skipped`);
         } catch (err) {
             console.error('File processing error:', err);
             setToast({ message: 'Failed to process file', type: 'error' });
@@ -1590,7 +1583,6 @@ export default function ValidationPage() {
                 localEditCountRef.current += 1;
 
                 try {
-                    console.log('🔄 Moving IDs:', idsArray);
 
                     const { error } = await supabase
                         .from('india_validation_main_file')
@@ -1615,7 +1607,6 @@ export default function ValidationPage() {
                         throw error;
                     }
 
-                    console.log('✅ Successfully updated!');
 
                     setProducts((prev) =>
                         prev.map((p) =>
@@ -1681,7 +1672,6 @@ export default function ValidationPage() {
                 localEditCountRef.current += 1;
 
                 try {
-                    console.log('🔄 Moving to Pass:', idsArray);
 
                     const { error } = await supabase
                         .from('india_validation_main_file')
@@ -1743,7 +1733,6 @@ export default function ValidationPage() {
                 localEditCountRef.current += 1;
 
                 try {
-                    console.log('🔄 Moving to Fail:', idsArray);
 
                     const { error } = await supabase
                         .from('india_validation_main_file')
@@ -1804,7 +1793,6 @@ export default function ValidationPage() {
                 localEditCountRef.current += 1;
 
                 try {
-                    console.log('Moving to Reworking:', idsArray);
                     const { error } = await supabase
                         .from('india_validation_main_file')
                         .update({
@@ -2060,7 +2048,6 @@ export default function ValidationPage() {
 
     // Move ASIN to Pass/Fail based on calculated judgement
     const handleMoveByJudgement = async (product: ValidationProduct) => {
-        console.log('🔴 MOVE CLICKED', product.asin, product.calculated_judgement);
         const judgement = product.calculated_judgement;
 
         if (!judgement || judgement === 'PENDING') return;

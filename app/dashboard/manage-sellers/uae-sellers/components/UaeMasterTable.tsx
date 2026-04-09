@@ -205,12 +205,6 @@ export default function UaeMasterTable({
         .range(from, to);
 
       if (error) throw error;
-     // ✅ DEBUG: Check if remark data is being fetched
-      console.log('📊 Fetched Data Sample:', result?.[0]);
-      console.log('📝 Remark values:', result?.map((r: any) => ({ 
-        asin: r.asin, 
-        remark: r.remark 
-      })).slice(0, 3));
       setData(result || []);
     } catch (error) {
       console.error('Error fetching data:', error);

@@ -175,11 +175,9 @@ export default function CompanyInvoiceTable({
     // Pass button - Move to checking table
     if (action === 'pass') {
       try {
-        console.log('🔄 Moving invoice to checking:', invoiceNumber);
 
         // 1. Get all items with this invoice_number from INVOICE table
         const invoiceTableName = getFlipkartTrackingTableName('INVOICE', sellerId);
-        console.log('📋 Fetching from:', invoiceTableName);
 
         const { data: itemsToMove, error: fetchError } = await supabase
           .from(invoiceTableName) // ✅ india_invoice_seller_X
@@ -193,7 +191,6 @@ export default function CompanyInvoiceTable({
           return;
         }
 
-        console.log(`📦 Found ${itemsToMove.length} items to move`);
 
         // 2. Prepare data for checking table (remove id to generate new ones)
         const dataToInsert = itemsToMove.map((item) => ({
@@ -264,7 +261,6 @@ export default function CompanyInvoiceTable({
 
         // 3. Insert into CHECKING table
         const checkingTableName = getFlipkartTrackingTableName('CHECKING', sellerId);
-        console.log('📥 Inserting into:', checkingTableName);
 
         const { error: insertError } = await supabase
           .from(checkingTableName) // ✅ india_checking_seller_X
@@ -275,10 +271,8 @@ export default function CompanyInvoiceTable({
           throw insertError;
         }
 
-        console.log('✅ Insert successful');
 
         // 4. Delete from INVOICE table (seller-specific)
-        console.log('🗑️ Deleting from:', invoiceTableName);
 
         const { error: deleteError } = await supabase
           .from(invoiceTableName) // ✅ FIXED: india_invoice_seller_X (not india_tracking_company_invoice!)
@@ -290,7 +284,6 @@ export default function CompanyInvoiceTable({
           throw deleteError;
         }
 
-        console.log('✅ Delete successful');
 
         // 5. Refresh the table
         await fetchInvoiceData();

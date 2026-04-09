@@ -46,7 +46,6 @@ export default function RollbackModal({
 
             // ✅ FIX #1: Use seller-specific invoice table
             const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
-            console.log('📋 Fetching from table:', invoiceTableName);
 
             // Step 1: Get ALL invoice groups from seller's invoice table
             const { data, error } = await supabase
@@ -86,7 +85,6 @@ export default function RollbackModal({
             }, {})
 
 
-            console.log('📊 Found invoices:', Object.keys(grouped).length);
             setInvoices(Object.values(grouped));
         } catch (error) {
             console.error('Error fetching invoices:', error);
@@ -144,9 +142,6 @@ export default function RollbackModal({
                 const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
                 const mainFileTableName = getUKTrackingTableName('MAIN', sellerId);
 
-                console.log(`🔄 Rolling back invoice ${invoiceNumber}`);
-                console.log(`📋 Invoice table: ${invoiceTableName}`);
-                console.log(`📁 Main file table: ${mainFileTableName}`);
 
                 // 1. Get all items for this invoice
                 const { data: invoiceItems, error: fetchError } = await supabase
@@ -161,7 +156,6 @@ export default function RollbackModal({
                     continue;
                 }
 
-                console.log(`📦 Found ${invoiceItems.length} items to restore`);
 
                 // 2. Save to rollback history
                 const { error: historyError } = await supabase
@@ -231,11 +225,9 @@ export default function RollbackModal({
                         throw restoreError;
                     }
 
-                    console.log(`✅ Restored ${dataToRestore.length} ASINs`);
                 }
 
                 if (existingAsinSet.size > 0) {
-                    console.log(`⚠️ Skipped ${existingAsinSet.size} duplicate ASINs`);
                 }
 
                 // 6. Delete from invoice table
@@ -254,7 +246,6 @@ export default function RollbackModal({
 
                 if (deleteMasterError) throw deleteMasterError;
 
-                console.log(`✅ Rolled back invoice ${invoiceNumber}`);
             }
 
             // Show success toast

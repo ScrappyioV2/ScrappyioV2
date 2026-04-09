@@ -111,7 +111,6 @@ export function useUAEDashboardStats(options = { enabled: true }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'uae_validation_main_file' },
         (payload) => {
-          console.log('🔄 Realtime update detected:', payload.eventType);
           fetchStats(); // Re-fetch stats when data changes
         }
       )

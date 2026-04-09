@@ -1059,8 +1059,6 @@ export default function PurchasesPage() {
         }
       }
 
-      console.log('Tags sending to admin:', tagsToMove);
-      console.log('Tags staying in purchases (qty=0):', tagsToKeep);
 
       // SAVE TO HISTORY FIRST!
       setMovementHistory(prev => ({
@@ -1571,7 +1569,6 @@ export default function PurchasesPage() {
 
 
     try {
-      console.log('🚀 Moving to tracking:', product.asin);
 
 
       // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
@@ -1587,7 +1584,6 @@ export default function PurchasesPage() {
       }
 
 
-      console.log('📦 Fresh data fetched:', freshProduct);
 
 
       // STEP 2: Extract ALL unique seller tags
@@ -1610,7 +1606,6 @@ export default function PurchasesPage() {
       }
 
 
-      console.log('🏷️ Seller tags to process:', sellerTags);
 
 
       // ─────────────────────────────────────────────
@@ -1644,8 +1639,6 @@ export default function PurchasesPage() {
         }
       }
 
-      console.log('✅ Tags moving to tracking:', tagsToMove);
-      console.log('⏸️ Tags staying in purchases (qty=0):', tagsToKeep);
 
       // STEP 2.9: Check for existing entries to prevent duplicates
       const { data: existingEntries } = await supabase
@@ -1679,7 +1672,6 @@ export default function PurchasesPage() {
       // STEP 3: INSERT into tracking tables — 🆕 ONLY for tags with qty > 0
       const insertPromises = tagsToMove.map(async (tag) => {
 
-        console.log(`📊 Inserting into: india_inbound_tracking (Seller: ${tag})`);
 
 
         // ✅ ALL column names use snake_case to match database schema
@@ -1772,7 +1764,6 @@ export default function PurchasesPage() {
       }
 
 
-      console.log(`✅ Successfully inserted into ${tagsToMove.length} tracking tables: ${tagsToMove.join(', ')}`);
 
       setMovementHistory(prev => ({
         ...prev,
@@ -1801,7 +1792,6 @@ export default function PurchasesPage() {
         }
 
 
-        console.log('✅ Delete successful — all tags moved');
         showToast(`Moved to ${tagsToMove.length} tracking table(s): ${tagsToMove.join(', ')}`, 'success');
       } else {
         // 🆕 PARTIAL MOVE — keep zero-qty tags in Confirmed tab
@@ -1832,7 +1822,6 @@ export default function PurchasesPage() {
             .eq('asin', freshProduct.asin);
         }
 
-        console.log(`⏸️ Partial move: ${tagsToMove.join(', ')} → tracking | ${tagsToKeep.join(', ')} → stayed`);
         showToast(
           `Moved ${tagsToMove.join(', ')} to tracking. ${tagsToKeep.join(', ')} kept in purchases (qty=0).`,
           'success'

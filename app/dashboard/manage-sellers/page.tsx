@@ -110,7 +110,6 @@ export default function ManageSellersPage() {
       const subscription = supabase
         .channel(`${country}_realtime_copy`)
         .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, () => {
-          console.log(`🔔 Real-time update for ${country}`);
           debouncedFetchProgress();
         })
         .subscribe();

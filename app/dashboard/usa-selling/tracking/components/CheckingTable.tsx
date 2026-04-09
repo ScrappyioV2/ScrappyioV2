@@ -151,8 +151,6 @@ export default function CheckingTable({
         }
       }
 
-      console.log('✅ Checking data fetched:', allData);
-      console.log('✅ Number of items:', allData?.length);
 
       setItems(allData);
     } catch (error) {
@@ -208,7 +206,6 @@ export default function CheckingTable({
   // Handle checkbox change - Mark individual item as RECEIVED
   const handleCheckboxChange = async (itemId: string, checked: boolean) => {
     try {
-      console.log(`${checked ? '✅' : '❌'} Marking item as ${checked ? 'received' : 'not received'}:`, itemId);
 
       // Update database
       const tableName = getTrackingTableName('CHECKING', sellerId);
@@ -226,7 +223,6 @@ export default function CheckingTable({
         )
       );
 
-      console.log('✅ Product received status updated');
     } catch (error: any) {
       console.error('❌ Error updating received status:', error);
       setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
@@ -237,7 +233,6 @@ export default function CheckingTable({
   // Move items to Shipment & Vyapar
   const handleMoveToShipment = async (itemIds: string[]) => {
     try {
-      console.log('Moving items to Shipment & Vyapar:', itemIds)
 
       // 1. Get items to move from CHECKING table (removed product_received filter)
       const checkingTableName = getTrackingTableName('CHECKING', sellerId)
@@ -253,7 +248,6 @@ export default function CheckingTable({
         return
       }
 
-      console.log(`📦 Found ${itemsToMove.length} received items to move`);
 
       // 2. Prepare data (remove id, created_at, product_received)
       const preparedData = itemsToMove.map((item) => {
@@ -278,7 +272,6 @@ export default function CheckingTable({
 
       // 5. Insert into SHIPMENT table
       const shipmentTableName = getTrackingTableName('SHIPMENT', sellerId);
-      console.log('📥 Inserting into Shipment:', shipmentTableName);
 
       const { error: shipmentInsertError } = await supabase
         .from(shipmentTableName)
@@ -289,11 +282,9 @@ export default function CheckingTable({
         throw shipmentInsertError;
       }
 
-      console.log('✅ Shipment insert successful');
 
       // 6. Insert into VYAPAR table
       const vyaparTableName = getTrackingTableName('VYAPAR', sellerId);
-      console.log('📥 Inserting into Vyapar:', vyaparTableName);
 
       const { error: vyaparInsertError } = await supabase
         .from(vyaparTableName)
@@ -304,10 +295,8 @@ export default function CheckingTable({
         throw vyaparInsertError;
       }
 
-      console.log('✅ Vyapar insert successful');
 
       // 7. Delete from CHECKING table
-      console.log('🗑️ Deleting from:', checkingTableName);
 
       const { error: deleteError } = await supabase
         .from(checkingTableName)
@@ -319,7 +308,6 @@ export default function CheckingTable({
         throw deleteError;
       }
 
-      console.log('✅ Delete successful');
 
       // 8. Update local state - remove moved items
       setItems((prevItems) =>
@@ -383,7 +371,6 @@ export default function CheckingTable({
 
       if (error) throw error;
 
-      console.log(`✅ Updated ${field} for item ${itemId}: ${value}`);
     } catch (error: any) {
       console.error('Error updating field:', error);
       setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
@@ -429,7 +416,6 @@ export default function CheckingTable({
     if (!confirmed) return;
 
     try {
-      console.log('🚀 Bulk moving items:', Array.from(selectedItemIds));
 
       // 1. Get items from CHECKING table
       const checkingTableName = getTrackingTableName('CHECKING', sellerId);
@@ -444,7 +430,6 @@ export default function CheckingTable({
         return;
       }
 
-      console.log(`📦 Found ${itemsToMove.length} items to move`);
 
       // 2. Prepare data
       const preparedData = itemsToMove.map((item: any) => {
@@ -463,7 +448,6 @@ export default function CheckingTable({
         .insert(shipmentData);
 
       if (shipmentInsertError) throw shipmentInsertError;
-      console.log('✅ Shipment insert successful');
 
       // 4. Insert into VYAPAR
       const vyaparTableName = getTrackingTableName('VYAPAR', sellerId);
@@ -473,7 +457,6 @@ export default function CheckingTable({
         .insert(vyaparData);
 
       if (vyaparInsertError) throw vyaparInsertError;
-      console.log('✅ Vyapar insert successful');
 
       // 5. Delete from CHECKING
       const { error: deleteError } = await supabase
@@ -482,7 +465,6 @@ export default function CheckingTable({
         .in('id', Array.from(selectedItemIds));
 
       if (deleteError) throw deleteError;
-      console.log('✅ Delete successful');
 
       // 6. Update UI
       setItems(prevItems => prevItems.filter(item => !selectedItemIds.has(item.id)));

@@ -109,7 +109,6 @@ export default function BrandCheckingPage() {
     if (!user) return;
 
     const fetchProgress = async () => {
-      console.log("📊 Fetching initial brand check progress...");
       const { data, error } = await supabase
         .from("uae_brand_check_progress")
         .select("*");
@@ -144,7 +143,6 @@ export default function BrandCheckingPage() {
   useEffect(() => {
     if (!user) return;
 
-    console.log("🔌 Setting up real-time subscription for uae_brand_check_progress");
 
     const channel = supabase
       .channel("brand-check-progress-updates")

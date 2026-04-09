@@ -121,7 +121,6 @@ export default function BrandCheckingPage() {
   useEffect(() => {
     if (!user) return;
     const fetchProgress = async () => {
-      console.log("📊 Fetching initial flipkart brand check progress...");
 
       const { data, error } = await supabase
         .from("flipkart_brand_check_progress")  // ✅ CORRECT: flipkart table
@@ -133,7 +132,6 @@ export default function BrandCheckingPage() {
       }
 
       if (data) {
-        console.log("✅ Loaded flipkart progress data:", data);
         setSellers((prev) =>
           prev.map((seller) => {
             const row = data.find(
@@ -158,7 +156,6 @@ export default function BrandCheckingPage() {
   /* ===== REALTIME SUBSCRIPTION ===== */
   useEffect(() => {
     if (!user) return;
-    console.log("🔌 Setting up real-time subscription for flipkart_brand_check_progress");
 
     const channel = supabase
       .channel("flipkart-brand-check-progress-updates")  // ✅ FIXED: Unique channel name
@@ -170,7 +167,6 @@ export default function BrandCheckingPage() {
           table: "flipkart_brand_check_progress",  // ✅ FIXED: Changed from brand_check_progress to flipkart_brand_check_progress
         },
         (payload) => {
-          console.log("🔔 Real-time update received:", payload);
           const data = payload.new as BrandProgressRow;
 
           if (!data || !data.seller_id) return;  // ✅ FIXED: sellerid instead of seller_id

@@ -407,7 +407,6 @@ export default function ValidationPage() {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('🔄 Tab visible: Refreshing...');
                 refreshProductsSilently(); // ✅ NEW: Silent update on tab focus
                 fetchStats();
             }
@@ -687,11 +686,6 @@ export default function ValidationPage() {
     const autoCalculateAndUpdate = async (id: string, product: ValidationProduct) => {
         try {
             if (!product.usd_price || !product.product_weight || !product.inr_purchase) {
-                console.log('Missing required fields for calculation', {
-                    usd_price: product.usd_price,
-                    product_weight: product.product_weight,
-                    inr_purchase: product.inr_purchase,
-                });
                 return;
             }
 
@@ -781,7 +775,6 @@ export default function ValidationPage() {
             }
 
             const rawHeaders = Object.keys(rows[0]);
-            console.log('📋 File Headers:', rawHeaders);
 
             const headerMap: Record<string, string> = {};
             rawHeaders.forEach((h) => {
@@ -800,7 +793,6 @@ export default function ValidationPage() {
                 return;
             }
 
-            console.log('🔍 Mapped headers:', headerMap);
 
             const updates: { asin: string; product_weight?: number | null; usd_price?: number | null; inr_purchase?: number | null; inr_purchase_link?: string | null; remark?: string | null; usalink?: string | null }[] = [];
 
@@ -827,7 +819,6 @@ export default function ValidationPage() {
                 return;
             }
 
-            console.log(`📊 Processing ${updates.length} rows for override...`);
 
             const productsByAsin = new Map<string, ValidationProduct>();
             products.forEach((p) => productsByAsin.set(p.asin, p));
@@ -923,7 +914,6 @@ export default function ValidationPage() {
                     setToast({ message: movements.join(' | '), type: passCount > 0 ? 'success' : failCount > 0 ? 'error' : 'info' });
                 }, 2000);
             }
-            console.log(`✅ Upload complete: ${updated} updated, ${passCount} pass, ${failCount} fail, ${skipped} skipped`);
         } catch (err) {
             console.error('File processing error:', err);
             setToast({ message: 'Failed to process file', type: 'error' });
@@ -1200,7 +1190,6 @@ export default function ValidationPage() {
                 try {
                     const idsArray = Array.from(selectedIds);
 
-                    console.log('🔄 Moving IDs:', idsArray);
 
                     // Use CORRECT database field names (snake_case with underscores)
                     const { error } = await supabase
@@ -1224,7 +1213,6 @@ export default function ValidationPage() {
                         throw error;
                     }
 
-                    console.log('✅ Successfully updated!');
 
                     // Immediate UI update
                     setProducts((prev) =>
@@ -1284,7 +1272,6 @@ export default function ValidationPage() {
                 try {
                     const idsArray = Array.from(selectedIds);
 
-                    console.log('🔄 Moving to Pass:', idsArray);
 
                     // Update judgement to PASS in main_file
                     const { error } = await supabase
@@ -1357,7 +1344,6 @@ export default function ValidationPage() {
                 try {
                     const idsArray = Array.from(selectedIds);
 
-                    console.log('🔄 Moving to Fail:', idsArray);
 
                     // Update judgement to FAIL in main_file
                     const { error } = await supabase

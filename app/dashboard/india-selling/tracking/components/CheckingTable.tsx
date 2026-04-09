@@ -204,8 +204,6 @@ export default function CheckingTable({
         }
       }
 
-      console.log('✅ Checking data fetched:', allData);
-      console.log('✅ Number of items:', allData?.length);
 
       setItems(allData);
     } catch (error) {
@@ -279,7 +277,6 @@ export default function CheckingTable({
   // Handle checkbox change - Mark individual item as RECEIVED
   const handleCheckboxChange = async (itemId: string, checked: boolean) => {
     try {
-      console.log(`${checked ? '✅' : '❌'} Marking item as ${checked ? 'received' : 'not received'}:`, itemId);
 
       // Update database
       const tableName = 'india_box_checking';
@@ -297,7 +294,6 @@ export default function CheckingTable({
         )
       );
 
-      console.log('✅ Product received status updated');
     } catch (error: any) {
       console.error('❌ Error updating received status:', error);
       setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
@@ -629,7 +625,6 @@ export default function CheckingTable({
 
       if (error) throw error;
 
-      console.log(`✅ Updated ${field} for item ${itemId}: ${value}`);
     } catch (error: any) {
       console.error('Error updating field:', error);
       setToast({ message: `Failed to update: ${error.message}`, type: 'error' });

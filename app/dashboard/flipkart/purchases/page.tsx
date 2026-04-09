@@ -613,7 +613,6 @@ export default function PurchasesPage() {
     }
 
     try {
-      console.log('🚀 Moving to tracking:', product.asin);
 
       // STEP 1: FETCH FRESH DATA (Returns snake_case column names from database)
       const { data: freshProduct, error: fetchError } = await supabase
@@ -626,7 +625,6 @@ export default function PurchasesPage() {
         throw new Error('Could not fetch latest data. Please refresh and try again.');
       }
 
-      console.log('📦 Fresh data fetched:', freshProduct);
 
       // STEP 2: Extract ALL unique seller tags
       let sellerTags: string[] = [];
@@ -645,7 +643,6 @@ export default function PurchasesPage() {
         sellerTags = ['GR'];
       }
 
-      console.log('🏷️ Seller tags to process:', sellerTags);
 
       // Map seller tag to seller ID
       const sellerTagMapping: Record<string, number> = {
@@ -662,7 +659,6 @@ export default function PurchasesPage() {
         const sellerId = sellerTagMapping[tag] || 1;
         const trackingTableName = `flipkart_tracking_seller_${sellerId}`;
 
-        console.log(`📊 Inserting into: ${trackingTableName} (Seller: ${tag})`);
 
         // ✅ ALL column names use snake_case to match database schema
         return supabase
@@ -744,7 +740,6 @@ export default function PurchasesPage() {
         throw new Error(`Failed to insert into ${errors.length} table(s)`);
       }
 
-      console.log(`✅ Successfully inserted into ${sellerTags.length} tracking tables: ${sellerTags.join(', ')}`);
 
       // STEP 4: DELETE from purchases (only after ALL inserts succeed)
       const { error: deleteError } = await supabase
@@ -757,7 +752,6 @@ export default function PurchasesPage() {
         throw deleteError;
       }
 
-      console.log('✅ Delete successful');
       setToast({ message: `Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently();
     } catch (error: any) {

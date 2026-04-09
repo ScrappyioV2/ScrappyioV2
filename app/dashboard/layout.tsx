@@ -85,7 +85,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     // 1. No User → Redirect to Login
     if (!user) {
-      console.log("🔒 No user, redirecting to login");
       router.replace("/login");
       return;
     }
@@ -111,13 +110,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     // If route is protected and user lacks permission → Unauthorized
     if (matchedRoute && !hasPageAccess(matchedRoute.permission)) {
-      console.log("🚫 Access denied to:", pathname);
       router.push("/unauthorized");
       return;
     }
 
 
-    console.log("✅ Access granted to:", pathname);
     setIsChecking(false);
     setHasEverLoaded(true);
   }, [user, loading, pathname, router, hasPageAccess]);

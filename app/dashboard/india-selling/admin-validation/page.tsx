@@ -359,13 +359,6 @@ export default function AdminValidationPage() {
       });
 
       const usProducts = enrichedData.filter(p => p.origin_us === true);
-      console.log('Products with originus=true:', usProducts.length, usProducts.map(p => p.asin));
-      console.log('Sample product origins:', enrichedData.slice(0, 3).map(p => ({
-        asin: p.asin,
-        originindia: p.origin_india,
-        originchina: p.origin_china,
-        originus: p.origin_us,
-      })));
 
       setProducts(enrichedData)
     } catch (error: any) {
@@ -488,8 +481,6 @@ export default function AdminValidationPage() {
         .single();
 
       // DEBUG — check browser console to verify
-      console.log('📊 RAW DB Constants:', data);
-      console.log('📊 DB Error:', error);
 
       if (!error && data) {
         const parsed: CalculationConstants = {
@@ -500,7 +491,6 @@ export default function AdminValidationPage() {
           packing_cost: Number(data.packing_cost) || 15,
         };
 
-        console.log('📊 PARSED Constants:', parsed);
         setAdminConstants(parsed);
       }
     } catch (err) {
@@ -563,7 +553,6 @@ export default function AdminValidationPage() {
         packing_cost: newConstants.packing_cost,
       };
 
-      console.log('📊 SAVING to DB:', payload);
 
       if (existingData) {
         const { error } = await supabase
@@ -1080,7 +1069,6 @@ export default function AdminValidationPage() {
       };
 
       const dbField = fieldMapping[field] || field;
-      console.log('📊 Updating product:', { id, field, dbField, value });
 
       const updatePayload: Record<string, any> = { [dbField]: value };
 
@@ -1129,7 +1117,6 @@ export default function AdminValidationPage() {
         return;
       }
 
-      console.log('Product updated successfully', updatePayload);
 
       const wasCalcTriggered = ['targetprice', 'productweight', 'buyingprice'].includes(field);
       const profitVal = updatePayload.profit;
@@ -1246,7 +1233,6 @@ export default function AdminValidationPage() {
       }));
 
       const cleanAsin = product.asin.trim();
-      console.log(`🚀 Confirming: ${cleanAsin}`);
 
       // 1. FRESH FETCH (Only existing columns)
       const { data: validationData, error: fetchError } = await supabase

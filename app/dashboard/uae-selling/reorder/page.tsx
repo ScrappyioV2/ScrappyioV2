@@ -319,7 +319,6 @@ export default function ReorderPage() {
             allRows = allRows.concat(sheetData)
           })
 
-          console.log(`📊 Excel: Found ${workbook.SheetNames.length} sheet(s), Total rows: ${allRows.length}`)
 
           await processInventoryData(allRows)
 
@@ -544,7 +543,6 @@ export default function ReorderPage() {
           { name: `uae_tracking_seller_${sellerId}`, priority: 1 }                                   // Lowest priority
         ]
 
-        console.log(`🔍 Checking ASIN ${asin} (Seller: ${sellerTag})...`)
 
         // ✅ Find the HIGHEST stage where this ASIN exists
         let foundInTable = null
@@ -572,7 +570,6 @@ export default function ReorderPage() {
                 // ✅ Found in this stage - use ONLY this quantity
                 totalQty = tableQty
                 foundInTable = table.name
-                console.log(`  ✅ Found in ${table.name}: ${tableQty} units (Priority ${table.priority})`)
                 break  // 🔴 STOP - Don't check lower stages
               }
             }
@@ -582,9 +579,7 @@ export default function ReorderPage() {
         }
 
         if (foundInTable) {
-          console.log(`📊 FINAL tracking for ${asin}: ${totalQty} units from ${foundInTable}\n`)
         } else {
-          console.log(`📊 No tracking found for ${asin}\n`)
         }
 
         return totalQty
@@ -598,7 +593,6 @@ export default function ReorderPage() {
       if (!currentReorderData) return
 
       // ✅ NEW: Build incoming map by checking ALL tracking tables
-      console.log('🚀 Starting tracking calculation for all products...\n')
 
       const incomingMap: Record<string, number> = {}
 
@@ -623,7 +617,6 @@ export default function ReorderPage() {
         incomingMap[product.asin] = qty
       }
 
-      console.log('✅ Tracking calculation complete!\n')
 
       // Calculate reorder quantities
       const updates = currentReorderData.map(p => {
@@ -782,7 +775,6 @@ export default function ReorderPage() {
       const currentMaxJourney = historyData?.journey_number || 1
       const nextJourneyNum = currentMaxJourney + 1
 
-      console.log(`📊 ASIN ${product.asin}: Current max journey = ${currentMaxJourney}, Next = ${nextJourneyNum}`)
 
       // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
       const { data: masterData, error: fetchError } = await supabase

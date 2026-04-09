@@ -45,7 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const roleData = JSON.parse(cachedRole);
           if (roleData.user_id === userId) {
-            console.log('✅ Role loaded from cache:', roleData.role);
             setUserRole(roleData as UserRole);
             loadedUserId.current = userId;
             cacheHit = true;
@@ -57,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // STEP 2: Fetch fresh from DB
     const dbFetch = async () => {
       try {
-        console.log('🔄 Fetching fresh role from database...');
         const { data, error } = await supabase
           .from('user_roles')
           .select('*')
@@ -69,7 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
         }
         if (data) {
-          console.log('✅ Role loaded from DB:', data.role);
           setUserRole(data as UserRole);
           loadedUserId.current = userId;
           if (typeof window !== 'undefined') {
@@ -100,14 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       if (isInitializing.current) {
-        console.log("⏭️ Already initializing, skipping");
         return;
       }
 
       isInitializing.current = true;
 
       try {
-        console.log("🔐 Initializing auth...");
 
         const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -124,14 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return;
 
         if (session?.user) {
-          console.log("✅ Session found:", session.user.email);
           setUser(session.user);
 
           if (!fetchInProgress.current) {
             await fetchUserRole(session.user.id);
           }
         } else {
-          console.log("ℹ️ No active session");
           setUser(null);
           setUserRole(null);
         }
@@ -143,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } finally {
         if (isMounted) {
-          console.log("✅ Auth initialization complete");
           setLoading(false);
           isInitializing.current = false;
         }
@@ -156,7 +148,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
       if (event === 'TOKEN_REFRESHED') return;
-      console.log("🔄 Auth state changed:", event);
 
       if (event === "SIGNED_OUT") {
         setUser(null);

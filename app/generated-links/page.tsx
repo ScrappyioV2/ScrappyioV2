@@ -87,7 +87,6 @@ function GeneratedLinks() {
             filter: `user_id=eq.${userId}` // Filter by current user
           },
           (payload) => {
-            console.log('New link inserted:', payload)
             // Add new link to state
             const newLink = payload.new as any
             const FILTER_LABELS: Record<string, string> = {
@@ -122,7 +121,6 @@ function GeneratedLinks() {
         )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
-            console.log(`✅ Subscribed to ${tableName} changes for user ${userId}`)
           } else if (status === 'CHANNEL_ERROR') {
             console.error('❌ Subscription error')
           }
@@ -137,7 +135,6 @@ function GeneratedLinks() {
     return () => {
       if (channel) {
         supabase.removeChannel(channel)
-        console.log('🔌 Unsubscribed from real-time updates')
       }
     }
   }, [country])
@@ -219,7 +216,6 @@ function GeneratedLinks() {
           }
         }
 
-        console.log(`✅ Loaded ${allLinks.length} links from database`)
         setLinks(allLinks)
         setSource('database')
         setLoading(false)
@@ -263,7 +259,6 @@ function GeneratedLinks() {
         if (error) {
           console.error('Error marking link as copied:', error)
         } else {
-          console.log(`✅ Marked link ${linkId} as copied in database`)
         }
       } catch (err) {
         console.error('Error updating database:', err)
@@ -312,7 +307,6 @@ function GeneratedLinks() {
             if (error) {
               console.error('Error marking batch as copied:', error)
             } else {
-              console.log(`✅ Marked batch ${Math.floor(i / batchSize) + 1} as copied (${batch.length} links)`)
             }
 
             // Update progress
@@ -322,7 +316,6 @@ function GeneratedLinks() {
               total: totalLinks
             })
           }
-          console.log(`✅ Marked all ${linkIds.length} links as copied in database`)
         }
       } catch (err) {
         console.error('Error updating database:', err)

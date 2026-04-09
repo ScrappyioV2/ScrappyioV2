@@ -85,11 +85,9 @@ export default function InvoiceModal({
   const [editableItems, setEditableItems] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('📦 Items received in modal:', items);
 
     if (items && items.length > 0) {
       const mapped = items.map((item) => {
-        console.log('🔍 Mapping item:', item);
         return {
           id: item.id,
           asin: item.asin,
@@ -119,7 +117,6 @@ export default function InvoiceModal({
         };
       });
 
-      console.log('📊 Mapped editable items:', mapped);
       setEditableItems(mapped);
     } else {
       setEditableItems([]);
@@ -264,15 +261,9 @@ export default function InvoiceModal({
         };
       });
 
-      console.log('📋 Invoice Number:', invoiceNo);
-      console.log('📋 Invoice Date:', invoiceDate);
-      console.log('📋 Total items:', payload.length);
-      console.log('📋 First item:', payload[0]);
-      console.log('📋 Seller ID:', sellerId);
 
       // ✅ FIX #1: Use seller-specific INVOICE table
       const invoiceTableName = getUKTrackingTableName('INVOICE', sellerId);
-console.log('📥 Inserting into table:', invoiceTableName);
 
       const { data: insertData, error: insertError } = await supabase
         .from(invoiceTableName) // ✅ FIXED: uk_invoice_seller_X
@@ -287,18 +278,15 @@ console.log('📥 Inserting into table:', invoiceTableName);
         throw insertError;
       }
 
-      console.log('✅ Insert successful:', insertData);
 
       // ✅ FIX #2: Use seller-specific MAIN FILE table
       const mainFileTableName = getUKTrackingTableName('MAIN', sellerId);
-console.log('🗑️ Deleting from table:', mainFileTableName);
 
       // Get IDs to delete
       const idsToDelete = editableItems
         .map((item) => item.id)
         .filter((id): id is string => typeof id === 'string' && !!id);
 
-      console.log('🔑 IDs to delete:', idsToDelete);
 
       if (idsToDelete.length > 0) {
         const { error: deleteError } = await supabase
@@ -311,7 +299,6 @@ console.log('🗑️ Deleting from table:', mainFileTableName);
           throw deleteError; // ⚠️ IMPORTANT: Throw error to stop execution
         }
 
-        console.log(`✅ Successfully deleted ${idsToDelete.length} items from ${mainFileTableName}`);
       } else {
         console.warn('⚠️ No IDs to delete - items might not have been passed with IDs');
       }

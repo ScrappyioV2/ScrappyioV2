@@ -1106,12 +1106,6 @@ export default function DropyEcomPage() {
                               {/* ✅ ADD DEBUG LOG */}
                               {col === 'product_link' || col === 'amz_link' ? (
                                 <>
-                                  {console.log('🔍 DEBUG:', {
-                                    column: col,
-                                    value: product[col as keyof ProductRow],
-                                    hasValue: !!product[col as keyof ProductRow],
-                                    type: typeof product[col as keyof ProductRow]
-                                  })}
                                   {product[col as keyof ProductRow] ? (
                                     <a
                                       href={ensureAbsoluteUrl(String(product[col as keyof ProductRow]))}

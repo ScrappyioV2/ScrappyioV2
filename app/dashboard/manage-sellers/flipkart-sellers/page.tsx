@@ -264,11 +264,6 @@ export default function FlipkartSellersPage() {
         const rawHeaders = Object.keys(data[0] || {});
 
         // ✅ DEBUG LOGGING (remove after testing)
-        console.log('🔍 Raw headers from CSV:', rawHeaders);
-        console.log('🔍 Normalized:', rawHeaders.map(h => h.trim().toLowerCase()));
-        console.log('🔍 First data row:', data[0]);
-        console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
-        console.log('🔍 Total rows:', data.length);
 
         if (isPartialUpdateFile(rawHeaders)) {
           // ✅ Show initial toast with unique ID
@@ -305,7 +300,6 @@ export default function FlipkartSellersPage() {
               );
             }
 
-            console.log(`✅ Partial update: ${updatedCount} updated, ${skippedCount} skipped from ${file.name}`);
           } catch (err: any) {
             console.error('Partial update failed:', err);
             toast.error(
@@ -363,7 +357,6 @@ export default function FlipkartSellersPage() {
       });
       allNewProducts = Array.from(uniqueProductsMap.values());
 
-      console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
       // Step 2: OPTIMIZED Batch insert
       const batchSize = 200;

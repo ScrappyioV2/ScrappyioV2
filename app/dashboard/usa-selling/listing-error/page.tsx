@@ -66,7 +66,6 @@ export default function ListingErrorDashboard() {
   /* ===== FETCH REAL COUNTS DIRECTLY ===== */
   const fetchRealCounts = useCallback(async () => {
     try {
-      // console.log("📊 Fetching counts from usa_listing_error tables...");
       
       const promises = ALL_SELLERS.map(async (seller) => {
         // ✅ UPDATED: Exact table names from your screenshot

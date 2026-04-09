@@ -51,7 +51,6 @@ export default function RestockTable({
 
             if (error) throw error;
 
-            console.log('✅ Restock data fetched:', data?.length || 0);
             setItems(data || []);
         } catch (error) {
             console.error('Error fetching restock data:', error);

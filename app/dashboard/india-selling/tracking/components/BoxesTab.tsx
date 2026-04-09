@@ -1050,8 +1050,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                         status: 'tracking',
                                         moved_at: new Date().toISOString(),
                                     });
-                                if (insertErr) console.error(`❌ Failed to re-create inbound for ${asin}:`, insertErr);
-                                else console.log(`✅ Re-created inbound tracking for ${asin} (${combinedTags})`);
+                                if (insertErr) console.error(`Failed to re-create inbound for ${asin}:`, insertErr);
                             }
                         }
                     }
@@ -1110,10 +1109,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     onCountsChange();
 
                     showToast(
-                        `Box ${boxNumber} deleted${reason
-                            ? ` — ${reason}. Quantities returned to Inbound.`
-                            : ". Quantities returned to Inbound."
-                        }`,
+                        `Box ${boxNumber} deleted${reason ? ` — ${reason}. Quantities returned to Inbound.` : ". Quantities returned to Inbound."}`,
                         "success",
                     );
                 } catch (error) {

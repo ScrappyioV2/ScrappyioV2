@@ -42,7 +42,6 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      console.log('✅ Auth successful, checking role...', email)
 
       // Check if user has a role assigned
       const { data: roleData, error: roleError } = await supabase
@@ -67,7 +66,6 @@ export default function LoginPage() {
         throw new Error('Your account has been deactivated. Please contact the administrator.')
       }
 
-      console.log('✅ Role check passed')
 
       // ✅ CRITICAL FIX: Store role in localStorage for immediate access
       if (typeof window !== 'undefined') {
@@ -76,7 +74,6 @@ export default function LoginPage() {
 
       // Redirect based on role
       if (roleData.role === 'admin') {
-        console.log('🔑 Admin detected, redirecting to dashboard')
         window.location.href = '/dashboard'
       } else {
         const firstPage = roleData.allowed_pages.find(
@@ -226,7 +223,6 @@ export default function LoginPage() {
 
 //       if (error) throw error
 
-//       console.log('✅ Auth successful, checking role...', email)
 
 //       // Check if user has a role assigned
 //       const { data: roleData, error: roleError } = await supabase
@@ -235,7 +231,6 @@ export default function LoginPage() {
 //         .eq('email', email)
 //         .single()
 
-//       console.log('Role data:', roleData)
 
 //       if (!roleData) {
 //         await supabase.auth.signOut()
@@ -247,17 +242,14 @@ export default function LoginPage() {
 //         throw new Error('Your account has been deactivated. Please contact the administrator.')
 //       }
 
-//       console.log('✅ Role check passed, redirecting based on role...')
 
 //       // ✅ Redirect based on role
 //       if (roleData.role === 'admin') {
-//         console.log('Admin detected, redirecting to dashboard')
 //         router.push('/dashboard')
 //       } else {
 //         // Non-admin: redirect to first allowed page
 //         const firstPage = roleData.allowed_pages.find((page: string) => page !== 'dashboard' && page !== '*')
         
-//         console.log('Non-admin detected, first page:', firstPage)
         
 //         if (firstPage) {
 //           router.push(`/dashboard/${firstPage}`)

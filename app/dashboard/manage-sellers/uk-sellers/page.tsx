@@ -243,8 +243,6 @@ export default function UkSellersPage() {
 
         // ✅ Check if this is a partial update file
         const rawHeaders = Object.keys(data[0] || {});
-        console.log('🔍 Raw headers from CSV:', rawHeaders);
-        console.log('🔍 Is partial update?', isPartialUpdateFile(rawHeaders));
 
         if (isPartialUpdateFile(rawHeaders)) {
           const partialToastId = toast.loading(`Processing ${normalizedData.length.toLocaleString()} records...`);
@@ -314,7 +312,6 @@ export default function UkSellersPage() {
         if (product.asin) uniqueProductsMap.set(product.asin, product);
       });
       allNewProducts = Array.from(uniqueProductsMap.values());
-      console.log(`✅ After deduplication: ${allNewProducts.length} unique products`);
 
       // Step 2: Batch insert via RPC
       const batchSize = 200;

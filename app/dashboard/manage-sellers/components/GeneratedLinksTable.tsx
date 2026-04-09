@@ -35,7 +35,6 @@ export default function GeneratedLinksTable({ links, onUpdateLinks }: GeneratedL
   };
 
   const handleEdit = (id: number) => {
-    console.log("Edit link:", id);
     setOpenActionMenu(null);
     // Add edit functionality later
   };

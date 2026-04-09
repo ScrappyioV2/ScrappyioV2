@@ -164,16 +164,6 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
 
   let totalUpdated = 0;
   let totalSkipped = 0;
-
-  console.log(`🔄 Frontend batching: ${totalRecords} records in ${numBatches} RPC call(s)`);
-  console.log('🔍 First normalized row:', JSON.stringify(rows[0]));
-  console.log('🔍 First batchData row:', JSON.stringify({
-    asin: rows[0].asin,
-    remark: rows[0].remark || null,
-    monthly_unit: rows[0].monthly_unit || null
-  }));
-  console.log('🔍 All keys in row[0]:', Object.keys(rows[0]));
-
   // Process each frontend batch
   for (let batchIndex = 0; batchIndex < numBatches; batchIndex++) {
     const start = batchIndex * FRONTEND_BATCH_SIZE;
@@ -188,7 +178,6 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
       sku: row.sku || null,
     }));
 
-    console.log(`🔄 RPC call ${batchIndex + 1}/${numBatches}: ${batchData.length} records`);
 
     try {
       // ✅ Call batched RPC for this chunk
@@ -207,7 +196,6 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
       totalUpdated += batchUpdated;
       totalSkipped += (batchRows.length - batchUpdated);
 
-      console.log(`✅ RPC call ${batchIndex + 1}/${numBatches}: ${batchUpdated} updated`);
 
       // Report progress
       if (onProgress) {
@@ -225,7 +213,6 @@ export async function bulkUpdateAsinRemarkMonthlyUnit(
     }
   }
 
-  console.log(`✅ Complete: ${totalUpdated} updated, ${totalSkipped} skipped`);
 
   return {
     updatedCount: totalUpdated,

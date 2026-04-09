@@ -271,7 +271,6 @@ export default function VelvetVistaNotListedPage() {
             }
 
             // ✅ ADD DEBUG: Check fetched data
-            console.log('🔍 NOT LISTED - FETCHED PRODUCTS:', data?.[0]);
 
             setProducts(data || []);
             setTotalCount(count || 0);
