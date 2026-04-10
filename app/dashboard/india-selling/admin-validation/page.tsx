@@ -596,7 +596,7 @@ export default function AdminValidationPage() {
     const buyingPrice = Number(product.buyingprice ?? product.buying_price);
     const weight = Number(product.productweight ?? product.product_weight);
     const sellingPriceINR = Number(product.targetprice ?? product.target_price);
-    const currency = product.purchase_currency || 'USD';
+    const currency = product.purchase_currency || 'INR';
 
     if (!buyingPrice || !weight || !sellingPriceINR) {
       return { total_cost: null, total_revenue: null, profit: null };
@@ -604,9 +604,8 @@ export default function AdminValidationPage() {
 
     let result;
     if (currency === 'INR') {
-      // Buying in INR, selling in INR — use fee-based calculation
-      // Convert INR buying price to equivalent USD for the calculation engine
-      const dollarRate = adminConstants.dollar_rate || 90;
+      // Buying imported goods paid in INR — convert to USD equivalent for full calculation
+      const dollarRate = adminConstants.dollar_rate || 96;
       const equivalentUSD = buyingPrice / dollarRate;
       result = calculateProductValues(
         {
@@ -1122,6 +1121,7 @@ export default function AdminValidationPage() {
           if (p.id !== id) return p;
           const updated = { ...p, [field]: value };
           if (field === 'admintargetprice') updated.admin_target_price = value;
+          if (field === 'buyingprice') updated.buying_price = value;
           if (field === 'sellertag') updated.seller_tag = value;
           if (field === 'sellerlink') updated.seller_link = value;
           if (field === 'productlink') updated.product_link = value;
