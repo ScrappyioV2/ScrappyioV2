@@ -6,7 +6,8 @@ import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
-import { calculateProductValues, getDefaultConstants, CalculationConstants } from '@/lib/blackboxCalculations'
+import { calculateProductValues, getDefaultConstants, CalculationConstants, type IndiaProductInput } from '@/lib/blackboxCalculations'
+import { CATEGORY_NAMES, type FulfillmentChannel, type ShippingZone } from '@/lib/amazonIndiaFees'
 import { Loader2, History, X, } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
@@ -167,6 +168,15 @@ interface ValidationProduct {
     calculated_judgement?: string | null
     remark: string | null
     reject_reason?: string | null
+    amazon_category?: string | null
+    fulfillment_channel?: string | null
+    shipping_zone?: string | null
+    referral_fee?: number | null
+    closing_fee?: number | null
+    fulfilment_cost?: number | null
+    gst_on_fees?: number | null
+    amazon_fees_total?: number | null
+    actual_profit_percent?: number | null
     is_new?: boolean | null
 }
 
@@ -398,6 +408,15 @@ export default function ValidationPage() {
         usd_price: true,
         inr_purchase: true,
         inr_purchase_link: true,
+        amazon_category: true,
+        fulfillment_channel: true,
+        shipping_zone: true,
+        referral_fee: false,
+        closing_fee: false,
+        fulfilment_cost: false,
+        gst_on_fees: false,
+        amazon_fees_total: false,
+        actual_profit_percent: false,
         total_cost: true,      // NEW
         total_revenue: true,   // NEW
         profit: true,          // NEW
@@ -449,7 +468,7 @@ export default function ValidationPage() {
     const DEFAULT_COLUMN_ORDER = [
         'asin', 'sku', 'history', 'product_name', 'brand', 'seller_tag', 'funnel',
         'no_of_seller', 'india_link', 'usa_link', 'origin', 'product_weight', 'usd_price',
-        'inr_purchase', 'inr_purchase_link', 'checklist', 'reject_reason',
+        'inr_purchase', 'inr_purchase_link', 'amazon_category', 'fulfillment_channel', 'shipping_zone', 'referral_fee', 'closing_fee', 'fulfilment_cost', 'gst_on_fees', 'amazon_fees_total', 'actual_profit_percent', 'checklist', 'reject_reason',
         'judgement', 'remark'
     ];
 
@@ -645,6 +664,7 @@ export default function ValidationPage() {
                     shipping_charge_per_kg: data.shippingchargeperkg,
                     commission_rate: data.commissionrate,
                     packing_cost: data.packingcost,
+                    target_profit_percent: data.targetprofitpercent ?? 10,
                 });
             }
         } catch (err) {
@@ -782,6 +802,7 @@ export default function ValidationPage() {
             );
 
             const asins = validationData.map(p => p.asin).filter(Boolean);
+
             setProducts(dedupeById(validationData));
 
             // ✅ Auto-populate usa_link IN BACKGROUND (non-blocking)
@@ -832,9 +853,13 @@ export default function ValidationPage() {
             }
 
             // Step 3: Auto-calculate using LATEST state (from ref, not stale closure)
-            const CALC_FIELDS = ['usd_price', 'product_weight', 'inr_purchase'];
+            const CALC_FIELDS = ['usd_price', 'product_weight', 'inr_purchase', 'amazon_category', 'fulfillment_channel', 'shipping_zone'];
             if ((activeTab === 'main_file' || activeTab === 'fail_file' || activeTab === 'reworking') && CALC_FIELDS.includes(field)) {
                 const freshProduct = productsRef.current.find(p => p.id === id);
+                    // Merge the just-edited field so the calculation uses latest values
+                    if (freshProduct && ['amazon_category', 'fulfillment_channel', 'shipping_zone'].includes(field)) {
+                        (freshProduct as any)[field] = value;
+                    }
                 if (freshProduct) {
                     await autoCalculateAndUpdate(id, freshProduct);
                 }
@@ -863,7 +888,12 @@ export default function ValidationPage() {
             if (!usd || !weight || !inr) return p;
 
             const result = calculateProductValues(
-                { usd_price: usd, product_weight: weight, inr_purchase: inr },
+                {
+                    usd_price: usd, product_weight: weight, inr_purchase: inr,
+                    amazon_category: p.amazon_category || null,
+                    fulfillment_channel: (p.fulfillment_channel as FulfillmentChannel) || 'Seller Flex',
+                    shipping_zone: (p.shipping_zone as ShippingZone) || 'National',
+                } as IndiaProductInput,
                 constants,
                 'INDIA'
             );
@@ -874,6 +904,12 @@ export default function ValidationPage() {
                 total_revenue: result.total_revenue,
                 profit: result.profit,
                 calculated_judgement: result.judgement || 'PENDING',
+                referral_fee: result.referral_fee ?? null,
+                closing_fee: result.closing_fee ?? null,
+                fulfilment_cost: result.fulfilment_cost ?? null,
+                gst_on_fees: result.gst_on_fees ?? null,
+                amazon_fees_total: result.amazon_fees_total ?? null,
+                actual_profit_percent: result.actual_profit_percent ?? null,
             };
         }));
     };
@@ -958,7 +994,14 @@ export default function ValidationPage() {
             }
 
             const result = calculateProductValues(
-                { usd_price: product.usd_price, product_weight: product.product_weight, inr_purchase: product.inr_purchase },
+                {
+                    usd_price: product.usd_price,
+                    product_weight: product.product_weight,
+                    inr_purchase: product.inr_purchase,
+                    amazon_category: product.amazon_category || null,
+                    fulfillment_channel: (product.fulfillment_channel as FulfillmentChannel) || 'Seller Flex',
+                    shipping_zone: (product.shipping_zone as ShippingZone) || 'National',
+                } as IndiaProductInput,
                 constants,
                 'INDIA'
             );
@@ -969,6 +1012,12 @@ export default function ValidationPage() {
                 total_revenue: result.total_revenue !== null && isFinite(result.total_revenue) ? Number(result.total_revenue) : null,
                 profit: result.profit !== null && isFinite(result.profit) ? Number(result.profit) : null,
                 calculated_judgement: result.judgement || 'PENDING',
+                referral_fee: result.referral_fee ?? null,
+                closing_fee: result.closing_fee ?? null,
+                fulfilment_cost: result.fulfilment_cost ?? null,
+                gst_on_fees: result.gst_on_fees ?? null,
+                amazon_fees_total: result.amazon_fees_total ?? null,
+                actual_profit_percent: result.actual_profit_percent ?? null,
             };
 
             // Auto-correct judgement ONLY for products already in Pass/Fail tabs
@@ -1004,6 +1053,12 @@ export default function ValidationPage() {
                     total_revenue: result.total_revenue,
                     profit: result.profit,
                     calculated_judgement: result.judgement,
+                    referral_fee: result.referral_fee ?? null,
+                    closing_fee: result.closing_fee ?? null,
+                    fulfilment_cost: result.fulfilment_cost ?? null,
+                    gst_on_fees: result.gst_on_fees ?? null,
+                    amazon_fees_total: result.amazon_fees_total ?? null,
+                    actual_profit_percent: result.actual_profit_percent ?? null,
                     // ❌ NO judgement here
                 };
             }));
@@ -1990,6 +2045,7 @@ export default function ValidationPage() {
                 shippingchargeperkg: constants.shipping_charge_per_kg,
                 commissionrate: constants.commission_rate,
                 packingcost: constants.packing_cost,
+                targetprofitpercent: constants.target_profit_percent ?? 10,
             };
 
             const { data: existingData } = await supabase
@@ -2932,6 +2988,83 @@ export default function ValidationPage() {
                     </td>
                 );
 
+            case 'amazon_category':
+                if (!visibleColumns.amazon_category) return null;
+                return (
+                    <td key={col_key} style={{ width: columnWidths[col_key] || 200, minWidth: 170 }} className="px-2 py-1.5 text-sm">
+                        <div className="relative"> 
+                            <select
+                                value={product.amazon_category || ''}
+                                onChange={(e) => {
+                                    handleCellEdit(product.id, 'amazon_category', e.target.value || null);
+                                }}
+                                className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer truncate"
+                                title={product.amazon_category || 'Select category'}
+                            >
+                                <option value="" style={{ backgroundColor: '#1a1a1a', color: '#9ca3af' }}>Select Category...</option>
+                                {CATEGORY_NAMES.map(cat => (
+                                    <option key={cat} value={cat} style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </td>
+                );
+
+            case 'fulfillment_channel':
+                if (!visibleColumns.fulfillment_channel) return null;
+                return (
+                    <td key={col_key} className="px-2 py-1.5 text-sm">
+                        <select
+                            value={product.fulfillment_channel || 'Seller Flex'}
+                            onChange={(e) => handleCellEdit(product.id, 'fulfillment_channel', e.target.value)}
+                            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                        >
+                            <option value="Seller Flex" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Seller Flex</option>
+                            <option value="Easy Ship" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Easy Ship</option>
+                            <option value="Self-Ship" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Self-Ship</option>
+                        </select>
+                    </td>
+                );
+
+            case 'shipping_zone':
+                if (!visibleColumns.shipping_zone) return null;
+                return (
+                    <td key={col_key} className="px-2 py-1.5 text-sm">
+                        <select
+                            value={product.shipping_zone || 'National'}
+                            onChange={(e) => handleCellEdit(product.id, 'shipping_zone', e.target.value)}
+                            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                        >
+                            <option value="Local" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Local</option>
+                            <option value="Regional" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Regional</option>
+                            <option value="National" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>National</option>
+                        </select>
+                    </td>
+                );
+
+            case 'referral_fee':
+            case 'closing_fee':
+            case 'fulfilment_cost':
+            case 'gst_on_fees':
+            case 'amazon_fees_total':
+                if (visibleColumns[col_key as keyof typeof visibleColumns] === false) return null;
+                return (
+                    <td key={col_key} className="p-3 text-sm text-gray-400 text-right">
+                        {product[col_key as keyof ValidationProduct] != null ? `₹${Number(product[col_key as keyof ValidationProduct]).toFixed(0)}` : '—'}
+                    </td>
+                );
+
+            case 'actual_profit_percent': {
+                if (!visibleColumns.actual_profit_percent) return null;
+                const pct = product.actual_profit_percent;
+                const targetPct = constants.target_profit_percent ?? 10;
+                return (
+                    <td key={col_key} className={`p-3 text-sm text-right font-semibold ${pct != null ? (pct >= targetPct ? 'text-emerald-400' : 'text-red-400') : 'text-gray-500'}`}>
+                        {pct != null ? `${pct.toFixed(1)}%` : '—'}
+                    </td>
+                );
+            }
+
             default:
                 return null;
         }
@@ -3412,6 +3545,15 @@ export default function ValidationPage() {
                                                         reject_reason: 'Reject Reason',
                                                         judgement: 'Status',
                                                         remark: 'Remark',
+                                                        amazon_category: 'CATEGORY',
+                                                        fulfillment_channel: 'CHANNEL',
+                                                        shipping_zone: 'ZONE',
+                                                        referral_fee: 'REF FEE',
+                                                        closing_fee: 'CLOSE FEE',
+                                                        fulfilment_cost: 'FULFIL',
+                                                        gst_on_fees: 'GST',
+                                                        amazon_fees_total: 'AMZ TOTAL',
+                                                        actual_profit_percent: 'PROFIT %',
                                                     };
 
                                                     const widths: Record<string, number> = {
@@ -3580,19 +3722,6 @@ export default function ValidationPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400 mb-2">Commission Rate (%)</label>
-                                        <input
-                                            type="number"
-                                            value={constants.commission_rate != null && !isNaN(constants.commission_rate) ? constants.commission_rate * 100 : ''}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value);
-                                                setConstants({ ...constants, commission_rate: isNaN(val) ? 0 : val / 100 });
-                                            }}
-                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                                            step="0.01"
-                                        />
-                                    </div>
-                                    <div>
                                         <label className="block text-sm font-medium text-gray-400 mb-2">Packing Cost (₹)</label>
                                         <input
                                             type="number"
@@ -3600,6 +3729,16 @@ export default function ValidationPage() {
                                             onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, packing_cost: isNaN(val) ? 0 : val }); }}
                                             className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                                             step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-2">Target Profit % (India)</label>
+                                        <input
+                                            type="number"
+                                            value={constants.target_profit_percent ?? 10}
+                                            onChange={(e) => { const val = parseFloat(e.target.value); setConstants({ ...constants, target_profit_percent: isNaN(val) ? 10 : val }); }}
+                                            className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                                            step="1"
                                         />
                                     </div>
                                 </div>

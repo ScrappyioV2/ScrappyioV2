@@ -7,7 +7,7 @@ import Toast from '@/components/Toast';
 import { History, X, Loader2, Upload, Download } from 'lucide-react';
 import Papa from 'papaparse';
 import { motion, AnimatePresence } from 'framer-motion'
-import { calculateProductValues, type CalculationConstants } from '@/lib/blackboxCalculations'
+import { calculateProductValues, type CalculationConstants, type IndiaProductInput } from '@/lib/blackboxCalculations'
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 
@@ -46,6 +46,9 @@ type AdminProduct = {
   remark: string | null;
   purchase_currency?: string | null;
   sku?: string | null;
+  amazon_category?: string | null;
+  fulfillment_channel?: string | null;
+  shipping_zone?: string | null;
 };
 
 // ADD THIS TYPE
@@ -68,6 +71,7 @@ const getDefaultConstants = (): CalculationConstants => ({
   shipping_charge_per_kg: 1100,
   commission_rate: 0.25,
   packing_cost: 15,
+  target_profit_percent: 10,
 })
 
 // ✅ Seller Mapping Helper
@@ -162,6 +166,7 @@ export default function AdminValidationPage() {
     shipping: '',
     commission: '',
     packingcost: '',
+    targetprofit: '10',
   });
   const [calculatingIds, setCalculatingIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
@@ -237,7 +242,7 @@ export default function AdminValidationPage() {
           .in('asin', asins),
 
         supabase.from('india_validation_main_file')
-          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku')
+          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku, amazon_category, fulfillment_channel, shipping_zone')
           .in('asin', asins)
       ]);
 
@@ -355,6 +360,9 @@ export default function AdminValidationPage() {
           inr_purchase_link: product.inr_purchase_link,
           remark: product.remark ?? null,
           sku: product.sku ?? null,
+          amazon_category: validation?.amazon_category || null,
+          fulfillment_channel: validation?.fulfillment_channel || 'Seller Flex',
+          shipping_zone: validation?.shipping_zone || 'National',
         };
       });
 
@@ -489,7 +497,9 @@ export default function AdminValidationPage() {
           shipping_charge_per_kg: Number(data.shipping_charge_per_kg) || 1100,
           commission_rate: Number(data.commission_rate) / 100 || 0.25,
           packing_cost: Number(data.packing_cost) || 15,
+          target_profit_percent: Number(data.target_profit_percent) || 10,
         };
+        setModalInputs(prev => ({ ...prev, targetprofit: String(data.target_profit_percent || 10) }));
 
         setAdminConstants(parsed);
       }
@@ -533,6 +543,7 @@ export default function AdminValidationPage() {
         shipping_charge_per_kg: parseFloat(modalInputs.shipping) || adminConstants.shipping_charge_per_kg,
         commission_rate: (parseFloat(modalInputs.commission) || adminConstants.commission_rate * 100) / 100,
         packing_cost: parseFloat(modalInputs.packingcost) || adminConstants.packing_cost,
+        target_profit_percent: parseFloat(modalInputs.targetprofit) || 10,
       };
 
       // Update local state immediately
@@ -551,6 +562,7 @@ export default function AdminValidationPage() {
         shipping_charge_per_kg: newConstants.shipping_charge_per_kg,
         commission_rate: Math.round(newConstants.commission_rate * 100),
         packing_cost: newConstants.packing_cost,
+        target_profit_percent: newConstants.target_profit_percent || 10,
       };
 
 
@@ -592,23 +604,33 @@ export default function AdminValidationPage() {
 
     let result;
     if (currency === 'INR') {
-      // Buying in INR, selling in INR — direct INR calculation
-      const shippingCost = (weight * (adminConstants.shipping_charge_per_kg || 950)) / 1000;
-      const packingCost = adminConstants.packing_cost || 25;
-      const commissionCost = sellingPriceINR * (adminConstants.commission_rate || 0.25);
-      const totalCost = buyingPrice + shippingCost + packingCost + commissionCost;
-      const totalRevenue = sellingPriceINR;
-      const profit = totalRevenue - totalCost;
-      result = {
-        total_cost: parseFloat(totalCost.toFixed(2)),
-        total_revenue: parseFloat(totalRevenue.toFixed(2)),
-        profit: parseFloat(profit.toFixed(2)),
-        judgement: profit > 0 ? 'PASS' as const : 'FAIL' as const,
-      };
-    } else {
-      // Buying in USD, selling in INR — existing INDIA mode
+      // Buying in INR, selling in INR — use fee-based calculation
+      // Convert INR buying price to equivalent USD for the calculation engine
+      const dollarRate = adminConstants.dollar_rate || 90;
+      const equivalentUSD = buyingPrice / dollarRate;
       result = calculateProductValues(
-        { usd_price: buyingPrice, product_weight: weight, inr_purchase: sellingPriceINR },
+        {
+          usd_price: equivalentUSD,
+          product_weight: weight,
+          inr_purchase: sellingPriceINR,
+          amazon_category: product.amazon_category || null,
+          fulfillment_channel: product.fulfillment_channel || 'Seller Flex',
+          shipping_zone: product.shipping_zone || 'National',
+        } as IndiaProductInput,
+        adminConstants,
+        'INDIA'
+      );
+    } else {
+      // Buying in USD, selling in INR — INDIA mode with fees
+      result = calculateProductValues(
+        {
+          usd_price: buyingPrice,
+          product_weight: weight,
+          inr_purchase: sellingPriceINR,
+          amazon_category: product.amazon_category || null,
+          fulfillment_channel: product.fulfillment_channel || 'Seller Flex',
+          shipping_zone: product.shipping_zone || 'National',
+        } as IndiaProductInput,
         adminConstants,
         'INDIA'
       );
@@ -2588,6 +2610,7 @@ export default function AdminValidationPage() {
                   shipping: String(adminConstants.shipping_charge_per_kg),
                   commission: String(adminConstants.commission_rate * 100),
                   packingcost: String(adminConstants.packing_cost),
+                  targetprofit: String(adminConstants.target_profit_percent || 10),
                 });
                 setIsConstantsModalOpen(true);
               }}
@@ -2781,19 +2804,9 @@ export default function AdminValidationPage() {
                     <p className="text-xs text-gray-300 mt-1">Currently: ₹{adminConstants.shipping_charge_per_kg}</p>
                   </div>
 
-                  {/* Commission Rate */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">💰 Commission Rate (%)</label>
-                    <input type="text" inputMode="decimal" value={modalInputs.commission}
-                      onChange={(e) => setModalInputs({ ...modalInputs, commission: e.target.value })}
-                      placeholder="e.g. 25"
-                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                    />
-                    <p className="text-xs text-gray-300 mt-1">Currently: {adminConstants.commission_rate * 100}%</p>
-                  </div>
 
-                  {/* Packing Cost - Full Width */}
-                  <div className="col-span-2">
+                  {/* Packing Cost */}
+                  <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">📦 Packing Cost (₹)</label>
                     <input type="text" inputMode="decimal" value={modalInputs.packingcost}
                       onChange={(e) => setModalInputs({ ...modalInputs, packingcost: e.target.value })}
@@ -2801,6 +2814,18 @@ export default function AdminValidationPage() {
                       className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-300 mt-1">Currently: ₹{adminConstants.packing_cost}</p>
+                  </div>
+
+                  {/* Target Profit % */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">🎯 Target Profit (%)</label>
+                    <input type="number" value={modalInputs.targetprofit}
+                      onChange={(e) => setModalInputs({ ...modalInputs, targetprofit: e.target.value })}
+                      placeholder="e.g. 10"
+                      step="1"
+                      className="w-full px-4 py-3 bg-[#111111] border border-white/[0.1] rounded-xl text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+                    />
+                    <p className="text-xs text-gray-300 mt-1">Currently: {adminConstants.target_profit_percent || 10}%</p>
                   </div>
                 </div>
 

@@ -118,12 +118,20 @@ export interface ProductCalculationInput {
   inr_purchase: number | null   // USA Mode: Buying(₹)  | INDIA Mode: Selling(₹)
 }
 
+// India-specific inputs for the new fee-based calculation
+export interface IndiaProductInput extends ProductCalculationInput {
+  amazon_category: string | null
+  fulfillment_channel: FulfillmentChannel | null
+  shipping_zone: ShippingZone | null
+}
+
 export interface CalculationConstants {
   dollar_rate: number           
   bank_conversion_rate: number  
-  shipping_charge_per_kg: number 
-  commission_rate: number       
+  shipping_charge_per_kg: number  // Used by USA mode only
+  commission_rate: number         // Used by USA mode only (Amazon USA commission)
   packing_cost: number          
+  target_profit_percent?: number  // India mode: minimum profit % to pass (e.g. 10 = 10%)
 }
 
 export interface CalculationResult {
@@ -131,14 +139,29 @@ export interface CalculationResult {
   total_revenue: number
   profit: number
   judgement: 'PASS' | 'FAIL' | 'PENDING'
+  // India mode detailed breakdown
+  referral_fee?: number
+  closing_fee?: number
+  fulfilment_cost?: number
+  gst_on_fees?: number
+  amazon_fees_total?: number
+  actual_profit_percent?: number
 }
+
+import {
+  calculateReferralFee,
+  calculateClosingFee,
+  calculateFulfilmentCost,
+  type FulfillmentChannel,
+  type ShippingZone,
+} from '@/lib/amazonIndiaFees';
 
 /**
  * Main Calculation Function
  * @param mode - 'USA' for Exports, 'INDIA' for Imports
  */
 export function calculateProductValues(
-  product: ProductCalculationInput,
+  product: ProductCalculationInput | IndiaProductInput,
   constants: CalculationConstants,
   mode: CalculationMode 
 ): CalculationResult {
@@ -148,15 +171,14 @@ export function calculateProductValues(
   const weight = parseFloat(String(product.product_weight)) || 0;
   const inputB = parseFloat(String(product.inr_purchase)) || 0;
 
-  // Check if fields are filled
+  // Check if basic fields are filled
   if (inputA > 0 && weight > 0 && inputB > 0) {
     
     // Load Constants
     const dollarRate = parseFloat(String(constants.dollar_rate)) || 90;
     const bankFeePercent = parseFloat(String(constants.bank_conversion_rate)) || 0.02;
     const shippingPerKg = parseFloat(String(constants.shipping_charge_per_kg)) || 950;
-    const commissionPercent = parseFloat(String(constants.commission_rate)) || 0.25; // USA commission
-    const indiaCommissionPercent = 0.18; // Example: Flipkart/Amazon India might differ (adjust as needed)
+    const commissionPercent = parseFloat(String(constants.commission_rate)) || 0.25;
     const packingCost = parseFloat(String(constants.packing_cost)) || 25;
 
     let totalCost = 0;
@@ -165,56 +187,93 @@ export function calculateProductValues(
     // ====================================================================
     // LOGIC 1: USA SELLING (EXPORT)
     // Buy in INR -> Sell in USD
+    // Unchanged — same formula as before
     // ====================================================================
     if (mode === 'USA') {
-      const sellingPriceUSD = inputA; // Revenue
-      const buyingPriceINR = inputB;  // Cost
+      const sellingPriceUSD = inputA;
+      const buyingPriceINR = inputB;
 
-      // A. Calculate Revenue (Money coming IN from USA)
       const usdInINR = sellingPriceUSD * dollarRate;
-      totalRevenue = usdInINR * (1 - bankFeePercent); // Deduct bank fee immediately
+      totalRevenue = usdInINR * (1 - bankFeePercent);
 
-      // B. Calculate Cost (Money going OUT)
       const shippingCost = (weight * shippingPerKg) / 1000;
-      const commissionCost = usdInINR * commissionPercent; // Commission on Selling Price
+      const commissionCost = usdInINR * commissionPercent;
       
       totalCost = buyingPriceINR + shippingCost + packingCost + commissionCost;
+
+      const profit = totalRevenue - totalCost;
+      const judgement: 'PASS' | 'FAIL' = profit > 0 ? 'PASS' : 'FAIL';
+
+      return {
+        total_cost: parseFloat(totalCost.toFixed(2)),
+        total_revenue: parseFloat(totalRevenue.toFixed(2)),
+        profit: parseFloat(profit.toFixed(2)),
+        judgement
+      };
     }
 
     // ====================================================================
-    // LOGIC 2: INDIA SELLING (IMPORT)
+    // LOGIC 2: INDIA SELLING (IMPORT) — NEW FEE-BASED CALCULATION
     // Buy in USD -> Sell in INR
+    // Uses Amazon India fee structure (referral, closing, fulfilment, GST)
     // ====================================================================
     else if (mode === 'INDIA') {
-      const buyingPriceUSD = inputA;  // Cost
-      const sellingPriceINR = inputB; // Revenue
+      const buyingPriceUSD = inputA;
+      const sellingPriceINR = inputB;
 
-      // A. Calculate Revenue (Money coming IN from India Customer)
+      // Cast to IndiaProductInput to access category/channel/zone
+      const indiaProduct = product as IndiaProductInput;
+      const category = indiaProduct.amazon_category || null;
+      const channel: FulfillmentChannel = indiaProduct.fulfillment_channel || 'Seller Flex';
+      const zone: ShippingZone = indiaProduct.shipping_zone || 'Regional';
+
+      // A. Revenue
       totalRevenue = sellingPriceINR;
 
-      // B. Calculate Cost (Money going OUT)
+      // B. Product Cost + International Shipping
       const baseProductCost = buyingPriceUSD * dollarRate;
-      const bankFeeCost = baseProductCost * bankFeePercent; // Fee on sending money out
-      const shippingCost = (weight * shippingPerKg) / 1000;
-      
-      // Note: Commission is usually on the Selling Price (INR)
-      const commissionCost = sellingPriceINR * commissionPercent; 
+      const bankFeeCost = baseProductCost * bankFeePercent;
+      const internationalShipping = (weight * (parseFloat(String(constants.shipping_charge_per_kg)) || 950)) / 1000;
 
-      totalCost = baseProductCost + bankFeeCost + shippingCost + packingCost + commissionCost;
+      // C. Amazon India Fees
+      const referralFee = category
+        ? calculateReferralFee(category, sellingPriceINR)
+        : sellingPriceINR * 0.1; // fallback 10% if no category selected
+
+      const closingFee = calculateClosingFee(sellingPriceINR, channel);
+      const fulfilmentCost = calculateFulfilmentCost(weight, zone, channel);
+
+      // D. GST on Amazon fees (18%)
+      const gstOnFees = (referralFee + closingFee + fulfilmentCost) * 0.18;
+
+      // E. Total Amazon Fees
+      const amazonFeesTotal = referralFee + closingFee + fulfilmentCost + gstOnFees;
+
+      // F. Total Cost = Product + Bank + Intl Shipping + Packing + Amazon Fees
+      totalCost = baseProductCost + bankFeeCost + internationalShipping + packingCost + amazonFeesTotal;
+
+      // G. Profit & Judgement
+      const profit = totalRevenue - totalCost;
+      const actualProfitPercent = totalRevenue > 0
+        ? (profit / totalRevenue) * 100
+        : 0;
+
+      const targetProfitPercent = parseFloat(String(constants.target_profit_percent)) || 10;
+      const judgement: 'PASS' | 'FAIL' = actualProfitPercent >= targetProfitPercent ? 'PASS' : 'FAIL';
+
+      return {
+        total_cost: parseFloat(totalCost.toFixed(2)),
+        total_revenue: parseFloat(totalRevenue.toFixed(2)),
+        profit: parseFloat(profit.toFixed(2)),
+        judgement,
+        referral_fee: parseFloat(referralFee.toFixed(2)),
+        closing_fee: parseFloat(closingFee.toFixed(2)),
+        fulfilment_cost: parseFloat(fulfilmentCost.toFixed(2)),
+        gst_on_fees: parseFloat(gstOnFees.toFixed(2)),
+        amazon_fees_total: parseFloat(amazonFeesTotal.toFixed(2)),
+        actual_profit_percent: parseFloat(actualProfitPercent.toFixed(2)),
+      };
     }
-
-    // ====================================================================
-    // FINAL RESULTS
-    // ====================================================================
-    const profit = totalRevenue - totalCost;
-    const judgement: 'PASS' | 'FAIL' = profit > 0 ? 'PASS' : 'FAIL';
-
-    return {
-      total_cost: parseFloat(totalCost.toFixed(2)),
-      total_revenue: parseFloat(totalRevenue.toFixed(2)),
-      profit: parseFloat(profit.toFixed(2)),
-      judgement
-    };
   }
 
   // Pending if data is missing
@@ -225,8 +284,9 @@ export function getDefaultConstants(): CalculationConstants {
   return {
     dollar_rate: 90.0,
     bank_conversion_rate: 0.02,
-    shipping_charge_per_kg: 950.0,
-    commission_rate: 0.25,
-    packing_cost: 25.0
+    shipping_charge_per_kg: 950.0,  // USA mode
+    commission_rate: 0.25,           // USA mode
+    packing_cost: 25.0,
+    target_profit_percent: 10,       // India mode: 10% minimum
   }
 }
