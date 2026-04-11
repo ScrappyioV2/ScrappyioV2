@@ -394,7 +394,7 @@ export default function CheckingTable({
           .insert([restockRow]);
         if (insertError) throw insertError;
 
-        // Copy to Listing Error tables (unchanged)
+        // Copy to unified listing_errors table — dual-write: pending + funnel-specific
         const salesPrice = item.buying_price ?? 0;
         const funnelStr = String(item.funnel || '').toUpperCase();
         const listingPayload = {
@@ -409,19 +409,30 @@ export default function CheckingTable({
           seller_link: (item as any).seller_link ?? null,
         };
 
-        const tablesToInsert = [`india_listing_error_seller_${resolvedSellerId}_pending`];
-        if (funnelStr === 'RS' || funnelStr === 'HD' || funnelStr === 'LD' || funnelStr === '1' || funnelStr === '2') {
-          tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_high_demand`);
-        } else if (funnelStr === 'DP' || funnelStr === '3') {
-          tablesToInsert.push(`india_listing_error_seller_${resolvedSellerId}_dropshipping`);
-        }
+        // Insert pending row
+        const { error: pendingError } = await supabase
+          .from('listing_errors')
+          .upsert({
+            ...listingPayload,
+            marketplace: 'india',
+            seller_id: resolvedSellerId,
+            error_status: 'pending',
+          }, { onConflict: 'marketplace,seller_id,asin,error_status' });
+        if (pendingError) console.error('Failed to copy pending row to listing_errors:', pendingError);
 
-        for (const table of tablesToInsert) {
-          const { error: listingError } = await supabase
-            .from(table)
-            .upsert(listingPayload, { onConflict: 'asin' });
-          if (listingError) console.error(`Failed to copy to ${table}:`, listingError);
-        }
+        // Also insert funnel-specific row (high_demand or dropshipping)
+        const funnelStatus = (funnelStr === 'RS' || funnelStr === 'HD' || funnelStr === 'LD' || funnelStr === '1' || funnelStr === '2')
+          ? 'high_demand'
+          : 'dropshipping';
+        const { error: funnelError } = await supabase
+          .from('listing_errors')
+          .upsert({
+            ...listingPayload,
+            marketplace: 'india',
+            seller_id: resolvedSellerId,
+            error_status: funnelStatus,
+          }, { onConflict: 'marketplace,seller_id,asin,error_status' });
+        if (funnelError) console.error('Failed to copy funnel row to listing_errors:', funnelError);
       }
 
       // Mark original checking rows as pending_restock (preserve them)
@@ -891,7 +902,7 @@ export default function CheckingTable({
         .select('*')
         .eq('marketplace', 'india')
         .eq('ops_type', 'restock')
-        .in('seller_id', [1, 2, 3, 4, 5, 6])
+        .in('seller_id', [1, 2, 3, 4, 5, 6, 7, 8])
         .order('created_at', { ascending: false });
       if (!error && data) {
         data.forEach((item: any) => allItems.push({ ...item, _sellerId: item.seller_id }));
@@ -928,12 +939,18 @@ export default function CheckingTable({
         const { error } = await supabase.from('tracking_ops').delete().in('id', restockIds);
         if (error) throw error;
       }
-      // Delete from ALL listing error tables for these ASINs
+      // Delete from unified listing_errors table for these ASINs
       const asins = [...new Set(selectedItems.map((i: any) => i.asin))];
       const sellerIds = [...new Set(selectedItems.map((i: any) => i._sellerId))];
       for (const sid of sellerIds) {
         for (const suffix of ['pending', 'high_demand', 'dropshipping', 'error']) {
-          await supabase.from(`india_listing_error_seller_${sid}_${suffix}`).delete().in('asin', asins);
+          await supabase
+            .from('listing_errors')
+            .delete()
+            .eq('marketplace', 'india')
+            .eq('seller_id', sid)
+            .eq('error_status', suffix)
+            .in('asin', asins);
         }
       }
       // Clean up pending_restock rows

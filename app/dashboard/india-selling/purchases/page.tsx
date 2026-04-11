@@ -1506,6 +1506,11 @@ export default function PurchasesPage() {
             inr_purchase: (product as any).inr_purchase,
             inr_purchase_link: (product as any).inr_purchase_link,
             sku: (product as any).sku,
+            address: (product as any).address,
+            admin_target_quantity: (product as any).admin_target_quantity,
+            target_price_validation: (product as any).target_price_validation,
+            target_price_link_validation: (product as any).target_price_link_validation,
+            pending_quantity: (product as any).pending_quantity,
             admin_confirmed: true,
             status: 'confirmed',
           }, { onConflict: 'id' });

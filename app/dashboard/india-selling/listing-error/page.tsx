@@ -73,14 +73,13 @@ export default function ListingErrorDashboard() {
   const fetchRealCounts = useCallback(async () => {
     try {
       const promises = ALL_SELLERS.map(async (seller) => {
-        const pendingTable = `india_listing_error_seller_${seller.id}_pending`;
-        const listedTable = `india_listing_error_seller_${seller.id}_done`;
-        const errorTable = `india_listing_error_seller_${seller.id}_error`;
-
         const [pending, listed, error] = await Promise.all([
-          supabase.from(pendingTable).select('*', { count: 'exact', head: true }),
-          supabase.from(listedTable).select('*', { count: 'exact', head: true }),
-          supabase.from(errorTable).select('*', { count: 'exact', head: true }),
+          supabase.from('listing_errors').select('*', { count: 'exact', head: true })
+            .eq('marketplace', 'india').eq('seller_id', seller.id).eq('error_status', 'pending'),
+          supabase.from('listing_errors').select('*', { count: 'exact', head: true })
+            .eq('marketplace', 'india').eq('seller_id', seller.id).eq('error_status', 'done'),
+          supabase.from('listing_errors').select('*', { count: 'exact', head: true })
+            .eq('marketplace', 'india').eq('seller_id', seller.id).eq('error_status', 'error'),
         ]);
 
         return {

@@ -190,11 +190,13 @@ export default function ReorderPage() {
     try {
       setProcessing(true)
 
-      const listingTable = `india_listing_error_${activeSeller.table_suffix}_done`
-      // ✅ Fetch journey_id from source
+      // ✅ Fetch journey_id from unified listing_errors
       const { data: listedItems, error: listError } = await supabase
-        .from(listingTable)
+        .from('listing_errors')
         .select('asin, product_name, seller_link, journey_id, journey_number, remark, sku')
+        .eq('marketplace', 'india')
+        .eq('seller_id', activeSeller.id)
+        .eq('error_status', 'done')
 
       if (listError) throw listError
       if (!listedItems || listedItems.length === 0) {

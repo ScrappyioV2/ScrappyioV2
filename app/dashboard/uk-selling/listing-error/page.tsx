@@ -62,16 +62,14 @@ export default function ListingErrorDashboard() {
     try {
       
       const promises = ALL_SELLERS.map(async (seller) => {
-        // ✅ UPDATED: Exact table names from your screenshot
-        const pendingTable = `uk_listing_error_seller_${seller.id}_pending`; 
-        const listedTable = `uk_listing_error_seller_${seller.id}_done`; // 'done' = listed
-        const errorTable = `uk_listing_error_seller_${seller.id}_error`; 
-
-        // Run counts in parallel
+        // Run counts in parallel against unified listing_errors table
         const [pending, listed, error] = await Promise.all([
-          supabase.from(pendingTable).select('*', { count: 'exact', head: true }),
-          supabase.from(listedTable).select('*', { count: 'exact', head: true }),
-          supabase.from(errorTable).select('*', { count: 'exact', head: true }),
+          supabase.from('listing_errors').select('*', { count: 'exact', head: true })
+            .eq('marketplace', 'uk').eq('seller_id', seller.id).eq('error_status', 'pending'),
+          supabase.from('listing_errors').select('*', { count: 'exact', head: true })
+            .eq('marketplace', 'uk').eq('seller_id', seller.id).eq('error_status', 'done'),
+          supabase.from('listing_errors').select('*', { count: 'exact', head: true })
+            .eq('marketplace', 'uk').eq('seller_id', seller.id).eq('error_status', 'error'),
         ]);
 
         return {
