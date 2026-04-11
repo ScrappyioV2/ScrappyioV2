@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
-import { getUAETrackingTableName , ensureAbsoluteUrl } from '@/lib/utils'
+import { ensureAbsoluteUrl } from '@/lib/utils'
 import * as XLSX from 'xlsx'
 import {
   Loader2,
@@ -113,8 +113,11 @@ export default function ReorderPage() {
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from(`uae_reorder_${activeSeller.table_suffix}`)
+        .from('tracking_ops')
         .select('*')
+        .eq('marketplace', 'uae')
+        .eq('seller_id', activeSeller.id)
+        .eq('ops_type', 'reorder')
         .order('status', { ascending: false })
         .order('product_name', { ascending: true })
 
@@ -148,16 +151,21 @@ export default function ReorderPage() {
         return
       }
 
-      const reorderTable = `uae_reorder_${activeSeller.table_suffix}`
       const { data: existingItems } = await supabase
-        .from(reorderTable)
+        .from('tracking_ops')
         .select('asin')
+        .eq('marketplace', 'uae')
+        .eq('seller_id', activeSeller.id)
+        .eq('ops_type', 'reorder')
 
       const existingAsins = new Set(existingItems?.map(p => p.asin))
 
       const newItems = listedItems
         .filter(p => !existingAsins.has(p.asin))
         .map(p => ({
+          marketplace: 'uae',
+          seller_id: activeSeller.id,
+          ops_type: 'reorder',
           asin: p.asin,
           product_name: p.product_name,
           seller_link: p.seller_link,
@@ -172,7 +180,7 @@ export default function ReorderPage() {
 
       if (newItems.length > 0) {
         const { error: insertError } = await supabase
-          .from(reorderTable)
+          .from('tracking_ops')
           .insert(newItems)
 
         if (insertError) throw insertError
@@ -400,7 +408,7 @@ export default function ReorderPage() {
           matchCount++
           const pAsin = p.asin.trim().toUpperCase()
           return supabase
-            .from(`uae_reorder_${activeSeller.table_suffix}`)
+            .from('tracking_ops')
             .update({ current_qty: updates[pAsin] })
             .eq('id', p.id)
         })
@@ -520,10 +528,9 @@ export default function ReorderPage() {
     try {
       setProcessing(true)
 
-      // ✅ NEW: Helper function to get tracking quantity across ALL tables
-      // ✅ NEW: Helper function to get tracking quantity across ALL tables
+      // ✅ Helper function to get tracking quantity across tracking_ops stages
       const getTrackingQuantityForAsin = async (asin: string, sellerTag: string): Promise<number> => {
-        // 🔴 NEW LOGIC: Check tables in reverse priority - count from HIGHEST stage only
+        // 🔴 LOGIC: Check stages in reverse priority - count from HIGHEST stage only
 
         const sellerIdMap: Record<string, number> = {
           'GA': 1, 'GR': 1,
@@ -534,52 +541,47 @@ export default function ReorderPage() {
 
         const sellerId = sellerIdMap[sellerTag] || activeSeller.id
 
-        // ✅ PRIORITY ORDER: Check from final stage backward
-        const tablesToCheck = [
-          // { name: getUAETrackingTableName('VYAPAR', sellerId), priority: 5 },       // Highest priority
-          { name: getUAETrackingTableName('SHIPMENT', sellerId), priority: 4 },
-          { name: getUAETrackingTableName('CHECKING', sellerId), priority: 3 },
-          { name: getUAETrackingTableName('INVOICE', sellerId), priority: 2 },
-          { name: `uae_tracking_seller_${sellerId}`, priority: 1 }                                   // Lowest priority
+        // ✅ PRIORITY ORDER: Check from final stage backward (unified tracking_ops)
+        const stagesToCheck: Array<{ opsType: string; priority: number }> = [
+          { opsType: 'shipment', priority: 4 },
+          { opsType: 'checking', priority: 3 },
+          { opsType: 'invoice', priority: 2 },
+          { opsType: 'tracking', priority: 1 }, // MAIN
         ]
 
-
         // ✅ Find the HIGHEST stage where this ASIN exists
-        let foundInTable = null
         let totalQty = 0
 
-        for (const table of tablesToCheck) {
+        for (const stage of stagesToCheck) {
           try {
             const { data, error } = await supabase
-              .from(table.name)
+              .from('tracking_ops')
               .select('buying_quantity')
+              .eq('marketplace', 'uae')
+              .eq('seller_id', sellerId)
+              .eq('ops_type', stage.opsType)
               .eq('asin', asin)
 
             if (error) {
-              console.warn(`⚠️ Error querying ${table.name}:`, error.message)
+              console.warn(`⚠️ Error querying tracking_ops[${stage.opsType}]:`, error.message)
               continue
             }
 
             if (data && data.length > 0) {
-              const tableQty = data.reduce((sum: number, row: any) => {
+              const stageQty = data.reduce((sum: number, row: any) => {
                 const qty = row.buying_quantity || 0
                 return sum + qty
               }, 0)
 
-              if (tableQty > 0) {
+              if (stageQty > 0) {
                 // ✅ Found in this stage - use ONLY this quantity
-                totalQty = tableQty
-                foundInTable = table.name
+                totalQty = stageQty
                 break  // 🔴 STOP - Don't check lower stages
               }
             }
           } catch (err) {
-            console.warn(`⚠️ Failed to query ${table.name}:`, err)
+            console.warn(`⚠️ Failed to query tracking_ops[${stage.opsType}]:`, err)
           }
-        }
-
-        if (foundInTable) {
-        } else {
         }
 
         return totalQty
@@ -587,22 +589,26 @@ export default function ReorderPage() {
 
       // Fetch current reorder data
       const { data: currentReorderData } = await supabase
-        .from(`uae_reorder_${activeSeller.table_suffix}`)
+        .from('tracking_ops')
         .select('*')
+        .eq('marketplace', 'uae')
+        .eq('seller_id', activeSeller.id)
+        .eq('ops_type', 'reorder')
 
       if (!currentReorderData) return
 
-      // ✅ NEW: Build incoming map by checking ALL tracking tables
-
+      // ✅ Build incoming map by checking tracking_ops stages
       const incomingMap: Record<string, number> = {}
 
       // Get unique ASINs with their seller tags
       const asinSellerMap = new Map<string, string>()
 
-      // First, we need to get seller_tag for each ASIN from the tracking main table
+      // First, we need to get seller_tag for each ASIN from the unified tracking table
       const { data: mainFileData } = await supabase
-        .from('uae_traking')
+        .from('tracking_ops')
         .select('asin, seller_tag')
+        .eq('marketplace', 'uae')
+        .eq('ops_type', 'tracking')
 
       mainFileData?.forEach(item => {
         if (item.asin && item.seller_tag) {
@@ -655,7 +661,7 @@ export default function ReorderPage() {
       // Update database
       const updatePromises = updates.map(u =>
         supabase
-          .from(`uae_reorder_${activeSeller.table_suffix}`)
+          .from('tracking_ops')
           .update({
             tracking_qty: u.tracking_qty,
             final_reorder_qty: u.final_reorder_qty,
@@ -668,7 +674,7 @@ export default function ReorderPage() {
       await Promise.all(updatePromises)
       fetchReorderData()
 
-      setToast({ message: 'Calculation complete! Tracking data aggregated from all 5 tables.', type: 'success' }); setTimeout(() => setToast(null), 3000);
+      setToast({ message: 'Calculation complete! Tracking data aggregated across stages.', type: 'success' }); setTimeout(() => setToast(null), 3000);
 
     } catch (err: any) {
       setToast({ message: `Calculation failed: ${err.message}`, type: 'error' })
@@ -712,7 +718,7 @@ export default function ReorderPage() {
     } : p))
 
     await supabase
-      .from(`uae_reorder_${activeSeller.table_suffix}`)
+      .from('tracking_ops')
       .update({
         admin_target_qty: newTarget,
         final_reorder_qty: finalReorder,
@@ -821,7 +827,7 @@ export default function ReorderPage() {
 
       // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
       const { error: deleteError } = await supabase
-        .from(`uae_reorder_${activeSeller.table_suffix}`)
+        .from('tracking_ops')
         .delete()
         .eq('id', product.id)
 
@@ -1199,9 +1205,8 @@ export default function ReorderPage() {
                 <button
                   onClick={async () => {
                     try {
-                      const tableName = `uae_reorder_${activeSeller.table_suffix}`;
                       const { error } = await supabase
-                        .from(tableName)
+                        .from('tracking_ops')
                         .update({ remark: selectedRemark.remark })
                         .eq('id', selectedRemark.id);
 

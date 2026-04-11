@@ -88,6 +88,31 @@ export const getIndiaDemandSortingTableName = (sellerId: number): string => {
 
 
 // ============================================
+// UNIFIED TRACKING OPS CONFIGURATION
+// ============================================
+
+export type OpsType = 'tracking' | 'invoice' | 'checking' | 'shipment' | 'restock' | 'vyapar' | 'reorder';
+
+export const OPS_TYPE_MAP: Record<string, OpsType> = {
+  MAIN: 'tracking',
+  INVOICE: 'invoice',
+  CHECKING: 'checking',
+  SHIPMENT: 'shipment',
+  RESTOCK: 'restock',
+  VYAPAR: 'vyapar',
+  REORDER: 'reorder',
+};
+
+/**
+ * Helper to map a legacy stage name (MAIN/INVOICE/CHECKING/etc) to the
+ * `ops_type` value used in the unified `tracking_ops` table.
+ */
+export function stageToOpsType(stage: string): OpsType {
+  return OPS_TYPE_MAP[stage] || (stage.toLowerCase() as OpsType);
+}
+
+
+// ============================================
 // SELLER & TRACKING CONFIGURATION
 // ============================================
 
@@ -105,128 +130,6 @@ export const SELLER_TAG_MAPPING = {
 
 
 export type SellerTag = keyof typeof SELLER_TAG_MAPPING;
-
-
-// ============================================
-// USA TRACKING CONFIGURATION
-// ============================================
-
-
-export const USA_TRACKING_STAGES = {
-  MAIN: 'main_file',
-  INVOICE: 'usa_invoice',
-  CHECKING: 'usa_checking',
-  SHIPMENT: 'usa_shipment',
-  RESTOCK: 'usa_restock',
-  VYAPAR: 'usa_vyapar'
-} as const;
-
-
-export type USATrackingStage = keyof typeof USA_TRACKING_STAGES;
-
-
-export const getUSATrackingTableName = (stage: USATrackingStage, sellerId: number): string => {
-  const prefix = USA_TRACKING_STAGES[stage];
-  if (stage === 'MAIN') {
-    return `usa_tracking_seller_${sellerId}`;
-  }
-  return `${prefix}_seller_${sellerId}`;
-};
-
-
-// ============================================
-// INDIA TRACKING CONFIGURATION
-// ============================================
-
-
-export const INDIA_TRACKING_STAGES = {
-  MAIN: 'main_file',
-  INVOICE: 'india_invoice',
-  CHECKING: 'india_checking',
-  SHIPMENT: 'india_shipment',
-  RESTOCK: 'india_restock',
-  VYAPAR: 'india_vyapar'
-} as const;
-
-
-export type IndiaTrackingStage = keyof typeof INDIA_TRACKING_STAGES;
-
-
-export const getIndiaTrackingTableName = (stage: IndiaTrackingStage, sellerId: number): string => {
-  const prefix = INDIA_TRACKING_STAGES[stage];
-  if (stage === 'MAIN') {
-    return `india_tracking_seller_${sellerId}`;
-  }
-  return `${prefix}_seller_${sellerId}`;
-};
-
-
-
-// ============================================
-// UK TRACKING CONFIGURATION
-// ============================================
-
-
-export const UK_TRACKING_STAGES = {
-  MAIN: 'main_file',
-  INVOICE: 'uk_invoice',
-  CHECKING: 'uk_checking',
-  SHIPMENT: 'uk_shipment',
-  RESTOCK: 'uk_restock',
-  VYAPAR: 'uk_vyapar'
-} as const;
-
-
-export type UKTrackingStage = keyof typeof UK_TRACKING_STAGES;
-
-
-/**
- * Helper to get UK table name for a specific tracking stage and seller
- * Example: getUKTrackingTableName('INVOICE', 1) -> 'uk_invoice_seller_1'
- */
-export const getUKTrackingTableName = (stage: UKTrackingStage, sellerId: number): string => {
-  const prefix = UK_TRACKING_STAGES[stage];
-
-  if (stage === 'MAIN') {
-    return `uk_tracking_seller_${sellerId}`;
-  }
-
-  return `${prefix}_seller_${sellerId}`;
-};
-
-
-
-// ============================================
-// UAE TRACKING CONFIGURATION
-// ============================================
-
-
-export const UAE_TRACKING_STAGES = {
-  MAIN: 'main_file',
-  INVOICE: 'uae_invoice',
-  CHECKING: 'uae_checking',
-  SHIPMENT: 'uae_shipment',
-  RESTOCK: 'uae_restock',
-  VYAPAR: 'uae_vyapar'
-} as const;
-
-
-export type UAETrackingStage = keyof typeof UAE_TRACKING_STAGES;
-
-
-/**
- * Helper to get UAE table name for a specific tracking stage and seller
- * Example: getUAETrackingTableName('INVOICE', 1) -> 'uae_invoice_seller_1'
- */
-export const getUAETrackingTableName = (stage: UAETrackingStage, sellerId: number): string => {
-  const prefix = UAE_TRACKING_STAGES[stage];
-
-  if (stage === 'MAIN') {
-    return `uae_tracking_seller_${sellerId}`;
-  }
-
-  return `${prefix}_seller_${sellerId}`;
-};
 
 
 // ============================================
@@ -266,67 +169,6 @@ export function getFlipkartSellerInfo(sellerId: FlipkartSellerId) {
 export function getFlipkartSellerIdFromTag(tag: FlipkartSellerTag): FlipkartSellerId {
   return FLIPKART_SELLER_TAG_MAPPING[tag];
 }
-
-
-export const FLIPKART_TRACKING_STAGES = {
-  MAIN: 'main_file',
-  INVOICE: 'flipkart_invoice',
-  CHECKING: 'flipkart_checking',
-  SHIPMENT: 'flipkart_shipment',
-  RESTOCK: 'flipkart_restock',
-  VYAPAR: 'flipkart_vyapar'
-} as const;
-
-
-export type FlipkartTrackingStage = keyof typeof FLIPKART_TRACKING_STAGES;
-
-
-export const getFlipkartTrackingTableName = (
-  stage: FlipkartTrackingStage,
-  sellerId: number
-): string => {
-  const prefix = FLIPKART_TRACKING_STAGES[stage];
-  if (stage === 'MAIN') {
-    return `flipkart_tracking_seller_${sellerId}`;
-  }
-  return `${prefix}_seller_${sellerId}`;
-};
-
-
-export function getFlipkartBrandCheckingTableName(sellerId: FlipkartSellerId): string {
-  return `flipkart_brand_checking_seller_${sellerId}`;
-}
-
-
-export function getFlipkartCategoryTableName(
-  sellerId: FlipkartSellerId,
-  category: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved' | 'reject'
-): string {
-  return `flipkart_seller_${sellerId}_${category}`;
-}
-
-
-export function getFlipkartListingErrorTableName(
-  sellerId: FlipkartSellerId,
-  status: 'pending' | 'done' | 'error' | 'removed' | 'movement_history'
-): string {
-  return `flipkart_listing_error_seller_${sellerId}_${status}`;
-}
-
-
-// ============================================
-// LEGACY: Keep for backward compatibility
-// ============================================
-
-
-export const TRACKING_STAGES = USA_TRACKING_STAGES;
-export type TrackingStage = USATrackingStage;
-
-
-/**
- * @deprecated Use getUSATrackingTableName or getIndiaTrackingTableName instead
- */
-export const getTrackingTableName = getUSATrackingTableName;
 
 
 /**

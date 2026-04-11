@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect } from 'react';
 import { getFunnelBadgeStyle } from '@/lib/utils';
-import { getIndiaTrackingTableName, SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
+import { SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
 import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
 
 // ============================================
@@ -278,9 +278,11 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
         setUpdating(true);
         try {
             const resolvedSellerId = SELLER_TAG_MAPPING[sellerTag as SellerTag] || sellerId;
-            const restockTableName = getIndiaTrackingTableName('RESTOCK', resolvedSellerId);
 
             const restockData = selectedProducts.map(p => ({
+                marketplace: 'india',
+                seller_id: resolvedSellerId,
+                ops_type: 'restock',
                 asin: p.asin,
                 journey_id: p.journey_id,
                 product_name: p.product_name,
@@ -316,7 +318,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
             }));
 
             const { error: insertError } = await supabase
-                .from(restockTableName)
+                .from('tracking_ops')
                 .insert(restockData);
             if (insertError) throw insertError;
 
@@ -649,7 +651,10 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                 direction="RESTOCK_TO_DISTRIBUTION"
                 sellerId={sellerId}
                 sellerTag={sellerTag}
-                sourceTableName={getIndiaTrackingTableName('RESTOCK', SELLER_TAG_MAPPING[sellerTag as SellerTag] || sellerId)}
+                sourceTableName="tracking_ops"
+                sourceMarketplace="india"
+                sourceSellerId={SELLER_TAG_MAPPING[sellerTag as SellerTag] || sellerId}
+                sourceOpsType="restock"
                 targetTableName="india_seller_distribution"
             />
 

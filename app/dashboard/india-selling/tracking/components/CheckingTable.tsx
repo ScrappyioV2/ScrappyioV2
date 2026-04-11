@@ -3,7 +3,7 @@
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getIndiaTrackingTableName, SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
+import { SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -363,10 +363,12 @@ export default function CheckingTable({
       // Insert proportional pending rows to restock per seller
       for (const seller of sellerAllocations) {
         const resolvedSellerId = SELLER_TAG_MAPPING[seller.tag as SellerTag] || sellerId;
-        const restockTableName = getIndiaTrackingTableName('RESTOCK', resolvedSellerId);
 
         const item = seller.items[0]; // representative for this seller
         const restockRow = {
+          marketplace: 'india',
+          seller_id: resolvedSellerId,
+          ops_type: 'restock',
           asin: item.asin,
           sku: item.sku,
           product_name: item.product_name,
@@ -388,7 +390,7 @@ export default function CheckingTable({
         };
 
         const { error: insertError } = await supabase
-          .from(restockTableName)
+          .from('tracking_ops')
           .insert([restockRow]);
         if (insertError) throw insertError;
 
@@ -884,12 +886,15 @@ export default function CheckingTable({
     setRestockRollbackLoading(true);
     try {
       const allItems: any[] = [];
-      for (let s = 1; s <= 6; s++) {
-        const tableName = `india_restock_seller_${s}`;
-        const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
-        if (!error && data) {
-          data.forEach((item: any) => allItems.push({ ...item, _sourceTable: tableName, _sellerId: s }));
-        }
+      const { data, error } = await supabase
+        .from('tracking_ops')
+        .select('*')
+        .eq('marketplace', 'india')
+        .eq('ops_type', 'restock')
+        .in('seller_id', [1, 2, 3, 4, 5, 6])
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        data.forEach((item: any) => allItems.push({ ...item, _sellerId: item.seller_id }));
       }
       setRestockRollbackItems(allItems);
     } catch (err) {
@@ -905,11 +910,6 @@ export default function CheckingTable({
     if (!confirm(`Rollback ${restockRollbackSelected.size} item(s) from Restock & Listing Errors → Checking?`)) return;
     try {
       const selectedItems = restockRollbackItems.filter(i => restockRollbackSelected.has(i.id));
-      const byTable: Record<string, string[]> = {};
-      selectedItems.forEach(item => {
-        if (!byTable[item._sourceTable]) byTable[item._sourceTable] = [];
-        byTable[item._sourceTable].push(item.id);
-      });
       // Insert back into checking
       const checkingRows = selectedItems.map(item => ({
         asin: item.asin, sku: item.sku, product_name: item.product_name,
@@ -922,9 +922,10 @@ export default function CheckingTable({
       }));
       const { error: insertError } = await supabase.from('india_box_checking').insert(checkingRows);
       if (insertError) throw insertError;
-      // Delete from restock tables
-      for (const [table, ids] of Object.entries(byTable)) {
-        const { error } = await supabase.from(table).delete().in('id', ids);
+      // Delete from tracking_ops (restock rows) by ids
+      const restockIds = selectedItems.map(i => i.id);
+      if (restockIds.length > 0) {
+        const { error } = await supabase.from('tracking_ops').delete().in('id', restockIds);
         if (error) throw error;
       }
       // Delete from ALL listing error tables for these ASINs

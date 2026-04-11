@@ -155,10 +155,7 @@ export default function TrackingPage() {
         try {
             setLoading(true);
 
-            // ✅ FIX: Fetch from seller-specific Main File table
-            const mainFileTableName = `usa_tracking_seller_${currentSellerId}`;
-
-            // Recursive fetch to handle 1000+ rows
+            // Recursive fetch from unified tracking_ops table
             let allData: any[] = [];
             let from = 0;
             const batchSize = 1000;
@@ -166,8 +163,11 @@ export default function TrackingPage() {
 
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
-                    .from(mainFileTableName) // ✅ FIXED: usa_tracking_seller_X
-                    .select('*') // Select ALL columns
+                    .from('tracking_ops')
+                    .select('*')
+                    .eq('marketplace', 'usa')
+                    .eq('seller_id', currentSellerId)
+                    .eq('ops_type', 'tracking')
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
 
@@ -242,13 +242,16 @@ export default function TrackingPage() {
     const fetchSellerCounts = async () => {
         const id = currentSellerId;
         try {
-
-            // Parallel fetch for speed
+            // Parallel count fetches on unified tracking_ops table
             const [invoiceRes, checkingRes, shipmentRes, restockRes] = await Promise.all([
-                supabase.from(`usa_invoice_seller_${id}`).select('*', { count: 'exact', head: true }),
-                supabase.from(`usa_checking_seller_${id}`).select('*', { count: 'exact', head: true }),
-                supabase.from(`usa_shipment_seller_${id}`).select('*', { count: 'exact', head: true }),
-                supabase.from(`usa_restock_seller_${id}`).select('*', { count: 'exact', head: true })
+                supabase.from('tracking_ops').select('*', { count: 'exact', head: true })
+                    .eq('marketplace', 'usa').eq('seller_id', id).eq('ops_type', 'invoice'),
+                supabase.from('tracking_ops').select('*', { count: 'exact', head: true })
+                    .eq('marketplace', 'usa').eq('seller_id', id).eq('ops_type', 'checking'),
+                supabase.from('tracking_ops').select('*', { count: 'exact', head: true })
+                    .eq('marketplace', 'usa').eq('seller_id', id).eq('ops_type', 'shipment'),
+                supabase.from('tracking_ops').select('*', { count: 'exact', head: true })
+                    .eq('marketplace', 'usa').eq('seller_id', id).eq('ops_type', 'restock'),
             ]);
 
             const newCounts = {
@@ -270,10 +273,7 @@ export default function TrackingPage() {
 
     const refreshProductsSilently = async () => {
         try {
-            // ✅ FIX: Fetch from seller-specific Main File table
-            const mainFileTableName = `usa_tracking_seller_${currentSellerId}`;
-
-            // Recursive fetch to handle 1000+ rows
+            // Recursive fetch from unified tracking_ops table
             let allData: any[] = [];
             let from = 0;
             const batchSize = 1000;
@@ -281,8 +281,11 @@ export default function TrackingPage() {
 
             while (hasMore) {
                 const { data: purchasesData, error: purchasesError } = await supabase
-                    .from(mainFileTableName) // ✅ FIXED: usa_tracking_seller_X
+                    .from('tracking_ops')
                     .select('*')
+                    .eq('marketplace', 'usa')
+                    .eq('seller_id', currentSellerId)
+                    .eq('ops_type', 'tracking')
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
 
@@ -345,28 +348,24 @@ export default function TrackingPage() {
         fetchProducts();
         fetchSellerCounts();
 
-        // ✅ FIX: Subscribe to seller-specific table
-        const mainFileTableName = `usa_tracking_seller_${currentSellerId}`;
-        const invoiceTableName = `usa_invoice_seller_${currentSellerId}`;
-        const checkingTableName = `usa_checking_seller_${currentSellerId}`;
-
+        // Single realtime channel on unified tracking_ops table,
+        // filtered by marketplace; handler dispatches by ops_type.
         const channel = supabase
-            .channel(`tracking-${currentSellerId}`)
+            .channel(`tracking-usa-${currentSellerId}`)
             .on('postgres_changes', {
                 event: '*',
                 schema: 'public',
-                table: mainFileTableName, // ✅ FIXED
-            }, refreshProductsSilently)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: invoiceTableName, // ✅ FIXED
-            }, fetchSellerCounts)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: checkingTableName, // ✅ FIXED
-            }, fetchSellerCounts)
+                table: 'tracking_ops',
+                filter: `marketplace=eq.usa`,
+            }, (payload) => {
+                const row = (payload.new || payload.old) as any;
+                if (row?.seller_id !== currentSellerId) return;
+                if (row?.ops_type === 'tracking') {
+                    refreshProductsSilently();
+                } else if (['invoice', 'checking', 'shipment', 'restock'].includes(row?.ops_type)) {
+                    fetchSellerCounts();
+                }
+            })
             .subscribe();
 
         return () => {

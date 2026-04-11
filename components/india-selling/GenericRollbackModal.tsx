@@ -43,6 +43,12 @@ interface GenericRollbackModalProps {
     sourceTableName: string;
     targetTableName: string;
 
+    // Optional: when the source lives in the unified `tracking_ops` table,
+    // pass these filters so fetch/delete queries are scoped correctly.
+    sourceMarketplace?: string;
+    sourceSellerId?: number;
+    sourceOpsType?: string;
+
     // ✅ NEW
     overrideLabel?: {
         label?: string;
@@ -227,7 +233,18 @@ const getFieldMapping = (direction: RollbackDirection) => {
                 sourceLabel: 'Restock',
                 targetLabel: 'Restock',
                 mapFields: (item: any) => {
-                    const { id, status, moved_at, distribution_id, ...rest } = item;
+                    // Strip both legacy per-seller table fields and unified tracking_ops fields
+                    const {
+                        id,
+                        status,
+                        moved_at,
+                        distribution_id,
+                        created_at,
+                        marketplace,
+                        seller_id,
+                        ops_type,
+                        ...rest
+                    } = item;
                     return {
                         ...rest,
                         distribution_status: 'completed',
@@ -258,6 +275,9 @@ export default function GenericRollbackModal({
     sellerTag,
     sourceTableName,
     targetTableName,
+    sourceMarketplace,
+    sourceSellerId,
+    sourceOpsType,
     overrideLabel,        // ✅ add this
 }: GenericRollbackModalProps) {
     const [items, setItems] = useState<RollbackItem[]>([]);
@@ -290,11 +310,19 @@ export default function GenericRollbackModal({
             let hasMore = true;
 
             while (hasMore) {
+                const useTrackingOps = !!(sourceMarketplace && sourceOpsType);
                 let query = supabase
-                    .from(sourceTableName)
+                    .from(useTrackingOps ? 'tracking_ops' : sourceTableName)
                     .select('*')
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
+
+                if (useTrackingOps) {
+                    query = query.eq('marketplace', sourceMarketplace!).eq('ops_type', sourceOpsType!);
+                    if (sourceSellerId !== undefined) {
+                        query = query.eq('seller_id', sourceSellerId);
+                    }
+                }
 
                 // For single-table sources, filter by seller tag
                 if (direction === 'DISTRIBUTION_TO_CHECKING' && sellerTag) {
@@ -385,9 +413,10 @@ export default function GenericRollbackModal({
                 if (insertError) throw insertError;
             }
 
-            // 4. Delete from source table
+            // 4. Delete from source table (or tracking_ops when filters provided)
+            const useTrackingOps = !!(sourceMarketplace && sourceOpsType);
             const { error: deleteError } = await supabase
-                .from(sourceTableName)
+                .from(useTrackingOps ? 'tracking_ops' : sourceTableName)
                 .delete()
                 .in('id', Array.from(selectedIds));
             if (deleteError) throw deleteError;

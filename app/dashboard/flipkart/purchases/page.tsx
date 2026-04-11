@@ -664,16 +664,20 @@ export default function PurchasesPage() {
         'CV': 6  // Costech Ventures ✅ NEW
       };
 
-      // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
+      // STEP 3: INSERT into unified tracking_ops (one row per unique seller tag)
       const insertPromises = sellerTags.map(async (tag) => {
         const sellerId = sellerTagMapping[tag] || 1;
-        const trackingTableName = `flipkart_tracking_seller_${sellerId}`;
 
 
         // ✅ ALL column names use snake_case to match database schema
         return supabase
-          .from(trackingTableName)
+          .from('tracking_ops')
           .insert({
+            // Unified tracking_ops identifiers
+            marketplace: 'flipkart',
+            seller_id: sellerId,
+            ops_type: 'tracking',
+
             // 1. CORE IDENTITY
             asin: freshProduct.asin,
             journey_id: freshProduct.journey_id,           // ✅ Fixed

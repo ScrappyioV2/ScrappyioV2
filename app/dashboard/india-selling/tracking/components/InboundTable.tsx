@@ -4,7 +4,6 @@ import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, Fragment, useRef, useMemo } from "react";
 import { getFunnelBadgeStyle } from '@/lib/utils';
 import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
-import { getIndiaTrackingTableName } from '@/lib/utils';
 import AddBoxDetailsModal from "./AddBoxDetailsModal";
 
 

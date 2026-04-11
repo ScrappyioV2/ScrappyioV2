@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getFlipkartTrackingTableName } from '@/lib/utils';
 import { X } from 'lucide-react';
 
 type InvoiceGroup = {
@@ -43,13 +42,13 @@ export default function RollbackModal({
         try {
             setLoading(true);
 
-            // ✅ FIX #1: Use seller-specific invoice table
-            const invoiceTableName = getFlipkartTrackingTableName('INVOICE', sellerId);
-
-            // Step 1: Get ALL invoice groups from seller's invoice table
+            // Step 1: Get ALL invoice rows from tracking_ops (ops_type='invoice')
             const { data, error } = await supabase
-                .from(invoiceTableName) // ✅ FIXED: india_invoice_seller_X
+                .from('tracking_ops')
                 .select('invoice_number, invoice_date, amount, tax_amount')
+                .eq('marketplace', 'flipkart')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'invoice')
 
 
             if (error) {
@@ -137,15 +136,13 @@ export default function RollbackModal({
             setProcessing(true);
 
             for (const invoiceNumber of selectedInvoices) {
-                // ✅ FIX #2: Use seller-specific invoice table
-                const invoiceTableName = getFlipkartTrackingTableName('INVOICE', sellerId);
-                const mainFileTableName = getFlipkartTrackingTableName('MAIN', sellerId);
-
-
-                // 1. Get all items for this invoice
+                // 1. Get all items for this invoice from tracking_ops (ops_type='invoice')
                 const { data: invoiceItems, error: fetchError } = await supabase
-                    .from(invoiceTableName) // ✅ FIXED: india_invoice_seller_X
+                    .from('tracking_ops')
                     .select('*')
+                    .eq('marketplace', 'flipkart')
+                    .eq('seller_id', sellerId)
+                    .eq('ops_type', 'invoice')
                     .eq('invoice_number', invoiceNumber);
 
                 if (fetchError) throw fetchError;
@@ -167,12 +164,15 @@ export default function RollbackModal({
 
                 if (historyError) throw historyError;
 
-                // 3. Check which ASINs already exist in Main File
+                // 3. Check which ASINs already exist in Main File (tracking_ops ops_type='tracking')
                 const asins = invoiceItems.map((item) => item.asin);
 
                 const { data: existingAsins } = await supabase
-                    .from(mainFileTableName) // ✅ FIXED: india_tracking_seller_X
+                    .from('tracking_ops')
                     .select('asin')
+                    .eq('marketplace', 'flipkart')
+                    .eq('seller_id', sellerId)
+                    .eq('ops_type', 'tracking')
                     .in('asin', asins);
 
                 const existingAsinSet = new Set(existingAsins?.map((item) => item.asin));
@@ -181,6 +181,9 @@ export default function RollbackModal({
                 const dataToRestore = invoiceItems
                     .filter((item) => !existingAsinSet.has(item.asin))
                     .map((item) => ({
+                        marketplace: 'flipkart',
+                        seller_id: sellerId,
+                        ops_type: 'tracking',
                         // Core fields
                         asin: item.asin,
                         product_link: item.product_link,
@@ -213,10 +216,10 @@ export default function RollbackModal({
                         inr_purchase_link: item.inr_purchase_link,
                     }));
 
-                // 5. Insert back to Main File (if any non-duplicate ASINs)
+                // 5. Insert back to Main File (tracking_ops ops_type='tracking')
                 if (dataToRestore.length > 0) {
                     const { error: restoreError } = await supabase
-                        .from(mainFileTableName) // ✅ FIXED: india_tracking_seller_X
+                        .from('tracking_ops')
                         .insert(dataToRestore);
 
                     if (restoreError) {
@@ -229,10 +232,13 @@ export default function RollbackModal({
                 if (existingAsinSet.size > 0) {
                 }
 
-                // 6. Delete from invoice table
+                // 6. Delete the invoice rows from tracking_ops
                 const { error: deleteError } = await supabase
-                    .from(invoiceTableName) // ✅ FIXED: india_invoice_seller_X
+                    .from('tracking_ops')
                     .delete()
+                    .eq('marketplace', 'flipkart')
+                    .eq('seller_id', sellerId)
+                    .eq('ops_type', 'invoice')
                     .eq('invoice_number', invoiceNumber);
 
                 if (deleteError) throw deleteError;

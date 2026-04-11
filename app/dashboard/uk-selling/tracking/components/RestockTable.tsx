@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getUKTrackingTableName  } from '@/lib/utils';
 
 type RestockItem = {
     id: string;
@@ -42,11 +41,13 @@ export default function RestockTable({
     const fetchRestockData = async () => {
         try {
             setLoading(true);
-            const tableName = getUKTrackingTableName ('RESTOCK', sellerId);
 
             const { data, error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .select('*')
+                .eq('marketplace', 'uk')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'restock')
                 .order('moved_at', { ascending: false });
 
             if (error) throw error;

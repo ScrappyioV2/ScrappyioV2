@@ -658,16 +658,20 @@ useEffect(() => {
         'VV': 4,  // Velvet Vista
       };
 
-      // STEP 3: INSERT into MULTIPLE tracking tables (one per unique seller tag)
+      // STEP 3: INSERT into unified tracking_ops (one row per unique seller tag)
       const insertPromises = sellerTags.map(async (tag) => {
         const sellerId = sellerTagMapping[tag] || 1;
-        const trackingTableName = `usa_tracking_seller_${sellerId}`;
 
 
         // ✅ ALL column names match usa_purchases schema exactly (snake_case)
         return supabase
-          .from(trackingTableName)
+          .from('tracking_ops')
           .insert({
+            // Unified tracking_ops identifiers
+            marketplace: 'usa',
+            seller_id: sellerId,
+            ops_type: 'tracking',
+
             // ========================================
             // 1. CORE IDENTITY (from usa_purchases)
             // ========================================

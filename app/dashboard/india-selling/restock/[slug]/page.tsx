@@ -57,14 +57,14 @@ function RestockRollbackModal({
     onClose,
     onSuccess,
     sourceStatus,
-    tableName,
+    sellerId,
     sellerName,
 }: {
     open: boolean;
     onClose: () => void;
     onSuccess: () => void;
     sourceStatus: 'relisted' | 'disposed';
-    tableName: string;
+    sellerId: number;
     sellerName: string;
 }) {
     const [items, setItems] = useState<RestockItem[]>([]);
@@ -84,8 +84,11 @@ function RestockRollbackModal({
         setLoading(true);
         try {
             const { data, error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .select('*')
+                .eq('marketplace', 'india')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'restock')
                 .eq('status', sourceStatus)
                 .order('created_at', { ascending: false });
             if (error) throw error;
@@ -126,7 +129,7 @@ function RestockRollbackModal({
         setProcessing(true);
         try {
             const { error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .update({ status: 'pending' })
                 .in('id', Array.from(selected));
             if (error) throw error;
@@ -430,8 +433,6 @@ export default function RestockPage() {
         setDragOverKey(null);
     };
 
-    const tableName = `india_restock_seller_${currentSeller.id}`
-
     const fetchItems = async () => {
         try {
             if (items.length === 0 && !sessionStorage.getItem('restock_items_cache')) setLoading(true)
@@ -442,8 +443,11 @@ export default function RestockPage() {
 
             while (hasMore) {
                 const { data, error } = await supabase
-                    .from(tableName)
+                    .from('tracking_ops')
                     .select('*')
+                    .eq('marketplace', 'india')
+                    .eq('seller_id', currentSeller.id)
+                    .eq('ops_type', 'restock')
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1)
 
@@ -469,8 +473,16 @@ export default function RestockPage() {
         fetchItems()
 
         const channel = supabase
-            .channel(`restock-${currentSeller.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, () => {
+            .channel(`restock-india-${currentSeller.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'tracking_ops',
+                filter: `marketplace=eq.india`,
+            }, (payload) => {
+                const row = (payload.new || payload.old) as any;
+                if (row?.seller_id !== currentSeller.id) return;
+                if (row?.ops_type !== 'restock') return;
                 fetchItems()
             })
             .subscribe()
@@ -642,7 +654,7 @@ export default function RestockPage() {
                 updatePayload.moved_at = null
             }
             const { error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .update(updatePayload)
                 .eq('id', itemId)
 
@@ -658,8 +670,11 @@ export default function RestockPage() {
     const rollbackFromRelisted = async () => {
         try {
             const { data, error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .update({ status: 'pending', moved_at: null })
+                .eq('marketplace', 'india')
+                .eq('seller_id', currentSeller.id)
+                .eq('ops_type', 'restock')
                 .eq('status', 'relisted');
 
             if (error) throw error;
@@ -675,8 +690,11 @@ export default function RestockPage() {
     const rollbackFromDisposed = async () => {
         try {
             const { data, error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .update({ status: 'pending', moved_at: null })
+                .eq('marketplace', 'india')
+                .eq('seller_id', currentSeller.id)
+                .eq('ops_type', 'restock')
                 .eq('status', 'disposed');
 
             if (error) throw error;
@@ -1177,7 +1195,7 @@ export default function RestockPage() {
                         setTimeout(() => setToast(null), 2000);
                     }}
                     sourceStatus={rollbackSource}
-                    tableName={tableName}
+                    sellerId={currentSeller.id}
                     sellerName={currentSeller.name}
                 />
             )}

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { X, Upload } from 'lucide-react';
-import { getUAETrackingTableName } from '@/lib/utils';
 
 
 type InvoiceItem = {
@@ -263,12 +262,17 @@ export default function InvoiceModal({
       });
 
 
-      // ✅ FIX #1: Use seller-specific INVOICE table
-      const invoiceTableName = getUAETrackingTableName('INVOICE', sellerId);
+      // Insert into unified tracking_ops table (ops_type='invoice')
+      const invoicePayload = payload.map((p: any) => ({
+        ...p,
+        marketplace: 'uae',
+        seller_id: sellerId,
+        ops_type: 'invoice',
+      }));
 
       const { data: insertData, error: insertError } = await supabase
-        .from(invoiceTableName) // ✅ FIXED: uae_invoice_seller_X
-        .insert(payload);
+        .from('tracking_ops')
+        .insert(invoicePayload);
 
       if (insertError) {
         console.error('❌ INSERT ERROR:', insertError);
@@ -280,9 +284,7 @@ export default function InvoiceModal({
       }
 
 
-      // ✅ FIX #2: Use seller-specific MAIN FILE table
-      const mainFileTableName = getUAETrackingTableName('MAIN', sellerId);
-
+      // Delete from unified tracking_ops table (ops_type='tracking', same seller)
       // Get IDs to delete
       const idsToDelete = editableItems
         .map((item) => item.id)
@@ -291,8 +293,11 @@ export default function InvoiceModal({
 
       if (idsToDelete.length > 0) {
         const { error: deleteError } = await supabase
-          .from(mainFileTableName) // ✅ FIXED: uae_tracking_seller_X (not uae_traking!)
+          .from('tracking_ops')
           .delete()
+          .eq('marketplace', 'uae')
+          .eq('seller_id', sellerId)
+          .eq('ops_type', 'tracking')
           .in('id', idsToDelete);
 
         if (deleteError) {

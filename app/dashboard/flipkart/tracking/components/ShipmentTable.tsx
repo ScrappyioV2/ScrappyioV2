@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getFlipkartTrackingTableName } from '@/lib/utils';
 
 type ShipmentItem = {
     id: string;
@@ -44,11 +43,13 @@ export default function ShipmentTable({
     const fetchShipmentData = async () => {
         try {
             setLoading(true);
-            const tableName = getFlipkartTrackingTableName('SHIPMENT', sellerId);
 
             const { data, error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .select('*')
+                .eq('marketplace', 'flipkart')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'shipment')
                 .order('moved_at', { ascending: false });
 
             if (error) throw error;
@@ -73,11 +74,13 @@ export default function ShipmentTable({
 
         try {
 
-            // 1. Get all items for this invoice
-            const shipmentTableName = getFlipkartTrackingTableName('SHIPMENT', sellerId);
+            // 1. Get all items for this invoice from tracking_ops (ops_type='shipment')
             const { data: itemsToMove, error: fetchError } = await supabase
-                .from(shipmentTableName)
+                .from('tracking_ops')
                 .select('*')
+                .eq('marketplace', 'flipkart')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'shipment')
                 .eq('invoice_number', invoiceNumber);
 
             if (fetchError) throw fetchError;
@@ -87,25 +90,30 @@ export default function ShipmentTable({
                 return;
             }
 
-            // 2. Prepare for Restock
-            const restockData = itemsToMove.map(({ id, created_at, ...rest }) => ({
+            // 2. Prepare for Restock (new rows in tracking_ops with ops_type='restock')
+            const restockData = itemsToMove.map(({ id, created_at, ops_type, ...rest }) => ({
                 ...rest,
+                marketplace: 'flipkart',
+                seller_id: sellerId,
+                ops_type: 'restock',
                 status: 'restocking',
                 moved_at: new Date().toISOString(),
             }));
 
-            // 3. Insert into Restock
-            const restockTableName = getFlipkartTrackingTableName('RESTOCK', sellerId);
+            // 3. Insert into tracking_ops as restock rows
             const { error: insertError } = await supabase
-                .from(restockTableName)
+                .from('tracking_ops')
                 .insert(restockData);
 
             if (insertError) throw insertError;
 
-            // 4. Delete from Shipment
+            // 4. Delete shipment rows
             const { error: deleteError } = await supabase
-                .from(shipmentTableName)
+                .from('tracking_ops')
                 .delete()
+                .eq('marketplace', 'flipkart')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'shipment')
                 .eq('invoice_number', invoiceNumber);
 
             if (deleteError) throw deleteError;

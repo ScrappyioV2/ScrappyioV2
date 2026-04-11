@@ -156,8 +156,11 @@ export default function ReorderPage() {
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from(`india_reorder_${activeSeller.table_suffix}`)
+        .from('tracking_ops')
         .select('*')
+        .eq('marketplace', 'india')
+        .eq('seller_id', activeSeller.id)
+        .eq('ops_type', 'reorder')
         .order('status', { ascending: false })
         .order('product_name', { ascending: true })
 
@@ -199,16 +202,21 @@ export default function ReorderPage() {
         return
       }
 
-      const reorderTable = `india_reorder_${activeSeller.table_suffix}`
       const { data: existingItems } = await supabase
-        .from(reorderTable)
+        .from('tracking_ops')
         .select('asin')
+        .eq('marketplace', 'india')
+        .eq('seller_id', activeSeller.id)
+        .eq('ops_type', 'reorder')
 
       const existingAsins = new Set(existingItems?.map(p => p.asin))
 
       const newItems = listedItems
         .filter(p => !existingAsins.has(p.asin))
         .map(p => ({
+          marketplace: 'india',
+          seller_id: activeSeller.id,
+          ops_type: 'reorder',
           asin: p.asin,
           product_name: p.product_name,
           seller_link: p.seller_link,
@@ -224,7 +232,7 @@ export default function ReorderPage() {
 
       if (newItems.length > 0) {
         const { error: insertError } = await supabase
-          .from(reorderTable)
+          .from('tracking_ops')
           .insert(newItems)
 
         if (insertError) throw insertError
@@ -234,9 +242,9 @@ export default function ReorderPage() {
           action: 'submit',
           marketplace: 'india',
           page: 'reorder',
-          table_name: `india_reorder_${activeSeller.table_suffix}`,
+          table_name: 'tracking_ops',
           asin: `${newItems.length} ASINs synced`,
-          details: { seller: activeSeller.name }
+          details: { seller: activeSeller.name, ops_type: 'reorder' }
         });
         fetchReorderData()
       } else {
@@ -461,7 +469,7 @@ export default function ReorderPage() {
           matchCount++
           const pAsin = p.asin.trim().toUpperCase()
           return supabase
-            .from(`india_reorder_${activeSeller.table_suffix}`)
+            .from('tracking_ops')
             .update({ current_qty: updates[pAsin] })
             .eq('id', p.id)
         })
@@ -480,9 +488,9 @@ export default function ReorderPage() {
         action: 'submit',
         marketplace: 'india',
         page: 'reorder',
-        table_name: `india_reorder_${activeSeller.table_suffix}`,
+        table_name: 'tracking_ops',
         asin: `${matchCount} ASINs updated`,
-        details: { type: 'inventory_upload', seller: activeSeller.name }
+        details: { type: 'inventory_upload', seller: activeSeller.name, ops_type: 'reorder' }
       });
 
       // Offer Recalculation
@@ -516,8 +524,11 @@ export default function ReorderPage() {
 
       // ✅ Fetch current reorder data
       const { data: currentReorderData } = await supabase
-        .from(`india_reorder_${activeSeller.table_suffix}`)
+        .from('tracking_ops')
         .select('*')
+        .eq('marketplace', 'india')
+        .eq('seller_id', activeSeller.id)
+        .eq('ops_type', 'reorder')
 
       if (!currentReorderData || currentReorderData.length === 0) {
         setToast({ message: 'No products in reorder table.', type: 'error' })
@@ -605,14 +616,16 @@ export default function ReorderPage() {
         }
       }
 
-      // --- Table 4: india_restock_seller_X (per-seller, no split needed) ---
+      // --- Table 4: tracking_ops restock rows (per-seller, no split needed) ---
       {
-        const restockTable = `india_restock_${activeSeller.table_suffix}`
         const { data, error } = await supabase
-          .from(restockTable)
+          .from('tracking_ops')
           .select('asin, buying_quantity')
+          .eq('marketplace', 'india')
+          .eq('seller_id', activeSeller.id)
+          .eq('ops_type', 'restock')
 
-        if (error) console.warn(`⚠️ Error querying ${restockTable}:`, error.message)
+        if (error) console.warn('⚠️ Error querying tracking_ops restock:', error.message)
         else {
           data?.forEach(row => {
             addToMap(row.asin, row.buying_quantity || 0)
@@ -660,7 +673,7 @@ export default function ReorderPage() {
       // ✅ Update database
       const updatePromises = updates.map(u =>
         supabase
-          .from(`india_reorder_${activeSeller.table_suffix}`)
+          .from('tracking_ops')
           .update({
             tracking_qty: u.tracking_qty,
             final_reorder_qty: u.final_reorder_qty,
@@ -692,9 +705,9 @@ export default function ReorderPage() {
         action: 'submit',
         marketplace: 'india',
         page: 'reorder',
-        table_name: `india_reorder_${activeSeller.table_suffix}`,
+        table_name: 'tracking_ops',
         asin: `${updates.length} ASINs recalculated`,
-        details: { type: 'recalculate', seller: activeSeller.name }
+        details: { type: 'recalculate', seller: activeSeller.name, ops_type: 'reorder' }
       });
 
     } catch (err: any) {
@@ -740,7 +753,7 @@ export default function ReorderPage() {
     } : p))
 
     await supabase
-      .from(`india_reorder_${activeSeller.table_suffix}`)
+      .from('tracking_ops')
       .update({
         admin_target_qty: newTarget,
         final_reorder_qty: finalReorder,
@@ -752,7 +765,7 @@ export default function ReorderPage() {
 
   const handleRemarkSave = async (productId: string, newRemark: string | null) => {
     try {
-      const { error } = await supabase.from(`india_reorder_${activeSeller.table_suffix}`).update({ remark: newRemark }).eq('id', productId);
+      const { error } = await supabase.from('tracking_ops').update({ remark: newRemark }).eq('id', productId);
       if (error) throw error;
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, remark: newRemark } : p));
     } catch (err: any) { console.error('Failed to update remark:', err); }
@@ -826,7 +839,7 @@ export default function ReorderPage() {
                   .eq('asin', product.asin);
                 if (mergeError) throw mergeError;
                 // Delete from reorder
-                await supabase.from(`india_reorder_${activeSeller.table_suffix}`).delete().eq('id', product.id);
+                await supabase.from('tracking_ops').delete().eq('id', product.id);
                 setProducts(prev => prev.filter(p => p.id !== product.id));
                 setToast({ message: `Added ${activeSeller.tag} to ${product.asin} in ${liveCheck.stage_label}`, type: 'success' });
                 setTimeout(() => setToast(null), 3000);
@@ -911,7 +924,7 @@ export default function ReorderPage() {
 
           // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
           const { error: deleteError } = await supabase
-            .from(`india_reorder_${activeSeller.table_suffix}`)
+            .from('tracking_ops')
             .delete()
             .eq('id', product.id)
 
@@ -925,9 +938,9 @@ export default function ReorderPage() {
             action: 'move',
             marketplace: 'india',
             page: 'reorder',
-            table_name: `india_reorder_${activeSeller.table_suffix}`,
+            table_name: 'tracking_ops',
             asin: product.asin,
-            details: { from: 'reorder', to: 'validation', journey: nextJourneyNum }
+            details: { from: 'reorder', to: 'validation', journey: nextJourneyNum, ops_type: 'reorder' }
           });
 
         } catch (err: any) {

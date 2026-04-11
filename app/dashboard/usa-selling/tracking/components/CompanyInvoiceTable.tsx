@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getTrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -95,10 +94,12 @@ export default function CompanyInvoiceTable({
       let hasMore = true;
 
       while (hasMore) {
-        const tableName = getTrackingTableName('INVOICE', sellerId); // usa_invoice_seller_X
         const { data, error } = await supabase
-          .from(tableName)
+          .from('tracking_ops')
           .select('*')
+          .eq('marketplace', 'usa')
+          .eq('seller_id', sellerId)
+          .eq('ops_type', 'invoice')
           .order('created_at', { ascending: false })
           .range(from, from + batchSize - 1);
 
@@ -176,12 +177,13 @@ export default function CompanyInvoiceTable({
     if (action === 'pass') {
       try {
 
-        // 1. Get all items with this invoice_number from INVOICE table
-        const invoiceTableName = getTrackingTableName('INVOICE', sellerId);
-
+        // 1. Get all items with this invoice_number from tracking_ops (ops_type='invoice')
         const { data: itemsToMove, error: fetchError } = await supabase
-          .from(invoiceTableName) // ✅ usa_invoice_seller_X
+          .from('tracking_ops')
           .select('*')
+          .eq('marketplace', 'usa')
+          .eq('seller_id', sellerId)
+          .eq('ops_type', 'invoice')
           .eq('invoice_number', invoiceNumber);
 
         if (fetchError) throw fetchError;
@@ -192,8 +194,11 @@ export default function CompanyInvoiceTable({
         }
 
 
-        // 2. Prepare data for checking table (remove id to generate new ones)
+        // 2. Prepare data for tracking_ops (ops_type='checking')
         const dataToInsert = itemsToMove.map((item) => ({
+          marketplace: 'usa',
+          seller_id: sellerId,
+          ops_type: 'checking',
           // Invoice info
           invoice_number: item.invoice_number,
           invoice_date: item.invoice_date,
@@ -259,11 +264,9 @@ export default function CompanyInvoiceTable({
           moved_at: new Date().toISOString(),
         }));
 
-        // 3. Insert into CHECKING table
-        const checkingTableName = getTrackingTableName('CHECKING', sellerId);
-
+        // 3. Insert into tracking_ops as checking rows
         const { error: insertError } = await supabase
-          .from(checkingTableName) // ✅ usa_checking_seller_X
+          .from('tracking_ops')
           .insert(dataToInsert);
 
         if (insertError) {
@@ -272,11 +275,13 @@ export default function CompanyInvoiceTable({
         }
 
 
-        // 4. Delete from INVOICE table (seller-specific)
-
+        // 4. Delete the invoice rows from tracking_ops
         const { error: deleteError } = await supabase
-          .from(invoiceTableName) // ✅ FIXED: usa_invoice_seller_X (not usa_tracking_company_invoice!)
+          .from('tracking_ops')
           .delete()
+          .eq('marketplace', 'usa')
+          .eq('seller_id', sellerId)
+          .eq('ops_type', 'invoice')
           .eq('invoice_number', invoiceNumber);
 
         if (deleteError) {

@@ -28,10 +28,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch products from brand checking table
+    // Fetch products from unified seller_products table (brand_checking stage)
     const { data: products, error: fetchError } = await supabase
-      .from(`usa_brand_checking_seller_${sellerId}`)
-      .select('*');
+      .from('seller_products')
+      .select('*')
+      .eq('marketplace', 'usa')
+      .eq('seller_id', sellerId)
+      .eq('product_status', 'brand_checking');
 
     if (fetchError) throw fetchError;
 
@@ -44,33 +47,20 @@ export async function POST(request: Request) {
     // Distribute products based on monthly_unit
     for (const product of products) {
       const { category, funnel } = determineCategory(product.monthly_unit);
-      const targetTable = `usa_seller_${sellerId}_${category}`;
 
-      // Prepare data with auto-generated AMZ link
-      const dataToInsert = {
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.link,
-        amz_link: generateAmazonLink(product.asin),
-        working: false,
-      };
+      // Update the row's product_status to the target category in the unified table
+      const { error: updateError } = await supabase
+        .from('seller_products')
+        .update({
+          product_status: category,
+          funnel: funnel,
+          amz_link: generateAmazonLink(product.asin),
+          working: false,
+        })
+        .eq('id', product.id);
 
-      // Insert into target category table
-      const { error: insertError } = await supabase
-        .from(targetTable)
-        .insert(dataToInsert);
-
-      if (!insertError) {
+      if (!updateError) {
         distributed[category]++;
-
-        // Delete from brand checking table
-        await supabase
-          .from(`usa_brand_checking_seller_${sellerId}`)
-          .delete()
-          .eq('id', product.id);
       }
     }
 

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getUKTrackingTableName  } from '@/lib/utils';
 
 type VyaparItem = {
     id: string;
@@ -45,11 +44,13 @@ export default function VyaparTable({
     const fetchVyaparData = async () => {
         try {
             setLoading(true);
-            const tableName = getUKTrackingTableName ('VYAPAR', sellerId);
 
             const { data, error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .select('*')
+                .eq('marketplace', 'uk')
+                .eq('seller_id', sellerId)
+                .eq('ops_type', 'vyapar')
                 .order('moved_at', { ascending: false });
 
             if (error) throw error;
@@ -64,10 +65,9 @@ export default function VyaparTable({
 
     const handleStatusChange = async (itemId: string, newStatus: string) => {
         try {
-            // Update database
-            const tableName = getUKTrackingTableName ('VYAPAR', sellerId)
+            // Update by id — id is unique across tracking_ops
             const { error } = await supabase
-                .from(tableName)
+                .from('tracking_ops')
                 .update({ action_status: newStatus })
                 .eq('id', itemId)
 

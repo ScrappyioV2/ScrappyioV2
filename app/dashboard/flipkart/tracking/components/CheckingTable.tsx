@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { getFlipkartTrackingTableName } from '@/lib/utils';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -133,10 +132,12 @@ export default function CheckingTable({
       let hasMore = true;
 
       while (hasMore) {
-        const tableName = getFlipkartTrackingTableName('CHECKING', sellerId);
         const { data, error } = await supabase
-          .from(tableName)
+          .from('tracking_ops')
           .select('*')
+          .eq('marketplace', 'flipkart')
+          .eq('seller_id', sellerId)
+          .eq('ops_type', 'checking')
           .order('moved_at', { ascending: false })
           .range(from, from + batchSize - 1);
 
@@ -207,10 +208,9 @@ export default function CheckingTable({
   const handleCheckboxChange = async (itemId: string, checked: boolean) => {
     try {
 
-      // Update database
-      const tableName = getFlipkartTrackingTableName('CHECKING', sellerId);
+      // Update by id — id is unique across tracking_ops
       const { error } = await supabase
-        .from(tableName)
+        .from('tracking_ops')
         .update({ product_received: checked })
         .eq('id', itemId);
 
@@ -234,11 +234,13 @@ export default function CheckingTable({
   const handleMoveToShipment = async (itemIds: string[]) => {
     try {
 
-      // 1. Get items to move from CHECKING table (removed product_received filter)
-      const checkingTableName = getFlipkartTrackingTableName('CHECKING', sellerId);
+      // 1. Get items to move from tracking_ops (ops_type='checking')
       const { data: itemsToMove, error: fetchError } = await supabase
-        .from(checkingTableName)
+        .from('tracking_ops')
         .select('*')
+        .eq('marketplace', 'flipkart')
+        .eq('seller_id', sellerId)
+        .eq('ops_type', 'checking')
         .in('id', itemIds)
 
       if (fetchError) throw fetchError
@@ -251,7 +253,7 @@ export default function CheckingTable({
 
       // 2. Prepare data (remove id, created_at, product_received)
       const preparedData = itemsToMove.map((item) => {
-        const { id, created_at, product_received, ...rest } = item;
+        const { id, created_at, product_received, ops_type, ...rest } = item;
         return {
           ...rest,
           moved_at: new Date().toISOString(),
@@ -261,20 +263,20 @@ export default function CheckingTable({
       // 3. Prepare Shipment data
       const shipmentData = preparedData.map(item => ({
         ...item,
+        ops_type: 'shipment',
         status: 'shipped',
       }));
 
       // 4. Prepare Vyapar data
       const vyaparData = preparedData.map(item => ({
         ...item,
+        ops_type: 'vyapar',
         status: 'vyapar_logged',
       }));
 
-      // 5. Insert into SHIPMENT table
-      const shipmentTableName = getFlipkartTrackingTableName('SHIPMENT', sellerId);
-
+      // 5. Insert into tracking_ops as shipment rows
       const { error: shipmentInsertError } = await supabase
-        .from(shipmentTableName)
+        .from('tracking_ops')
         .insert(shipmentData);
 
       if (shipmentInsertError) {
@@ -283,11 +285,9 @@ export default function CheckingTable({
       }
 
 
-      // 6. Insert into VYAPAR table
-      const vyaparTableName = getFlipkartTrackingTableName('VYAPAR', sellerId);
-
+      // 6. Insert into tracking_ops as vyapar rows
       const { error: vyaparInsertError } = await supabase
-        .from(vyaparTableName)
+        .from('tracking_ops')
         .insert(vyaparData);
 
       if (vyaparInsertError) {
@@ -296,10 +296,9 @@ export default function CheckingTable({
       }
 
 
-      // 7. Delete from CHECKING table
-
+      // 7. Delete the checking rows
       const { error: deleteError } = await supabase
-        .from(checkingTableName)
+        .from('tracking_ops')
         .delete()
         .in('id', itemIds);
 
@@ -362,10 +361,9 @@ export default function CheckingTable({
         }
       }
 
-      // Update database
-      const tableName = getFlipkartTrackingTableName('CHECKING', sellerId);
+      // Update by id — id is unique across tracking_ops
       const { error } = await supabase
-        .from(tableName)
+        .from('tracking_ops')
         .update(updateData)
         .eq('id', itemId);
 
@@ -417,11 +415,13 @@ export default function CheckingTable({
 
     try {
 
-      // 1. Get items from CHECKING table
-      const checkingTableName = getFlipkartTrackingTableName('CHECKING', sellerId);
+      // 1. Get items from tracking_ops (ops_type='checking')
       const { data: itemsToMove, error: fetchError } = await supabase
-        .from(checkingTableName)
+        .from('tracking_ops')
         .select('*')
+        .eq('marketplace', 'flipkart')
+        .eq('seller_id', sellerId)
+        .eq('ops_type', 'checking')
         .in('id', Array.from(selectedItemIds));
 
       if (fetchError) throw fetchError;
@@ -433,34 +433,32 @@ export default function CheckingTable({
 
       // 2. Prepare data
       const preparedData = itemsToMove.map((item: any) => {
-        const { id, created_at, product_received, ...rest } = item;
+        const { id, created_at, product_received, ops_type, ...rest } = item;
         return {
           ...rest,
           moved_at: new Date().toISOString(),
         };
       });
 
-      // 3. Insert into SHIPMENT
-      const shipmentTableName = getFlipkartTrackingTableName('SHIPMENT', sellerId);
-      const shipmentData = preparedData.map(item => ({ ...item, status: 'shipped' }));
+      // 3. Insert into tracking_ops as shipment rows
+      const shipmentData = preparedData.map(item => ({ ...item, ops_type: 'shipment', status: 'shipped' }));
       const { error: shipmentInsertError } = await supabase
-        .from(shipmentTableName)
+        .from('tracking_ops')
         .insert(shipmentData);
 
       if (shipmentInsertError) throw shipmentInsertError;
 
-      // 4. Insert into VYAPAR
-      const vyaparTableName = getFlipkartTrackingTableName('VYAPAR', sellerId);
-      const vyaparData = preparedData.map(item => ({ ...item, status: 'vyapar_logged' }));
+      // 4. Insert into tracking_ops as vyapar rows
+      const vyaparData = preparedData.map(item => ({ ...item, ops_type: 'vyapar', status: 'vyapar_logged' }));
       const { error: vyaparInsertError } = await supabase
-        .from(vyaparTableName)
+        .from('tracking_ops')
         .insert(vyaparData);
 
       if (vyaparInsertError) throw vyaparInsertError;
 
-      // 5. Delete from CHECKING
+      // 5. Delete the checking rows
       const { error: deleteError } = await supabase
-        .from(checkingTableName)
+        .from('tracking_ops')
         .delete()
         .in('id', Array.from(selectedItemIds));
 
