@@ -7,7 +7,7 @@ import Toast from '@/components/Toast';
 import { History, X, Loader2, Upload, Download } from 'lucide-react';
 import Papa from 'papaparse';
 import { motion, AnimatePresence } from 'framer-motion'
-import { calculateProductValues, type CalculationConstants, type IndiaProductInput } from '@/lib/blackboxCalculations'
+import { calculateProductValues, type CalculationConstants, type CalculationResult, type IndiaProductInput } from '@/lib/blackboxCalculations'
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 
@@ -645,6 +645,62 @@ export default function AdminValidationPage() {
       profit: isFinite(result.profit) ? result.profit : null,
     };
   };
+
+  // Full breakdown for the profit popover — mirrors autoCalculateAdmin but returns
+  // the entire CalculationResult plus extra display fields used by the popover.
+  const getFullBreakdown = (
+    product: any
+  ): (CalculationResult & {
+    _baseProductCost: number;
+    _bankFeeCost: number;
+    _internationalShipping: number;
+    _packingCost: number;
+    _effectiveUSD: number;
+    _dollarRate: number;
+  }) | null => {
+    const buyingPrice = Number(product.buyingprice ?? product.buying_price);
+    const weight = Number(product.productweight ?? product.product_weight);
+    const sellingPriceINR = Number(product.targetprice ?? product.target_price);
+    const currency = product.purchase_currency || 'INR';
+
+    if (!buyingPrice || !weight || !sellingPriceINR) return null;
+
+    const dollarRate = adminConstants.dollar_rate || 96;
+    const effectiveUSD = currency === 'INR' ? buyingPrice / dollarRate : buyingPrice;
+
+    const result = calculateProductValues(
+      {
+        usd_price: effectiveUSD,
+        product_weight: weight,
+        inr_purchase: sellingPriceINR,
+        amazon_category: product.amazon_category || null,
+        fulfillment_channel: product.fulfillment_channel || 'Seller Flex',
+        shipping_zone: product.shipping_zone || 'National',
+      } as IndiaProductInput,
+      adminConstants,
+      'INDIA'
+    );
+
+    if (result.judgement === 'PENDING') return null;
+    if (!isFinite(result.total_cost) || !isFinite(result.profit)) return null;
+
+    const baseProductCost = effectiveUSD * dollarRate;
+    const bankFeeCost = baseProductCost * (adminConstants.bank_conversion_rate || 0.02);
+    const internationalShipping = (weight * (adminConstants.shipping_charge_per_kg || 950)) / 1000;
+    const packingCost = adminConstants.packing_cost || 25;
+
+    return {
+      ...result,
+      _baseProductCost: baseProductCost,
+      _bankFeeCost: bankFeeCost,
+      _internationalShipping: internationalShipping,
+      _packingCost: packingCost,
+      _effectiveUSD: effectiveUSD,
+      _dollarRate: dollarRate,
+    };
+  };
+
+  const [breakdownOpenId, setBreakdownOpenId] = useState<string | null>(null);
 
   // Resize tracking state
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -2028,23 +2084,136 @@ export default function AdminValidationPage() {
           </td>
         );
 
-      case 'profit':
+      case 'profit': {
+        const breakdown = getFullBreakdown(product);
+        const isOpen = breakdownOpenId === product.id;
         return (
-          <td key={col_key} className="px-6 py-4 text-sm">
+          <td key={col_key} className="px-6 py-4 text-sm relative">
             <div className="flex flex-col gap-1">
-              <div className={`w-full min-w-[6rem] px-2 py-1 border rounded text-sm font-bold text-center truncate ${(product.profit ?? 0) >= 0
-                ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
-                : 'text-rose-400 bg-rose-500/20 border-rose-500/30'
-                }`}>
-                {product.profit != null ? `₹${product.profit.toFixed(2)}` : '-'}
+              <div className="flex items-center justify-center gap-1">
+                <div className={`flex-1 min-w-[6rem] px-2 py-1 border rounded text-sm font-bold text-center truncate ${(product.profit ?? 0) >= 0
+                  ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30'
+                  : 'text-rose-400 bg-rose-500/20 border-rose-500/30'
+                  }`}>
+                  {product.profit != null ? `₹${product.profit.toFixed(2)}` : '-'}
+                </div>
+                {breakdown && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBreakdownOpenId(isOpen ? null : product.id);
+                    }}
+                    title="View profit breakdown"
+                    className="w-5 h-5 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-white/[0.15] text-gray-400 hover:text-white hover:border-orange-500 text-[11px] font-bold flex-shrink-0"
+                  >
+                    i
+                  </button>
+                )}
               </div>
               <div className="flex gap-2 text-[10px] text-gray-500 justify-center">
                 <span title="Total Cost">C: {product.total_cost != null ? `₹${product.total_cost.toFixed(0)}` : '-'}</span>
                 <span title="Total Revenue">R: {product.total_revenue != null ? `₹${product.total_revenue.toFixed(0)}` : '-'}</span>
               </div>
             </div>
+
+            {isOpen && breakdown && (
+              <div
+                className="absolute top-0 left-full ml-2 z-50 w-80 bg-[#1a1a1a] border border-white/[0.15] rounded-xl shadow-2xl p-4 text-xs"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="font-semibold text-white text-sm">Profit Breakdown</div>
+                  <button
+                    type="button"
+                    onClick={() => setBreakdownOpenId(null)}
+                    className="text-gray-400 hover:text-white p-1 -mt-1 -mr-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Selling Price */}
+                <div className="flex justify-between items-center py-2 border-b border-white/[0.08]">
+                  <span className="text-gray-300">Selling Price (Revenue)</span>
+                  <span className="text-emerald-400 font-bold">₹{breakdown.total_revenue.toFixed(2)}</span>
+                </div>
+
+                {/* Cost Breakdown */}
+                <div className="mt-3">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">Cost Breakdown</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">
+                        Product Cost <span className="text-gray-600">(${breakdown._effectiveUSD.toFixed(2)} × ₹{breakdown._dollarRate})</span>
+                      </span>
+                      <span className="text-gray-200">₹{breakdown._baseProductCost.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Bank Fee</span>
+                      <span className="text-gray-200">₹{breakdown._bankFeeCost.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Intl Shipping</span>
+                      <span className="text-gray-200">₹{breakdown._internationalShipping.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Packing Cost</span>
+                      <span className="text-gray-200">₹{breakdown._packingCost.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amazon India Fees */}
+                <div className="mt-3">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">Amazon India Fees</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Referral Fee</span>
+                      <span className="text-gray-200">₹{(breakdown.referral_fee ?? 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Closing Fee</span>
+                      <span className="text-gray-200">₹{(breakdown.closing_fee ?? 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Fulfilment Cost</span>
+                      <span className="text-gray-200">₹{(breakdown.fulfilment_cost ?? 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">GST on Fees (18%)</span>
+                      <span className="text-gray-200">₹{(breakdown.gst_on_fees ?? 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold pt-1 border-t border-white/[0.06]">
+                      <span className="text-gray-300">Total Amazon Fees</span>
+                      <span className="text-gray-100">₹{(breakdown.amazon_fees_total ?? 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Cost */}
+                <div className="flex justify-between items-center py-2 mt-3 border-t border-white/[0.08]">
+                  <span className="text-gray-300 font-semibold">Total Cost</span>
+                  <span className="text-rose-400 font-bold">₹{breakdown.total_cost.toFixed(2)}</span>
+                </div>
+
+                {/* Profit */}
+                <div className="flex justify-between items-center py-2 border-t border-white/[0.08]">
+                  <span className="text-gray-300 font-semibold">Profit</span>
+                  <span className={`font-bold ${breakdown.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    ₹{breakdown.profit.toFixed(2)}
+                    {breakdown.actual_profit_percent != null && (
+                      <span className="ml-1 text-[10px] opacity-80">
+                        ({breakdown.actual_profit_percent.toFixed(1)}%)
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
           </td>
         );
+      }
 
       case 'buying_price':
         return (
