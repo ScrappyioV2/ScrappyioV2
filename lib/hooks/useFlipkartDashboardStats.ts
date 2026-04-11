@@ -55,8 +55,11 @@ export function useFlipkartDashboardStats(options = { enabled: true }) {
 
                 // 3. LISTING ERRORS
                 const { count: listErrors } = await supabase
-                    .from(`flipkart_listing_error_seller_${seller.id}_error`)
-                    .select('*', { count: 'exact', head: true });
+                    .from('listing_errors')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('marketplace', 'flipkart')
+                    .eq('seller_id', seller.id)
+                    .eq('error_status', 'error');
 
                 // 4. PURCHASING - Uses seller_tag (not seller_id)
                 const { count: purchPending } = await supabase

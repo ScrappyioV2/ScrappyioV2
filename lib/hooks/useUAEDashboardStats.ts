@@ -55,8 +55,11 @@ export function useUAEDashboardStats(options = { enabled: true }) {
 
         // 3. LISTING ERRORS
         const { count: listErrors } = await supabase
-          .from(`uae_listing_error_seller_${seller.id}_error`)
-          .select('*', { count: 'exact', head: true });
+          .from('listing_errors')
+          .select('*', { count: 'exact', head: true })
+          .eq('marketplace', 'uae')
+          .eq('seller_id', seller.id)
+          .eq('error_status', 'error');
 
         // 4. PURCHASING (Ready to Buy)
         const { count: purchPending } = await supabase

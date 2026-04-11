@@ -77,8 +77,11 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
           .eq('judgement', 'FAIL');
 
         const { count: listErrors } = await supabase
-          .from(`india_listing_error_seller_${seller.id}_error`)
-          .select('*', { count: 'exact', head: true });
+          .from('listing_errors')
+          .select('*', { count: 'exact', head: true })
+          .eq('marketplace', 'india')
+          .eq('seller_id', seller.id)
+          .eq('error_status', 'error');
 
         const { count: purchPending } = await supabase
           .from('india_purchases')
@@ -155,25 +158,10 @@ export function useIndiaDashboardStats(options = { enabled: true }) {
         () => fetchStats(true)
       )
 
-      // LISTING ERRORS
+      // LISTING ERRORS — single subscription on unified table, filtered by marketplace
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'india_listing_error_seller_1_error' },
-        () => fetchStats(true)
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'india_listing_error_seller_2_error' },
-        () => fetchStats(true)
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'india_listing_error_seller_3_error' },
-        () => fetchStats(true)
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'india_listing_error_seller_4_error' },
+        { event: '*', schema: 'public', table: 'listing_errors', filter: 'marketplace=eq.india' },
         () => fetchStats(true)
       )
 
