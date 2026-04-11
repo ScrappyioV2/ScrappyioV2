@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import PageTransition from '@/components/layout/PageTransition';
+import {
+  fetchTabProducts,
+  moveProductWithHistory,
+  checkCrossSellerStatus,
+  updateRemark,
+  subscribeToListingErrors,
+  type Marketplace,
+} from '@/lib/listing-error-helpers';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ensureAbsoluteUrl } from '@/lib/utils';
@@ -40,7 +48,7 @@ const generateUUID = (): string => {
 /* === CONFIGURATION === */
 const SELLER_ID = 4;
 const SELLER_NAME = "Velvet Vista";
-const BASE_TABLE_PREFIX = `uk_listing_error_seller_${SELLER_ID}`;
+const MARKETPLACE: Marketplace = 'uk';
 const ITEMS_PER_PAGE = 100;
 
 interface ListingProduct {
@@ -136,30 +144,14 @@ export default function VelvetVistaListingPage() {
   const fetchProducts = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-
     try {
-      const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-      let query = supabase.from(tableName).select('*', { count: 'exact' });
-
-      // Apply Search
-      if (debouncedSearch.trim()) {
-        const term = debouncedSearch.trim();
-        query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
-      }
-
-      // Calculate Range for Pagination
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      const { data, count, error } = await query
-        .order('id', { ascending: false })
-        .range(from, to);
-
+      const { data, count, error } = await fetchTabProducts(
+        supabase, MARKETPLACE, SELLER_ID, activeTab,
+        { search: debouncedSearch, page, perPage: ITEMS_PER_PAGE }
+      );
       if (error) throw error;
-
       setProducts(data || []);
       setTotalItems(count || 0);
-
     } catch (err: any) {
       console.error('Fetch error:', err);
       setToast({ message: 'Failed to load data', type: 'error' });
@@ -168,42 +160,11 @@ export default function VelvetVistaListingPage() {
     }
   }, [activeTab, debouncedSearch, user, page]);
 
-  // --- STABLE REFERENCE FOR FETCHING ---
-  // We use a ref so the Subscription Effect doesn't need 'fetchProducts' as a dependency
-  const fetchProductsRef = useRef(fetchProducts);
-  useEffect(() => {
-    fetchProductsRef.current = fetchProducts;
-  }, [fetchProducts]);
-
-  // 1. DATA FETCHING EFFECT (Runs on page/search change)
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
-
-  // 2. SUBSCRIPTION EFFECT (Runs ONLY when tab changes)
-  // This prevents the WebSocket from closing/reopening when you type or change pages
-  useEffect(() => {
-    const tableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-    const channelName = `realtime_${tableName}_${Date.now()}`; // Unique ID to prevent collisions
-
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: tableName },
-        () => {
-          // Trigger fetch using the stable ref
-          if (fetchProductsRef.current) {
-            fetchProductsRef.current();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeTab]); // Only re-subscribe if the table changes
+    const channel = subscribeToListingErrors(supabase, MARKETPLACE, SELLER_ID, () => fetchProducts());
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchProducts, activeTab]);
 
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
     const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).single();
@@ -219,23 +180,10 @@ export default function VelvetVistaListingPage() {
   };
 
   const logHistory = async (product: ListingProduct, fromTable: string, toTable: string) => {
-    try {
-      await supabase.from(`${BASE_TABLE_PREFIX}_movement_history`).insert({
-        source_admin_validation_id: product.source_admin_validation_id || null,
-        asin: product.asin,
-        product_name: product.product_name,
-        sku: product.sku,
-        selling_price: product.selling_price,
-        seller_link: product.seller_link,
-        from_table: fromTable,
-        to_table: toTable,
-        remark: product.remark ?? null,
-      });
-      setMovementHistory((prev) => ({
-        ...prev,
-        [`${BASE_TABLE_PREFIX}_${activeTab}`]: { product, fromTable, toTable },
-      }));
-    } catch (err) { console.error("Log error:", err); }
+    setMovementHistory((prev) => ({
+      ...prev,
+      [activeTab]: { product, fromTable, toTable },
+    }));
   };
 
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
@@ -246,26 +194,9 @@ export default function VelvetVistaListingPage() {
     const journeyNum = product.journey_number || 1;
 
     try {
-      const sourceTableName = `${BASE_TABLE_PREFIX}_${activeTab}`;
-      const targetTableName = `${BASE_TABLE_PREFIX}_${target}`;
-
-      // ✅ Include journey tracking
-      const payload = {
-        source_admin_validation_id: product.source_admin_validation_id,
-        asin: product.asin,
-        product_name: product.product_name,
-        sku: product.sku,
-        selling_price: product.selling_price,
-        seller_link: product.seller_link,
-
-        // 🔗 Journey Tracking
-        journey_id: journeyId,
-        journey_number: journeyNum,
-
-        remark: product.remark ?? null,
-        ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
-        ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
-      };
+      const extraFields: Record<string, any> = {};
+      if (target === 'done') extraFields.final_listed_price = product.selling_price;
+      if (target === 'error') extraFields.error_reason = reason || 'Unknown Error';
 
       // ✅ Save to history if listed
       if (target === 'done') {
@@ -288,19 +219,8 @@ export default function VelvetVistaListingPage() {
         }
       }
 
-      const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
-      if (insertError) throw insertError;
-
-      await logHistory(product, sourceTableName, targetTableName);
-
-      const sourceTablesToCheck = [
-        `${BASE_TABLE_PREFIX}_pending`,
-        `${BASE_TABLE_PREFIX}_high_demand`,
-        `${BASE_TABLE_PREFIX}_low_demand`,
-        `${BASE_TABLE_PREFIX}_dropshipping`
-      ];
-
-      await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
+      await moveProductWithHistory(supabase, MARKETPLACE, SELLER_ID, product, activeTab, target, extraFields);
+      await logHistory(product, activeTab, target);
 
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
@@ -329,8 +249,7 @@ export default function VelvetVistaListingPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
-    const lastMovement = movementHistory[currentTable];
+    const lastMovement = movementHistory[activeTab];
     if (!lastMovement) {
       setToast({ message: 'Nothing to undo', type: 'error' });
       return;
@@ -339,30 +258,20 @@ export default function VelvetVistaListingPage() {
     setLoading(true);
     try {
       const { product, fromTable, toTable } = lastMovement;
-      const { id, ...rest } = product;
 
-      await supabase.from(fromTable).insert(rest);
+      const { error } = await supabase.from('listing_errors')
+        .update({ error_status: fromTable, updated_at: new Date().toISOString() })
+        .eq('id', product.id);
+      if (error) throw error;
 
-      const funnelTables = [
-        `${BASE_TABLE_PREFIX}_high_demand`,
-        `${BASE_TABLE_PREFIX}_low_demand`,
-        `${BASE_TABLE_PREFIX}_dropshipping`
-      ];
-
-      if (funnelTables.includes(fromTable)) {
-        await supabase.from(`${BASE_TABLE_PREFIX}_pending`).upsert(rest, { onConflict: 'asin' });
-      }
-
-      await supabase.from(toTable).delete().eq('asin', product.asin);
-
-      if (toTable.includes('done')) await updateProgressStats('listed', -1);
-      else if (toTable.includes('error')) await updateProgressStats('error', -1);
-      else if (toTable.includes('removed')) {
+      if (toTable === 'done') await updateProgressStats('listed', -1);
+      else if (toTable === 'error') await updateProgressStats('error', -1);
+      else if (toTable === 'removed') {
         const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
         if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID);
       }
 
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
       fetchProducts();
       setToast({ message: `Restored ${product.asin} to ${activeTab} and Pending`, type: 'success' });
     } catch (err: any) {
@@ -373,7 +282,7 @@ export default function VelvetVistaListingPage() {
     }
   };
 
-  const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];
+  const hasRollback = !!movementHistory[activeTab];
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (

@@ -134,6 +134,7 @@ export default function RudraRetailPage() {
   });
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
   const SELLER_ID = 2;
+  const MARKETPLACE = 'uae';
 
   const SELLER_CODE_MAP: Record<number, string> = {
     1: 'GR',
@@ -209,11 +210,13 @@ export default function RudraRetailPage() {
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const tableName = `uae_seller_${SELLER_ID}_${activeTab}`;
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
-      let query = supabase.from(tableName).select('*', { count: 'exact' });
+      let query = supabase.from('seller_products').select('*', { count: 'exact' })
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', activeTab);
 
       if (debouncedSearch.trim()) {
         // ✅ Limit search to 100 characters to prevent 400 errors
@@ -267,9 +270,12 @@ export default function RudraRetailPage() {
   const fetchLastMovementHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from('uae_seller_2_rudra_retail_movement_history')
+        .from('seller_products')
         .select('*')
-        .eq('from_table', `uae_seller_${SELLER_ID}_${activeTab}`)
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', 'movement_history')
+        .eq('from_table', activeTab)
         .order('moved_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -280,9 +286,8 @@ export default function RudraRetailPage() {
       }
 
       if (data) {
-        // Populate movementHistory state with the last movement
         const product: ProductRow = {
-          id: '', // Not needed for rollback
+          id: '',
           asin: data.asin,
           product_name: data.product_name,
           brand: data.brand,
@@ -295,17 +300,16 @@ export default function RudraRetailPage() {
 
         setMovementHistory((prev) => ({
           ...prev,
-          [`uae_seller_${SELLER_ID}_${activeTab}`]: {
+          [activeTab]: {
             product,
             fromTable: data.from_table,
             toTable: data.to_table,
           },
         }));
       } else {
-        // No history found - clear undo for this tab
         setMovementHistory((prev) => ({
           ...prev,
-          [`uae_seller_${SELLER_ID}_${activeTab}`]: null,
+          [activeTab]: null,
         }));
       }
     } catch (error) {
@@ -319,8 +323,11 @@ export default function RudraRetailPage() {
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
       const { error } = await supabase
-        .from(`uae_seller_2_rudra_retail_movement_history`)
+        .from('seller_products')
         .insert({
+          marketplace: MARKETPLACE,
+          seller_id: SELLER_ID,
+          product_status: 'movement_history',
           asin: product.asin,
           product_name: product.product_name,
           brand: product.brand,
@@ -331,6 +338,7 @@ export default function RudraRetailPage() {
           remark: product.remark,
           from_table: fromTable,
           to_table: toTable,
+          moved_at: new Date().toISOString(),
         });
 
       if (error) throw error;
@@ -351,13 +359,7 @@ export default function RudraRetailPage() {
   ) => {
     setProcessingId(product.id);
     try {
-      let targetTable: string;
-      let dataToInsert: any;
-      const { id, working, reason: oldReason, ...productData } = product;
-      const currentTable = `uae_seller_${SELLER_ID}_${activeTab}`;
-
       if (action === 'approved') {
-        targetTable = `uae_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
         const { data: existingRow, error: selectError } = await supabase
@@ -395,32 +397,28 @@ export default function RudraRetailPage() {
           }
         }
 
-        await saveToHistory(product, currentTable, targetTable);
-        await supabase.from(currentTable).delete().eq('asin', product.asin);
+        await saveToHistory(product, activeTab, 'uae_validation_main_file');
+        await supabase.from('seller_products').delete().eq('id', product.id);
         await fetchProducts(true);
         setToast({ message: `Product moved to Validation Main File!`, type: 'success' });
 
       } else if (action === 'not_approved') {
-        targetTable = `uae_seller_${SELLER_ID}_not_approved`;
-        dataToInsert = productData;
+        const { error: updateError } = await supabase.from('seller_products')
+          .update({ product_status: 'not_approved', updated_at: new Date().toISOString() })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
 
-        const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-        if (insertError) throw insertError;
-
-        await saveToHistory(product, currentTable, targetTable);
-        await supabase.from(currentTable).delete().eq('asin', product.asin);
+        await saveToHistory(product, activeTab, 'not_approved');
         await fetchProducts(true);
         setToast({ message: `Product moved to Not Approved!`, type: 'success' });
 
       } else if (action === 'reject') {
-        targetTable = `uae_seller_${SELLER_ID}_reject`;
-        dataToInsert = { ...productData, reason: reason || 'No reason provided' };
+        const { error: updateError } = await supabase.from('seller_products')
+          .update({ product_status: 'reject', reason: reason || 'No reason provided', updated_at: new Date().toISOString() })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
 
-        const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-        if (insertError) throw insertError;
-
-        await saveToHistory(product, currentTable, targetTable);
-        await supabase.from(currentTable).delete().eq('asin', product.asin);
+        await saveToHistory(product, activeTab, 'reject');
         await fetchProducts(true);
         setToast({ message: `Product rejected!`, type: 'success' });
       }
@@ -433,8 +431,7 @@ export default function RudraRetailPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `uae_seller_${SELLER_ID}_${activeTab}`;
-    const lastMovement = movementHistory[currentTable];
+    const lastMovement = movementHistory[activeTab];
 
     if (!lastMovement) {
       setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
@@ -445,67 +442,83 @@ export default function RudraRetailPage() {
     try {
       const { product, fromTable, toTable } = lastMovement;
 
-      // ✅ NEW: Check if product already exists in destination table
+      // Check if product already exists in destination status for this seller
       const { data: existingProduct, error: checkError } = await supabase
-        .from(fromTable)
+        .from('seller_products')
         .select('asin')
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', fromTable)
         .eq('asin', product.asin)
         .maybeSingle();
 
       if (checkError) throw checkError;
 
       if (existingProduct) {
-        // Product already exists - clear history and show message
         setToast({
-          message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
+          message: `Cannot undo: Product "${product.product_name}" already exists in the destination tab`,
           type: 'warning',
         });
 
-        // Clear movement history since it's no longer valid
-        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+        setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
 
-        // Delete the invalid history entry from database
         await supabase
-          .from(`uae_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
+          .from('seller_products')
           .delete()
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', 'movement_history')
           .eq('asin', product.asin)
           .eq('from_table', fromTable)
-          .eq('to_table', toTable)
-          .order('moved_at', { ascending: false })
-          .limit(1);
+          .eq('to_table', toTable);
 
         setLoading(false);
         return;
       }
 
-      // Product doesn't exist - proceed with rollback
-      const { error: insertError } = await supabase.from(fromTable).insert({
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.product_link,
-        amz_link: product.amz_link,
-        remark: product.remark,
-      });
+      if (toTable === 'uae_validation_main_file') {
+        // Approved rollback — re-insert into seller_products with original status
+        const { error: insertError } = await supabase.from('seller_products').insert({
+          marketplace: MARKETPLACE,
+          seller_id: SELLER_ID,
+          product_status: fromTable,
+          asin: product.asin,
+          product_name: product.product_name,
+          brand: product.brand,
+          funnel: product.funnel,
+          monthly_unit: product.monthly_unit,
+          product_link: product.product_link,
+          amz_link: product.amz_link,
+          remark: product.remark,
+        });
+        if (insertError) throw insertError;
 
-      if (insertError) throw insertError;
-
-      const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-      if (deleteError) throw deleteError;
+        const { error: deleteError } = await supabase.from('uae_validation_main_file').delete().eq('asin', product.asin);
+        if (deleteError) throw deleteError;
+      } else {
+        // not_approved / reject rollback — UPDATE status back on the same row
+        const { error: updateError } = await supabase
+          .from('seller_products')
+          .update({ product_status: fromTable, updated_at: new Date().toISOString() })
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', toTable)
+          .eq('asin', product.asin);
+        if (updateError) throw updateError;
+      }
 
       await supabase
-        .from(`uae_seller_${SELLER_ID}_rudra_retail_movement_history`) // Change table name per seller
+        .from('seller_products')
         .delete()
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', 'movement_history')
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
-        .eq('to_table', toTable)
-        .order('moved_at', { ascending: false })
-        .limit(1);
+        .eq('to_table', toTable);
 
       setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
       fetchProducts(true);
     } catch (error: any) {
       console.error('Error rolling back:', error);
@@ -519,7 +532,6 @@ export default function RudraRetailPage() {
   };
 
 
-
   // ✅ NEW FUNCTION: Move products from Reject to other tabs
   const handleMoveFromReject = async (targetTab: 'high_demand' | 'low_demand' | 'dropshipping' | 'not_approved') => {
     if (selectedIds.size === 0) {
@@ -530,18 +542,19 @@ export default function RudraRetailPage() {
     setLoading(true);
     try {
       const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-      const targetTable = `uae_seller_${SELLER_ID}_${targetTab}`;
-      const rejectTable = `uae_seller_${SELLER_ID}_reject`;
 
       let movedCount = 0;
       let skippedCount = 0;
       const skippedAsins: string[] = [];
 
       for (const product of selectedProducts) {
-        // Check if ASIN already exists in target table
+        // Check if ASIN already exists in target status for this seller
         const { data: existing, error: checkError } = await supabase
-          .from(targetTable)
+          .from('seller_products')
           .select('asin')
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', targetTab)
           .eq('asin', product.asin)
           .maybeSingle();
 
@@ -551,33 +564,19 @@ export default function RudraRetailPage() {
         }
 
         if (existing) {
-          // Skip if already exists
           skippedCount++;
           skippedAsins.push(product.asin);
           continue;
         }
 
-        // Prepare data (remove reject-specific fields)
-        const { id, reason, working, ...productData } = product;
+        // Update status on the same row (clear reject-specific fields)
+        const { error: updateError } = await supabase
+          .from('seller_products')
+          .update({ product_status: targetTab, reason: null, updated_at: new Date().toISOString() })
+          .eq('id', product.id);
 
-        // Insert into target table
-        const { error: insertError } = await supabase
-          .from(targetTable)
-          .insert(productData);
-
-        if (insertError) {
-          console.error('Insert error:', insertError);
-          continue;
-        }
-
-        // Delete from reject table
-        const { error: deleteError } = await supabase
-          .from(rejectTable)
-          .delete()
-          .eq('asin', product.asin);
-
-        if (deleteError) {
-          console.error('Delete error:', deleteError);
+        if (updateError) {
+          console.error('Update error:', updateError);
           continue;
         }
 
@@ -600,13 +599,11 @@ export default function RudraRetailPage() {
         });
       }
 
-      // ✅ NEW: Clear movement history for target table since products moved back
-      // This prevents undo conflicts when products return to their original table
-      const targetTableKey = `uae_seller_${SELLER_ID}_${targetTab}`;
-      if (movementHistory[targetTableKey]) {
+      // Clear movement history for target tab since products moved back
+      if (movementHistory[targetTab]) {
         setMovementHistory((prev) => ({
           ...prev,
-          [targetTableKey]: null,
+          [targetTab]: null,
         }));
       }
 
@@ -722,8 +719,7 @@ export default function RudraRetailPage() {
     );
   };
 
-  const currentTable = `uae_seller_${SELLER_ID}_${activeTab}`;
-  const hasRollback = !!movementHistory[currentTable];
+  const hasRollback = !!movementHistory[activeTab];
 
   // Tab Styles
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (

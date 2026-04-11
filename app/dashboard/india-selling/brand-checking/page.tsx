@@ -14,16 +14,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-const SELLER_TABLE_GROUPS: Record<number, string[]> = {
-  1: ['india_seller_1_high_demand', 'india_seller_1_low_demand', 'india_seller_1_dropshipping', 'india_seller_1_not_approved'],
-  2: ['india_seller_2_high_demand', 'india_seller_2_low_demand', 'india_seller_2_dropshipping', 'india_seller_2_not_approved'],
-  3: ['india_seller_3_high_demand', 'india_seller_3_low_demand', 'india_seller_3_dropshipping', 'india_seller_3_not_approved'],
-  4: ['india_seller_4_high_demand', 'india_seller_4_low_demand', 'india_seller_4_dropshipping', 'india_seller_4_not_approved'],
-  5: ['india_seller_5_high_demand', 'india_seller_5_low_demand', 'india_seller_5_dropshipping', 'india_seller_5_not_approved'],
-  6: ['india_seller_6_high_demand', 'india_seller_6_low_demand', 'india_seller_6_dropshipping', 'india_seller_6_not_approved'],
-  7: ['india_seller_7_high_demand', 'india_seller_7_low_demand', 'india_seller_7_dropshipping', 'india_seller_7_not_approved'],
-  8: ['india_seller_8_high_demand', 'india_seller_8_low_demand', 'india_seller_8_dropshipping', 'india_seller_8_not_approved'],
-};
+const MARKETPLACE = 'india';
 
 const ALL_SELLERS = [
   { id: 1, slug: "golden-aura", name: "Golden Aura" },
@@ -152,9 +143,12 @@ export default function BrandCheckingPage() {
 
     for (const seller of ALL_SELLERS) {
       const [high, low, drop] = await Promise.all([
-        supabase.from(`india_seller_${seller.id}_high_demand`).select('*', { count: 'exact', head: true }),
-        supabase.from(`india_seller_${seller.id}_low_demand`).select('*', { count: 'exact', head: true }),
-        supabase.from(`india_seller_${seller.id}_dropshipping`).select('*', { count: 'exact', head: true }),
+        supabase.from('seller_products').select('*', { count: 'exact', head: true })
+          .eq('marketplace', MARKETPLACE).eq('seller_id', seller.id).eq('product_status', 'high_demand'),
+        supabase.from('seller_products').select('*', { count: 'exact', head: true })
+          .eq('marketplace', MARKETPLACE).eq('seller_id', seller.id).eq('product_status', 'low_demand'),
+        supabase.from('seller_products').select('*', { count: 'exact', head: true })
+          .eq('marketplace', MARKETPLACE).eq('seller_id', seller.id).eq('product_status', 'dropshipping'),
       ]);
 
       result[seller.id] = {

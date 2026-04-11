@@ -9,6 +9,14 @@ import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { ensureAbsoluteUrl } from '@/lib/utils';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import {
+  fetchTabProducts,
+  moveProductWithHistory,
+  checkCrossSellerStatus,
+  updateRemark,
+  subscribeToListingErrors,
+  type Marketplace,
+} from '@/lib/listing-error-helpers';
+import {
   Search,
   RotateCcw,
   Check,
@@ -26,19 +34,8 @@ import {
 /* === CONFIGURATION === */
 const SELLER_ID = 2;
 const SELLER_NAME = "Rudra Retail";;
-const BASE_TABLE_PREFIX = `india_listing_error_seller_${SELLER_ID}`;
+const MARKETPLACE: Marketplace = 'india';
 const ITEMS_PER_PAGE = 100;
-const getTablesForTab = (tab: TabType): string[] => {
-  switch (tab) {
-    case 'high_demand': return [`${BASE_TABLE_PREFIX}_high_demand`, `${BASE_TABLE_PREFIX}_low_demand`];
-    case 'dropshipping': return [`${BASE_TABLE_PREFIX}_dropshipping`];
-    case 'done': return [`${BASE_TABLE_PREFIX}_done`];
-    case 'pending': return [`${BASE_TABLE_PREFIX}_pending`];
-    case 'error': return [`${BASE_TABLE_PREFIX}_error`];
-    case 'removed': return [`${BASE_TABLE_PREFIX}_removed`];
-    default: return [`${BASE_TABLE_PREFIX}_${tab}`];
-  }
-};
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -121,7 +118,6 @@ export default function RudraRetailListingPage() {
     4: 'Velvet Vista', 5: 'Dropy Ecom', 6: 'Costech Ventures',
     7: 'Maverick', 8: 'Kalash'
   };
-  const ALL_SELLER_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
 
   type CrossSellerInfo = { tag: string; sellerName: string; listedAt: string | null };
   const [listedByOthers, setListedByOthers] = useState<Record<string, CrossSellerInfo[]>>({});
@@ -136,20 +132,23 @@ export default function RudraRetailListingPage() {
   const calcMax = (price: number | null) => price ? Math.round(price * (1 + maxPercent / 100) * 100) / 100 : null;
   const batchUpdateMinMax = async (newMinPct: number, newMaxPct: number) => {
     try {
-      const tables = getTablesForTab(activeTab);
-      for (const table of tables) {
-        const { data } = await supabase.from(table).select('id, selling_price');
-        if (!data || data.length === 0) continue;
-        const updates = data
-          .filter((p: any) => p.selling_price)
-          .map((p: any) =>
-            supabase.from(table).update({
-              min_price: Math.round(p.selling_price * (1 - newMinPct / 100) * 100) / 100,
-              max_price: Math.round(p.selling_price * (1 + newMaxPct / 100) * 100) / 100,
-            }).eq('id', p.id)
-          );
-        await Promise.all(updates);
-      }
+      const statuses = activeTab === 'high_demand' ? ['high_demand', 'low_demand'] : [activeTab];
+      const { data } = await supabase.from('listing_errors')
+        .select('id, selling_price')
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .in('error_status', statuses);
+
+      const updates = (data || [])
+        .filter((p: any) => p.selling_price)
+        .map((p: any) =>
+          supabase.from('listing_errors').update({
+            min_price: Math.round(p.selling_price * (1 - newMinPct / 100) * 100) / 100,
+            max_price: Math.round(p.selling_price * (1 + newMaxPct / 100) * 100) / 100,
+          }).eq('id', p.id)
+        );
+      await Promise.all(updates);
+
       setToast({ message: `Updated Min(${newMinPct}%) / Max(${newMaxPct}%) for all products`, type: 'success' });
       fetchProducts();
     } catch (err) {
@@ -188,23 +187,14 @@ export default function RudraRetailListingPage() {
 
   const fetchCrossSellerStatus = async (asins: string[]) => {
     if (asins.length === 0) return;
-    const otherSellerIds = ALL_SELLER_IDS.filter(id => id !== SELLER_ID);
-    const promises = otherSellerIds.map(async (id) => {
-      const tag = SELLER_TAG_MAP[id];
-      const sellerName = SELLER_NAME_MAP[id];
-      const { data } = await supabase
-        .from(`india_listing_error_seller_${id}_done`)
-        .select('asin, created_at')
-        .in('asin', asins);
-      return { tag, sellerName, items: data || [] };
-    });
-    const results = await Promise.all(promises);
+    const crossStatus = await checkCrossSellerStatus(supabase, MARKETPLACE, asins, SELLER_ID);
     const statusMap: Record<string, CrossSellerInfo[]> = {};
-    for (const { tag, sellerName, items } of results) {
-      for (const item of items as any[]) {
-        if (!statusMap[item.asin]) statusMap[item.asin] = [];
-        statusMap[item.asin].push({ tag, sellerName, listedAt: item.created_at || null });
-      }
+    for (const [asin, sellerIds] of Object.entries(crossStatus)) {
+      statusMap[asin] = sellerIds.map(id => ({
+        tag: SELLER_TAG_MAP[id],
+        sellerName: SELLER_NAME_MAP[id],
+        listedAt: null,
+      }));
     }
     setListedByOthers(statusMap);
   };
@@ -212,101 +202,27 @@ export default function RudraRetailListingPage() {
   const fetchProducts = useCallback(async (showLoader = false) => {
     if (!user) return;
     if (showLoader) setLoading(true);
-
     try {
-      const tables = getTablesForTab(activeTab);
-
-      if (tables.length === 1) {
-        let query = supabase.from(tables[0]).select('*', { count: 'exact' });
-
-        if (debouncedSearch.trim()) {
-          const term = debouncedSearch.trim();
-          query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
-        }
-
-        const from = (page - 1) * ITEMS_PER_PAGE;
-        const to = from + ITEMS_PER_PAGE - 1;
-
-        const { data, count, error } = await query
-          .order('id', { ascending: false })
-          .range(from, to);
-
-        if (error) throw error;
-        setProducts(data);
-        setTotalItems(count || 0);
-        fetchCrossSellerStatus(data.map((p: any) => p.asin));
-
-      } else {
-        const results = await Promise.all(
-          tables.map(table => {
-            let query = supabase.from(table).select('*', { count: 'exact' });
-            if (debouncedSearch.trim()) {
-              const term = debouncedSearch.trim();
-              query = query.or(`asin.ilike.%${term}%,product_name.ilike.%${term}%,sku.ilike.%${term}%`);
-            }
-            return query.order('id', { ascending: false });
-          })
-        );
-
-        let allData: (ListingProduct & { _sourceTable?: string })[] = [];
-        let totalCount = 0;
-
-        results.forEach((res, i) => {
-          if (res.error) console.error('Fetch error from', tables[i], res.error);
-          const tagged = (res.data || []).map((item: any) => ({ ...item, _sourceTable: tables[i] }));
-          allData = [...allData, ...tagged];
-          totalCount += (res.count || 0);
-        });
-
-        allData.sort((a, b) => (b.id > a.id ? 1 : -1));
-
-        const from = (page - 1) * ITEMS_PER_PAGE;
-        const sliced = allData.slice(from, from + ITEMS_PER_PAGE);
-
-        setProducts(sliced);
-        setTotalItems(totalCount);
-        fetchCrossSellerStatus(sliced.map((p: any) => p.asin));
-      }
-
+      const { data, count, error } = await fetchTabProducts(
+        supabase, MARKETPLACE, SELLER_ID, activeTab,
+        { search: debouncedSearch, page, perPage: ITEMS_PER_PAGE }
+      );
+      if (error) throw error;
+      setProducts(data || []);
+      setTotalItems(count || 0);
+      fetchCrossSellerStatus((data || []).map((p: any) => p.asin));
     } catch (err: any) {
       console.error('Fetch error:', err);
       setToast({ message: 'Failed to load data', type: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [activeTab, debouncedSearch, user, page]); // 🆕 Added sellerTagFilter
+  }, [activeTab, debouncedSearch, user, page]);
 
   useEffect(() => {
     fetchProducts(true);
-
-    // Subscribe to current seller's tables
-    const tables = getTablesForTab(activeTab);
-    const channels = tables.map((tableName) => {
-      const channelName = `realtime_${tableName}`;
-      return supabase
-        .channel(channelName)
-        .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, () => fetchProducts())
-        .subscribe();
-    });
-
-    // Subscribe to OTHER sellers' _done tables for cross-seller status updates
-    const otherSellerIds = ALL_SELLER_IDS.filter(id => id !== SELLER_ID);
-    const crossChannels = otherSellerIds.map((id) => {
-      const doneTable = `india_listing_error_seller_${id}_done`;
-      return supabase
-        .channel(`cross_seller_${id}_done`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: doneTable }, () => {
-          // Silent re-fetch of cross-seller status only (not full product reload)
-          const currentAsins = products.map(p => p.asin);
-          fetchCrossSellerStatus(currentAsins);
-        })
-        .subscribe();
-    });
-
-    return () => {
-      channels.forEach(channel => supabase.removeChannel(channel));
-      crossChannels.forEach(channel => supabase.removeChannel(channel));
-    };
+    const channel = subscribeToListingErrors(supabase, MARKETPLACE, SELLER_ID, () => fetchProducts());
+    return () => { supabase.removeChannel(channel); };
   }, [fetchProducts, activeTab]);
 
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
@@ -323,23 +239,10 @@ export default function RudraRetailListingPage() {
   };
 
   const logHistory = async (product: ListingProduct, fromTable: string, toTable: string) => {
-    try {
-      await supabase.from(`${BASE_TABLE_PREFIX}_movement_history`).insert({
-        source_admin_validation_id: product.source_admin_validation_id || null,
-        asin: product.asin,
-        product_name: product.product_name,
-        sku: product.sku,
-        selling_price: product.selling_price,
-        seller_link: product.seller_link,
-        from_table: fromTable,
-        to_table: toTable,
-        remark: product.remark ?? null
-      });
-      setMovementHistory((prev) => ({
-        ...prev,
-        [`${BASE_TABLE_PREFIX}_${activeTab}`]: { product, fromTable, toTable },
-      }));
-    } catch (err) { console.error("Log error:", err); }
+    setMovementHistory((prev) => ({
+      ...prev,
+      [activeTab]: { product, fromTable, toTable },
+    }));
   };
 
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
@@ -349,27 +252,12 @@ export default function RudraRetailListingPage() {
     const journeyNum = product.journey_number || 1;
 
     try {
-      const sourceTableName = activeTab === 'high_demand'
-        ? ((product as any)._sourceTable || `${BASE_TABLE_PREFIX}_high_demand`)
-        : `${BASE_TABLE_PREFIX}_${activeTab}`;
-      const targetTableName = `${BASE_TABLE_PREFIX}_${target}`;
-
-      const payload = {
-        source_admin_validation_id: product.source_admin_validation_id,
-        asin: product.asin,
-        product_name: product.product_name,
-        sku: product.sku,
-        selling_price: product.selling_price,
-        seller_link: product.seller_link,
-        journey_id: journeyId,
-        journey_number: journeyNum,
-        remark: product.remark ?? null,
-        seller_tag: product.seller_tag ?? null,
+      const extraFields: Record<string, any> = {
         min_price: calcMin(product.selling_price),
         max_price: calcMax(product.selling_price),
-        ...(target === 'done' ? { final_listed_price: product.selling_price } : {}),
-        ...(target === 'error' ? { error_reason: reason || 'Unknown Error' } : {})
       };
+      if (target === 'done') extraFields.final_listed_price = product.selling_price;
+      if (target === 'error') extraFields.error_reason = reason || 'Unknown Error';
 
       if (target === 'done') {
         const { error: historyError } = await supabase.from('india_asin_history').insert({
@@ -388,20 +276,8 @@ export default function RudraRetailListingPage() {
         if (historyError) console.error("⚠️ History snapshot failed:", historyError);
       }
 
-      const { error: insertError } = await supabase.from(targetTableName).upsert(payload, { onConflict: 'asin' });
-      if (insertError) throw insertError;
-
-      await logHistory(product, sourceTableName, targetTableName);
-
-      const sourceTablesToCheck = [
-        `${BASE_TABLE_PREFIX}_pending`,
-        `${BASE_TABLE_PREFIX}_high_demand`,
-        `${BASE_TABLE_PREFIX}_low_demand`,
-        `${BASE_TABLE_PREFIX}_dropshipping`,
-        `${BASE_TABLE_PREFIX}_done`,
-        `${BASE_TABLE_PREFIX}_error`,
-      ].filter(t => t !== targetTableName);
-      await Promise.all(sourceTablesToCheck.map(table => supabase.from(table).delete().eq('asin', product.asin)));
+      await moveProductWithHistory(supabase, MARKETPLACE, SELLER_ID, product, activeTab, target, extraFields);
+      await logHistory(product, activeTab, target);
 
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
@@ -417,7 +293,7 @@ export default function RudraRetailListingPage() {
         action: target === 'done' ? 'listed' : target === 'error' ? 'error' : 'removed',
         marketplace: 'india',
         page: 'listing-error',
-        table_name: `${BASE_TABLE_PREFIX}_${target}`,
+        table_name: 'listing_errors',
         asin: product.asin,
         details: {
           from: activeTab,
@@ -446,16 +322,14 @@ export default function RudraRetailListingPage() {
 
   const handleRemarkSave = async (productId: string, newRemark: string | null) => {
     try {
-      const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
-      const { error } = await supabase.from(currentTable).update({ remark: newRemark }).eq('id', productId);
+      const { error } = await updateRemark(supabase, productId, newRemark ?? '');
       if (error) throw error;
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, remark: newRemark } : p));
     } catch (err: any) { console.error('Failed to update remark:', err); }
   };
 
   const handleRollBack = async () => {
-    const currentTable = `${BASE_TABLE_PREFIX}_${activeTab}`;
-    const lastMovement = movementHistory[currentTable];
+    const lastMovement = movementHistory[activeTab];
     if (!lastMovement) {
       setToast({ message: 'Nothing to undo', type: 'error' });
       return;
@@ -464,30 +338,20 @@ export default function RudraRetailListingPage() {
     setLoading(true);
     try {
       const { product, fromTable, toTable } = lastMovement;
-      const { id, ...rest } = product;
 
-      await supabase.from(fromTable).insert(rest);
+      const { error } = await supabase.from('listing_errors')
+        .update({ error_status: fromTable, updated_at: new Date().toISOString() })
+        .eq('id', product.id);
+      if (error) throw error;
 
-      const funnelTables = [
-        `${BASE_TABLE_PREFIX}_high_demand`,
-        `${BASE_TABLE_PREFIX}_low_demand`,
-        `${BASE_TABLE_PREFIX}_dropshipping`
-      ];
-
-      if (funnelTables.includes(fromTable)) {
-        await supabase.from(`${BASE_TABLE_PREFIX}_pending`).upsert(rest, { onConflict: 'asin' });
-      }
-
-      await supabase.from(toTable).delete().eq('asin', product.asin);
-
-      if (toTable.includes('done')) await updateProgressStats('listed', -1);
-      else if (toTable.includes('error')) await updateProgressStats('error', -1);
-      else if (toTable.includes('removed')) {
+      if (toTable === 'done') await updateProgressStats('listed', -1);
+      else if (toTable === 'error') await updateProgressStats('error', -1);
+      else if (toTable === 'removed') {
         const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
         if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID);
       }
 
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
       fetchProducts();
       setToast({ message: `Restored ${product.asin} to ${activeTab} and Pending`, type: 'success' });
 
@@ -495,7 +359,7 @@ export default function RudraRetailListingPage() {
         action: 'rollback',
         marketplace: 'india',
         page: 'listing-error',
-        table_name: fromTable,
+        table_name: 'listing_errors',
         asin: product.asin,
         details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'rudra-retail' }
       });
@@ -507,7 +371,7 @@ export default function RudraRetailListingPage() {
     }
   };
 
-  const hasRollback = !!movementHistory[`${BASE_TABLE_PREFIX}_${activeTab}`];
+  const hasRollback = !!movementHistory[activeTab];
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (

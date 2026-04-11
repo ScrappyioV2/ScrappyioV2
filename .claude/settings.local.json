@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -l \"import { ensureAbsoluteUrl } from '@/lib/utils';\" app/dashboard/manage-sellers/*/components/*MasterTable.tsx)",
+      "Bash(grep -l \"href={ensureAbsoluteUrl\\(row.amz_link\\)}\" app/dashboard/manage-sellers/*/components/*MasterTable.tsx)",
+      "Bash(xargs -0 sed -i 's|<div className=\"sticky top-0 z-50 bg-\\\\[#1a1a1a\\\\] border-b border-white/\\\\[0\\\\.1\\\\] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6\">|<div className=\"sticky top-0 z-20 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6\">|g')",
+      "Bash(grep -rln 'sticky top-0 z-50 bg-\\\\[#1a1a1a\\\\] border-b border-white/\\\\[0\\\\.1\\\\] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6' app/dashboard/*/brand-checking/*/page.tsx)",
+      "Bash(grep -rln 'sticky top-0 z-20 bg-\\\\[#1a1a1a\\\\] border-b border-white/\\\\[0\\\\.1\\\\] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6' app/dashboard/*/brand-checking/*/page.tsx)",
+      "Bash(grep -rln \"sticky top-0 z-50\" app/dashboard/*/brand-checking/*/page.tsx)",
+      "Bash(xargs -0 sed -i 's|<div className=\"sticky top-0 z-50 bg-\\\\[#1a1a1a\\\\] border-b border-white/\\\\[0\\\\.1\\\\] pb-4 pt-6 px-6\">|<div className=\"sticky top-0 z-20 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-6 px-6\">|g')",
+      "Bash(grep -rln \"sticky top-0 z-20 bg-\\\\[#1a1a1a\\\\]\" app/dashboard/*/brand-checking/*/page.tsx)",
+      "Bash(grep -rn \"\\\\.in\\('asin', allAsins\\)\" app/dashboard/*/purchases/page.tsx)",
+      "Bash(grep -rln \"for \\(let i = 0; i < allAsins.length; i += 200\\)\" app/dashboard/*/purchases/page.tsx)",
+      "Bash(git commit -m ':*)",
+      "Bash(grep -v \"\\)$\")",
+      "Bash(grep -rcn \"//.*console\\\\.log\" app/ lib/ components/ --include=\"*.tsx\" --include=\"*.ts\")",
+      "Read(//c/Users/Admin/Desktop/Project/scrappy-v2/**)",
+      "Bash(xargs sed:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -rn \"else {}\\\\`\\\\|else {}\\\\\"\\)\\\\|else {}'\\)\" app/ lib/ components/ --include=\"*.tsx\" --include=\"*.ts\")",
+      "Bash(grep -rn \"allFilteredProducts.length > rowsPerPage\" app/dashboard/*/validation/page.tsx app/dashboard/india-selling/validation/page.tsx)",
+      "Bash(xargs -0 sed -i 's|{allFilteredProducts.length > rowsPerPage && \\(|{allFilteredProducts.length > 0 \\\\&\\\\& \\(|g')",
+      "Bash(grep -rn \"allFilteredProducts.length > 0 &&\" app/dashboard/*/validation/page.tsx app/dashboard/india-selling/validation/page.tsx)",
+      "Bash(grep -n \"const \\\\[toast, setToast\\\\]\\\\|setToast\\\\|{toast \" app/dashboard/manage-sellers/add-seller/page.tsx)",
+      "Bash(echo \"exists:$?\")",
+      "Bash(python refactor_listing_errors.py)",
+      "Bash(grep -v \"^$\")",
+      "Bash(wc -l app/dashboard/india-selling/brand-checking/*/page.tsx app/dashboard/usa-selling/brand-checking/*/page.tsx app/dashboard/uk-selling/brand-checking/*/page.tsx app/dashboard/uae-selling/brand-checking/*/page.tsx app/dashboard/flipkart/brand-checking/*/page.tsx)",
+      "Bash(python refactor_brand_checking.py)"
+    ]
+  }
+}

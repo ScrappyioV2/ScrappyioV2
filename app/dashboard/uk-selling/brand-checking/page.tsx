@@ -17,33 +17,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-const SELLER_TABLE_GROUPS: Record<number, string[]> = {
-  1: [
-    'uk_seller_1_high_demand',
-    'uk_seller_1_low_demand',
-    'uk_seller_1_dropshipping',
-    'uk_seller_1_not_approved',
-  ],
-  2: [
-    'uk_seller_2_high_demand',
-    'uk_seller_2_low_demand',
-    'uk_seller_2_dropshipping',
-    'uk_seller_2_not_approved',
-  ],
-  3: [
-    'uk_seller_3_high_demand',
-    'uk_seller_3_low_demand',
-    'uk_seller_3_dropshipping',
-    'uk_seller_3_not_approved',
-  ],
-  4: [
-    'uk_seller_4_high_demand',
-    'uk_seller_4_low_demand',
-    'uk_seller_4_dropshipping',
-    'uk_seller_4_not_approved',
-  ],
-};
-
 /* ================= STATIC SELLERS ================= */
 const ALL_SELLERS = [
   { id: 1, slug: "golden-aura", name: "Golden Aura" },
@@ -187,9 +160,12 @@ export default function BrandCheckingPage() {
 
     for (const seller of ALL_SELLERS) {
       const [high, low, drop] = await Promise.all([
-        supabase.from(`uk_seller_${seller.id}_high_demand`).select('*', { count: 'exact', head: true }),
-        supabase.from(`uk_seller_${seller.id}_low_demand`).select('*', { count: 'exact', head: true }),
-        supabase.from(`uk_seller_${seller.id}_dropshipping`).select('*', { count: 'exact', head: true }),
+        supabase.from('seller_products').select('*', { count: 'exact', head: true })
+          .eq('marketplace', 'uk').eq('seller_id', seller.id).eq('product_status', 'high_demand'),
+        supabase.from('seller_products').select('*', { count: 'exact', head: true })
+          .eq('marketplace', 'uk').eq('seller_id', seller.id).eq('product_status', 'low_demand'),
+        supabase.from('seller_products').select('*', { count: 'exact', head: true })
+          .eq('marketplace', 'uk').eq('seller_id', seller.id).eq('product_status', 'dropshipping'),
       ]);
 
       result[seller.id] = {

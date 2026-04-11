@@ -135,6 +135,7 @@ export default function CostechVenturesPage() {
 
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
   const SELLER_ID = 6;
+  const MARKETPLACE = 'flipkart';
 
   const SELLER_CODE_MAP: Record<number, string> = {
     1: 'GA',
@@ -206,13 +207,14 @@ export default function CostechVenturesPage() {
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const tableName = `flipkart_brand_checking_seller_${SELLER_ID}`;
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
       let query = supabase
-        .from(tableName)
-        .select('*', { count: 'exact' });
+        .from('brand_checking')
+        .select('*', { count: 'exact' })
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID);
 
       // ✅ ALWAYS filter by funnel based on active tab
       const funnelMap: Record<string, string> = { high_demand: 'HD', low_demand: 'LD', dropshipping: 'DP' }
@@ -266,19 +268,19 @@ export default function CostechVenturesPage() {
 
   const fetchLastMovementHistory = async () => {
     try {
-      // ✅ Build tab-specific table name
       const funnelMap: Record<CategoryTab, string> = {
         'high_demand': 'hd',
         'low_demand': 'ld',
         'dropshipping': 'dp'
       };
 
-      const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}_${funnelMap[activeTab]}`;
-
       const { data, error } = await supabase
-        .from('flipkart_seller_6_costech_ventures_movement_history')
+        .from('seller_products')
         .select('*')
-        .eq('from_table', currentTable)  // ✅ Now tab-specific
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', 'movement_history')
+        .eq('from_table', funnelMap[activeTab])
         .order('moved_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -303,7 +305,7 @@ export default function CostechVenturesPage() {
 
         setMovementHistory((prev) => ({
           ...prev,
-          [currentTable]: {
+          [funnelMap[activeTab]]: {
             product,
             fromTable: data.from_table,
             toTable: data.to_table,
@@ -312,7 +314,7 @@ export default function CostechVenturesPage() {
       } else {
         setMovementHistory((prev) => ({
           ...prev,
-          [currentTable]: null,
+          [funnelMap[activeTab]]: null,
         }));
       }
     } catch (error) {
@@ -322,13 +324,14 @@ export default function CostechVenturesPage() {
 
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
-      // ✅ Add funnel suffix to track per-tab movements
       const funnelSuffix = product.funnel?.toLowerCase() || 'unknown';
-      const fromTableWithFunnel = `${fromTable}_${funnelSuffix}`;
 
       const { error } = await supabase
-        .from(`flipkart_seller_${SELLER_ID}_costech_ventures_movement_history`)
+        .from('seller_products')
         .insert({
+          marketplace: MARKETPLACE,
+          seller_id: SELLER_ID,
+          product_status: 'movement_history',
           asin: product.asin,
           product_name: product.product_name,
           brand: product.brand,
@@ -337,15 +340,16 @@ export default function CostechVenturesPage() {
           product_link: product.link,
           amz_link: product.amz_link,
           remark: product.remark,
-          from_table: fromTableWithFunnel,  // ✅ Saved with funnel suffix
+          from_table: funnelSuffix,
           to_table: toTable,
+          moved_at: new Date().toISOString(),
         });
 
       if (error) throw error;
 
       setMovementHistory((prev) => ({
         ...prev,
-        [fromTableWithFunnel]: { product, fromTable: fromTableWithFunnel, toTable },
+        [funnelSuffix]: { product, fromTable: funnelSuffix, toTable },
       }));
     } catch (error) {
       console.error('Error saving history:', error);
@@ -361,7 +365,6 @@ export default function CostechVenturesPage() {
     setTotalCount(prev => prev - 1);
 
     try {
-      const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}`;
       const targetTable = `flipkart_brand_checking_${action}_seller_${SELLER_ID}`;
 
       // 1. Check if already exists in target (this one must go first)
@@ -410,23 +413,28 @@ export default function CostechVenturesPage() {
         });
 
       // 3. Save to history (fire it, don't await yet)
-      const historyPromise = saveToHistory(product, currentTable, targetTable);
+      const historyPromise = saveToHistory(product, 'brand_checking', targetTable);
 
-      // 4. Delete from brand checking table (fire it)
+      // 4. Delete from brand_checking unified table (fire it)
       const deleteMainPromise = supabase
-        .from(currentTable)
+        .from('brand_checking')
         .delete()
-        .eq('asin', product.asin);
+        .eq('id', product.id);
 
-      // 5. Delete from funnel sub-table (fire it)
+      // 5. Delete the funnel-mirror row from seller_products (fire it)
       const funnelTableSuffix: Record<string, string> = {
         'hd': 'high_demand', 'highdemand': 'high_demand', 'high_demand': 'high_demand',
         'dp': 'dropshipping', 'dropshipping': 'dropshipping',
         'ld': 'low_demand', 'low_demand': 'low_demand', 'lowdemand': 'low_demand',
       };
       const suffix = funnelTableSuffix[product.funnel?.toLowerCase() || ''] || 'low_demand';
-      const funnelTable = `flipkart_seller_${SELLER_ID}_${suffix}`;
-      const deleteFunnelPromise = supabase.from(funnelTable).delete().eq('asin', product.asin);
+      const deleteFunnelPromise = supabase
+        .from('seller_products')
+        .delete()
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', suffix)
+        .eq('asin', product.asin);
 
       // ✅ Run ALL 4 operations in PARALLEL
       const [insertResult, , deleteMainResult, deleteFunnelResult] = await Promise.all([
@@ -465,8 +473,8 @@ export default function CostechVenturesPage() {
       'low_demand': 'ld',
       'dropshipping': 'dp'
     };
-    const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}_${funnelMap[activeTab]}`;
-    const lastMovement = movementHistory[currentTable];
+    const key = funnelMap[activeTab];
+    const lastMovement = movementHistory[key];
 
     if (!lastMovement) {
       setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
@@ -477,14 +485,12 @@ export default function CostechVenturesPage() {
     try {
       const { product, fromTable, toTable } = lastMovement;
 
-      // ✅ Strip funnel suffix from table names
-      const actualFromTable = fromTable.replace(/_hd$|_ld$|_dp$/, '');
-      const actualToTable = toTable.replace(/_hd$|_ld$|_dp$/, '');
-
-      // ✅ Check if product already exists in Brand Checking
+      // Check if product already exists in brand_checking for this seller
       const { data: existingProduct, error: checkError } = await supabase
-        .from(actualFromTable)
+        .from('brand_checking')
         .select('asin')
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
         .eq('asin', product.asin)
         .maybeSingle();
 
@@ -492,32 +498,34 @@ export default function CostechVenturesPage() {
 
       if (existingProduct) {
         setToast({
-          message: `Cannot undo: Product "${product.product_name}" already exists in the table`,
+          message: `Cannot undo: Product "${product.product_name}" already exists in brand checking`,
           type: 'warning',
         });
 
-        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+        setMovementHistory((prev) => ({ ...prev, [key]: null }));
 
         await supabase
-          .from(`flipkart_seller_${SELLER_ID}_costech_ventures_movement_history`)
+          .from('seller_products')
           .delete()
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', 'movement_history')
           .eq('asin', product.asin)
           .eq('from_table', fromTable)
-          .eq('to_table', toTable)
-          .order('moved_at', { ascending: false })
-          .limit(1);
+          .eq('to_table', toTable);
 
         setLoading(false);
         return;
       }
 
-      // ✅ Re-insert into Brand Checking
-      const { error: insertError } = await supabase.from(actualFromTable).insert({
+      // ✅ Re-insert into brand_checking unified table
+      const { error: insertError } = await supabase.from('brand_checking').insert({
+        marketplace: MARKETPLACE,
+        seller_id: SELLER_ID,
         asin: product.asin,
         product_name: product.product_name,
         brand: product.brand,
         funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
         link: product.link,
         amz_link: product.amz_link,
         remark: product.remark,
@@ -525,26 +533,47 @@ export default function CostechVenturesPage() {
 
       if (insertError) throw insertError;
 
+      // ✅ Re-insert the funnel-mirror row into seller_products
+      const funnelStatusMap: Record<string, string> = {
+        'hd': 'high_demand', 'ld': 'low_demand', 'dp': 'dropshipping',
+        'high_demand': 'high_demand', 'low_demand': 'low_demand', 'dropshipping': 'dropshipping',
+      };
+      const suffix = funnelStatusMap[(product.funnel || '').toLowerCase()] || 'low_demand';
+      await supabase.from('seller_products').insert({
+        marketplace: MARKETPLACE,
+        seller_id: SELLER_ID,
+        product_status: suffix,
+        asin: product.asin,
+        product_name: product.product_name,
+        brand: product.brand,
+        funnel: product.funnel,
+        monthly_unit: product.monthly_unit,
+        product_link: product.link,
+        amz_link: product.amz_link,
+        remark: product.remark,
+      });
+
       // ✅ Delete from Listed/Not Listed (toTable)
       const { error: deleteError } = await supabase
-        .from(actualToTable)
+        .from(toTable)
         .delete()
         .eq('asin', product.asin);
 
       if (deleteError) throw deleteError;
 
-      // Delete history
+      // Delete history row
       await supabase
-        .from(`flipkart_seller_${SELLER_ID}_costech_ventures_movement_history`)
+        .from('seller_products')
         .delete()
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', 'movement_history')
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
-        .eq('to_table', toTable)
-        .order('moved_at', { ascending: false })
-        .limit(1);
+        .eq('to_table', toTable);
 
       setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      setMovementHistory((prev) => ({ ...prev, [key]: null }));
       fetchProducts(true);
     } catch (error: any) {
       console.error('❌ Error rolling back:', error);
@@ -650,8 +679,7 @@ export default function CostechVenturesPage() {
     'low_demand': 'ld',
     'dropshipping': 'dp'
   };
-  const currentTable = `flipkart_brand_checking_seller_${SELLER_ID}_${funnelMap[activeTab]}`;
-  const hasRollback = !!movementHistory[currentTable];
+  const hasRollback = !!movementHistory[funnelMap[activeTab]];
 
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
     <button

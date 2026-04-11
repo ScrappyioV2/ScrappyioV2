@@ -158,6 +158,7 @@ export default function MaverickPage() {
 
 
   const SELLER_ID = 7;
+  const MARKETPLACE = 'india';
 
   const SELLER_CODE_MAP: Record<number, string> = {
     1: 'GR',
@@ -228,23 +229,20 @@ export default function MaverickPage() {
   }, [activeTab, currentPage, debouncedSearch]);
 
   useEffect(() => {
-    const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
-
     const channel = supabase
-      .channel(`sync-${currentTable}-${Date.now()}`)
+      .channel(`sync-seller_products-india-${SELLER_ID}-${activeTab}-${Date.now()}`)
       .on(
         'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: currentTable },
+        { event: '*', schema: 'public', table: 'seller_products', filter: `marketplace=eq.india` },
         (payload) => {
-          setProducts(prev => prev.filter(p => p.id !== payload.old.id));
-          setTotalCount(prev => Math.max(0, prev - 1));
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: currentTable },
-        () => {
-          fetchProducts(true);
+          const row = (payload.new || payload.old) as any;
+          if (row?.seller_id !== SELLER_ID) return;
+          if (payload.eventType === 'DELETE' && row?.product_status === activeTab) {
+            setProducts(prev => prev.filter(p => p.id !== row.id));
+            setTotalCount(prev => Math.max(0, prev - 1));
+          } else {
+            fetchProducts(true);
+          }
         }
       )
       .subscribe();
@@ -257,11 +255,13 @@ export default function MaverickPage() {
   const fetchProducts = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const tableName = `india_seller_${SELLER_ID}_${activeTab}`;
       const start = (currentPage - 1) * rowsPerPage;
       const end = start + rowsPerPage - 1;
 
-      let query = supabase.from(tableName).select('*', { count: 'exact' });
+      let query = supabase.from('seller_products').select('*', { count: 'exact' })
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', activeTab);
 
       if (debouncedSearch.trim()) {
         // ✅ Limit search to 100 characters to prevent 400 errors
@@ -276,7 +276,7 @@ export default function MaverickPage() {
         }
 
         query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%`
+          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%,funnel.ilike.%${searchTerm}%`
         );
       }
 
@@ -319,9 +319,12 @@ export default function MaverickPage() {
   const fetchLastMovementHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from('india_seller_7_maverick_movement_history')
+        .from('seller_products')
         .select('*')
-        .eq('from_table', `india_seller_${SELLER_ID}_${activeTab}`)
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', 'movement_history')
+        .eq('from_table', activeTab)
         .order('moved_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -332,9 +335,8 @@ export default function MaverickPage() {
       }
 
       if (data) {
-        // Populate movementHistory state with the last movement
         const product: ProductRow = {
-          id: '', // Not needed for rollback
+          id: '',
           asin: data.asin,
           product_name: data.product_name,
           brand: data.brand,
@@ -347,17 +349,16 @@ export default function MaverickPage() {
 
         setMovementHistory((prev) => ({
           ...prev,
-          [`india_seller_${SELLER_ID}_${activeTab}`]: {
+          [activeTab]: {
             product,
             fromTable: data.from_table,
             toTable: data.to_table,
           },
         }));
       } else {
-        // No history found - clear undo for this tab
         setMovementHistory((prev) => ({
           ...prev,
-          [`india_seller_${SELLER_ID}_${activeTab}`]: null,
+          [activeTab]: null,
         }));
       }
     } catch (error) {
@@ -368,8 +369,11 @@ export default function MaverickPage() {
   const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
     try {
       const { error } = await supabase
-        .from(`india_seller_7_maverick_movement_history`)
+        .from('seller_products')
         .insert({
+          marketplace: MARKETPLACE,
+          seller_id: SELLER_ID,
+          product_status: 'movement_history',
           asin: product.asin,
           product_name: product.product_name,
           brand: product.brand,
@@ -381,6 +385,7 @@ export default function MaverickPage() {
           sku: product.sku,
           from_table: fromTable,
           to_table: toTable,
+          moved_at: new Date().toISOString(),
         });
 
       if (error) throw error;
@@ -402,11 +407,6 @@ export default function MaverickPage() {
     setProcessingId(product.id);
     setProducts(prev => prev.filter(p => p.id !== product.id));
     try {
-      let targetTable: string;
-      let dataToInsert: any;
-      const { id, working, reason: oldReason, ...productData } = product;
-      const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
-
       if (action === 'approved') {
         const pipelineInfo = blockedAsins.get(product.asin);
         if (pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation') {
@@ -417,7 +417,6 @@ export default function MaverickPage() {
             return;
           }
         }
-        targetTable = `india_validation_main_file`;
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
         // Atomic upsert — handles race conditions when multiple sellers approve same ASIN
@@ -448,67 +447,62 @@ export default function MaverickPage() {
           throw new Error(`Validation insert verification failed for ${product.asin}`);
         }
 
-        // Only delete from brand checking AFTER confirmed success
+        // Only delete from seller_products AFTER confirmed success
         await Promise.all([
-          saveToHistory(product, currentTable, targetTable),
-          supabase.from(currentTable).delete().eq('asin', product.asin),
+          saveToHistory(product, activeTab, 'india_validation_main_file'),
+          supabase.from('seller_products').delete().eq('id', product.id),
         ]);
         setToast({ message: 'Product moved to Validation Main File!', type: 'success' });
-        await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'approved' }).eq('asin', product.asin);
+        await supabase.from('brand_checking').update({ approval_status: 'approved' })
+          .eq('marketplace', MARKETPLACE).eq('seller_id', SELLER_ID).eq('asin', product.asin);
         // ✅ ADD THIS:
         logActivity({
           action: 'approve',
           marketplace: 'india',
           page: 'brand-checking',
-          table_name: currentTable,
+          table_name: 'seller_products',
           asin: product.asin,
           details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', target: 'india_validation_main_file' }
         });
 
       } else if (action === 'not_approved') {
-        targetTable = `india_seller_${SELLER_ID}_not_approved`;
-        dataToInsert = productData;
+        const { error: updateError } = await supabase.from('seller_products')
+          .update({ product_status: 'not_approved', updated_at: new Date().toISOString() })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
 
-        const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-        if (insertError) throw insertError;
-
-        await Promise.all([
-          saveToHistory(product, currentTable, targetTable),
-          supabase.from(currentTable).delete().eq('asin', product.asin),
-        ]);
+        await saveToHistory(product, activeTab, 'not_approved');
         setToast({ message: 'Product moved to Not Approved!', type: 'success' });
-        await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'not_approved' }).eq('asin', product.asin);
+        await supabase.from('brand_checking').update({ approval_status: 'not_approved' })
+          .eq('marketplace', MARKETPLACE).eq('seller_id', SELLER_ID).eq('asin', product.asin);
         // ✅ ADD THIS:
         logActivity({
           action: 'not_approve',
           marketplace: 'india',
           page: 'brand-checking',
-          table_name: currentTable,
+          table_name: 'seller_products',
           asin: product.asin,
-          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', target: targetTable }
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', target: 'not_approved' }
         });
 
       } else if (action === 'reject') {
-        targetTable = `india_seller_${SELLER_ID}_reject`;
-        dataToInsert = { ...productData, reason: reason || 'No reason provided' };
+        const { error: updateError } = await supabase.from('seller_products')
+          .update({ product_status: 'reject', reason: reason || 'No reason provided', updated_at: new Date().toISOString() })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
 
-        const { error: insertError } = await supabase.from(targetTable).insert(dataToInsert);
-        if (insertError) throw insertError;
-
-        await Promise.all([
-          saveToHistory(product, currentTable, targetTable),
-          supabase.from(currentTable).delete().eq('asin', product.asin),
-        ]);
+        await saveToHistory(product, activeTab, 'reject');
         setToast({ message: 'Product rejected!', type: 'success' });
-        await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'not_approved' }).eq('asin', product.asin);
+        await supabase.from('brand_checking').update({ approval_status: 'not_approved' })
+          .eq('marketplace', MARKETPLACE).eq('seller_id', SELLER_ID).eq('asin', product.asin);
         // ✅ ADD THIS:
         logActivity({
           action: 'reject',
           marketplace: 'india',
           page: 'brand-checking',
-          table_name: currentTable,
+          table_name: 'seller_products',
           asin: product.asin,
-          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', reason: reason, target: targetTable }
+          details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'maverick', reason: reason, target: 'reject' }
         });
       }
     } catch (err: any) {
@@ -521,8 +515,7 @@ export default function MaverickPage() {
   };
 
   const handleRollBack = async () => {
-    const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
-    const lastMovement = movementHistory[currentTable];
+    const lastMovement = movementHistory[activeTab];
 
     if (!lastMovement) {
       setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
@@ -533,56 +526,59 @@ export default function MaverickPage() {
     try {
       const { product, fromTable, toTable } = lastMovement;
 
-      // ✅ NEW: Check if product already exists in destination table
+      // Check if product already exists in destination status for this seller
       const { data: existingProduct, error: checkError } = await supabase
-        .from(fromTable)
+        .from('seller_products')
         .select('asin')
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', fromTable)
         .eq('asin', product.asin)
         .maybeSingle();
 
       if (checkError) throw checkError;
 
       if (existingProduct) {
-        // Product already exists - clear history and show message
         setToast({
-          message: `Cannot undo: Product "${product.product_name}" already exists in the destination table`,
+          message: `Cannot undo: Product "${product.product_name}" already exists in the destination tab`,
           type: 'warning',
         });
 
-        // Clear movement history since it's no longer valid
-        setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+        setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
 
-        // Delete the invalid history entry from database
         await supabase
-          .from(`india_seller_7_maverick_movement_history`)
+          .from('seller_products')
           .delete()
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', 'movement_history')
           .eq('asin', product.asin)
           .eq('from_table', fromTable)
-          .eq('to_table', toTable)
-          .order('moved_at', { ascending: false })
-          .limit(1);
+          .eq('to_table', toTable);
 
         setLoading(false);
         return;
       }
 
-      // Product doesn't exist - proceed with rollback
-      const { error: insertError } = await supabase.from(fromTable).insert({
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.product_link,
-        amz_link: product.amz_link,
-        remark: product.remark,
-        sku: product.sku,
-      });
-
-      if (insertError) throw insertError;
-
-      // If rolling back from validation, only remove this seller's tag (don't delete other sellers' data)
       if (toTable === 'india_validation_main_file') {
+        // Approved rollback — re-insert into seller_products with original status
+        const { error: insertError } = await supabase.from('seller_products').insert({
+          marketplace: MARKETPLACE,
+          seller_id: SELLER_ID,
+          product_status: fromTable,
+          asin: product.asin,
+          product_name: product.product_name,
+          brand: product.brand,
+          funnel: product.funnel,
+          monthly_unit: product.monthly_unit,
+          product_link: product.product_link,
+          amz_link: product.amz_link,
+          remark: product.remark,
+          sku: product.sku,
+        });
+        if (insertError) throw insertError;
+
+        // Only remove this seller's tag from validation (don't delete other sellers' data)
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
         const { data: valRow } = await supabase
           .from('india_validation_main_file')
@@ -593,7 +589,7 @@ export default function MaverickPage() {
         if (valRow) {
           const tags = valRow.seller_tag?.split(',').map((t: string) => t.trim()).filter((t: string) => t !== SELLER_CODE) || [];
           if (tags.length === 0) {
-            const { error: deleteError } = await supabase.from(toTable).delete().eq('id', valRow.id);
+            const { error: deleteError } = await supabase.from('india_validation_main_file').delete().eq('id', valRow.id);
             if (deleteError) throw deleteError;
           } else {
             const { error: updateError } = await supabase
@@ -607,31 +603,39 @@ export default function MaverickPage() {
           }
         }
       } else {
-        const { error: deleteError } = await supabase.from(toTable).delete().eq('asin', product.asin);
-        if (deleteError) throw deleteError;
+        // not_approved / reject rollback — UPDATE status back on the same row
+        const { error: updateError } = await supabase
+          .from('seller_products')
+          .update({ product_status: fromTable, updated_at: new Date().toISOString() })
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', toTable)
+          .eq('asin', product.asin);
+        if (updateError) throw updateError;
       }
 
       await supabase
-        .from(`india_seller_7_maverick_movement_history`)
+        .from('seller_products')
         .delete()
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('product_status', 'movement_history')
         .eq('asin', product.asin)
         .eq('from_table', fromTable)
-        .eq('to_table', toTable)
-        .order('moved_at', { ascending: false })
-        .limit(1);
+        .eq('to_table', toTable);
 
-      setToast({ message: `Rolled back ${product.product_name}`, type: 'success' });
-      await supabase.from(`india_brand_checking_seller_${SELLER_ID}`).update({ approval_status: 'pending' }).eq('asin', product.asin);
-      // ✅ ADD THIS:
+      setToast({ message: `Rolled back: ${product.product_name}`, type: 'success' });
+      await supabase.from('brand_checking').update({ approval_status: 'pending' })
+        .eq('marketplace', MARKETPLACE).eq('seller_id', SELLER_ID).eq('asin', product.asin);
       logActivity({
         action: 'rollback',
         marketplace: 'india',
         page: 'brand-checking',
-        table_name: fromTable,
+        table_name: 'seller_products',
         asin: product.asin,
         details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'maverick' }
       });
-      setMovementHistory((prev) => ({ ...prev, [currentTable]: null }));
+      setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
       fetchProducts(true);
     } catch (error: any) {
       console.error('Error rolling back:', error);
@@ -655,18 +659,19 @@ export default function MaverickPage() {
     setLoading(true);
     try {
       const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-      const targetTable = `india_seller_${SELLER_ID}_${targetTab}`;
-      const rejectTable = `india_seller_${SELLER_ID}_reject`;
 
       let movedCount = 0;
       let skippedCount = 0;
       const skippedAsins: string[] = [];
 
       for (const product of selectedProducts) {
-        // Check if ASIN already exists in target table
+        // Check if ASIN already exists in target status for this seller
         const { data: existing, error: checkError } = await supabase
-          .from(targetTable)
+          .from('seller_products')
           .select('asin')
+          .eq('marketplace', MARKETPLACE)
+          .eq('seller_id', SELLER_ID)
+          .eq('product_status', targetTab)
           .eq('asin', product.asin)
           .maybeSingle();
 
@@ -676,43 +681,28 @@ export default function MaverickPage() {
         }
 
         if (existing) {
-          // Skip if already exists
           skippedCount++;
           skippedAsins.push(product.asin);
           continue;
         }
 
-        // Prepare data (remove reject-specific fields)
-        const { id, reason, working, ...productData } = product;
+        // Update status on the same row (clear reject-specific fields)
+        const { error: updateError } = await supabase
+          .from('seller_products')
+          .update({ product_status: targetTab, reason: null, updated_at: new Date().toISOString() })
+          .eq('id', product.id);
 
-        // Insert into target table
-        const { error: insertError } = await supabase
-          .from(targetTable)
-          .insert(productData);
-
-        if (insertError) {
-          console.error('Insert error:', insertError);
-          continue;
-        }
-
-        // Delete from reject table
-        const { error: deleteError } = await supabase
-          .from(rejectTable)
-          .delete()
-          .eq('asin', product.asin);
-
-        if (deleteError) {
-          console.error('Delete error:', deleteError);
+        if (updateError) {
+          console.error('Update error:', updateError);
           continue;
         }
 
         movedCount++;
-        // ✅ ADD THIS:
         logActivity({
           action: 'move',
           marketplace: 'india',
           page: 'brand-checking',
-          table_name: `india_seller_${SELLER_ID}_reject`,
+          table_name: 'seller_products',
           asin: product.asin,
           details: { from: 'reject', to: targetTab, seller_id: SELLER_ID, seller_name: 'maverick' }
         });
@@ -734,13 +724,11 @@ export default function MaverickPage() {
         });
       }
 
-      // ✅ NEW: Clear movement history for target table since products moved back
-      // This prevents undo conflicts when products return to their original table
-      const targetTableKey = `india_seller_${SELLER_ID}_${targetTab}`;
-      if (movementHistory[targetTableKey]) {
+      // Clear movement history for target tab since products moved back
+      if (movementHistory[targetTab]) {
         setMovementHistory((prev) => ({
           ...prev,
-          [targetTableKey]: null,
+          [targetTab]: null,
         }));
       }
 
@@ -805,14 +793,13 @@ export default function MaverickPage() {
     newOrder.splice(draggedIndex, 1);
     newOrder.splice(targetIndex, 0, draggedColumn);
     setColumnOrder(newOrder);
-    localStorage.setItem('maverick_column_order', JSON.stringify(newOrder));
+    localStorage.setItem('golden_aura_column_order', JSON.stringify(newOrder));
     setDraggedColumn(null);
   };
 
   const handleRemarkSave = async (productId: string, newRemark: string | null) => {
     try {
-      const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
-      const { error } = await supabase.from(currentTable).update({ remark: newRemark }).eq('id', productId);
+      const { error } = await supabase.from('seller_products').update({ remark: newRemark }).eq('id', productId);
       if (error) throw error;
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, remark: newRemark } : p));
     } catch (err: any) { console.error('Failed to update remark:', err); }
@@ -865,8 +852,7 @@ export default function MaverickPage() {
     );
   };
 
-  const currentTable = `india_seller_${SELLER_ID}_${activeTab}`;
-  const hasRollback = !!movementHistory[currentTable];
+  const hasRollback = !!movementHistory[activeTab];
 
   // Tab Styles
   const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
