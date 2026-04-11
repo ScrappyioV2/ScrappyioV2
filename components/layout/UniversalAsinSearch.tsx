@@ -109,6 +109,13 @@ function resolveTable(tableName: string, productName?: string | null, status?: s
 
     // ═══ INDIA ═══════════════════════════════════════════
 
+    // Brand Checking: india_brand_checking_seller_X (from unified brand_checking table)
+    m = tableName.match(/^india_brand_checking_seller_(\d+)$/)
+    if (m) {
+        const s = seller(+m[1]); if (!s) return null
+        return mk('India', 'brand-checking', 'Brand Checking', `/dashboard/india-selling/brand-checking/${s.slug}`, s.name, undefined, productName, status)
+    }
+
     // Brand Checking: india_seller_X_category (CORRECT — NOT india_brand_checking_seller_X)
     m = tableName.match(/^india_seller_(\d+)_(high_demand|low_demand|dropshipping|not_approved|reject)$/)
     if (m) {
