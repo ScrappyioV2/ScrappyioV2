@@ -839,19 +839,15 @@ export default function AdminValidationPage() {
           remark: product.remark ?? null,
         };
 
-        // B. Select Tables for THIS seller
-        const tablesToInsert = [`uk_listing_error_seller_${sellerId}_pending`];
+        // B. Insert into unified listing_errors table
+        const { error: listingError } = await supabase
+          .from('listing_errors')
+          .upsert(
+            { marketplace: 'uk', seller_id: sellerId, error_status: 'pending', ...payload },
+            { onConflict: 'marketplace,seller_id,asin,error_status' }
+          );
 
-        if (finalFunnelId === 1) tablesToInsert.push(`uk_listing_error_seller_${sellerId}_high_demand`);
-        else if (finalFunnelId === 2) tablesToInsert.push(`uk_listing_error_seller_${sellerId}_low_demand`);
-        else if (finalFunnelId === 3) tablesToInsert.push(`uk_listing_error_seller_${sellerId}_dropshipping`);
-
-        // C. Execute UPSERTS
-        const insertPromises = tablesToInsert.map(table =>
-          supabase.from(table).upsert(payload, { onConflict: 'asin' })
-        );
-
-        await Promise.all(insertPromises);
+        if (listingError) throw listingError;
 
         // D. Update Stats for THIS seller
         const { data: currentStats } = await supabase
