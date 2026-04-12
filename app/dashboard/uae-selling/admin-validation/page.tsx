@@ -248,7 +248,7 @@ export default function AdminValidationPage() {
 
           // IDENTITY FIELDS - Always prioritize freshest
           funnel: purchase?.funnel ?? validation?.funnel ?? product.funnel ?? null,
-          seller_tag: purchase?.seller_tag ?? validation?.sellertag ?? product.seller_tag ?? null,
+          seller_tag: product.seller_tag ?? purchase?.seller_tag ?? validation?.sellertag ?? null,
 
           // PRICING FIELDS
           product_weight: isConfirmed

@@ -334,7 +334,7 @@ export default function AdminValidationPage() {
 
           // IDENTITY FIELDS - Always prioritize freshest
           funnel: purchase?.funnel ?? validation?.funnel ?? product.funnel ?? null,
-          seller_tag: purchase?.seller_tag ?? validation?.sellertag ?? product.seller_tag ?? null,
+          seller_tag: product.seller_tag ?? purchase?.seller_tag ?? validation?.sellertag ?? null,
 
           // PRICING FIELDS
           product_weight: isConfirmed
@@ -1019,6 +1019,7 @@ export default function AdminValidationPage() {
           seller_link: product.seller_link,
           seller_phone: product.seller_phone,
           payment_method: product.payment_method,
+          seller_tag: product.seller_tag,
         };
 
         // Only overwrite buying_quantities if admin actually edited them
@@ -1029,7 +1030,8 @@ export default function AdminValidationPage() {
         let confirmSelected = supabase
           .from('india_purchases')
           .update(bulkConfirmPayload)
-          .eq('asin', product.asin);
+          .eq('asin', product.asin)
+          .eq('sent_to_admin', true);
 
         // Use journey_id for precise matching when available
         if (product.journey_id) {
@@ -1040,51 +1042,91 @@ export default function AdminValidationPage() {
 
         if (updatePurchaseError) throw updatePurchaseError;
 
-        // ✅ FIX: If no rows matched, purchases row was deleted — re-create it
+        // Bug 9 fix: If no rows matched with sent_to_admin=true, retry without that filter
+        let confirmedRowId: string | null = updatedRows?.[0]?.id ?? null;
+
         if (!updatedRows || updatedRows.length === 0) {
-          console.warn(`⚠️ Bulk confirm: No purchases row for ${product.asin}, inserting...`);
+          let retryQuery = supabase.from('india_purchases')
+            .update(bulkConfirmPayload)
+            .eq('asin', product.asin);
+          if (product.journey_id) {
+            retryQuery = retryQuery.eq('journey_id', product.journey_id);
+          }
+          const { data: retryRows } = await retryQuery.select('id');
 
-          const originParts: string[] = [];
-          if (product.origin_india) originParts.push('India');
-          if (product.origin_china) originParts.push('China');
-          if (product.origin_us) originParts.push('US');
+          if (retryRows && retryRows.length > 0) {
+            confirmedRowId = retryRows[0].id;
+          } else {
+            console.warn(`⚠️ Bulk confirm: No purchases row for ${product.asin}, inserting...`);
 
-          const { error: insertError } = await supabase
+            const originParts: string[] = [];
+            if (product.origin_india) originParts.push('India');
+            if (product.origin_china) originParts.push('China');
+            if (product.origin_us) originParts.push('US');
+
+            const { data: insertedRows, error: insertError } = await supabase
+              .from('india_purchases')
+              .insert({
+                asin: product.asin,
+                product_name: product.product_name,
+                product_link: product.product_link,
+                seller_tag: product.seller_tag,
+                funnel: product.funnel ?? null,
+                origin: originParts.join(', ') || 'India',
+                origin_india: product.origin_india ?? false,
+                origin_china: product.origin_china ?? false,
+                origin_us: product.origin_us ?? false,
+                inr_purchase_link: product.inr_purchase_link ?? null,
+                buying_price: product.buying_price ?? null,
+                buying_quantity: product.buying_quantity ?? null,
+                buying_quantities: (product as any).buying_quantities ?? {},
+                seller_link: product.seller_link ?? null,
+                seller_phone: product.seller_phone ?? '',
+                payment_method: product.payment_method ?? '',
+                target_price: product.target_price ?? null,
+                product_weight: product.product_weight ?? null,
+                usd_price: product.usd_price ?? null,
+                inr_purchase: product.inr_purchase ?? null,
+                profit: product.profit ?? null,
+                remark: product.remark ?? null,
+                sku: product.sku ?? null,
+                journey_id: product.journey_id ?? null,
+                journey_number: product.journey_number ?? 1,
+                status: 'pending',
+                admin_confirmed: true,
+                admin_confirmed_at: new Date().toISOString(),
+                sent_to_admin: true,
+                sent_to_admin_at: new Date().toISOString(),
+              })
+              .select('id');
+
+            if (insertError) throw insertError;
+            confirmedRowId = insertedRows?.[0]?.id ?? null;
+          }
+        }
+
+        // Bug 10b: Merge any remaining-tags row into the confirmed row
+        if (confirmedRowId) {
+          const { data: otherRows } = await supabase
             .from('india_purchases')
-            .insert({
-              asin: product.asin,
-              product_name: product.product_name,
-              product_link: product.product_link,
-              seller_tag: product.seller_tag,
-              funnel: product.funnel ?? null,
-              origin: originParts.join(', ') || 'India',
-              origin_india: product.origin_india ?? false,
-              origin_china: product.origin_china ?? false,
-              origin_us: product.origin_us ?? false,
-              inr_purchase_link: product.inr_purchase_link ?? null,
-              buying_price: product.buying_price ?? null,
-              buying_quantity: product.buying_quantity ?? null,
-              buying_quantities: (product as any).buying_quantities ?? {},
-              seller_link: product.seller_link ?? null,
-              seller_phone: product.seller_phone ?? '',
-              payment_method: product.payment_method ?? '',
-              target_price: product.target_price ?? null,
-              product_weight: product.product_weight ?? null,
-              usd_price: product.usd_price ?? null,
-              inr_purchase: product.inr_purchase ?? null,
-              profit: product.profit ?? null,
-              remark: product.remark ?? null,
-              sku: product.sku ?? null,
-              journey_id: product.journey_id ?? null,
-              journey_number: product.journey_number ?? 1,
-              status: 'pending',
-              admin_confirmed: true,
-              admin_confirmed_at: new Date().toISOString(),
-              sent_to_admin: true,
-              sent_to_admin_at: new Date().toISOString(),
-            });
+            .select('id, seller_tag, buying_quantities')
+            .eq('asin', product.asin)
+            .neq('id', confirmedRowId);
 
-          if (insertError) throw insertError;
+          if (otherRows && otherRows.length > 0) {
+            for (const other of otherRows) {
+              const confirmedTags = (product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+              const otherTags = (other.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+              const mergedTags = [...new Set([...confirmedTags, ...otherTags])].join(', ');
+              const mergedQties = { ...(other.buying_quantities || {}), ...((product as any).buying_quantities || {}) };
+
+              await supabase.from('india_purchases')
+                .update({ seller_tag: mergedTags, buying_quantities: mergedQties })
+                .eq('id', confirmedRowId);
+
+              await supabase.from('india_purchases').delete().eq('id', other.id);
+            }
+          }
         }
 
         // ✅ STEP 2: UPDATE status in india_admin_validation (KEEP the product, don't delete)
@@ -1332,7 +1374,7 @@ export default function AdminValidationPage() {
       if (fetchError) console.warn("⚠️ DB Fetch Warning:", fetchError.message);
 
       // 2. DETERMINE SELLER TAG (With Fallback)
-      const rawSellerTag = validationData?.seller_tag || product.seller_tag;
+      const rawSellerTag = product.seller_tag || validationData?.seller_tag;
 
       if (!rawSellerTag) {
         setToast({ message: "Error: Missing Seller Tag. Please check product data.", type: 'error' });
@@ -1368,6 +1410,7 @@ export default function AdminValidationPage() {
         seller_phone: product.seller_phone,
         payment_method: product.payment_method,
         sku: product.sku ?? null,
+        seller_tag: product.seller_tag,
       };
 
       // Only overwrite buying_quantities if admin actually has data
@@ -1379,7 +1422,8 @@ export default function AdminValidationPage() {
       let confirmQuery = supabase
         .from('india_purchases')
         .update(confirmPayload)
-        .eq('asin', cleanAsin);
+        .eq('asin', cleanAsin)
+        .eq('sent_to_admin', true);
 
       if (product.journey_id) {
         confirmQuery = confirmQuery.eq('journey_id', product.journey_id);
@@ -1392,54 +1436,95 @@ export default function AdminValidationPage() {
         throw new Error(`Failed to update purchases: ${purchaseUpdateError.message}`);
       }
 
-      // ✅ FIX: If no rows were updated, the purchases row was deleted.
-      // Re-create it from admin_validation data so it appears in the Confirmed tab.
+      // Bug 9 fix: If no rows matched with sent_to_admin=true, retry without that filter
+      // (handles partial move + rollback where sent_to_admin was reset to false)
+      let confirmedRowId: string | null = updatedRows?.[0]?.id ?? null;
+
       if (!updatedRows || updatedRows.length === 0) {
-        console.warn(`⚠️ No purchases row found for ${cleanAsin}, inserting from admin data...`);
+        let retryQuery = supabase.from('india_purchases')
+          .update(confirmPayload)
+          .eq('asin', cleanAsin);
+        if (product.journey_id) {
+          retryQuery = retryQuery.eq('journey_id', product.journey_id);
+        }
+        const { data: retryRows } = await retryQuery.select('id');
 
-        const originParts: string[] = [];
-        if (product.origin_india) originParts.push('India');
-        if (product.origin_china) originParts.push('China');
-        if (product.origin_us) originParts.push('US');
+        if (retryRows && retryRows.length > 0) {
+          confirmedRowId = retryRows[0].id;
+        } else {
+          // Last resort: INSERT a new row
+          console.warn(`⚠️ No purchases row found for ${cleanAsin}, inserting from admin data...`);
 
-        const { error: insertError } = await supabase
+          const originParts: string[] = [];
+          if (product.origin_india) originParts.push('India');
+          if (product.origin_china) originParts.push('China');
+          if (product.origin_us) originParts.push('US');
+
+          const { data: insertedRows, error: insertError } = await supabase
+            .from('india_purchases')
+            .insert({
+              asin: cleanAsin,
+              product_name: product.product_name,
+              product_link: product.product_link,
+              seller_tag: rawSellerTag,
+              funnel: rawFunnel,
+              origin: originParts.join(', ') || 'India',
+              origin_india: product.origin_india ?? false,
+              origin_china: product.origin_china ?? false,
+              origin_us: product.origin_us ?? false,
+              inr_purchase_link: product.inr_purchase_link ?? null,
+              buying_price: product.buying_price ?? null,
+              buying_quantity: product.buying_quantity ?? null,
+              buying_quantities: product.buying_quantities ?? {},
+              seller_link: product.seller_link ?? null,
+              seller_phone: product.seller_phone ?? '',
+              payment_method: product.payment_method ?? '',
+              target_price: product.target_price ?? null,
+              product_weight: product.product_weight ?? null,
+              usd_price: product.usd_price ?? null,
+              inr_purchase: product.inr_purchase ?? null,
+              profit: product.profit ?? null,
+              remark: product.remark ?? null,
+              sku: product.sku ?? null,
+              journey_id: product.journey_id ?? null,
+              journey_number: product.journey_number ?? 1,
+              status: 'pending',
+              admin_confirmed: true,
+              admin_confirmed_at: new Date().toISOString(),
+              sent_to_admin: true,
+              sent_to_admin_at: new Date().toISOString(),
+            })
+            .select('id');
+
+          if (insertError) {
+            console.error('❌ Failed to insert into india_purchases:', insertError);
+            throw new Error(`Failed to create purchases row: ${insertError.message}`);
+          }
+          confirmedRowId = insertedRows?.[0]?.id ?? null;
+        }
+      }
+
+      // Bug 10b: Merge any remaining-tags row into the confirmed row
+      if (confirmedRowId) {
+        const { data: otherRows } = await supabase
           .from('india_purchases')
-          .insert({
-            asin: cleanAsin,
-            product_name: product.product_name,
-            product_link: product.product_link,
-            seller_tag: rawSellerTag,
-            funnel: rawFunnel,
-            origin: originParts.join(', ') || 'India',
-            origin_india: product.origin_india ?? false,
-            origin_china: product.origin_china ?? false,
-            origin_us: product.origin_us ?? false,
-            inr_purchase_link: product.inr_purchase_link ?? null,
-            buying_price: product.buying_price ?? null,
-            buying_quantity: product.buying_quantity ?? null,
-            buying_quantities: product.buying_quantities ?? {},
-            seller_link: product.seller_link ?? null,
-            seller_phone: product.seller_phone ?? '',
-            payment_method: product.payment_method ?? '',
-            target_price: product.target_price ?? null,
-            product_weight: product.product_weight ?? null,
-            usd_price: product.usd_price ?? null,
-            inr_purchase: product.inr_purchase ?? null,
-            profit: product.profit ?? null,
-            remark: product.remark ?? null,
-            sku: product.sku ?? null,
-            journey_id: product.journey_id ?? null,
-            journey_number: product.journey_number ?? 1,
-            status: 'pending',
-            admin_confirmed: true,
-            admin_confirmed_at: new Date().toISOString(),
-            sent_to_admin: true,
-            sent_to_admin_at: new Date().toISOString(),
-          });
+          .select('id, seller_tag, buying_quantities')
+          .eq('asin', cleanAsin)
+          .neq('id', confirmedRowId);
 
-        if (insertError) {
-          console.error('❌ Failed to insert into india_purchases:', insertError);
-          throw new Error(`Failed to create purchases row: ${insertError.message}`);
+        if (otherRows && otherRows.length > 0) {
+          for (const other of otherRows) {
+            const confirmedTags = (product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+            const otherTags = (other.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+            const mergedTags = [...new Set([...confirmedTags, ...otherTags])].join(', ');
+            const mergedQties = { ...(other.buying_quantities || {}), ...((product as any).buying_quantities || {}) };
+
+            await supabase.from('india_purchases')
+              .update({ seller_tag: mergedTags, buying_quantities: mergedQties })
+              .eq('id', confirmedRowId);
+
+            await supabase.from('india_purchases').delete().eq('id', other.id);
+          }
         }
       }
 

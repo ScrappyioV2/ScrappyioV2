@@ -115,12 +115,14 @@ export default function PurchasesPage() {
     localStorage.setItem('indiaPurchasesFunnelFilter', funnelFilter);
   }, [funnelFilter]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [movementHistory, setMovementHistory] = useState<Record<string, {
+  const [movementHistory, setMovementHistory] = useState<Record<string, Array<{
     product: PassFileProduct
     fromStatus: string | null
     toStatus: string
     wasAdminConfirmed?: boolean
-  } | null>>({})
+    originalSellerTag?: string | null
+    originalBuyingQuantities?: Record<string, number> | null
+  }>>>({})
 
   // ─── Toast notification ───
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -1063,12 +1065,14 @@ export default function PurchasesPage() {
       // SAVE TO HISTORY FIRST!
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product,
           fromStatus: product.move_to ?? null,
           toStatus: 'sent_to_admin',
           wasAdminConfirmed: product.admin_confirmed === true,
-        },
+          originalSellerTag: product.seller_tag,
+          originalBuyingQuantities: product.buying_quantities,
+        }],
       }));
 
       // 🆕 Fetch profit matching BOTH asin AND journey_id
@@ -1114,6 +1118,7 @@ export default function PurchasesPage() {
         .select('id')
         .eq('asin', product.asin)
         .eq('journey_id', product.journey_id || '')
+        .eq('admin_status', 'pending')
         .maybeSingle();
 
       if (existingAdmin) {
@@ -1218,13 +1223,6 @@ export default function PurchasesPage() {
           .eq('id', product.id);
         if (updateError) throw updateError;
 
-        // Also update validation main file to reflect remaining tags
-        if (product.asin) {
-          await supabase
-            .from('india_validation_main_file')
-            .update({ seller_tag: tagsToKeep.join(', ') })
-            .eq('asin', product.asin);
-        }
 
         showToast(
           `Sent ${tagsToMove.join(', ')} to Admin. ${tagsToKeep.join(', ')} kept in purchases (qty=0).`,
@@ -1284,12 +1282,12 @@ export default function PurchasesPage() {
       // ✅ SAVE TO CURRENT TAB HISTORY
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product,
           fromStatus: product.move_to,
           toStatus: 'price_wait',
           wasAdminConfirmed: product.admin_confirmed === true,
-        },
+        }],
       }))
 
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -1313,7 +1311,7 @@ export default function PurchasesPage() {
       });
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       showToast(`Error: ${error.message}`, 'error')
     }
   }
@@ -1325,12 +1323,12 @@ export default function PurchasesPage() {
       // ✅ SAVE TO CURRENT TAB HISTORY
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product,
           fromStatus: product.move_to ?? null,
           toStatus: 'not_found',
           wasAdminConfirmed: product.admin_confirmed === true,
-        },
+        }],
       }))
 
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -1354,7 +1352,7 @@ export default function PurchasesPage() {
       });
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       showToast(`Error: ${error.message}`, 'error')
     }
   }
@@ -1370,6 +1368,23 @@ export default function PurchasesPage() {
     if (!confirm(`Move ${selectedProducts.length} product(s) back to Validation?`)) return;
 
     try {
+      // Check for orphaned tracking entries before proceeding
+      const orphanedAsins: string[] = [];
+      for (const product of selectedProducts) {
+        const { data: trackingEntries } = await supabase
+          .from('india_inbound_tracking')
+          .select('id')
+          .eq('asin', product.asin)
+          .limit(1);
+        if (trackingEntries && trackingEntries.length > 0) {
+          orphanedAsins.push(product.asin);
+        }
+      }
+      if (orphanedAsins.length > 0) {
+        showToast(`Cannot move: ${orphanedAsins.join(', ')} still has entries in Inbound Tracking. Remove tracking entries first.`, 'error');
+        return;
+      }
+
       for (const product of selectedProducts) {
         // 1. Reset sent_to_purchases in validation
         let validationQuery = supabase
@@ -1420,20 +1435,30 @@ export default function PurchasesPage() {
 
   // Roll Back last movement
   const handleRollBack = async () => {
-    const lastMovement = movementHistory[activeTab]
+    const tabHistory = movementHistory[activeTab]
 
-    if (!lastMovement) {
+    if (!tabHistory || tabHistory.length === 0) {
       showToast('No recent movement to roll back', 'info')
       return
     }
 
+    const lastMovement = tabHistory[tabHistory.length - 1]
+
     try {
-      const { product, fromStatus, toStatus, wasAdminConfirmed } = lastMovement
+      const { product, fromStatus, toStatus, wasAdminConfirmed, originalSellerTag, originalBuyingQuantities } = lastMovement
       const updateData: any = {}
 
       if (toStatus === 'sent_to_admin') {
         updateData['sent_to_admin'] = false
         updateData['sent_to_admin_at'] = null
+        updateData['admin_confirmed'] = false
+        updateData['admin_confirmed_at'] = null
+        if (originalSellerTag) {
+          updateData['seller_tag'] = originalSellerTag
+        }
+        if (originalBuyingQuantities) {
+          updateData['buying_quantities'] = originalBuyingQuantities
+        }
 
         let adminDeleteQuery = supabase
           .from('india_admin_validation')
@@ -1446,6 +1471,22 @@ export default function PurchasesPage() {
 
         if (deleteError) {
           console.error('Error deleting from admin validation:', deleteError)
+        }
+
+        // Bug 8 fix: Delete any duplicate purchases rows created by admin confirm INSERT fallback.
+        // During partial move, admin confirm creates a NEW row (because sent_to_admin=false on remaining-tags row).
+        // On rollback, that extra row must be removed to prevent duplicates.
+        let orphanCleanup = supabase
+          .from('india_purchases')
+          .delete()
+          .eq('asin', product.asin)
+          .neq('id', product.id);
+        if (product.journey_id) {
+          orphanCleanup = orphanCleanup.eq('journey_id', product.journey_id);
+        }
+        const { error: orphanError } = await orphanCleanup;
+        if (orphanError) {
+          console.error('Error cleaning up orphaned confirmed row:', orphanError);
         }
       } else if (toStatus === 'tracking') {
         // Rollback from tracking → delete from tracking tables, restore in purchases
@@ -1484,11 +1525,11 @@ export default function PurchasesPage() {
             target_price: product.target_price,
             admin_target_price: (product as any).admin_target_price,
             funnel: product.funnel,
-            seller_tag: product.seller_tag,
+            seller_tag: originalSellerTag || product.seller_tag,
             funnel_seller: (product as any).funnel_seller,
             buying_price: product.buying_price,
             buying_quantity: product.buying_quantity,
-            buying_quantities: product.buying_quantities,
+            buying_quantities: originalBuyingQuantities || product.buying_quantities,
             seller_link: product.seller_link,
             seller_phone: product.seller_phone,
             payment_method: product.payment_method,
@@ -1520,7 +1561,9 @@ export default function PurchasesPage() {
         // Skip the normal update below — we already handled everything
         setMovementHistory(prev => {
           const newHistory = { ...prev };
-          delete newHistory[activeTab];
+          const arr = [...(newHistory[activeTab] || [])];
+          arr.pop();
+          newHistory[activeTab] = arr;
           return newHistory;
         });
         showToast(`Rolled back ${product.product_name} from tracking`, 'success');
@@ -1532,7 +1575,7 @@ export default function PurchasesPage() {
           asin: product.asin,
           details: { from: 'tracking', to: 'order_confirmed' }
         });
-        setProducts(prev => [...prev, product]);
+        setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
         await refreshProductsSilently();
         return; // ← Early return to skip the generic update below
 
@@ -1550,10 +1593,12 @@ export default function PurchasesPage() {
 
       if (updateError) throw updateError
 
-      // Clear history
+      // Clear history — pop last entry
       setMovementHistory(prev => {
         const newHistory = { ...prev }
-        delete newHistory[activeTab]
+        const arr = [...(newHistory[activeTab] || [])];
+        arr.pop();
+        newHistory[activeTab] = arr;
         return newHistory
       })
 
@@ -1567,7 +1612,7 @@ export default function PurchasesPage() {
         asin: product.asin,
         details: { from: toStatus, to: fromStatus }
       });
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       await refreshProductsSilently()
     } catch (error) {
       console.error('Error rolling back:', error)
@@ -1781,12 +1826,14 @@ export default function PurchasesPage() {
 
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product: { ...product, ...freshProduct },
           fromStatus: 'order_confirmed',
           toStatus: 'tracking',
           wasAdminConfirmed: true,
-        },
+          originalSellerTag: product.seller_tag,
+          originalBuyingQuantities: product.buying_quantities,
+        }],
       }));
 
       // ─────────────────────────────────────────────
@@ -1828,13 +1875,6 @@ export default function PurchasesPage() {
           throw updateError;
         }
 
-        // Sync validation main file to reflect remaining tags
-        if (freshProduct.asin) {
-          await supabase
-            .from('india_validation_main_file')
-            .update({ seller_tag: tagsToKeep.join(', ') })
-            .eq('asin', freshProduct.asin);
-        }
 
         showToast(
           `Moved ${tagsToMove.join(', ')} to tracking. ${tagsToKeep.join(', ')} kept in purchases (qty=0).`,
@@ -1859,7 +1899,7 @@ export default function PurchasesPage() {
       });
       await refreshProductsSilently();
     } catch (error: any) {
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       console.error('❌ Move error:', error);
       showToast(`Failed to move: ${error.message}`, 'error');
     }
@@ -2529,7 +2569,7 @@ export default function PurchasesPage() {
 
           <button
             onClick={handleRollBack}
-            disabled={!movementHistory[activeTab]}
+            disabled={!movementHistory[activeTab]?.length}
             className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-600 text-white rounded-xl hover:bg-white/[0.05]/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs sm:text-sm font-medium shadow-lg shadow-orange-900/20 transition-all border border-orange-500/50"
             title="Roll Back last action from this tab (Ctrl+Z)"
           >

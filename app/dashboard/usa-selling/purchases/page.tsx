@@ -85,11 +85,11 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [movementHistory, setMovementHistory] = useState<Record<string, {
+  const [movementHistory, setMovementHistory] = useState<Record<string, Array<{
     product: PassFileProduct
     fromStatus: string | null
     toStatus: string
-  } | null>>({})
+}>>>({})
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
   // History Sidebar State
@@ -359,11 +359,11 @@ useEffect(() => {
       // ✅ SAVE TO CURRENT TAB HISTORY
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product,
           fromStatus: product.move_to,
           toStatus: 'sent_to_admin',
-        },
+        }],
       }))
 
       // 🆕 Fetch profit matching BOTH asin AND journey_id
@@ -500,11 +500,11 @@ useEffect(() => {
       // ✅ SAVE TO CURRENT TAB HISTORY
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product,
           fromStatus: product.move_to,
           toStatus: 'price_wait',
-        },
+        }],
       }))
 
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -519,7 +519,7 @@ useEffect(() => {
       setToast({ message: 'Moved to Price Wait successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
@@ -531,11 +531,11 @@ useEffect(() => {
       // ✅ SAVE TO CURRENT TAB HISTORY
       setMovementHistory(prev => ({
         ...prev,
-        [activeTab]: {
+        [activeTab]: [...(prev[activeTab] || []), {
           product,
           fromStatus: product.move_to ?? null,
           toStatus: 'not_found',
-        },
+        }],
       }))
 
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -550,19 +550,21 @@ useEffect(() => {
       setToast({ message: 'Marked as Not Found successfully!', type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error: any) {
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       setToast({ message: `Error: ${error.message}`, type: 'error' })
     }
   }
 
   // Roll Back last movement
   const handleRollBack = async () => {
-    const lastMovement = movementHistory[activeTab]
+    const tabHistory = movementHistory[activeTab]
 
-    if (!lastMovement) {
+    if (!tabHistory || tabHistory.length === 0) {
       setToast({ message: 'No recent movement to roll back from this tab', type: 'error' })
       return
     }
+
+    const lastMovement = tabHistory[tabHistory.length - 1]
 
     // ✅ REMOVED setLoading(true) - no loading screen
     try {
@@ -595,13 +597,15 @@ useEffect(() => {
       // ✅ Clear history
       setMovementHistory(prev => {
         const newHistory = { ...prev }
-        delete newHistory[activeTab]
-        return newHistory
+        const arr = [...(newHistory[activeTab] || [])];
+        arr.pop();
+        newHistory[activeTab] = arr;
+        return newHistory;
       })
 
       setToast({ message: `Rolled back ${product.product_name}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       if (lastMovement?.product) {
-        setProducts(prev => [...prev, lastMovement.product]);
+        setProducts(prev => [...prev.filter(p => p.id !== lastMovement.product.id), lastMovement.product]);
       }
       await refreshProductsSilently() // ✅ Updates without loading screen
     } catch (error) {
@@ -775,7 +779,7 @@ useEffect(() => {
       setToast({ message: `Moved to ${sellerTags.length} tracking table(s): ${sellerTags.join(', ')}`, type: 'success' }); setTimeout(() => setToast(null), 3000);
       await refreshProductsSilently();
     } catch (error: any) {
-      setProducts(prev => [...prev, product]);
+      setProducts(prev => [...prev.filter(p => p.id !== product.id), product]);
       console.error('❌ Move error:', error);
       setToast({ message: `Failed to move: ${error.message}`, type: 'error' });
     }
@@ -1011,7 +1015,7 @@ useEffect(() => {
         <div className="flex items-center gap-3">
           <button
             onClick={handleRollBack}
-            disabled={!movementHistory[activeTab]}
+            disabled={!movementHistory[activeTab]?.length}
             className="px-4 py-2.5 bg-orange-600 text-white rounded-xl hover:bg-white/[0.05]/100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium shadow-lg shadow-orange-900/20 transition-all border border-orange-500/50"
             title="Roll Back last action from this tab (Ctrl+Z)"
           >
