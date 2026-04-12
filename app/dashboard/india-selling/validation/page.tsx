@@ -67,13 +67,13 @@ const debounce = <T extends (...args: any[]) => any>(
 // ✅ ADD THIS HERE (TOP LEVEL)
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     asin: 180,
-    sku: 100,
+    sku: 180,
     history: 120,           // Reduced
     product_name: 220,   // Reduced from 320
     brand: 110,
     seller_tag: 100,
     funnel: 80,
-    no_of_seller: 160,
+    no_of_seller: 80,
     india_link: 160,
     usa_link: 80,        // Minimal width for "View"
     product_weight: 90,

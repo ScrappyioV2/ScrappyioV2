@@ -429,6 +429,7 @@ export default function VelvetvistaPage() {
           p_amz_link: product.amz_link || null,
           p_remark: product.remark || null,
           p_sku: product.sku || null,
+          p_category: product.category || null,
         });
 
         if (rpcError) {

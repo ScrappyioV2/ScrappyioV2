@@ -259,7 +259,7 @@ export default function PurchasesPage() {
 
       case 'sku':
         return (
-          <td key={colkey} className="px-6 py-4 text-sm overflow-hidden" style={{ maxWidth: 150, width: 150 }}>
+          <td key={colkey} className="px-6 py-4 text-sm overflow-hidden" style={{ maxWidth: 220, width: 220 }}>
             <div className="w-full overflow-hidden">
               {editingSkuId === product.id ? (
                 <div className="flex items-center gap-1 max-w-full">
@@ -1016,7 +1016,7 @@ export default function PurchasesPage() {
     sellerphno: 140,
     paymentmethod: 140,
     address: 80,
-    trackingdetails: 100,
+    trackingdetails: 180,
     deliverydate: 140,
     orderdate: 140,
     moveto: 120,

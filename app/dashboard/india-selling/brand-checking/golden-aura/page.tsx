@@ -36,7 +36,14 @@ interface ProductRow {
   sku?: string | null;
 }
 
-type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject';
+type CategoryTab = 'high_demand' | 'dropshipping' | 'not_approved' | 'reject' | 'report';
+
+interface BrandReport {
+  brand: string;
+  total: number;
+  rs: number;
+  dp: number;
+}
 
 // ✅ 1. UPDATE: Defined larger default widths for better layout
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -155,6 +162,11 @@ export default function GoldenAuraPage() {
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
   const [blockedAsins, setBlockedAsins] = useState<Map<string, PipelineResult>>(new Map());
 
+  // Report tab state
+  const [brandReport, setBrandReport] = useState<BrandReport[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportSearch, setReportSearch] = useState('');
+
 
   const SELLER_ID = 1;
   const MARKETPLACE = 'india';
@@ -224,8 +236,48 @@ export default function GoldenAuraPage() {
 
   // Fetch products
   useEffect(() => {
+    if (activeTab === 'report') return;
     fetchProducts(false);
   }, [activeTab, currentPage, debouncedSearch]);
+
+  // Fetch brand report when report tab is active
+  const fetchBrandReport = async () => {
+    setReportLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('seller_products')
+        .select('brand, funnel')
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .in('product_status', ['high_demand', 'dropshipping', 'not_approved']);
+
+      if (error) throw error;
+
+      const map = new Map<string, BrandReport>();
+      (data || []).forEach((row: any) => {
+        const brand = (row.brand || 'Unknown').trim() || 'Unknown';
+        const existing = map.get(brand) || { brand, total: 0, rs: 0, dp: 0 };
+        existing.total += 1;
+        if (row.funnel === 'RS') existing.rs += 1;
+        else if (row.funnel === 'DP') existing.dp += 1;
+        map.set(brand, existing);
+      });
+
+      const sorted = Array.from(map.values()).sort((a, b) => b.total - a.total);
+      setBrandReport(sorted);
+    } catch (err: any) {
+      console.error('Error fetching brand report:', err);
+      setToast({ message: `Failed to load report: ${err.message}`, type: 'error' });
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'report') {
+      fetchBrandReport();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const channel = supabase
@@ -429,6 +481,7 @@ export default function GoldenAuraPage() {
           p_amz_link: product.amz_link || null,
           p_remark: product.remark || null,
           p_sku: product.sku || null,
+          p_category: product.category || null,
         });
 
         if (rpcError) {
@@ -903,6 +956,7 @@ export default function GoldenAuraPage() {
               {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
               {tabStyles('not_approved', 'text-rose-400', 'Not Approved')}
               {tabStyles('reject', 'text-gray-400', 'Reject')}
+              {tabStyles('report', 'text-blue-400', 'Report')}
               {(activeTab === 'high_demand' || activeTab === 'dropshipping') && (
                 <BotControlPanel
                   products={products}
@@ -913,6 +967,7 @@ export default function GoldenAuraPage() {
             </div>
 
             {/* CONTROLS */}
+            {activeTab !== 'report' && (
             <div className="flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.1] mb-2">
               <div className="flex gap-3 w-full md:w-auto">
                 <div className="relative">
@@ -1022,13 +1077,109 @@ export default function GoldenAuraPage() {
               </div>
 
             </div>
+            )}
           </div>
         </div>
 
         {/* TABLE */}
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-6 pb-4 sm:pb-6">
           <div className="bg-[#111111] rounded-2xl border border-white/[0.1] overflow-hidden shadow-xl shadow-black/20">
-            {loading ? (
+            {activeTab === 'report' ? (
+              <div className="flex flex-col">
+                {/* Report search bar */}
+                <div className="p-4 border-b border-white/[0.1] bg-[#1a1a1a] flex items-center gap-3">
+                  <div className="relative w-full md:w-80 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+                    <input
+                      type="text"
+                      placeholder="Search brand..."
+                      value={reportSearch}
+                      onChange={(e) => setReportSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div className="text-xs text-gray-400 ml-auto">
+                    Brands: <span className="text-white font-bold">{brandReport.length}</span>
+                  </div>
+                </div>
+
+                {reportLoading ? (
+                  <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
+                    <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium tracking-wide animate-pulse">LOADING REPORT...</span>
+                  </div>
+                ) : (() => {
+                  const q = reportSearch.trim().toLowerCase();
+                  const filtered = q
+                    ? brandReport.filter(r => r.brand.toLowerCase().includes(q))
+                    : brandReport;
+                  const totals = filtered.reduce(
+                    (acc, r) => ({ total: acc.total + r.total, rs: acc.rs + r.rs, dp: acc.dp + r.dp }),
+                    { total: 0, rs: 0, dp: 0 }
+                  );
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-3">
+                        <Filter className="w-12 h-12 text-gray-500" />
+                        <p className="text-lg font-medium text-gray-400">No brands found</p>
+                        <p className="text-sm text-gray-300">Try adjusting your search</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="relative h-[calc(100vh-440px)] overflow-auto">
+                      <table className="w-full border-collapse text-left">
+                        <thead className="sticky top-0 z-10 bg-[#111111] border-b border-white/[0.1] shadow-md">
+                          <tr>
+                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">#</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Brand</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Total ASINs</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">RS</th>
+                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">DP</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.06]">
+                          {filtered.map((row, idx) => (
+                            <tr key={row.brand} className="hover:bg-white/[0.03] transition-colors">
+                              <td className="px-6 py-3 text-sm text-gray-500">{idx + 1}</td>
+                              <td className="px-6 py-3 text-sm text-gray-100 font-medium">{row.brand}</td>
+                              <td className="px-6 py-3 text-sm text-white font-bold text-right">{row.total}</td>
+                              <td className="px-6 py-3 text-sm text-right">
+                                <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                  {row.rs}
+                                </span>
+                              </td>
+                              <td className="px-6 py-3 text-sm text-right">
+                                <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                                  {row.dp}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="sticky bottom-0 bg-[#111111] border-t border-white/[0.1]">
+                          <tr>
+                            <td className="px-6 py-3 text-sm font-bold text-gray-400"></td>
+                            <td className="px-6 py-3 text-sm font-bold text-gray-300">Total</td>
+                            <td className="px-6 py-3 text-sm text-white font-bold text-right">{totals.total}</td>
+                            <td className="px-6 py-3 text-sm text-right">
+                              <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                {totals.rs}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-sm text-right">
+                              <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                                {totals.dp}
+                              </span>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : loading ? (
               <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
                 <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
                 <span className="text-sm font-medium tracking-wide animate-pulse">LOADING DATA...</span>
@@ -1192,7 +1343,7 @@ export default function GoldenAuraPage() {
               </div>
             )}
           </div>
-          {!loading && products.length > 0 && <PaginationControls />}
+          {activeTab !== 'report' && !loading && products.length > 0 && <PaginationControls />}
         </div>
 
         <RejectModal
