@@ -1015,6 +1015,16 @@ export default function PurchasesPage() {
 
       if (dueItems && dueItems.length > 0) {
         for (const item of dueItems) {
+          // Fetch max journey_number for this ASIN to increment
+          const { data: maxJourney } = await supabase
+            .from('india_asin_history')
+            .select('journey_number')
+            .eq('asin', item.asin)
+            .order('journey_number', { ascending: false })
+            .limit(1);
+          const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 1) + 1;
+          const newJourneyId = crypto.randomUUID();
+
           await supabase.from('india_purchases').insert({
             asin: item.asin,
             product_name: item.product_name,
@@ -1026,9 +1036,13 @@ export default function PurchasesPage() {
             sns_active: true,
             sns_period: item.sns_period,
             sns_quantity: item.sns_quantity,
+            buying_quantity: item.sns_quantity,
             buying_quantities: item.buying_quantities || { [item.seller_tag]: item.sns_quantity },
+            buying_price: item.buying_price || null,
             admin_confirmed: true,
             admin_confirmed_at: new Date().toISOString(),
+            journey_id: newJourneyId,
+            journey_number: nextJourneyNumber,
           });
 
           const nextDue = calculateNextDue(item.sns_period);

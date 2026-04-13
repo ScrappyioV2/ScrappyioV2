@@ -843,6 +843,16 @@ export default function ReorderPage() {
                     .eq('id', existingPurchase.id);
                 }
               } else {
+                // Fetch max journey_number for this ASIN
+                const { data: maxJourney } = await supabase
+                  .from('india_asin_history')
+                  .select('journey_number')
+                  .eq('asin', product.asin)
+                  .order('journey_number', { ascending: false })
+                  .limit(1);
+                const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 1) + 1;
+                const newJourneyId = crypto.randomUUID();
+
                 await supabase.from('india_purchases').insert({
                   asin: product.asin,
                   product_name: product.product_name,
@@ -860,6 +870,8 @@ export default function ReorderPage() {
                   origin_us: false,
                   buying_price: 0,
                   buying_quantity: 0,
+                  journey_id: newJourneyId,
+                  journey_number: nextJourneyNumber,
                 });
               }
 
