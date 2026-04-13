@@ -422,6 +422,7 @@ export default function CostechVenturesPage() {
               .eq('asin', product.asin)
               .is('move_to', null)
               .eq('admin_confirmed', false)
+              .or('sent_to_admin.is.null,sent_to_admin.eq.false')
               .maybeSingle();
 
             const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];

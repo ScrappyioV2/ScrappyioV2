@@ -817,7 +817,8 @@ export default function ReorderPage() {
                 .eq('asin', product.asin)
                 .is('move_to', null)
                 .eq('admin_confirmed', false)
-                .maybeSingle();
+                .or('sent_to_admin.is.null,sent_to_admin.eq.false')
+              .maybeSingle();
 
               if (existingPurchase) {
                 const existingTags = existingPurchase.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];

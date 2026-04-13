@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSX from 'xlsx';
@@ -67,6 +67,13 @@ type PassFileProduct = {
   remark: string | null
   sku?: string | null
   address?: string | null
+  sns_active?: boolean | null
+  sns_period?: string | null
+  sns_quantity?: number | null
+  sns_start_date?: string | null
+  sns_next_due?: string | null
+  split_id?: string | null
+  split_from_id?: string | null
 }
 
 // ADD THIS TYPE
@@ -82,7 +89,40 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'sns' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
+
+const calculateNextDue = (period: string): Date => {
+  const now = new Date();
+  switch (period) {
+    case '2_weeks': now.setDate(now.getDate() + 14); break;
+    case '3_weeks': now.setDate(now.getDate() + 21); break;
+    case '1_month': now.setMonth(now.getMonth() + 1); break;
+    case '5_weeks': now.setDate(now.getDate() + 35); break;
+    case '6_weeks': now.setDate(now.getDate() + 42); break;
+    case '7_weeks': now.setDate(now.getDate() + 49); break;
+    case '2_months': now.setMonth(now.getMonth() + 2); break;
+    case '3_months': now.setMonth(now.getMonth() + 3); break;
+    case '4_months': now.setMonth(now.getMonth() + 4); break;
+    case '5_months': now.setMonth(now.getMonth() + 5); break;
+    case '6_months': now.setMonth(now.getMonth() + 6); break;
+    default: now.setMonth(now.getMonth() + 1); break;
+  }
+  return now;
+};
+
+const SNS_PERIOD_LABELS: Record<string, string> = {
+  '2_weeks': '2 Weeks',
+  '3_weeks': '3 Weeks',
+  '1_month': '1 Month',
+  '5_weeks': '5 Weeks',
+  '6_weeks': '6 Weeks',
+  '7_weeks': '7 Weeks',
+  '2_months': '2 Months',
+  '3_months': '3 Months',
+  '4_months': '4 Months',
+  '5_months': '5 Months',
+  '6_months': '6 Months',
+};
 
 const FUNNEL_STYLES: Record<string, string> = {
   'RS': 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
@@ -95,6 +135,11 @@ export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [copies, setCopies] = useState<any[]>([]);
+  const [snsData, setSnsData] = useState<any[]>([]);
+  const [snsSelections, setSnsSelections] = useState<Record<string, { period: string; quantity: number }>>({});
+  const [snsEditingId, setSnsEditingId] = useState<string | null>(null);
+  const [splitModalProduct, setSplitModalProduct] = useState<PassFileProduct | null>(null);
+  const [splitQuantities, setSplitQuantities] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { logActivity } = useActivityLogger();
@@ -344,7 +389,12 @@ export default function PurchasesPage() {
         if (!visibleColumns.productname) return null;
         return (
           <td key={colkey} className="px-6 py-4 text-sm text-gray-100 overflow-hidden" style={{ width: columnWidths.productname }}>
-            <div className="truncate max-w-[250px]" title={product.product_name || '-'}>{product.product_name || '-'}</div>
+            <div className="flex items-center">
+              <span className="truncate max-w-[250px]" title={product.product_name || '-'}>{product.product_name || '-'}</span>
+              {product.sns_active && (
+                <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>
+              )}
+            </div>
           </td>
         );
 
@@ -734,7 +784,44 @@ export default function PurchasesPage() {
       case 'moveto':
         if (!visibleColumns.moveto) return null;
         return (
-          <td key={colkey} className="px-6 py-4 overflow-hidden" style={{ width: columnWidths.moveto }}>
+          <Fragment key={colkey}>
+          {/* S&S cells injected before moveto */}
+          {activeTab === 'order_confirmed' && (
+            <>
+              <td className="px-3 py-2">
+                <select
+                  value={snsSelections[product.id]?.period || ''}
+                  onChange={(e) => setSnsSelections(prev => ({
+                    ...prev,
+                    [product.id]: { ...prev[product.id], period: e.target.value, quantity: prev[product.id]?.quantity || 1 }
+                  }))}
+                  style={{ backgroundColor: '#1f2937', color: '#fff' }}
+                  className="text-xs border border-gray-600 rounded px-2 py-1.5 cursor-pointer appearance-auto"
+                >
+                  <option value="" style={{ backgroundColor: '#1f2937', color: '#fff' }}>No S&S</option>
+                  {Object.entries(SNS_PERIOD_LABELS).map(([value, label]) => (
+                    <option key={value} value={value} style={{ backgroundColor: '#1f2937', color: '#fff' }}>{label}</option>
+                  ))}
+                </select>
+              </td>
+              <td className="px-3 py-2">
+                {snsSelections[product.id]?.period ? (
+                  <input
+                    type="number"
+                    min={1}
+                    value={snsSelections[product.id]?.quantity || 1}
+                    onChange={(e) => setSnsSelections(prev => ({
+                      ...prev,
+                      [product.id]: { ...prev[product.id], quantity: parseInt(e.target.value) || 1 }
+                    }))}
+                    style={{ backgroundColor: '#1f2937', color: '#fff' }}
+                    className="text-xs border border-gray-600 rounded px-2 py-1 w-16"
+                  />
+                ) : <span className="text-gray-500 text-xs">—</span>}
+              </td>
+            </>
+          )}
+          <td className="px-6 py-4 overflow-hidden" style={{ width: columnWidths.moveto }}>
             <div className="flex gap-1 justify-center">
               <button
                 type="button"
@@ -760,6 +847,7 @@ export default function PurchasesPage() {
               )}
             </div>
           </td>
+          </Fragment>
         );
 
       default:
@@ -898,6 +986,142 @@ export default function PurchasesPage() {
       showToast('Copy deleted', 'success');
     } catch {
       showToast('Failed to delete copy', 'error');
+    }
+  };
+
+  // S&S functions
+  const fetchSns = async () => {
+    const { data, error } = await supabase
+      .from('india_purchase_sns')
+      .select('*')
+      .order('sns_next_due', { ascending: true });
+    if (!error && data) setSnsData(data);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'sns') {
+      fetchSns();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Check for due S&S items on mount
+    const checkSnsDue = async () => {
+      const { data: dueItems } = await supabase
+        .from('india_purchase_sns')
+        .select('*')
+        .lte('sns_next_due', new Date().toISOString());
+
+      if (dueItems && dueItems.length > 0) {
+        for (const item of dueItems) {
+          await supabase.from('india_purchases').insert({
+            asin: item.asin,
+            product_name: item.product_name,
+            brand: item.brand,
+            seller_tag: item.seller_tag,
+            funnel: item.funnel,
+            sku: item.sku,
+            remark: item.remark,
+            sns_active: true,
+            sns_period: item.sns_period,
+            sns_quantity: item.sns_quantity,
+            buying_quantities: item.buying_quantities || { [item.seller_tag]: item.sns_quantity },
+            admin_confirmed: true,
+            admin_confirmed_at: new Date().toISOString(),
+          });
+
+          const nextDue = calculateNextDue(item.sns_period);
+          await supabase.from('india_purchase_sns')
+            .update({ sns_next_due: nextDue.toISOString(), updated_at: new Date().toISOString() })
+            .eq('id', item.id);
+        }
+        fetchProducts();
+        fetchSns();
+      }
+    };
+    checkSnsDue();
+  }, []);
+
+  const handleEditSns = async (snsItem: any, newPeriod: string, newQuantity: number) => {
+    try {
+      const nextDue = calculateNextDue(newPeriod);
+      await supabase.from('india_purchase_sns')
+        .update({
+          sns_period: newPeriod,
+          sns_quantity: newQuantity,
+          sns_next_due: nextDue.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', snsItem.id);
+      showToast('S&S updated', 'success');
+      setSnsEditingId(null);
+      fetchSns();
+    } catch {
+      showToast('Failed to update S&S', 'error');
+    }
+  };
+
+  const handleRemoveSns = async (snsItem: any) => {
+    try {
+      await supabase.from('india_purchase_sns').delete().eq('id', snsItem.id);
+      await supabase.from('india_purchases').insert({
+        asin: snsItem.asin,
+        product_name: snsItem.product_name,
+        brand: snsItem.brand,
+        seller_tag: snsItem.seller_tag,
+        funnel: snsItem.funnel,
+        sku: snsItem.sku,
+        remark: snsItem.remark,
+        sns_active: false,
+        buying_quantities: snsItem.buying_quantities || { [snsItem.seller_tag]: snsItem.sns_quantity },
+      });
+      showToast('S&S removed. Product returned to Purchase Main File.', 'success');
+      fetchSns();
+      fetchProducts();
+    } catch {
+      showToast('Failed to remove S&S', 'error');
+    }
+  };
+
+  const handleSplitOrder = async (product: PassFileProduct, quantities: Record<string, number>) => {
+    try {
+      const entries = Object.entries(quantities).filter(([_, qty]) => qty > 0);
+      if (entries.length < 2) {
+        showToast('Need at least 2 splits with quantity > 0', 'error');
+        return;
+      }
+      const isSingleTag = !(product.seller_tag || '').includes(',');
+      const baseTag = (product.seller_tag || 'GR').split(',')[0].trim();
+      const { data: freshProduct } = await supabase
+        .from('india_purchases')
+        .select('*')
+        .eq('id', product.id)
+        .single();
+      if (!freshProduct) {
+        showToast('Product not found. Please refresh.', 'error');
+        return;
+      }
+      const splitFromId = crypto.randomUUID();
+      const inserts = entries.map(([key, qty]) => {
+        const tag = isSingleTag ? baseTag : key;
+        const { id, created_at, ...rest } = freshProduct;
+        return {
+          ...rest,
+          seller_tag: tag,
+          buying_quantities: { [tag]: qty },
+          buying_quantity: qty,
+          split_id: crypto.randomUUID(),
+          split_from_id: splitFromId,
+        };
+      });
+      await supabase.from('india_purchases').delete().eq('id', product.id);
+      const { error: insertError } = await supabase.from('india_purchases').insert(inserts);
+      if (insertError) throw new Error(`Split insert failed: ${insertError.message}`);
+      setSplitModalProduct(null);
+      showToast(`Order split into ${entries.length} rows`, 'success');
+      fetchProducts();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to split order', 'error');
     }
   };
 
@@ -1680,6 +1904,9 @@ export default function PurchasesPage() {
       return;
     }
 
+    // --- S&S detection ---
+    const snsSelection = snsSelections[product.id];
+    const isSnS = snsSelection && snsSelection.period && snsSelection.period !== '';
 
     try {
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -1859,6 +2086,7 @@ export default function PurchasesPage() {
             status: 'tracking',
             moved_at: new Date().toISOString(),
             pending_quantity: freshProduct.buying_quantities?.[tag] ?? freshProduct.buying_quantity,
+            sns_active: isSnS || freshProduct.sns_active || false,
           });
       });
 
@@ -1878,6 +2106,39 @@ export default function PurchasesPage() {
       }
 
 
+
+      // --- S&S: save to india_purchase_sns if S&S selected ---
+      if (isSnS) {
+        const nextDue = calculateNextDue(snsSelection.period);
+        try {
+          await supabase.from('india_purchase_sns').upsert({
+            asin: product.asin,
+            product_name: product.product_name,
+            brand: (product as any).brand,
+            seller_tag: tagsToMove.join(','),
+            funnel: product.funnel,
+            sku: product.sku || freshProduct?.sku,
+            remark: product.remark,
+            sns_period: snsSelection.period,
+            sns_quantity: snsSelection.quantity,
+            sns_next_due: nextDue.toISOString(),
+            buying_price: product.buying_price || freshProduct?.buying_price,
+            buying_quantities: freshProduct?.buying_quantities || product.buying_quantities,
+          }, { onConflict: 'asin,seller_tag' });
+
+          await supabase.from('india_purchases')
+            .update({
+              sns_active: true,
+              sns_period: snsSelection.period,
+              sns_quantity: snsSelection.quantity,
+              sns_start_date: new Date().toISOString(),
+              sns_next_due: nextDue.toISOString(),
+            })
+            .eq('id', product.id);
+        } catch (snsErr) {
+          console.error('Failed to save S&S:', snsErr);
+        }
+      }
 
       setMovementHistory(prev => ({
         ...prev,
@@ -2398,6 +2659,18 @@ export default function PurchasesPage() {
           {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
         </button>
 
+        {/* S&S Tab */}
+        <button
+          onClick={() => setActiveTab('sns')}
+          className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'sns'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-teal-400'
+            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+            }`}
+        >
+          <span className="relative z-10">S&S ({snsData.length})</span>
+          {activeTab === 'sns' && <div className="absolute inset-0 opacity-10 bg-teal-500" />}
+        </button>
+
         {/* 3. India */}
         <button
           onClick={() => setActiveTab('india')}
@@ -2660,6 +2933,44 @@ export default function PurchasesPage() {
             </button>
           )}
 
+          {activeTab === 'order_confirmed' && (
+            <button
+              onClick={() => {
+                const selectedProducts = products.filter(p => selectedIds.has(p.id));
+                if (selectedProducts.length === 0) {
+                  showToast('Select a product to split', 'info');
+                  return;
+                }
+                if (selectedProducts.length > 1) {
+                  showToast('Please select only 1 product to split', 'info');
+                  return;
+                }
+                const product = selectedProducts[0];
+                const tags = (product.seller_tag || '').split(',').map(t => t.trim()).filter(Boolean);
+                const buyingQty = (product.buying_quantities || {}) as Record<string, number>;
+                if (tags.length <= 1) {
+                  const tag = tags[0] || 'GR';
+                  const totalQty = buyingQty[tag] || 0;
+                  setSplitQuantities({ [`${tag}_1`]: Math.ceil(totalQty / 2), [`${tag}_2`]: Math.floor(totalQty / 2) });
+                } else {
+                  const initial: Record<string, number> = {};
+                  tags.forEach(tag => { initial[tag] = buyingQty[tag] || 0; });
+                  setSplitQuantities(initial);
+                }
+                setSplitModalProduct(product);
+              }}
+              disabled={selectedIds.size === 0}
+              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium transition-all border shadow-lg ${
+                selectedIds.size > 0
+                  ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-500/50 shadow-purple-900/20'
+                  : 'bg-[#111111] text-gray-500 cursor-not-allowed border-white/[0.1]'
+              }`}
+            >
+              <span className="hidden sm:inline">Split Order</span>
+              {selectedIds.size > 0 && <span className="text-xs bg-purple-500/50 px-1.5 py-0.5 rounded-full">{selectedIds.size}</span>}
+            </button>
+          )}
+
           {/* 🆕 Journey Toggle Button */}
           <button
             onClick={() => setShowAllJourneys(!showAllJourneys)}
@@ -2751,8 +3062,97 @@ export default function PurchasesPage() {
         </div>
       </div>
 
-      {/* Copy Tab — separate table */}
-      {activeTab === 'copy' ? (
+      {/* S&S Tab — separate table */}
+      {activeTab === 'sns' ? (
+        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
+          <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+            <table className="w-full table-auto">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">ASIN</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Product Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Brand</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Seller Tag</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">S&S Period</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">S&S Qty</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Next Due</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {snsData.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-16 text-center text-gray-300">
+                      <span className="text-lg font-semibold text-gray-400">No S&S subscriptions yet</span>
+                    </td>
+                  </tr>
+                ) : snsData.map(item => (
+                  <tr key={item.id} className="hover:bg-white/[0.05] transition-colors">
+                    <td className="px-6 py-3 text-sm font-mono text-orange-400">{item.asin}</td>
+                    <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{item.product_name || '-'}</td>
+                    <td className="px-6 py-3 text-sm text-gray-300">{item.brand || '-'}</td>
+                    <td className="px-6 py-3 text-sm text-gray-300">{item.seller_tag || '-'}</td>
+                    <td className="px-6 py-3 text-sm">
+                      {snsEditingId === item.id ? (
+                        <select
+                          defaultValue={item.sns_period}
+                          id={`sns-period-${item.id}`}
+                          className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1"
+                        >
+                          {Object.entries(SNS_PERIOD_LABELS).map(([v, l]) => (
+                            <option key={v} value={v}>{l}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-teal-900/50 text-teal-300 text-xs rounded font-medium">{SNS_PERIOD_LABELS[item.sns_period] || item.sns_period}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {snsEditingId === item.id ? (
+                        <input type="number" min={1} defaultValue={item.sns_quantity} id={`sns-qty-${item.id}`}
+                          className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1 w-16" />
+                      ) : (
+                        <span className="text-white font-medium">{item.sns_quantity}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-400">
+                      {item.sns_next_due ? new Date(item.sns_next_due).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {snsEditingId === item.id ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                const periodEl = document.getElementById(`sns-period-${item.id}`) as HTMLSelectElement;
+                                const qtyEl = document.getElementById(`sns-qty-${item.id}`) as HTMLInputElement;
+                                handleEditSns(item, periodEl.value, parseInt(qtyEl.value) || 1);
+                              }}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded font-semibold transition-colors"
+                            >Save</button>
+                            <button onClick={() => setSnsEditingId(null)}
+                              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded font-semibold transition-colors"
+                            >Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => setSnsEditingId(item.id)}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-semibold transition-colors"
+                            >Edit</button>
+                            <button onClick={() => handleRemoveSns(item)}
+                              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs rounded font-semibold transition-colors"
+                            >Remove</button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeTab === 'copy' ? (
         <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
           <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
             <table className="w-full table-auto">
@@ -2857,21 +3257,29 @@ export default function PurchasesPage() {
                   const w = colkey === 'sku' ? 150 : (columnWidths[colkey] ?? 100);
 
                   return (
-                    <th
-                      key={colkey}
-                      draggable
-                      onDragStart={() => handleColumnDragStart(colkey)}
-                      onDragOver={(e) => handleColumnDragOver(e, colkey)}
-                      onDrop={handleColumnDrop}
-                      className={`px-4 py-3 text-left text-xs font-bold ${textColor} uppercase tracking-wider relative group ${bgColor} cursor-grab active:cursor-grabbing select-none`}
-                      style={{ minWidth: w, width: w }}
-                    >
-                      {labels[colkey] || colkey}
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400"
-                        onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(colkey, e); }}
-                      />
-                    </th>
+                    <Fragment key={colkey}>
+                      {/* Inject S&S headers before moveto column */}
+                      {colkey === 'moveto' && activeTab === 'order_confirmed' && (
+                        <>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-teal-400 uppercase tracking-wider">S&S Period</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-teal-400 uppercase tracking-wider">S&S Qty</th>
+                        </>
+                      )}
+                      <th
+                        draggable
+                        onDragStart={() => handleColumnDragStart(colkey)}
+                        onDragOver={(e) => handleColumnDragOver(e, colkey)}
+                        onDrop={handleColumnDrop}
+                        className={`px-4 py-3 text-left text-xs font-bold ${textColor} uppercase tracking-wider relative group ${bgColor} cursor-grab active:cursor-grabbing select-none`}
+                        style={{ minWidth: w, width: w }}
+                      >
+                        {labels[colkey] || colkey}
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400"
+                          onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(colkey, e); }}
+                        />
+                      </th>
+                    </Fragment>
                   );
                 })}
               </tr>
@@ -2903,7 +3311,7 @@ export default function PurchasesPage() {
                         />
                       </td>
                     )}
-                    {/* Draggable columns - in user-chosen order */}
+                    {/* Draggable columns - in user-chosen order (S&S cells injected before moveto inside renderPurchaseCell) */}
                     {columnOrder.map((colkey) => renderPurchaseCell(colkey, product))}
                   </tr>
                 ))
@@ -3245,6 +3653,122 @@ export default function PurchasesPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Split Order Modal */}
+      {splitModalProduct && (() => {
+        const isSingleTagSplit = !(splitModalProduct.seller_tag || '').includes(',');
+        const baseTag = (splitModalProduct.seller_tag || 'GR').split(',')[0].trim();
+        const buyingQty = (splitModalProduct.buying_quantities || {}) as Record<string, number>;
+        const totalOriginal = isSingleTagSplit
+          ? (buyingQty[baseTag] || 0)
+          : Object.values(buyingQty).reduce((a, b) => a + (b || 0), 0);
+        const totalSplit = Object.values(splitQuantities).reduce((a, b) => a + (b || 0), 0);
+        const remaining = totalOriginal - totalSplit;
+
+        return (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setSplitModalProduct(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-[460px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+
+            <div className="mb-5">
+              <h3 className="text-white text-lg font-semibold">Split Order</h3>
+              <p className="text-gray-400 text-sm mt-1">{splitModalProduct.asin} — {splitModalProduct.product_name}</p>
+            </div>
+
+            <div className="flex gap-3 mb-5">
+              <div className="flex-1 bg-gray-800 rounded-xl p-3 text-center">
+                <p className="text-gray-400 text-xs mb-1">Total quantity</p>
+                <p className="text-white text-xl font-semibold">{totalOriginal}</p>
+              </div>
+              <div className="flex-1 bg-gray-800 rounded-xl p-3 text-center">
+                <p className="text-gray-400 text-xs mb-1">Allocated</p>
+                <p className="text-teal-400 text-xl font-semibold">{totalSplit}</p>
+              </div>
+              <div className={`flex-1 rounded-xl p-3 text-center ${remaining === 0 ? 'bg-green-900/30' : remaining < 0 ? 'bg-red-900/30' : 'bg-gray-800'}`}>
+                <p className="text-gray-400 text-xs mb-1">Remaining</p>
+                <p className={`text-xl font-semibold ${remaining === 0 ? 'text-green-400' : remaining < 0 ? 'text-red-400' : 'text-amber-400'}`}>{remaining}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              {Object.entries(splitQuantities).map(([key, qty], index) => (
+                <div key={key} className="flex items-center gap-3 bg-gray-800/50 rounded-lg px-4 py-3">
+                  <span className="text-white text-sm font-medium w-16">
+                    {isSingleTagSplit ? `Split ${index + 1}` : key}
+                  </span>
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={qty === 0 && document.activeElement?.getAttribute('data-split-key') === key ? '' : qty.toString()}
+                      onFocus={(e) => {
+                        e.target.setAttribute('data-split-key', key);
+                        if (qty === 0) e.target.value = '';
+                      }}
+                      onBlur={(e) => {
+                        e.target.removeAttribute('data-split-key');
+                        if (e.target.value === '') {
+                          setSplitQuantities(prev => ({ ...prev, [key]: 0 }));
+                        }
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setSplitQuantities(prev => ({ ...prev, [key]: val === '' ? 0 : parseInt(val, 10) }));
+                      }}
+                      className="w-full bg-gray-700 text-white border border-gray-600 focus:border-teal-500 focus:outline-none rounded-lg px-3 py-2 text-sm text-center"
+                    />
+                  </div>
+                  {isSingleTagSplit && Object.keys(splitQuantities).length > 2 && (
+                    <button
+                      onClick={() => setSplitQuantities(prev => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      })}
+                      className="text-red-400 hover:text-red-300 text-sm px-2 py-1 hover:bg-red-900/20 rounded transition-colors"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {isSingleTagSplit && (
+              <button
+                onClick={() => {
+                  const tag = baseTag;
+                  const nextIndex = Object.keys(splitQuantities).length + 1;
+                  setSplitQuantities(prev => ({ ...prev, [`${tag}_${nextIndex}`]: 0 }));
+                }}
+                className="w-full py-2 mb-5 border border-dashed border-gray-600 hover:border-teal-500 rounded-lg text-sm text-gray-400 hover:text-teal-400 transition-colors"
+              >
+                + Add another split
+              </button>
+            )}
+
+            {remaining < 0 && (
+              <p className="text-red-400 text-xs mb-4 text-center">Split quantities exceed total by {Math.abs(remaining)}</p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSplitModalProduct(null)}
+                className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+              >Cancel</button>
+              <button
+                onClick={() => handleSplitOrder(splitModalProduct, splitQuantities)}
+                disabled={totalSplit === 0 || remaining < 0}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  totalSplit > 0 && remaining >= 0
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
+              >Confirm Split</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
 
       {/* Toast Notifications */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none">
