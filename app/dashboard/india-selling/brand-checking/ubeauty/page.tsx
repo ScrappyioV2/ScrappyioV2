@@ -9,7 +9,7 @@ import RejectModal from '../../../../components/RejectModal';
 import FunnelBadge from '../../../../components/FunnelBadge';
 import BotControlPanel from '@/components/india-selling/BotControlPanel';
 import { generateAmazonLink , ensureAbsoluteUrl } from '@/lib/utils';
-import { batchCheckPipeline, PipelineResult } from '@/lib/utils/pipelineCheck';
+
 import {
   Search,
   RotateCcw,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 interface ProductRow {
+  category?: string | null;
   id: string;
   asin: string;
   product_name: string | null;
@@ -152,7 +153,7 @@ export default function UBeautyPage() {
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
-  const [blockedAsins, setBlockedAsins] = useState<Map<string, PipelineResult>>(new Map());
+
 
 
   const SELLER_ID = 3;
@@ -295,11 +296,6 @@ export default function UBeautyPage() {
 
       setProducts(data || []);
       setTotalCount(count || 0);
-        if (data && data.length > 0) {
-          const asins = data.map((p: any) => p.asin);
-          const pipelineMap = await batchCheckPipeline(asins);
-          setBlockedAsins(pipelineMap);
-        }
     } catch (error: any) {
       console.error('Error fetching products:', error);
       setToast({
@@ -406,15 +402,77 @@ export default function UBeautyPage() {
     setProducts(prev => prev.filter(p => p.id !== product.id));
     try {
       if (action === 'approved') {
-        const pipelineInfo = blockedAsins.get(product.asin);
-        if (pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation') {
-          if (!pipelineInfo.can_merge) {
-            setProducts(prev => [...prev, product]);
-            setToast({ message: `ASIN ${product.asin} is in ${pipelineInfo.stage_label} (${pipelineInfo.seller_tags}). Cannot approve until current journey completes.`, type: 'error' });
-            setProcessingId(null);
-            return;
+        // --- Copy check: skip validation if copy exists ---
+        let copyFound = false;
+        try {
+          const { data: copyData } = await supabase
+            .from('india_purchase_copies')
+            .select('id')
+            .eq('asin', product.asin)
+            .maybeSingle();
+
+          if (copyData) {
+            copyFound = true;
+
+            const { data: existingPurchase } = await supabase
+              .from('india_purchases')
+              .select('id, seller_tag, buying_quantities')
+              .eq('asin', product.asin)
+              .is('move_to', null)
+              .eq('admin_confirmed', false)
+              .maybeSingle();
+
+            const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
+
+            if (existingPurchase) {
+              const existingTags = existingPurchase.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];
+              if (!existingTags.includes(SELLER_CODE)) {
+                const newTag = [...existingTags, SELLER_CODE].join(',');
+                const newBuyingQty = { ...(existingPurchase.buying_quantities || {}), [SELLER_CODE]: 0 };
+                await supabase.from('india_purchases')
+                  .update({ seller_tag: newTag, buying_quantities: newBuyingQty })
+                  .eq('id', existingPurchase.id);
+              }
+            } else {
+              await supabase.from('india_purchases').insert({
+                asin: product.asin,
+                product_name: product.product_name,
+                brand: product.brand,
+                seller_tag: SELLER_CODE,
+                funnel: product.funnel,
+                sku: product.sku,
+                remark: product.remark,
+                buying_quantities: { [SELLER_CODE]: 0 },
+              });
+            }
+
+            await Promise.all([
+              saveToHistory(product, activeTab, 'india_purchases'),
+              supabase.from('seller_products').delete().eq('id', product.id),
+            ]);
+
+            await supabase.from('brand_checking')
+              .update({ approval_status: 'approved' })
+              .eq('marketplace', MARKETPLACE)
+              .eq('seller_id', SELLER_ID)
+              .eq('asin', product.asin);
+
+            setToast({ message: 'Product sent directly to Purchases (validated copy found)!', type: 'success' });
+
+            logActivity({
+              action: 'approve_via_copy',
+              marketplace: 'india',
+              page: 'brand-checking',
+              table_name: 'seller_products',
+              asin: product.asin,
+              details: { funnel: product.funnel, seller_id: SELLER_ID, target: 'india_purchases_direct' }
+            });
           }
+        } catch (copyErr) {
+          console.error('Copy check failed, falling back to normal flow:', copyErr);
         }
+
+        if (!copyFound) {
         const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
         // Atomic upsert — handles race conditions when multiple sellers approve same ASIN
@@ -462,6 +520,7 @@ export default function UBeautyPage() {
           asin: product.asin,
           details: { funnel: product.funnel, seller_id: SELLER_ID, seller_name: 'ubeauty', target: 'india_validation_main_file' }
         });
+        }
 
       } else if (action === 'not_approved') {
         const { error: updateError } = await supabase.from('seller_products')
@@ -1067,11 +1126,8 @@ export default function UBeautyPage() {
                   </thead>
                   <tbody className="divide-y divide-white/[0.06]">
                     {products.map((product, index) => {
-                    const pipelineInfo = blockedAsins.get(product.asin);
-                    const isBlockedInPipeline = pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation' && !pipelineInfo.can_merge;
-                    const isInPipeline = pipelineInfo && pipelineInfo.location && pipelineInfo.location !== 'validation';
                     return (
-                      <tr key={product.id} className={`group transition-colors ${isBlockedInPipeline ? 'bg-orange-900/20 hover:bg-orange-900/30' : isInPipeline ? 'bg-amber-900/10 hover:bg-amber-900/20' : 'hover:bg-white/[0.05]'} ${selectedIds.has(product.id) ? 'bg-orange-500/10' : ''}`}>
+                      <tr key={product.id} className={`group transition-colors hover:bg-white/[0.05] ${selectedIds.has(product.id) ? 'bg-orange-500/10' : ''}`}>
                         <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.1] group-hover:bg-white/[0.05] transition-colors" style={{ width: '60px' }}>
                           <input
                             type="checkbox"
@@ -1138,12 +1194,6 @@ export default function UBeautyPage() {
                                   <span className="text-gray-400" title={String(product.asin || '-')}>
                                     {String(product.asin || '-')}
                                   </span>
-                              {isBlockedInPipeline && (
-                                <div className="text-[10px] text-orange-400 mt-0.5">{pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
-                              )}
-                              {isInPipeline && !isBlockedInPipeline && (
-                                <div className="text-[10px] text-amber-400 mt-0.5">{pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
-                              )}
                                 </div>
                               ) : (
                                 <span className="text-gray-400" title={String(product[col as keyof ProductRow] || '-')}>

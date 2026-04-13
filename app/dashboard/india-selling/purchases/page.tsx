@@ -82,7 +82,7 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 const FUNNEL_STYLES: Record<string, string> = {
   'RS': 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg border border-emerald-600/30',
@@ -94,6 +94,7 @@ const FUNNEL_STYLES: Record<string, string> = {
 export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
+  const [copies, setCopies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { logActivity } = useActivityLogger();
@@ -870,6 +871,36 @@ export default function PurchasesPage() {
     }
   }
 
+  // Fetch copies from india_purchase_copies
+  const fetchCopies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('india_purchase_copies')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setCopies(data || []);
+    } catch (err) {
+      console.error('Error fetching copies:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'copy') {
+      fetchCopies();
+    }
+  }, [activeTab]);
+
+  const handleDeleteCopy = async (copyItem: any) => {
+    try {
+      await supabase.from('india_purchase_copies').delete().eq('id', copyItem.id);
+      setCopies(prev => prev.filter(c => c.id !== copyItem.id));
+      showToast('Copy deleted', 'success');
+    } catch {
+      showToast('Failed to delete copy', 'error');
+    }
+  };
+
   // ✅ Silent refresh - updates data WITHOUT loading screen (OPTIMIZED)
   const refreshProductsSilently = async () => {
     try {
@@ -1186,6 +1217,25 @@ export default function PurchasesPage() {
 
       if (insertError) throw insertError;
 
+      // Save copy for future validation skip
+      try {
+        await supabase.from('india_purchase_copies').upsert({
+          asin: product.asin,
+          product_name: product.product_name,
+          brand: (product as any).brand,
+          seller_tag: product.seller_tag || (product as any).validation_seller_tag,
+          funnel: product.funnel,
+          india_link: product.product_link,
+          amz_link: (product as any).amz_link,
+          remark: (product as any).remark,
+          sku: (product as any).sku,
+          category: (product as any).category,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'asin' });
+      } catch (copyErr) {
+        console.error('Failed to save copy:', copyErr);
+      }
+
       // ─────────────────────────────────────────────
       // 🆕 STEP: CONDITIONAL — Full move or Partial move
       // ─────────────────────────────────────────────
@@ -1413,6 +1463,11 @@ export default function PurchasesPage() {
           .eq('id', product.id);
 
         if (delError) throw delError;
+
+        // Delete copy when sending back to validation
+        try {
+          await supabase.from('india_purchase_copies').delete().eq('asin', product.asin);
+        } catch {}
 
         // 3. Log activity
         logActivity({
@@ -2331,6 +2386,18 @@ export default function PurchasesPage() {
           {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
         </button>
 
+        {/* Copy Tab */}
+        <button
+          onClick={() => setActiveTab('copy')}
+          className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'copy'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
+            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+            }`}
+        >
+          <span className="relative z-10">Copies ({copies.length})</span>
+          {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
+        </button>
+
         {/* 3. India */}
         <button
           onClick={() => setActiveTab('india')}
@@ -2684,7 +2751,57 @@ export default function PurchasesPage() {
         </div>
       </div>
 
-      {/* Table Container */}
+      {/* Copy Tab — separate table */}
+      {activeTab === 'copy' ? (
+        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
+          <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+            <table className="w-full table-auto">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">ASIN</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Product Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Brand</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Seller Tag</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Funnel</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {copies.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-16 text-center text-gray-300">
+                      <span className="text-lg font-semibold text-gray-400">No copies saved yet</span>
+                    </td>
+                  </tr>
+                ) : copies.map(c => (
+                  <tr key={c.id} className="hover:bg-white/[0.05] transition-colors">
+                    <td className="px-6 py-3 text-sm font-mono text-orange-400">{c.asin}</td>
+                    <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{c.product_name || '-'}</td>
+                    <td className="px-6 py-3 text-sm text-gray-300">{c.brand || '-'}</td>
+                    <td className="px-6 py-3 text-sm text-gray-300">{c.seller_tag || '-'}</td>
+                    <td className="px-6 py-3 text-sm">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.funnel === 'RS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {c.funnel || '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-400">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-3 text-center">
+                      <button
+                        onClick={() => handleDeleteCopy(c)}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+      /* Table Container */
       <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
           <table className="w-full table-auto max-w-full">
@@ -2891,6 +3008,7 @@ export default function PurchasesPage() {
         </div>
 
       </div>
+      )}
       {/* ✅ HISTORY SIDEBAR SLIDE-OVER */}
       <AnimatePresence>
         {selectedHistoryAsin && (

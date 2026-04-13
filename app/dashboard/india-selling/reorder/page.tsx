@@ -24,7 +24,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { ensureAbsoluteUrl } from '@/lib/utils'
-import { batchCheckPipeline, checkAsinPipeline, PipelineResult } from '@/lib/utils/pipelineCheck'
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -149,7 +148,6 @@ export default function ReorderPage() {
     type: 'danger' | 'warning';
     onConfirm: () => void;
   } | null>(null);
-  const [blockedAsins, setBlockedAsins] = useState<Map<string, PipelineResult>>(new Map());
 
   // --- 1. Fetch Data ---
   const fetchReorderData = async () => {
@@ -167,13 +165,6 @@ export default function ReorderPage() {
       if (error) throw error
       setProducts(data || [])
       setLoading(false)
-      if (data && data.length > 0) {
-        const asins = data.map((p: any) => p.asin);
-        const pipelineMap = await batchCheckPipeline(asins);
-        setBlockedAsins(pipelineMap);
-      } else {
-        setBlockedAsins(new Map());
-      }
     } catch (err) {
       console.error('Fetch error:', err)
     } finally {
@@ -808,46 +799,65 @@ export default function ReorderPage() {
         try {
           setProcessing(true)
 
-          // Pipeline check
-          const pipelineInfo = blockedAsins.get(product.asin);
-          if (pipelineInfo && pipelineInfo.location) {
-            if (!pipelineInfo.can_merge) {
-              setToast({ message: `ASIN ${product.asin} is in ${pipelineInfo.stage_label} (${pipelineInfo.seller_tags}). Cannot send until current journey completes.`, type: 'error' });
+          // --- Copy check: skip validation if copy exists ---
+          let copyFound = false;
+          try {
+            const { data: copyData } = await supabase
+              .from('india_purchase_copies')
+              .select('id')
+              .eq('asin', product.asin)
+              .maybeSingle();
+
+            if (copyData) {
+              copyFound = true;
+
+              const { data: existingPurchase } = await supabase
+                .from('india_purchases')
+                .select('id, seller_tag, buying_quantities')
+                .eq('asin', product.asin)
+                .is('move_to', null)
+                .eq('admin_confirmed', false)
+                .maybeSingle();
+
+              if (existingPurchase) {
+                const existingTags = existingPurchase.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];
+                if (!existingTags.includes(activeSeller.tag)) {
+                  const newTag = [...existingTags, activeSeller.tag].join(',');
+                  const newBuyingQty = { ...(existingPurchase.buying_quantities || {}), [activeSeller.tag]: 0 };
+                  await supabase.from('india_purchases')
+                    .update({ seller_tag: newTag, buying_quantities: newBuyingQty })
+                    .eq('id', existingPurchase.id);
+                }
+              } else {
+                await supabase.from('india_purchases').insert({
+                  asin: product.asin,
+                  product_name: product.product_name,
+                  brand: (product as any).brand || null,
+                  seller_tag: activeSeller.tag,
+                  funnel: product.funnel,
+                  sku: product.sku,
+                  remark: product.remark,
+                  buying_quantities: { [activeSeller.tag]: 0 },
+                });
+              }
+
+              // Delete from reorder
+              await supabase.from('tracking_ops').delete().eq('id', product.id);
+              setProducts(prev => prev.filter(p => p.id !== product.id));
+              setToast({ message: `ASIN ${product.asin} sent directly to Purchases (validated copy found)!`, type: 'success' });
+              setTimeout(() => setToast(null), 3000);
+              logActivity({
+                action: 'approve_via_copy',
+                marketplace: 'india',
+                page: 'reorder',
+                table_name: 'tracking_ops',
+                asin: product.asin,
+                details: { from: 'reorder', to: 'india_purchases_direct', ops_type: 'reorder' }
+              });
               return;
             }
-            // Mergeable — append seller tag to existing record
-            const liveCheck = await checkAsinPipeline(product.asin);
-            if (liveCheck.location && !liveCheck.can_merge) {
-              setToast({ message: `ASIN ${product.asin} is now in ${liveCheck.stage_label}. Cannot merge.`, type: 'error' });
-              return;
-            }
-            if (liveCheck.location && liveCheck.can_merge) {
-              const existingTags = liveCheck.seller_tags.split(',').map(t => t.trim().toUpperCase());
-              if (existingTags.includes(activeSeller.tag)) {
-                setToast({ message: `ASIN ${product.asin} already has ${activeSeller.tag} in ${liveCheck.stage_label}`, type: 'error' });
-                return;
-              }
-              const newTag = liveCheck.seller_tags ? `${liveCheck.seller_tags},${activeSeller.tag}` : activeSeller.tag;
-              const tableMap: Record<string, string> = {
-                validation: 'india_validation_main_file',
-                purchases: 'india_purchases',
-                admin_validation: 'india_admin_validation',
-              };
-              const targetTable = tableMap[liveCheck.location];
-              if (targetTable) {
-                const { error: mergeError } = await supabase
-                  .from(targetTable)
-                  .update({ seller_tag: newTag })
-                  .eq('asin', product.asin);
-                if (mergeError) throw mergeError;
-                // Delete from reorder
-                await supabase.from('tracking_ops').delete().eq('id', product.id);
-                setProducts(prev => prev.filter(p => p.id !== product.id));
-                setToast({ message: `Added ${activeSeller.tag} to ${product.asin} in ${liveCheck.stage_label}`, type: 'success' });
-                setTimeout(() => setToast(null), 3000);
-                return;
-              }
-            }
+          } catch (copyErr) {
+            console.error('Copy check failed, falling back to normal flow:', copyErr);
           }
 
           // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
@@ -1211,19 +1221,10 @@ export default function ReorderPage() {
                 ) : (
                   filteredProducts.map(product => {
                     const deficit = product.admin_target_qty - product.current_qty
-                    const pipelineInfo = blockedAsins.get(product.asin);
-                    const isBlocked = pipelineInfo && !pipelineInfo.can_merge;
-                    const isInPipeline = !!pipelineInfo?.location;
                     return (
-                      <tr key={product.id} className={`transition-colors group ${isBlocked ? 'bg-orange-900/20 hover:bg-orange-900/30' : isInPipeline ? 'bg-amber-900/10 hover:bg-amber-900/20' : 'hover:bg-white/[0.05]'}`}>
+                      <tr key={product.id} className="transition-colors group hover:bg-white/[0.05]">
                         <td className="px-6 py-4 text-sm font-mono text-gray-300 font-medium border-r border-white/[0.1]">
                           {product.asin}
-                          {isBlocked && (
-                            <div className="text-[10px] text-orange-400">🟠 In {pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
-                          )}
-                          {isInPipeline && !isBlocked && (
-                            <div className="text-[10px] text-amber-400">🟡 In {pipelineInfo!.stage_label} ({pipelineInfo!.seller_tags})</div>
-                          )}
                         </td>
                         <td className="px-6 py-4 text-sm font-mono text-gray-300 border-r border-white/[0.1]">{product.sku || '-'}</td>
                         <td className="px-6 py-4 border-r border-white/[0.1]">
