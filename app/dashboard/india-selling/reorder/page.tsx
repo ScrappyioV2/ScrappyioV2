@@ -59,6 +59,7 @@ type ReorderProduct = {
   origin_india?: boolean | null;
   origin_china?: boolean | null;
   origin_us?: boolean | null;
+  sns_active?: boolean | null;
 };
 
 type HistorySnapshot = {
@@ -1229,7 +1230,7 @@ export default function ReorderPage() {
                         </td>
                         <td className="px-6 py-4 text-sm font-mono text-gray-300 border-r border-white/[0.1]">{product.sku || '-'}</td>
                         <td className="px-6 py-4 border-r border-white/[0.1]">
-                          <span className="text-sm text-gray-100 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}</span>
+                          <span className="text-sm text-gray-100 font-medium block truncate max-w-xs" title={product.product_name || ''}>{product.product_name || '-'}{product.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium inline-block">S&S</span>}</span>
                           {product.seller_link && <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="text-xs text-orange-500 hover:text-orange-400 mt-1 inline-block">View Link</a>}
                         </td>
 

@@ -64,6 +64,7 @@ interface ListingProduct {
   journey_number?: number | null;
   remark: string | null;
   seller_tag?: string | null; // 🆕
+  sns_active?: boolean | null;
 }
 
 type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
@@ -580,7 +581,7 @@ export default function UBeautyListingPage() {
                         >
                           <td className="px-6 py-4 text-sm font-medium text-gray-300 font-mono tracking-tight border-r border-white/[0.1] last:border-r-0">{product.asin}</td>
                           <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
-                            <div className="text-sm text-gray-100 truncate max-w-sm" title={product.product_name || ''}>{product.product_name}</div>
+                            <div className="text-sm text-gray-100 truncate max-w-sm" title={product.product_name || ''}>{product.product_name}{product.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium inline-block">S&S</span>}</div>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-300 font-mono border-r border-white/[0.1] last:border-r-0">{product.sku}</td>
                           <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">

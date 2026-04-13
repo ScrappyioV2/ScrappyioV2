@@ -1105,30 +1105,6 @@ export default function AdminValidationPage() {
           }
         }
 
-        // Bug 10b: Merge any remaining-tags row into the confirmed row
-        if (confirmedRowId) {
-          const { data: otherRows } = await supabase
-            .from('india_purchases')
-            .select('id, seller_tag, buying_quantities')
-            .eq('asin', product.asin)
-            .neq('id', confirmedRowId);
-
-          if (otherRows && otherRows.length > 0) {
-            for (const other of otherRows) {
-              const confirmedTags = (product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-              const otherTags = (other.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-              const mergedTags = [...new Set([...confirmedTags, ...otherTags])].join(', ');
-              const mergedQties = { ...(other.buying_quantities || {}), ...((product as any).buying_quantities || {}) };
-
-              await supabase.from('india_purchases')
-                .update({ seller_tag: mergedTags, buying_quantities: mergedQties })
-                .eq('id', confirmedRowId);
-
-              await supabase.from('india_purchases').delete().eq('id', other.id);
-            }
-          }
-        }
-
         // ✅ STEP 2: UPDATE status in india_admin_validation (KEEP the product, don't delete)
         const { error: updateAdminError } = await supabase
           .from('india_admin_validation')
@@ -1501,30 +1477,6 @@ export default function AdminValidationPage() {
             throw new Error(`Failed to create purchases row: ${insertError.message}`);
           }
           confirmedRowId = insertedRows?.[0]?.id ?? null;
-        }
-      }
-
-      // Bug 10b: Merge any remaining-tags row into the confirmed row
-      if (confirmedRowId) {
-        const { data: otherRows } = await supabase
-          .from('india_purchases')
-          .select('id, seller_tag, buying_quantities')
-          .eq('asin', cleanAsin)
-          .neq('id', confirmedRowId);
-
-        if (otherRows && otherRows.length > 0) {
-          for (const other of otherRows) {
-            const confirmedTags = (product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-            const otherTags = (other.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-            const mergedTags = [...new Set([...confirmedTags, ...otherTags])].join(', ');
-            const mergedQties = { ...(other.buying_quantities || {}), ...((product as any).buying_quantities || {}) };
-
-            await supabase.from('india_purchases')
-              .update({ seller_tag: mergedTags, buying_quantities: mergedQties })
-              .eq('id', confirmedRowId);
-
-            await supabase.from('india_purchases').delete().eq('id', other.id);
-          }
         }
       }
 

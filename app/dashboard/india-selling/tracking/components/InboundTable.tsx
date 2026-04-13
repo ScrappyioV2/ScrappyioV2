@@ -46,6 +46,7 @@ type InboundProduct = {
     product_weight: number | null;
     created_at: string | null;
     address: string | null;
+    sns_active?: boolean | null;
 };
 
 type BoxSummary = {
@@ -241,7 +242,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     status,
                     product_weight,
                     created_at,
-                    address
+                    address,
+                    sns_active
                 `)
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -310,7 +312,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     status,
                     product_weight,
                     created_at,
-                    address
+                    address,
+                    sns_active
                 `)
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -699,6 +702,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
         order_date: string | null;
         created_at: string | null;
         address: string | null;
+        sns_active?: boolean | null;
         // seller tags with their quantities
         sellerEntries: { tag: string; qty: number; pendingQty: number; id: string }[];
         totalQty: number;
@@ -727,6 +731,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     order_date: p.order_date,
                     created_at: p.created_at,
                     address: p.address,
+                    sns_active: p.sns_active,
                     sellerEntries: [],
                     totalQty: 0,
                     totalPending: 0,
@@ -1067,7 +1072,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                             case 'sku':
                                                                 return <td key={key} className={`${base} text-gray-300`} style={style}><div className="truncate max-w-[100px]">{merged.sku || '-'}</div></td>;
                                                             case 'product_name':
-                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="truncate max-w-[180px]" title={merged.product_name || ''}>{merged.product_name || '-'}</div></td>;
+                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="flex items-center"><span className="truncate max-w-[180px]" title={merged.product_name || ''}>{merged.product_name || '-'}</span>{merged.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>;
                                                             case 'product_link':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>

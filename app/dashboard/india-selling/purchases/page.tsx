@@ -1036,8 +1036,9 @@ export default function PurchasesPage() {
             .eq('id', item.id);
         }
         fetchProducts();
-        fetchSns();
       }
+      fetchSns(); // Always fetch S&S count on mount
+      fetchCopies(); // Always fetch copies count on mount
     };
     checkSnsDue();
   }, []);
@@ -1368,13 +1369,15 @@ export default function PurchasesPage() {
       }
       const movedTotalQty = Object.values(movedQties).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
-      const { data: existingAdmin } = await supabase
+      let existingAdminQuery = supabase
         .from('india_admin_validation')
         .select('id')
         .eq('asin', product.asin)
-        .eq('journey_id', product.journey_id || '')
-        .eq('admin_status', 'pending')
-        .maybeSingle();
+        .eq('admin_status', 'pending');
+      if (product.journey_id) {
+        existingAdminQuery = existingAdminQuery.eq('journey_id', product.journey_id);
+      }
+      const { data: existingAdmin } = await existingAdminQuery.maybeSingle();
 
       if (existingAdmin) {
         showToast('This item is already in Admin Validation', 'info');
@@ -1481,22 +1484,68 @@ export default function PurchasesPage() {
           p.id === product.id ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() } : p
         ));
       } else {
-        // 🆕 PARTIAL MOVE — keep zero-qty tags in purchases
+        // 🆕 PARTIAL MOVE — split into two rows:
+        // Original row: keeps MOVED tags + sent_to_admin=true (so admin confirm finds it)
+        // New row: KEPT tags with zero qty, stays in Main File
+
+        const movedQtiesForUpdate: Record<string, number> = {};
+        for (const tag of tagsToMove) {
+          movedQtiesForUpdate[tag] = buyingQuantities[tag] || 0;
+        }
+        const movedTotal = Object.values(movedQtiesForUpdate).reduce((s, v) => s + (Number(v) || 0), 0);
+
+        // Step 1: Update original row → MOVED tags only + mark sent_to_admin
+        const { error: updateError } = await supabase
+          .from('india_purchases')
+          .update({
+            seller_tag: tagsToMove.join(', '),
+            buying_quantities: movedQtiesForUpdate,
+            buying_quantity: movedTotal,
+            sent_to_admin: true,
+            sent_to_admin_at: new Date().toISOString(),
+          })
+          .eq('id', product.id);
+        if (updateError) throw updateError;
+
+        // Step 2: Create NEW row for kept tags (stays in Main File)
         const remainingQties: Record<string, number> = {};
         for (const tag of tagsToKeep) {
           remainingQties[tag] = buyingQuantities[tag] || 0;
         }
 
-        const { error: updateError } = await supabase
+        const { data: freshForKept } = await supabase
           .from('india_purchases')
-          .update({
+          .select('*')
+          .eq('id', product.id)
+          .single();
+
+        if (freshForKept) {
+          const { id: _id, created_at: _ca, ...restFields } = freshForKept;
+          await supabase.from('india_purchases').insert({
+            ...restFields,
             seller_tag: tagsToKeep.join(', '),
             buying_quantities: remainingQties,
             buying_quantity: 0,
-          })
-          .eq('id', product.id);
-        if (updateError) throw updateError;
+            sent_to_admin: false,
+            sent_to_admin_at: null,
+            admin_confirmed: false,
+            admin_confirmed_at: null,
+          });
+        }
 
+        // Optimistic UI: hide sent row, show kept-tags row
+        setProducts(prev => {
+          const without = prev.filter(p => p.id !== product.id);
+          return [...without, {
+            ...product,
+            id: 'temp-' + Date.now(),
+            seller_tag: tagsToKeep.join(', '),
+            buying_quantities: remainingQties,
+            buying_quantity: 0,
+            sent_to_admin: false,
+            admin_confirmed: false,
+          }];
+        });
 
         showToast(
           `Sent ${tagsToMove.join(', ')} to Admin. ${tagsToKeep.join(', ')} kept in purchases (qty=0).`,
@@ -2936,7 +2985,7 @@ export default function PurchasesPage() {
           {activeTab === 'order_confirmed' && (
             <button
               onClick={() => {
-                const selectedProducts = products.filter(p => selectedIds.has(p.id));
+                const selectedProducts = filteredProducts.filter(p => selectedIds.has(p.id));
                 if (selectedProducts.length === 0) {
                   showToast('Select a product to split', 'info');
                   return;
