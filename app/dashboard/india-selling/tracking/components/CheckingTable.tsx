@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { SELLER_TAG_MAPPING, SellerTag } from '@/lib/utils';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+
 
 type InvoiceItem = {
   id: string;
@@ -838,37 +838,8 @@ export default function CheckingTable({
   }, [openChecklistId]);
 
 
-  type MergedCheckingRow = {
-    asin: string;
-    representative: InvoiceItem;
-    sellers: { tag: string; qty: number; id: string }[];
-    allIds: string[];
-    totalQty: number;
-  };
-
-  const mergedItems: MergedCheckingRow[] = useMemo(() => {
-    const grouped: Record<string, MergedCheckingRow> = {};
-    filteredItems.forEach(item => {
-      const key = item.asin;
-      if (!grouped[key]) {
-        grouped[key] = {
-          asin: item.asin,
-          representative: item,
-          sellers: [],
-          allIds: [],
-          totalQty: 0,
-        };
-      }
-      const qty = item.actual_quantity ?? item.buying_quantity ?? 0;
-      grouped[key].sellers.push({
-        tag: (item as any).seller_tag || '??',
-        qty,
-        id: item.id,
-      });
-      grouped[key].allIds.push(item.id);
-      grouped[key].totalQty += qty;
-    });
-    return Object.values(grouped);
+  const displayItems = useMemo(() => {
+    return filteredItems;
   }, [filteredItems]);
 
   if (loading) {
@@ -1269,14 +1240,10 @@ export default function CheckingTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
-                {mergedItems.map((merged, index) => {
-                  const item = merged.representative;
-                  const anyChecklist = merged.allIds.some(id => {
-                    const row = items.find(i => i.id === id);
-                    return row ? hasAnyChecklist(row) : false;
-                  });
+                {displayItems.map((item, index) => {
+                  const anyChecklist = hasAnyChecklist(item);
                   return (
-                    <tr key={merged.asin + '-' + index} className="bg-[#1a1a1a] hover:bg-[#111111]/60">
+                    <tr key={item.id} className="bg-[#1a1a1a] hover:bg-[#111111]/60">
                       {/* SR NO */}
                       {visibleColumns.sr && (
                         <td
@@ -1319,28 +1286,26 @@ export default function CheckingTable({
                         ) : '-'}
                       </td>
 
-                      {/* Seller Tag (merged) */}
+                      {/* Seller Tag */}
                       <td
                         style={{ width: 220 }}
                         className="px-3 py-2 text-center border-r border-white/[0.1]"
                       >
                         <div className="flex flex-wrap gap-1.5 justify-center items-center">
-                          {merged.sellers.map(s => (
-                            <div key={s.id} className="flex items-center gap-1">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
-                                {s.tag}
-                              </span>
-                              <input
-                                type="number"
-                                className="w-14 bg-[#111111] border border-white/[0.1] rounded px-1 py-0.5 text-xs text-white text-center"
-                                value={s.qty}
-                                onChange={(e) => {
-                                  const newVal = e.target.value === '' ? null : parseInt(e.target.value);
-                                  handleEditField(s.id, 'actual_quantity', newVal);
-                                }}
-                              />
-                            </div>
-                          ))}
+                          <div className="flex items-center gap-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[item.seller_tag || ''] || 'bg-[#1a1a1a] text-white'}`}>
+                              {item.seller_tag || '??'}
+                            </span>
+                            <input
+                              type="number"
+                              className="w-14 bg-[#111111] border border-white/[0.1] rounded px-1 py-0.5 text-xs text-white text-center"
+                              value={item.actual_quantity ?? item.buying_quantity ?? 0}
+                              onChange={(e) => {
+                                const newVal = e.target.value === '' ? null : parseInt(e.target.value);
+                                handleEditField(item.id, 'actual_quantity', newVal);
+                              }}
+                            />
+                          </div>
                         </div>
                       </td>
 
@@ -1357,24 +1322,24 @@ export default function CheckingTable({
                             value={item.product_weight ?? ''}
                             onChange={(e) => {
                               const val = e.target.value ? Number(e.target.value) : null;
-                              merged.allIds.forEach(id => handleEditField(id, 'product_weight', val));
+                              handleEditField(item.id, 'product_weight', val);
                             }}
                             className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
                           />
                         </td>
                       )}
 
-                      {/* Qty (read-only total) */}
+                      {/* Qty */}
                       {visibleColumns.qty && (
                         <td
                           style={{ width: columnWidths.qty }}
                           className="px-3 py-2 text-center border-r border-white/[0.1] text-sm text-gray-100 font-bold"
                         >
-                          {merged.totalQty}
+                          {item.actual_quantity ?? item.buying_quantity ?? 0}
                         </td>
                       )}
 
-                      {/* Checklist — applies to ALL underlying rows */}
+                      {/* Checklist */}
                       {checkingTab === 'checking' && (
                       <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <div className="inline-flex flex-wrap items-center justify-center gap-2">
@@ -1383,7 +1348,7 @@ export default function CheckingTable({
                               type="checkbox"
                               checked={!!item.check_mrp_label}
                               onChange={(e) =>
-                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_mrp_label', e.target.checked))
+                                handleChecklistChange(item.id, 'check_mrp_label', e.target.checked)
                               }
                               className="h-3 w-3 rounded border-emerald-400 bg-[#111111] text-emerald-400 focus:ring-emerald-400"
                             />
@@ -1395,7 +1360,7 @@ export default function CheckingTable({
                               type="checkbox"
                               checked={!!item.check_gelatin}
                               onChange={(e) =>
-                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_gelatin', e.target.checked))
+                                handleChecklistChange(item.id, 'check_gelatin', e.target.checked)
                               }
                               className="h-3 w-3 rounded border-amber-400 bg-[#111111] text-amber-400 focus:ring-amber-400"
                             />
@@ -1407,7 +1372,7 @@ export default function CheckingTable({
                               type="checkbox"
                               checked={!!item.check_amazon_badge}
                               onChange={(e) =>
-                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_amazon_badge', e.target.checked))
+                                handleChecklistChange(item.id, 'check_amazon_badge', e.target.checked)
                               }
                               className="h-3 w-3 rounded border-sky-400 bg-[#111111] text-sky-400 focus:ring-sky-400"
                             />
@@ -1419,7 +1384,7 @@ export default function CheckingTable({
                               type="checkbox"
                               checked={!!item.check_cleaning}
                               onChange={(e) =>
-                                merged.allIds.forEach(id => handleChecklistChange(id, 'check_cleaning', e.target.checked))
+                                handleChecklistChange(item.id, 'check_cleaning', e.target.checked)
                               }
                               className="h-3 w-3 rounded border-rose-400 bg-[#111111] text-rose-400 focus:ring-rose-400"
                             />
@@ -1429,7 +1394,7 @@ export default function CheckingTable({
                       </td>
                       )}
 
-                      {/* Damaged quantity — applies to ALL underlying rows */}
+                      {/* Damaged quantity */}
                       {checkingTab === 'checking' && (
                       <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                         <input
@@ -1438,7 +1403,7 @@ export default function CheckingTable({
                           value={item.damaged_quantity ?? ''}
                           onChange={e => {
                             const val = e.target.value ? Number(e.target.value) : null;
-                            merged.allIds.forEach(id => handleDamagedQtyChange(id, val));
+                            handleDamagedQtyChange(item.id, val);
                           }}
                           className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
                         />
@@ -1454,7 +1419,7 @@ export default function CheckingTable({
                           value={item.offline_sell_qty ?? ''}
                           onChange={e => {
                             const val = e.target.value ? Number(e.target.value) : null;
-                            merged.allIds.forEach(id => handleOfflineSellQtyChange(id, val));
+                            handleOfflineSellQtyChange(item.id, val);
                           }}
                           className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
@@ -1474,7 +1439,7 @@ export default function CheckingTable({
                         <input
                           type="text"
                           value={(item as any).party || ''}
-                          onChange={(e) => handlePartyChange(merged.allIds[0], e.target.value)}
+                          onChange={(e) => handlePartyChange(item.id, e.target.value)}
                           placeholder="Enter party..."
                           className="w-32 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-gray-500"
                         />
@@ -1489,7 +1454,7 @@ export default function CheckingTable({
                       {checkingTab !== 'checking' && (
                       <td className="px-6 py-4 text-center">
                         <button
-                          onClick={() => handleSendToRechecking(merged.allIds)}
+                          onClick={() => handleSendToRechecking([item.id])}
                           className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-400 transition-colors"
                         >
                           ↩ Recheck
@@ -1497,14 +1462,14 @@ export default function CheckingTable({
                       </td>
                       )}
 
-                      {/* Action — sends ALL underlying seller rows to restock */}
+                      {/* Action */}
                       {visibleColumns.action && checkingTab === 'checking' && (
                         <td
                           style={{ width: columnWidths.action }}
                           className="px-3 py-2 text-center"
                         >
                           <button
-                            onClick={() => handleMoveToRestock(merged.allIds)}
+                            onClick={() => handleMoveToRestock([item.id])}
                             disabled={!anyChecklist}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${anyChecklist
                               ? 'bg-emerald-600 text-white hover:bg-emerald-500'
@@ -1525,7 +1490,7 @@ export default function CheckingTable({
           {/* Footer Count - STICKY AT BOTTOM */}
           <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
             <div className="text-xs sm:text-sm text-gray-300">
-              Showing {mergedItems.length} items
+              Showing {displayItems.length} items
             </div>
           </div>
         </div>

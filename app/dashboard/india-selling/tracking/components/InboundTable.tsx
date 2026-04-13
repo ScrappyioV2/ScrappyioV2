@@ -683,72 +683,10 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     });
 
     // ============================================
-    // GROUP BY ASIN (frontend merge)
+    // FILTER TO ROWS WITH PENDING QTY
     // ============================================
-    type MergedRow = {
-        asin: string;
-        rows: InboundProduct[];          // all underlying DB rows
-        product_name: string | null;
-        sku: string | null;
-        product_link: string | null;
-        seller_link: string | null;
-        funnel: string | null;
-        origin_india: boolean;
-        origin_china: boolean;
-        origin_us: boolean;
-        buying_price: number | null;
-        tracking_details: string | null;
-        delivery_date: string | null;
-        order_date: string | null;
-        created_at: string | null;
-        address: string | null;
-        sns_active?: boolean | null;
-        // seller tags with their quantities
-        sellerEntries: { tag: string; qty: number; pendingQty: number; id: string }[];
-        totalQty: number;
-        totalPending: number;
-    };
-
-    const mergedProducts: MergedRow[] = useMemo(() => {
-        const map = new Map<string, MergedRow>();
-        filteredProducts.forEach(p => {
-            const key = p.asin;
-            if (!map.has(key)) {
-                map.set(key, {
-                    asin: p.asin,
-                    rows: [],
-                    product_name: p.product_name,
-                    sku: p.sku,
-                    product_link: p.product_link,
-                    seller_link: p.seller_link,
-                    funnel: p.funnel,
-                    origin_india: p.origin_india,
-                    origin_china: p.origin_china,
-                    origin_us: p.origin_us,
-                    buying_price: p.buying_price,
-                    tracking_details: p.tracking_details,
-                    delivery_date: p.delivery_date,
-                    order_date: p.order_date,
-                    created_at: p.created_at,
-                    address: p.address,
-                    sns_active: p.sns_active,
-                    sellerEntries: [],
-                    totalQty: 0,
-                    totalPending: 0,
-                });
-            }
-            const group = map.get(key)!;
-            group.rows.push(p);
-            const tag = (p.seller_tag || 'GR').trim().toUpperCase();
-            const qty = p.buying_quantity ?? 0;
-            const pending = p.pending_quantity ?? qty;
-            group.sellerEntries.push({ tag, qty, pendingQty: pending, id: p.id });
-            group.totalQty += qty;
-            group.totalPending += pending;
-        });
-        return Array.from(map.values()).filter(row => {
-            return row.sellerEntries.some(s => s.pendingQty > 0);
-        });
+    const displayProducts = useMemo(() => {
+        return filteredProducts.filter(p => (p.pending_quantity ?? p.buying_quantity ?? 0) > 0);
     }, [filteredProducts]);
 
     // ============================================
@@ -1041,7 +979,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/[0.06]">
-                                {mergedProducts.length === 0 ? (
+                                {displayProducts.length === 0 ? (
                                     <tr>
                                         <td colSpan={DEFAULT_COLUMNS.length} className="px-4 py-12 text-center text-gray-300">
                                             {products.length === 0
@@ -1050,12 +988,12 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                         </td>
                                     </tr>
                                 ) : (
-                                    mergedProducts.map((merged, filteredIndex) => {
-                                        const primaryRow = merged.rows[0];
+                                    displayProducts.map((product, filteredIndex) => {
                                         const tagColors = SELLER_STYLES;
-                                        const overdue = isRowOverdue(merged.delivery_date);
+                                        const overdue = isRowOverdue(product.delivery_date);
+                                        const sellerTag = (product.seller_tag || 'GR').trim().toUpperCase();
                                         return (
-                                            <Fragment key={merged.asin}>
+                                            <Fragment key={product.id}>
                                                 <tr className={`group transition-colors ${overdue ? 'bg-red-950/60 hover:bg-red-900/50 border-l-2 border-l-red-500' : 'hover:bg-white/[0.05]'}`}>
                                                     {columnOrder.map(key => {
                                                         const col = DEFAULT_COLUMNS.find(c => c.key === key);
@@ -1068,112 +1006,59 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                             case 'sr':
                                                                 return <td key={key} className={`${base} text-center text-gray-300`} style={style}>{filteredIndex + 1}</td>;
                                                             case 'asin':
-                                                                return <td key={key} className={`${base} font-mono text-gray-100`} style={style}><div className="truncate max-w-[120px]" title={merged.asin}>{merged.asin}</div></td>;
+                                                                return <td key={key} className={`${base} font-mono text-gray-100`} style={style}><div className="truncate max-w-[120px]" title={product.asin}>{product.asin}</div></td>;
                                                             case 'sku':
-                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="truncate max-w-[100px]">{merged.sku || '-'}</div></td>;
+                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="truncate max-w-[100px]">{product.sku || '-'}</div></td>;
                                                             case 'product_name':
-                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="flex items-center"><span className="truncate max-w-[180px]" title={merged.product_name || ''}>{merged.product_name || '-'}</span>{merged.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>;
+                                                                return <td key={key} className={`${base} text-gray-300`} style={style}><div className="flex items-center"><span className="truncate max-w-[180px]" title={product.product_name || ''}>{product.product_name || '-'}</span>{product.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>;
                                                             case 'product_link':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
-                                                                        {merged.product_link ? <a href={merged.product_link} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 no-underline">🔗 Link</a> : <span className="text-gray-500">-</span>}
+                                                                        {product.product_link ? <a href={product.product_link} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 no-underline">🔗 Link</a> : <span className="text-gray-500">-</span>}
                                                                     </td>
                                                                 );
                                                             case 'seller_link':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
-                                                                        {merged.seller_link ? <a href={merged.seller_link.startsWith('http') ? merged.seller_link : `https://${merged.seller_link}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 no-underline text-xs">🔗 Seller</a> : <span className="text-gray-500">-</span>}
+                                                                        {product.seller_link ? <a href={product.seller_link.startsWith('http') ? product.seller_link : `https://${product.seller_link}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 no-underline text-xs">🔗 Seller</a> : <span className="text-gray-500">-</span>}
                                                                     </td>
                                                                 );
                                                             case 'funnel':
-                                                                return <td key={key} className={`${base} text-center`} style={style}><FunnelBadge funnel={merged.funnel} /></td>;
+                                                                return <td key={key} className={`${base} text-center`} style={style}><FunnelBadge funnel={product.funnel} /></td>;
                                                             case 'seller_tag':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
-                                                                        <div className="grid grid-cols-2 gap-x-1.5 gap-y-1 w-fit mx-auto">
-                                                                            {merged.sellerEntries.map(entry => (
-                                                                                <div key={entry.id} className="flex items-center gap-0.5">
-                                                                                    <span className={`w-6 h-5 flex items-center justify-center rounded text-[8px] font-bold flex-shrink-0 ${tagColors[entry.tag] ?? 'bg-[#1a1a1a] text-white'}`}>
-                                                                                        {entry.tag}
-                                                                                    </span>
-                                                                                    <input
-                                                                                        type="number"
-                                                                                        min={0}
-                                                                                        value={entry.qty}
-                                                                                        onChange={(e) => {
-                                                                                            const newQty = e.target.value === '' ? 0 : Number(e.target.value);
-                                                                                            setProducts(prev => prev.map(p =>
-                                                                                                p.id === entry.id ? { ...p, buying_quantity: newQty, pending_quantity: Math.max(0, newQty - ((p.buying_quantity ?? 0) - (p.pending_quantity ?? p.buying_quantity ?? 0))) } : p
-                                                                                            ));
-                                                                                        }}
-                                                                                        onBlur={async (e) => {
-                                                                                            const newQty = e.target.value === '' ? 0 : Number(e.target.value);
-                                                                                            const row = products.find(p => p.id === entry.id);
-                                                                                            const oldBuyingQty = row?.buying_quantity ?? 0;
-                                                                                            const oldPendingQty = row?.pending_quantity ?? oldBuyingQty;
-                                                                                            const completedQty = oldBuyingQty - oldPendingQty;
-                                                                                            const newPendingQty = Math.max(0, newQty - completedQty);
-                                                                                            try {
-                                                                                                await supabase
-                                                                                                    .from('india_inbound_tracking')
-                                                                                                    .update({ buying_quantity: newQty, pending_quantity: newPendingQty })
-                                                                                                    .eq('id', entry.id);
-                                                                                                setProducts(prev => prev.map(p =>
-                                                                                                    p.id === entry.id ? { ...p, buying_quantity: newQty, pending_quantity: newPendingQty } : p
-                                                                                                ));
-                                                                                            } catch (err) { console.error('Failed to update qty:', err); }
-                                                                                        }}
-                                                                                        className="w-10 px-1 py-0.5 bg-[#111111] border border-white/[0.1] rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-orange-500 text-center"
-                                                                                    />
-                                                                                </div>
-                                                                            )
-                                                                            )}
+                                                                        <div className="flex items-center justify-center gap-1">
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${tagColors[sellerTag] ?? 'bg-[#1a1a1a] text-white'}`}>
+                                                                                {sellerTag}
+                                                                            </span>
                                                                         </div>
                                                                     </td>
                                                                 );
                                                             case 'origin':
-                                                                return <td key={key} className={base} style={style}><OriginBadge product={primaryRow} /></td>;
+                                                                return <td key={key} className={base} style={style}><OriginBadge product={product} /></td>;
                                                             case 'buying_price':
-                                                                return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}>{EditableCell(primaryRow.id, "buying_price", merged.buying_price?.toString() ?? null)}</td>;
+                                                                return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}>{EditableCell(product.id, "buying_price", product.buying_price?.toString() ?? null)}</td>;
                                                             case 'buying_qty':
-                                                                return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}><span className="text-gray-100 font-semibold">{merged.totalQty}</span></td>;
-                                                            case 'qty_pending': {
-                                                                const liveRows = products.filter(p => p.asin === merged.asin);
-                                                                const liveTotal = liveRows.reduce((sum, p) => sum + (p.buying_quantity ?? 0), 0);
-                                                                const livePending = liveRows.reduce((sum, p) => sum + (p.pending_quantity ?? p.buying_quantity ?? 0), 0);
+                                                                return <td key={key} className={`${base} text-center bg-green-900/10`} style={style}><span className="text-gray-100 font-semibold">{product.buying_quantity ?? 0}</span></td>;
+                                                            case 'qty_pending':
                                                                 return (
-                                                                    <td key={key} className={`${base} text-center bg-green-900/10`} style={{ ...style, minWidth: '160px' }}>
-                                                                        <div className="flex flex-col items-center gap-1.5">
-                                                                            <span className="text-sm font-semibold text-gray-100">{`${liveTotal} (${livePending})`}</span>
-                                                                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 w-fit">
-                                                                                {merged.sellerEntries.map(entry => {
-                                                                                    const liveSeller = liveRows.find(p => p.id === entry.id);
-                                                                                    const sellerPending = liveSeller ? (liveSeller.pending_quantity ?? liveSeller.buying_quantity ?? 0) : entry.pendingQty;
-                                                                                    return (
-                                                                                        <div key={entry.id} className="flex items-center gap-1 whitespace-nowrap">
-                                                                                            <span className={`w-6 h-4 flex items-center justify-center rounded text-[8px] font-bold flex-shrink-0 ${tagColors[entry.tag] ?? 'bg-[#1a1a1a] text-white'}`}>{entry.tag}</span>
-                                                                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sellerPending === 0 ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                                                                                            <span className="text-[11px] text-gray-500">{sellerPending}</span>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        </div>
+                                                                    <td key={key} className={`${base} text-center bg-green-900/10`} style={style}>
+                                                                        <span className="text-sm font-semibold text-gray-100">{product.pending_quantity ?? product.buying_quantity ?? 0}</span>
                                                                     </td>
                                                                 );
-                                                            }
                                                             case 'tracking':
-                                                                return <td key={key} className={base} style={style}>{EditableCell(primaryRow.id, "tracking_details", merged.tracking_details ?? null)}</td>;
+                                                                return <td key={key} className={base} style={style}>{EditableCell(product.id, "tracking_details", product.tracking_details ?? null)}</td>;
                                                             case 'delivery_date':
-                                                                return <td key={key} className={base} style={style}>{EditableCell(primaryRow.id, "delivery_date", merged.delivery_date ?? null)}</td>;
+                                                                return <td key={key} className={base} style={style}>{EditableCell(product.id, "delivery_date", product.delivery_date ?? null)}</td>;
                                                             case 'order_date':
-                                                                return <td key={key} className={base} style={style}>{merged.order_date || '-'}</td>;
+                                                                return <td key={key} className={base} style={style}>{product.order_date || '-'}</td>;
                                                             case 'address':
                                                                 return (
                                                                     <td key={key} className={`${base} text-center`} style={style}>
-                                                                        {merged.address ? (
-                                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${merged.address === 'A' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-                                                                                {merged.address}
+                                                                        {product.address ? (
+                                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${product.address === 'A' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                                                                                {product.address}
                                                                             </span>
                                                                         ) : <span className="text-gray-500">-</span>}
                                                                     </td>
@@ -1183,14 +1068,14 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                                     <td key={key} className={base} style={style}>
                                                                         <div className="flex items-center justify-center gap-3">
                                                                             {(['pending', 'in_transit', 'delivered'] as const).map((s) => {
-                                                                                const isActive = primaryRow.status === s;
+                                                                                const isActive = product.status === s;
                                                                                 const config = {
                                                                                     pending: { label: 'P', color: 'border-amber-500 bg-amber-500/20 text-amber-400', active: 'bg-amber-500 text-white border-amber-500' },
                                                                                     in_transit: { label: 'T', color: 'border-blue-500 bg-blue-500/20 text-blue-400', active: 'bg-blue-500 text-white border-blue-500' },
                                                                                     delivered: { label: 'D', color: 'border-emerald-500 bg-emerald-500/20 text-emerald-400', active: 'bg-emerald-500 text-white border-emerald-500' },
                                                                                 }[s];
                                                                                 return (
-                                                                                    <button key={s} onClick={() => handleStatusChange(primaryRow.id, s)} title={s.replace('_', ' ').toUpperCase()}
+                                                                                    <button key={s} onClick={() => handleStatusChange(product.id, s)} title={s.replace('_', ' ').toUpperCase()}
                                                                                         className={`w-8 h-8 rounded-lg border-2 text-xs font-bold transition-all ${isActive ? config.active + ' shadow-lg scale-110' : config.color + ' opacity-60 hover:opacity-100'}`}>
                                                                                         {config.label}
                                                                                     </button>
@@ -1205,16 +1090,16 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                     })}
                                                 </tr>
                                                 {/* Box history expansion row */}
-                                                {openHistory.has(primaryRow.id) && (
+                                                {openHistory.has(product.id) && (
                                                     <tr className="bg-[#1a1a1a]">
                                                         <td colSpan={DEFAULT_COLUMNS.length} className="px-6 py-4">
-                                                            {historyLoading[primaryRow.id] ? (
+                                                            {historyLoading[product.id] ? (
                                                                 <span className="text-gray-500 text-xs">Loading history...</span>
-                                                            ) : (historyByInbound[primaryRow.id] || []).length === 0 ? (
+                                                            ) : (historyByInbound[product.id] || []).length === 0 ? (
                                                                 <span className="text-gray-500 text-xs">No box assignments yet.</span>
                                                             ) : (
                                                                 <div className="space-y-1">
-                                                                    {(historyByInbound[primaryRow.id] || []).map((h: any, i: number) => (
+                                                                    {(historyByInbound[product.id] || []).map((h: any, i: number) => (
                                                                         <div key={i} className="text-xs text-gray-400">
                                                                             📦 Box <span className="font-bold text-gray-100">{h.box_number}</span> — Qty: {h.quantity_assigned} — {new Date(h.created_at).toLocaleDateString()}
                                                                         </div>
@@ -1236,7 +1121,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     <div className="flex-none borde-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-gray-300">
                             <span>
-                                Showing {mergedProducts.length} unique ASINs ({products.length} total rows)
+                                Showing {displayProducts.length} items ({products.length} total rows)
                                 {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}
                             </span>
                             <div className="flex gap-2 sm:gap-4 flex-wrap">

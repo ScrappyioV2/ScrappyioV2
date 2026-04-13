@@ -959,7 +959,8 @@ export default function AdminValidationPage() {
         let query = supabase
           .from('india_purchases')
           .update({ sent_to_admin: false, admin_confirmed: false })
-          .eq('asin', product.asin);
+          .eq('asin', product.asin)
+          .eq('seller_tag', product.seller_tag);
 
         if (product.journey_id) {
           query = query.eq('journey_id', product.journey_id);
@@ -1031,7 +1032,8 @@ export default function AdminValidationPage() {
           .from('india_purchases')
           .update(bulkConfirmPayload)
           .eq('asin', product.asin)
-          .eq('sent_to_admin', true);
+          .eq('sent_to_admin', true)
+          .eq('seller_tag', product.seller_tag);
 
         // Use journey_id for precise matching when available
         if (product.journey_id) {
@@ -1048,7 +1050,8 @@ export default function AdminValidationPage() {
         if (!updatedRows || updatedRows.length === 0) {
           let retryQuery = supabase.from('india_purchases')
             .update(bulkConfirmPayload)
-            .eq('asin', product.asin);
+            .eq('asin', product.asin)
+            .eq('seller_tag', product.seller_tag);
           if (product.journey_id) {
             retryQuery = retryQuery.eq('journey_id', product.journey_id);
           }
@@ -1399,7 +1402,8 @@ export default function AdminValidationPage() {
         .from('india_purchases')
         .update(confirmPayload)
         .eq('asin', cleanAsin)
-        .eq('sent_to_admin', true);
+        .eq('sent_to_admin', true)
+        .eq('seller_tag', product.seller_tag);
 
       if (product.journey_id) {
         confirmQuery = confirmQuery.eq('journey_id', product.journey_id);
@@ -1419,7 +1423,8 @@ export default function AdminValidationPage() {
       if (!updatedRows || updatedRows.length === 0) {
         let retryQuery = supabase.from('india_purchases')
           .update(confirmPayload)
-          .eq('asin', cleanAsin);
+          .eq('asin', cleanAsin)
+          .eq('seller_tag', product.seller_tag);
         if (product.journey_id) {
           retryQuery = retryQuery.eq('journey_id', product.journey_id);
         }
@@ -1578,7 +1583,8 @@ export default function AdminValidationPage() {
             admin_confirmed: false,
             admin_confirmed_at: null,
           })
-          .eq('asin', product.asin);
+          .eq('asin', product.asin)
+          .eq('seller_tag', product.seller_tag);
         if (product.journey_id) {
           purchaseRollbackQuery = purchaseRollbackQuery.eq('journey_id', product.journey_id);
         }
@@ -1597,7 +1603,8 @@ export default function AdminValidationPage() {
             admin_status: fromStatus || 'pending',
             confirmed_at: null,
           })
-          .eq('asin', product.asin);
+          .eq('asin', product.asin)
+          .eq('seller_tag', product.seller_tag);
         if (product.journey_id) {
           adminRollbackQuery = adminRollbackQuery.eq('journey_id', product.journey_id);
         }
@@ -1613,7 +1620,8 @@ export default function AdminValidationPage() {
             admin_status: fromStatus || 'pending',
             rejected_at: null,
           })
-          .eq('asin', product.asin);
+          .eq('asin', product.asin)
+          .eq('seller_tag', product.seller_tag);
         if (product.journey_id) {
           adminRejectQuery = adminRejectQuery.eq('journey_id', product.journey_id);
         }

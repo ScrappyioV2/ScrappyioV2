@@ -2399,9 +2399,23 @@ export default function PurchasesPage() {
     const finalValue = dateFields.includes(field) && (value === '' || value == null) ? null : value;
 
     try {
+      const updatePayload: Record<string, any> = { [dbField]: finalValue };
+
+      // Sync buying_quantities JSON when buying_quantity is edited (single-tag rows)
+      if (field === 'buyingquantity') {
+        const product = products.find(p => p.id === id);
+        if (product) {
+          const tags = (product.seller_tag || product.validation_seller_tag || '')
+            .split(',').map((t: string) => t.trim()).filter(Boolean);
+          if (tags.length <= 1 && tags[0]) {
+            updatePayload.buying_quantities = { [tags[0]]: finalValue || 0 };
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('india_purchases')
-        .update({ [dbField]: finalValue })
+        .update(updatePayload)
         .eq('id', id);
       if (error) throw error;
       await refreshProductsSilently();

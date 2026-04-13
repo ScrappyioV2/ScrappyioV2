@@ -642,22 +642,6 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
     };
 
 
-    const mergeBoxItems = (items: BoxProduct[]) => {
-        const grouped: Record<string, { representative: BoxProduct; sellers: { tag: string; qty: number; id: string }[] }> = {};
-        items.forEach(item => {
-            const key = item.asin;
-            if (!grouped[key]) {
-                grouped[key] = { representative: item, sellers: [] };
-            }
-            grouped[key].sellers.push({
-                tag: item.seller_tag || '??',
-                qty: item.quantity_assigned ?? item.buying_quantity ?? 0,
-                id: item.id,
-            });
-        });
-        return Object.values(grouped);
-    };
-
     // ============================================
     // LOADING
     // ============================================
@@ -831,11 +815,9 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-white/[0.06]">
-                                                                {mergeBoxItems(group.items).map((merged, idx) => {
-                                                                    const item = merged.representative;
-                                                                    const totalQty = merged.sellers.reduce((s, x) => s + x.qty, 0);
+                                                                {group.items.map((item) => {
                                                                     return (
-                                                                        <tr key={item.asin + '-' + idx} className="hover:bg-white/[0.05] transition-colors">
+                                                                        <tr key={item.id} className="hover:bg-white/[0.05] transition-colors">
                                                                             <td className="px-6 py-4 font-mono text-sm text-gray-300">
                                                                                 <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline font-semibold flex items-center gap-1 w-fit">
                                                                                     {item.asin} <span className="text-[10px]">↗</span>
@@ -858,16 +840,9 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                                                 })()}
                                                                             </td>
                                                                             <td className="px-6 py-4 text-center">
-                                                                                <div className="flex flex-wrap gap-1.5 justify-center items-center">
-                                                                                    {merged.sellers.map(s => (
-                                                                                        <div key={s.id} className="flex items-center gap-1">
-                                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
-                                                                                                {s.tag}
-                                                                                            </span>
-                                                                                            <span className="text-xs text-gray-300 font-semibold">{s.qty}</span>
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
+                                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[item.seller_tag || ''] || 'bg-[#1a1a1a] text-white'}`}>
+                                                                                    {item.seller_tag || '??'}
+                                                                                </span>
                                                                             </td>
                                                                             <td className="px-6 py-4 text-center">
                                                                                 <div className="flex flex-col gap-0.5 items-center">
@@ -878,7 +853,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                                                                 </div>
                                                                             </td>
                                                                             <td className="px-6 py-4 text-sm text-gray-300 text-center font-bold">
-                                                                                {totalQty}
+                                                                                {item.quantity_assigned ?? item.buying_quantity ?? 0}
                                                                             </td>
                                                                             <td className="px-6 py-4 text-sm text-gray-300 text-center">
                                                                                 {item.buying_price ? `₹${item.buying_price}` : '-'}

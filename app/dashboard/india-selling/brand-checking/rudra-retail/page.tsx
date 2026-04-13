@@ -417,7 +417,7 @@ export default function RudraRetailPage() {
 
             const { data: existingPurchase } = await supabase
               .from('india_purchases')
-              .select('id, seller_tag, buying_quantities')
+              .select('id, seller_tag, buying_quantities, product_link, origin, inr_purchase_link')
               .eq('asin', product.asin)
               .is('move_to', null)
               .eq('admin_confirmed', false)
@@ -431,8 +431,21 @@ export default function RudraRetailPage() {
               if (!existingTags.includes(SELLER_CODE)) {
                 const newTag = [...existingTags, SELLER_CODE].join(',');
                 const newBuyingQty = { ...(existingPurchase.buying_quantities || {}), [SELLER_CODE]: 0 };
+                const mergeUpdate: Record<string, any> = {
+                  seller_tag: newTag,
+                  buying_quantities: newBuyingQty,
+                };
+                // Fill blank fields if the existing row is missing them
+                if (!existingPurchase.product_link && product.product_link) mergeUpdate.product_link = product.product_link;
+                if (!existingPurchase.inr_purchase_link && product.amz_link) mergeUpdate.inr_purchase_link = product.amz_link;
+                if (!existingPurchase.origin) {
+                  mergeUpdate.origin = 'India';
+                  mergeUpdate.origin_india = true;
+                  mergeUpdate.origin_china = false;
+                  mergeUpdate.origin_us = false;
+                }
                 await supabase.from('india_purchases')
-                  .update({ seller_tag: newTag, buying_quantities: newBuyingQty })
+                  .update(mergeUpdate)
                   .eq('id', existingPurchase.id);
               }
             } else {
@@ -445,6 +458,14 @@ export default function RudraRetailPage() {
                 sku: product.sku,
                 remark: product.remark,
                 buying_quantities: { [SELLER_CODE]: 0 },
+                product_link: product.product_link || null,
+                inr_purchase_link: product.amz_link || null,
+                origin: 'India',
+                origin_india: true,
+                origin_china: false,
+                origin_us: false,
+                buying_price: 0,
+                buying_quantity: 0,
               });
             }
 

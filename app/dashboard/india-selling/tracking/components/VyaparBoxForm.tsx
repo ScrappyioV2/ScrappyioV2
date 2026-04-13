@@ -99,32 +99,23 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
             setBookingDate(editBoxGroup.items[0]?.booking_date || "");
             setTotalWeight(editBoxGroup.items[0]?.total_box_weight?.toString() || "");
 
-            // Group items by ASIN
-            const grouped: Record<string, any[]> = {};
-            editBoxGroup.items.forEach((item: any) => {
-                if (!grouped[item.asin]) grouped[item.asin] = [];
-                grouped[item.asin].push(item);
-            });
-
-            const formRows: FormRow[] = Object.entries(grouped).map(([asin, items]) => {
-                const first = items[0];
-                return {
-                    rowId: nextRowId(),
-                    inboundItem: first,
-                    asin,
-                    productName: first.product_name || "",
-                    sku: first.sku || "",
-                    sellerEntries: items.map((it: any) => ({
-                        id: it.id,
-                        tag: it.seller_tag || "??",
-                        qty: it.quantity_assigned ?? it.buying_quantity ?? 0,
-                        maxQty: (it.quantity_assigned ?? 0) + (it._trackingPending ?? 0),
-                        inboundItem: it,
-                    })),
-                    weight: first.product_weight ?? 0,
-                    price: first.buying_price ?? 0,
-                };
-            });
+            // One FormRow per item (no ASIN grouping)
+            const formRows: FormRow[] = editBoxGroup.items.map((item: any) => ({
+                rowId: nextRowId(),
+                inboundItem: item,
+                asin: item.asin,
+                productName: item.product_name || "",
+                sku: item.sku || "",
+                sellerEntries: [{
+                    id: item.id,
+                    tag: item.seller_tag || "??",
+                    qty: item.quantity_assigned ?? item.buying_quantity ?? 0,
+                    maxQty: (item.quantity_assigned ?? 0) + (item._trackingPending ?? 0),
+                    inboundItem: item,
+                }],
+                weight: item.product_weight ?? 0,
+                price: item.buying_price ?? 0,
+            }));
 
             setRows(formRows);
 
@@ -180,13 +171,13 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // ── ASINs already added ──
-    const addedAsins = useMemo(() => new Set(rows.filter(r => r.asin).map(r => r.asin)), [rows]);
+    // ── Item IDs already added ──
+    const addedItemIds = useMemo(() => new Set(rows.flatMap(r => r.sellerEntries.map(se => se.id)).filter(Boolean)), [rows]);
 
-    // ── Search candidates (grouped by ASIN) ──
+    // ── Search candidates (individual items) ──
     const searchCandidates = useMemo(() => {
         let filtered = inboundDelivered.filter((p: any) =>
-            !addedAsins.has(p.asin) && (p.pending_quantity ?? 0) > 0
+            !addedItemIds.has(p.id) && (p.pending_quantity ?? 0) > 0
         );
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
@@ -196,43 +187,33 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                 p.sku?.toLowerCase().includes(q)
             );
         }
+        return filtered.slice(0, 10).map(p => ({
+            item: p,
+            tag: p.seller_tag || "??",
+            pending: p.pending_quantity ?? 0,
+        }));
+    }, [inboundDelivered, addedItemIds, searchQuery]);
 
-        const grouped: Record<string, { representative: any; sellers: any[] }> = {};
-        filtered.forEach((p: any) => {
-            if (!grouped[p.asin]) grouped[p.asin] = { representative: p, sellers: [] };
-            grouped[p.asin].sellers.push({
-                id: p.id,
-                tag: p.seller_tag || "??",
-                pending: p.pending_quantity ?? 0,
-                inboundItem: p,
-            });
-        });
-
-        return Object.values(grouped)
-            .filter(g => g.sellers.some(s => s.pending > 0))
-            .slice(0, 10);
-    }, [inboundDelivered, addedAsins, searchQuery]);
-
-    // ── Select an ASIN from dropdown ──
-    const handleSelectAsin = (rowId: string, group: any) => {
+    // ── Select an item from dropdown ──
+    const handleSelectItem = (rowId: string, candidate: { item: any; tag: string; pending: number }) => {
+        const p = candidate.item;
         setRows(prev => prev.map(row => {
             if (row.rowId !== rowId) return row;
-            const rep = group.representative;
             return {
                 ...row,
-                inboundItem: rep,
-                asin: rep.asin,
-                productName: rep.product_name || "",
-                sku: rep.sku || "",
-                sellerEntries: group.sellers.map((s: any) => ({
-                    id: s.id,
-                    tag: s.tag,
-                    qty: s.pending,
-                    maxQty: s.pending,
-                    inboundItem: s.inboundItem,
-                })),
-                weight: rep.product_weight ?? 0,
-                price: rep.buying_price ?? 0,
+                inboundItem: p,
+                asin: p.asin,
+                productName: p.product_name || "",
+                sku: p.sku || "",
+                sellerEntries: [{
+                    id: p.id,
+                    tag: candidate.tag,
+                    qty: candidate.pending,
+                    maxQty: candidate.pending,
+                    inboundItem: p,
+                }],
+                weight: p.product_weight ?? 0,
+                price: p.buying_price ?? 0,
                 isNew: mode === "edit",
             };
         }));
@@ -693,31 +674,24 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                 {/* Search dropdown */}
                                                 {isSearching && searchCandidates.length > 0 && (
                                                     <div className="absolute top-full left-0 mt-1 bg-[#111111] border border-white/[0.1] rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto w-[650px]">
-                                                        {searchCandidates.map(group => {
-                                                            const item = group.representative;
-                                                            const totalPending = group.sellers.reduce((s: number, x: any) => s + x.pending, 0);
-                                                            return (
-                                                                <div
-                                                                    key={item.asin}
-                                                                    onClick={() => handleSelectAsin(row.rowId, group)}
-                                                                    className="px-4 py-3 hover:bg-[#111111] cursor-pointer border-b border-white/[0.1] last:border-0 transition-colors"
-                                                                >
-                                                                    <div className="flex items-center justify-between mb-1">
-                                                                        <span className="font-mono text-sm font-bold text-white">{item.asin}</span>
-                                                                        <span className="text-xs text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded">{totalPending} pending</span>
-                                                                    </div>
-                                                                    <div className="text-xs text-gray-300 truncate mb-1.5">{item.product_name || "-"}</div>
-                                                                    <div className="flex gap-1.5">
-                                                                        {group.sellers.map((s: any) => (
-                                                                            <span key={s.id} className="flex items-center gap-1 text-[10px]">
-                                                                                <span className={`px-1.5 py-0.5 rounded font-bold ${SELLER_STYLES[s.tag] || "bg-[#1a1a1a] text-white"}`}>{s.tag}</span>
-                                                                                <span className="text-gray-400">{s.pending}</span>
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
+                                                        {searchCandidates.map(candidate => (
+                                                            <div
+                                                                key={candidate.item.id}
+                                                                onClick={() => handleSelectItem(row.rowId, candidate)}
+                                                                className="px-4 py-3 hover:bg-[#111111] cursor-pointer border-b border-white/[0.1] last:border-0 transition-colors"
+                                                            >
+                                                                <div className="flex items-center justify-between mb-1">
+                                                                    <span className="font-mono text-sm font-bold text-white">{candidate.item.asin}</span>
+                                                                    <span className="text-xs text-amber-400 font-bold bg-amber-500/15 px-2 py-0.5 rounded">{candidate.pending} pending</span>
                                                                 </div>
-                                                            );
-                                                        })}
+                                                                <div className="text-xs text-gray-300 truncate mb-1.5">{candidate.item.product_name || "-"}</div>
+                                                                <div className="flex gap-1.5">
+                                                                    <span className="flex items-center gap-1 text-[10px]">
+                                                                        <span className={`px-1.5 py-0.5 rounded font-bold ${SELLER_STYLES[candidate.tag] || "bg-[#1a1a1a] text-white"}`}>{candidate.tag}</span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 )}
                                                 {isSearching && searchCandidates.length === 0 && searchQuery.trim() && (

@@ -380,383 +380,6 @@ interface BoxesTabProps {
 
 
 // ============================================
-// ✅ NEW: EDIT BOX MODAL
-// ============================================
-function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast, inboundDelivered }: any) {
-    const [boxNum, setBoxNum] = useState("");
-    const [bookingDate, setBookingDate] = useState("");
-    const [totalWeight, setTotalWeight] = useState<number | "">("");
-    const [quantities, setQuantities] = useState<Record<string, number>>({});
-    const [weights, setWeights] = useState<Record<string, number>>({});
-    const [saving, setSaving] = useState(false);
-    const [editSearch, setEditSearch] = useState("");
-    const [editShowDropdown, setEditShowDropdown] = useState(false);
-    const editSearchRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (boxGroup) {
-            setBoxNum(boxGroup.box_number);
-            setBookingDate(boxGroup.items[0]?.booking_date || "");
-            setTotalWeight(boxGroup.items[0]?.total_box_weight ?? "");
-
-            const q: Record<string, number> = {};
-            const w: Record<string, number> = {};
-            boxGroup.items.forEach((i: any) => {
-                q[i.id] = i.quantity_assigned ?? i.buying_quantity ?? 0;
-                w[i.id] = i.product_weight ?? 0;
-            });
-            setQuantities(q);
-            setWeights(w);
-
-            // Fetch pending quantities from inbound tracking for max-allowed calculation
-            const trackingIds = boxGroup.items
-                .map((i: any) => i.inbound_tracking_id)
-                .filter(Boolean);
-            if (trackingIds.length > 0) {
-                supabase
-                    .from('india_inbound_tracking')
-                    .select('id, pending_quantity')
-                    .in('id', trackingIds)
-                    .then(({ data }) => {
-                        if (data) {
-                            const pendingMap: Record<string, number> = {};
-                            data.forEach((row: any) => { pendingMap[row.id] = row.pending_quantity ?? 0; });
-                            boxGroup.items.forEach((i: any) => {
-                                i._trackingPending = pendingMap[i.inbound_tracking_id] ?? 0;
-                            });
-                        }
-                    });
-            }
-        }
-    }, [boxGroup]);
-
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (editSearchRef.current && !editSearchRef.current.contains(e.target as Node))
-                setEditShowDropdown(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    const editDropdownCandidates = useMemo(() => {
-        if (!inboundDelivered || !boxGroup) return [];
-        const alreadyInBoxAsins = new Set(boxGroup.items?.filter((i: any) => (quantities[i.id] ?? 0) > 0).map((i: any) => i.asin) || []);
-        let filtered = inboundDelivered.filter((p: any) =>
-            !alreadyInBoxAsins.has(p.asin) && (p.pending_quantity ?? p.buying_quantity ?? 0) > 0
-        );
-        if (editSearch.trim()) {
-            const q = editSearch.toLowerCase();
-            filtered = filtered.filter((p: any) =>
-                p.asin?.toLowerCase().includes(q) ||
-                p.product_name?.toLowerCase().includes(q) ||
-                p.sku?.toLowerCase().includes(q)
-            );
-        }
-
-        // Group by ASIN
-        const grouped: Record<string, { representative: any; sellers: { id: string; tag: string; pending: number; inboundItem: any }[] }> = {};
-        filtered.forEach((p: any) => {
-            const key = p.asin;
-            if (!grouped[key]) {
-                grouped[key] = { representative: p, sellers: [] };
-            }
-            grouped[key].sellers.push({
-                id: p.id,
-                tag: p.seller_tag || '??',
-                pending: p.pending_quantity ?? p.buying_quantity ?? 0,
-                inboundItem: p,
-            });
-        });
-        const result = Object.values(grouped).map(g => ({
-            ...g,
-            sellers: g.sellers.filter(s => s.pending > 0),
-        })).filter(g => g.sellers.length > 0);
-        return result.slice(0, editShowDropdown && !editSearch.trim() ? 5 : 50);
-    }, [inboundDelivered, boxGroup, editSearch, editShowDropdown, quantities]);
-
-    if (!open || !boxGroup) return null;
-
-    const activeItems = boxGroup.items.filter((i: any) => quantities[i.id] !== -1);
-
-    // Group active items by ASIN for display
-    const groupedEditItems = (() => {
-        const grouped: Record<string, { representative: any; sellerRows: any[] }> = {};
-        activeItems.forEach((item: any) => {
-            const key = item.asin;
-            if (!grouped[key]) {
-                grouped[key] = { representative: item, sellerRows: [] };
-            }
-            grouped[key].sellerRows.push(item);
-        });
-        return Object.values(grouped);
-    })();
-
-    const handleAddToEditBox = (group: { representative: any; sellers: { id: string; tag: string; pending: number; inboundItem: any }[] }) => {
-        const newQtys: Record<string, number> = {};
-        const newWts: Record<string, number> = {};
-        group.sellers.forEach(s => {
-            const newItem = {
-                ...s.inboundItem,
-                inbound_tracking_id: s.id,
-                id: `new-${s.id}`,
-                quantity_assigned: s.pending,
-                product_weight: s.inboundItem.product_weight ?? 0,
-                _isNew: true,
-            };
-            boxGroup.items.push(newItem);
-            newQtys[newItem.id] = s.pending;
-            newWts[newItem.id] = s.inboundItem.product_weight ?? 0;
-        });
-        setQuantities(prev => ({ ...prev, ...newQtys }));
-        setWeights(prev => ({ ...prev, ...newWts }));
-        setEditSearch("");
-        setEditShowDropdown(false);
-    };
-
-    const handleRemoveSellerFromEditBox = (itemId: string) => {
-        setQuantities(prev => ({ ...prev, [itemId]: -1 }));
-    };
-
-    const handleRemoveAsinFromEditBox = (asin: string) => {
-        const idsToRemove: Record<string, number> = {};
-        boxGroup.items.filter((i: any) => i.asin === asin).forEach((i: any) => { idsToRemove[i.id] = -1; });
-        setQuantities(prev => ({ ...prev, ...idsToRemove }));
-    };
-
-    const handleSave = async () => {
-        if (!boxNum.trim()) return showToast("Box ID cannot be empty", "error");
-        setSaving(true);
-        try {
-            for (const item of boxGroup.items) {
-                const oldQty = item.quantity_assigned ?? item.buying_quantity ?? 0;
-                const newQty = quantities[item.id] ?? 0;
-                const newWeight = weights[item.id] ?? 0;
-                const trackingId = (item as any).inbound_tracking_id;
-
-                if (newQty <= 0) {
-                    if (!item.id.startsWith('new-')) {
-                        await supabase.from('india_inbound_boxes').delete().eq('id', item.id);
-                    }
-                } else if (item.id.startsWith('new-')) {
-                    // New item — insert
-                    await supabase.from('india_inbound_boxes').insert({
-                        asin: item.asin,
-                        product_name: item.product_name,
-                        sku: item.sku,
-                        seller_tag: item.seller_tag,
-                        funnel: item.funnel,
-                        origin: item.origin,
-                        origin_india: item.origin_india ?? false,
-                        origin_china: item.origin_china ?? false,
-                        origin_us: item.origin_us ?? false,
-                        product_link: item.product_link,
-                        buying_price: item.buying_price,
-                        buying_quantity: newQty,
-                        quantity_assigned: newQty,
-                        ordered_quantity: newQty,
-                        product_weight: newWeight,
-                        box_number: boxNum.trim().toUpperCase(),
-                        box_status: "assigned",
-                        booking_date: bookingDate || null,
-                        total_box_weight: totalWeight === "" ? null : Number(totalWeight),
-                        inbound_tracking_id: item.inbound_tracking_id,
-                        box_created_at: new Date().toISOString(),
-                        moved_from_inbound_at: new Date().toISOString(),
-                    });
-                } else {
-                    await supabase.from('india_inbound_boxes').update({
-                        box_number: boxNum.trim().toUpperCase(),
-                        booking_date: bookingDate || null,
-                        total_box_weight: totalWeight === "" ? null : Number(totalWeight),
-                        quantity_assigned: newQty,
-                        ordered_quantity: newQty,
-                        product_weight: newWeight
-                    }).eq('id', item.id);
-                }
-
-                const delta = newQty - oldQty;
-                if (delta !== 0 && trackingId) {
-                    const { data: trackData } = await supabase.from('india_inbound_tracking')
-                        .select('assigned_quantity, pending_quantity').eq('id', trackingId).single();
-
-                    if (trackData) {
-                        const newPending = Math.max(0, (trackData.pending_quantity || 0) - delta);
-                        const newAssigned = Math.max(0, (trackData.assigned_quantity || 0) + delta);
-                        if (newPending <= 0) {
-                            // Nothing left — delete from inbound tracking
-                            await supabase.from('india_inbound_tracking').delete().eq('id', trackingId);
-                        } else {
-                            await supabase.from('india_inbound_tracking').update({
-                                assigned_quantity: newAssigned,
-                                pending_quantity: newPending,
-                            }).eq('id', trackingId);
-                        }
-                    }
-                }
-            }
-            showToast(`Box ${boxNum} successfully updated!`, "success");
-            onSuccess();
-        } catch (err: any) {
-            showToast("Failed to edit box: " + err.message, "error");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#111111] p-2 sm:p-4">
-            <div className="w-full max-w-7xl bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="px-5 py-4 border-b border-white/[0.1] flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold text-white">✏️ Edit Box Details</h2>
-                        <p className="text-sm text-gray-300 mt-1">Modify box metadata or item quantities. Removed items will return to the Inbound queue.</p>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
-                </div>
-
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-white/[0.1] bg-[#1a1a1a] flex flex-wrap gap-3 sm:gap-6">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-gray-400 uppercase">Box ID</label>
-                        <input type="text" value={boxNum} onChange={e => setBoxNum(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-gray-400 uppercase">Booking Date</label>
-                        <input type="date" max="9999-12-31" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-gray-400 uppercase">Total Weight (kg)</label>
-                        <input type="number" step="0.01" value={totalWeight} onChange={e => setTotalWeight(e.target.value ? Number(e.target.value) : "")} className="w-32 px-3 py-2 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-white focus:border-orange-500 focus:outline-none" />
-                    </div>
-                    <div className="flex flex-col gap-1.5" ref={editSearchRef}>
-                        <label className="text-xs font-semibold text-gray-400 uppercase">Add ASIN</label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={editSearch}
-                                onChange={(e) => { setEditSearch(e.target.value); setEditShowDropdown(true); }}
-                                onFocus={() => setEditShowDropdown(true)}
-                                placeholder="Search ASIN or Product to add..."
-                                className="w-full sm:w-80 px-3 py-2 bg-[#111111] border border-orange-500/50 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500 placeholder:text-gray-500"
-                            />
-                            {editShowDropdown && editDropdownCandidates.length > 0 && (
-                                <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-2xl z-50 max-h-[300px] overflow-y-auto w-full sm:w-[600px]">
-                                    {editDropdownCandidates.map((group: any) => {
-                                        const item = group.representative;
-                                        const totalPending = group.sellers.reduce((s: number, x: any) => s + x.pending, 0);
-                                        return (
-                                            <div key={item.asin} className="flex items-start justify-between px-5 py-3 hover:bg-[#111111] transition-colors border-b border-white/[0.1] last:border-0 cursor-pointer" onClick={() => handleAddToEditBox(group)}>
-                                                <div className="flex-1 min-w-0 pr-4">
-                                                    <div className="flex items-center gap-3 mb-1 flex-wrap">
-                                                        <span className="font-mono text-base font-bold text-white">{item.asin}</span>
-                                                        {item.sku && <span className="text-xs text-gray-100 bg-[#111111] px-2.5 py-0.5 rounded border border-white/[0.1] font-medium">SKU: {item.sku}</span>}
-                                                    </div>
-                                                    <div className="text-sm font-medium text-gray-100 mb-1.5">{item.product_name || '-'}</div>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        {group.sellers.map((s: any) => (
-                                                            <div key={s.id} className="flex items-center gap-1.5 bg-[#111111] px-2 py-1 rounded">
-                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>{s.tag}</span>
-                                                                <span className="text-xs text-amber-300 font-semibold">{s.pending} pending</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-2 shrink-0">
-                                                    <span className="bg-amber-500/25 text-amber-300 px-2.5 py-1 rounded text-sm font-bold">{totalPending} total</span>
-                                                    <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 shrink-0">+ Add</button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-auto p-5">
-                    {groupedEditItems.length === 0 ? (
-                        <div className="text-center py-10 text-rose-400 font-medium">All items removed. Saving will delete the box entirely.</div>
-                    ) : (
-                        <table className="w-full text-sm">
-                            <thead className="bg-[#111111] text-gray-400">
-                                <tr>
-                                    <th className="px-6 py-4 text-left">ASIN</th>
-                                    <th className="px-6 py-4 text-left">Product</th>
-                                    <th className="px-6 py-4 text-center" style={{ minWidth: '280px' }}>Box Qty (per seller)</th>
-                                    <th className="px-6 py-4 text-center">Weight (kg)</th>
-                                    <th className="px-6 py-4 text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/[0.06]">
-                                {groupedEditItems.map((group: any) => {
-                                    const item = group.representative;
-                                    const totalQty = group.sellerRows.reduce((sum: number, r: any) => sum + (quantities[r.id] ?? 0), 0);
-                                    return (
-                                        <tr key={item.asin} className="hover:bg-white/[0.05]">
-                                            <td className="px-6 py-4 font-mono text-gray-100 align-top">
-                                                <a href={item.product_link || `https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline flex items-center gap-1">
-                                                    {item.asin} <span className="text-[10px]">↗</span>
-                                                </a>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-300 align-top">{item.product_name || '-'}</td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex flex-col gap-2">
-                                                    {group.sellerRows.map((sellerItem: any) => {
-                                                        const trackingPending = sellerItem._trackingPending ?? 0;
-                                                        const currentBoxQty = sellerItem.quantity_assigned ?? 0;
-                                                        const maxAllowed = currentBoxQty + trackingPending;
-                                                        const sellerTag = sellerItem.seller_tag || '??';
-                                                        return (
-                                                            <div key={sellerItem.id} className="flex items-center justify-center gap-2">
-                                                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold min-w-[28px] text-center ${SELLER_STYLES[sellerTag] || 'bg-[#1a1a1a] text-white'}`}>{sellerTag}</span>
-                                                                <input type="number" min={1} max={maxAllowed} value={quantities[sellerItem.id] ?? 0}
-                                                                    onChange={e => { const val = Number(e.target.value); if (val >= 0) setQuantities(prev => ({ ...prev, [sellerItem.id]: Math.min(val, maxAllowed) })); }}
-                                                                    className="w-28 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
-                                                                <button onClick={() => handleRemoveSellerFromEditBox(sellerItem.id)} className="text-rose-400 hover:text-rose-300 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-400/10" title={`Remove ${sellerTag}`}>✕</button>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {group.sellerRows.length > 1 && (
-                                                        <div className="text-[10px] text-gray-400 font-semibold border-t border-white/[0.1] pt-1 mt-1">Total: {totalQty}</div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center align-top">
-                                                <input type="number" min={0} step={0.01} value={weights[group.sellerRows[0]?.id] ?? 0}
-                                                    onChange={e => {
-                                                        const val = Number(e.target.value) || 0;
-                                                        setWeights(prev => {
-                                                            const updated = { ...prev };
-                                                            group.sellerRows.forEach((r: any) => { updated[r.id] = val; });
-                                                            return updated;
-                                                        });
-                                                    }}
-                                                    className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-center text-white" />
-                                            </td>
-                                            <td className="px-6 py-4 text-center align-top">
-                                                <button onClick={() => handleRemoveAsinFromEditBox(item.asin)} className="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded bg-rose-400/10">✕ Remove All</button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-
-                <div className="px-3 sm:px-5 py-3 sm:py-4 border-t border-white/[0.1] flex justify-end gap-2 sm:gap-3 bg-[#111111]/30">
-                    <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-[#111111]">Cancel</button>
-                    <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-orange-500 text-white hover:bg-orange-400 disabled:opacity-50 flex items-center gap-2">
-                        {saving ? "Saving..." : "💾 Save Changes"}
-                    </button>
-                </div>
-            </div>
-        </div >
-    );
-}
-
-// ============================================
 // COMPONENT
 // ============================================
 export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) {
@@ -1308,120 +931,12 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
         assigned: '📦',
     };
 
-    // Merge box items by ASIN for display
-    const mergeBoxItems = (items: BoxProduct[]) => {
-        const grouped: Record<string, { representative: BoxProduct; sellers: { tag: string; qty: number; id: string }[] }> = {};
-        items.forEach(item => {
-            const key = item.asin;
-            if (!grouped[key]) {
-                grouped[key] = { representative: item, sellers: [] };
-            }
-            grouped[key].sellers.push({
-                tag: item.seller_tag || '??',
-                qty: item.quantity_assigned ?? item.buying_quantity ?? 0,
-                id: item.id,
-            });
-        });
-        return Object.values(grouped);
-    };
-
-    // Dropdown candidates — shows 5 on focus, more when searching
-    // Dropdown candidates — grouped by ASIN so one ASIN shows once with all seller tags
-    const groupedDropdownCandidates = useMemo(() => {
-        // Collect ASINs already added to the box
-        const alreadyAddedAsins = new Set(addItems.map((i: any) => i.asin));
-
-        // Filter out already-added ASINs, then apply search
-        let filtered = inboundDelivered.filter((p: any) => !alreadyAddedAsins.has(p.asin));
-        if (addSearch.trim()) {
-            const q = addSearch.toLowerCase();
-            filtered = filtered.filter((p: any) =>
-                p.asin?.toLowerCase().includes(q) ||
-                p.product_name?.toLowerCase().includes(q) ||
-                p.sku?.toLowerCase().includes(q)
-            );
-        }
-
-        // Group by ASIN
-        const grouped: Record<string, { representative: any; sellers: { id: string; tag: string; pending: number; price: number | null; inboundItem: any }[] }> = {};
-        filtered.forEach((p: any) => {
-            const key = p.asin;
-            if (!grouped[key]) {
-                grouped[key] = { representative: p, sellers: [] };
-            }
-            grouped[key].sellers.push({
-                id: p.id,
-                tag: p.seller_tag || '??',
-                pending: p.pending_quantity ?? p.buying_quantity ?? 0,
-                price: p.buying_price,
-                inboundItem: p,
-            });
-        });
-
-        // Only show ASINs where at least one seller has pending > 0
-        const result = Object.values(grouped).map(g => ({
-            ...g,
-            sellers: g.sellers.filter(s => s.pending > 0),
-        })).filter(g => g.sellers.length > 0);
-        return result.slice(0, showDropdown && !addSearch.trim() ? 5 : 50);
-    }, [inboundDelivered, addItems, addSearch, showDropdown]);
-
-    // Add grouped ASIN to box — adds ALL seller rows for this ASIN at once
-    const handleAddGroupedAsin = (group: { representative: any; sellers: { id: string; tag: string; pending: number; price: number | null; inboundItem: any }[] }) => {
-        // Skip if this ASIN is already added
-        if (addItems.some((i: any) => i.asin === group.representative.asin)) return;
-
-        // Add all inbound rows for this ASIN
-        const newItems = group.sellers.map(s => s.inboundItem);
-        setAddItems((prev: any[]) => [...prev, ...newItems]);
-
-        // Set qty per seller row (each seller gets its own pending qty)
-        const newQtys: Record<string, number> = {};
-        const newWeights: Record<string, number> = {};
-        group.sellers.forEach(s => {
-            newQtys[s.id] = s.pending;
-            newWeights[s.id] = s.inboundItem.product_weight ?? 0;
-        });
-        setAddQuantities((prev) => ({ ...prev, ...newQtys }));
-        setAddWeights((prev) => ({ ...prev, ...newWeights }));
-        setAddSearch('');
-        setShowDropdown(false);
-    };
-
     // Remove single item from box (used by BoxSummaryModal)
     const handleRemoveFromBox = (id: string) => {
         setAddItems((prev: any[]) => prev.filter((i: any) => i.id !== id));
         setAddQuantities((prev) => { const c = { ...prev }; delete c[id]; return c; });
         setAddWeights((prev) => { const c = { ...prev }; delete c[id]; return c; });
     };
-
-    // Remove entire ASIN from box (all seller rows)
-    const handleRemoveAsinFromBox = (asin: string) => {
-        const idsToRemove = new Set(addItems.filter((i: any) => i.asin === asin).map((i: any) => i.id));
-        setAddItems((prev: any[]) => prev.filter((i: any) => !idsToRemove.has(i.id)));
-        setAddQuantities((prev) => {
-            const c = { ...prev };
-            idsToRemove.forEach(id => delete c[id]);
-            return c;
-        });
-        setAddWeights((prev) => {
-            const c = { ...prev };
-            idsToRemove.forEach(id => delete c[id]);
-            return c;
-        });
-    };
-
-    const groupedAddItems = useMemo(() => {
-        const grouped: Record<string, { representative: any; sellerRows: any[] }> = {};
-        addItems.forEach((item: any) => {
-            const key = item.asin;
-            if (!grouped[key]) {
-                grouped[key] = { representative: item, sellerRows: [] };
-            }
-            grouped[key].sellerRows.push(item);
-        });
-        return Object.values(grouped);
-    }, [addItems]);
 
     if (loading) {
         return (
@@ -1898,12 +1413,9 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody className="divide-y divide-white/[0.06]">
-                                                                    {mergeBoxItems(group.items).map((merged, idx) => {
-                                                                        const item = merged.representative;
-                                                                        const totalQty = merged.sellers.reduce((s, x) => s + x.qty, 0);
-                                                                        return (
+                                                                    {group.items.map((item, idx) => (
                                                                             <tr
-                                                                                key={item.asin + '-' + idx}
+                                                                                key={item.id}
                                                                                 className="hover:bg-white/[0.05] transition-colors"
                                                                             >
                                                                                 <td className="px-6 py-4 text-sm text-gray-300 text-center font-bold">
@@ -1937,16 +1449,9 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                                     })()}
                                                                                 </td>
                                                                                 <td className="px-6 py-4 text-center">
-                                                                                    <div className="flex flex-wrap gap-1.5 justify-center items-center">
-                                                                                        {merged.sellers.map(s => (
-                                                                                            <div key={s.id} className="flex items-center gap-1">
-                                                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[s.tag] || 'bg-[#1a1a1a] text-white'}`}>
-                                                                                                    {s.tag}
-                                                                                                </span>
-                                                                                                <span className="text-xs text-gray-300 font-semibold">{s.qty}</span>
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </div>
+                                                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[item.seller_tag || '??'] || 'bg-[#1a1a1a] text-white'}`}>
+                                                                                        {item.seller_tag || '??'}
+                                                                                    </span>
                                                                                 </td>
                                                                                 <td className="px-6 py-4 text-center">
                                                                                     <div className="flex flex-col gap-0.5 items-center">
@@ -1975,7 +1480,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                                     </div>
                                                                                 </td>
                                                                                 <td className="px-6 py-4 text-sm text-gray-300 text-center font-bold">
-                                                                                    {totalQty}
+                                                                                    {item.quantity_assigned ?? item.buying_quantity ?? 0}
                                                                                 </td>
                                                                                 <td className="px-6 py-4 text-sm text-gray-300 text-center">
                                                                                     {item.buying_price
@@ -1983,8 +1488,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                                         : "-"}
                                                                                 </td>
                                                                             </tr>
-                                                                        );
-                                                                    })}
+                                                                        ))}
                                                                 </tbody>
                                                             </table>
                                                         </div>
