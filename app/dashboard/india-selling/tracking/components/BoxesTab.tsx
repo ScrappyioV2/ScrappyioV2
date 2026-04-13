@@ -596,17 +596,19 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     // 2) Roll back quantities to inbound tracking
                     // 2) Roll back quantities to inbound tracking
                     // Group box rows by ASIN first (so multi-seller ASINs restore as one row)
-                    const byAsin = new Map<string, { rows: any[]; totalQty: number }>();
+                    const byAsinTag = new Map<string, { rows: any[]; totalQty: number; asin: string; sellerTag: string }>();
                     for (const row of rows as any[]) {
                         const qty = row.quantity_assigned ?? 0;
                         if (qty <= 0) continue;
-                        const existing = byAsin.get(row.asin) || { rows: [], totalQty: 0 };
+                        const key = `${row.asin}|${row.seller_tag || ''}`;
+                        const existing = byAsinTag.get(key) || { rows: [], totalQty: 0, asin: row.asin, sellerTag: row.seller_tag || '' };
                         existing.rows.push(row);
                         existing.totalQty += qty;
-                        byAsin.set(row.asin, existing);
+                        byAsinTag.set(key, existing);
                     }
 
-                    for (const [asin, group] of byAsin) {
+                    for (const [_key, group] of byAsinTag) {
+                        const asin = group.asin;
                         const firstRow = group.rows[0];
                         const totalQty = group.totalQty;
                         const inboundId = firstRow.inbound_tracking_id ?? null;
@@ -627,6 +629,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                 .from("india_inbound_tracking")
                                 .select("id, assigned_quantity, pending_quantity")
                                 .eq("asin", asin)
+                                .eq("seller_tag", group.sellerTag || group.rows[0]?.seller_tag || '')
                                 .limit(1);
                             inboundRow = data?.[0];
                         }
@@ -650,14 +653,14 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                 .single();
 
                             if (boxRow) {
-                                const combinedTags = [...new Set(group.rows.map((r: any) => r.seller_tag).filter(Boolean))].join(', ');
+                                const singleTag = group.sellerTag || group.rows[0]?.seller_tag || '';
                                 const { error: insertErr } = await supabase
                                     .from("india_inbound_tracking")
                                     .insert({
                                         asin: boxRow.asin,
                                         product_name: boxRow.product_name,
                                         sku: boxRow.sku,
-                                        seller_tag: combinedTags,
+                                        seller_tag: singleTag,
                                         funnel: boxRow.funnel,
                                         origin: boxRow.origin,
                                         origin_india: boxRow.origin_india ?? false,

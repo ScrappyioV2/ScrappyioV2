@@ -205,11 +205,12 @@ export default function AdminValidationPage() {
       // ✅ FIX: Pending rows always win over confirmed/rejected
       let processedData = adminData;
       if (!showAllJourneys) {
-        const latestByAsin = new Map();
+        const latestByKey = new Map();
         adminData.forEach(product => {
-          const existing = latestByAsin.get(product.asin);
+          const key = `${product.asin}|${product.seller_tag || ''}`;
+          const existing = latestByKey.get(key);
           if (!existing) {
-            latestByAsin.set(product.asin, product);
+            latestByKey.set(key, product);
             return;
           }
 
@@ -217,7 +218,7 @@ export default function AdminValidationPage() {
           const existingIsPending = existing.admin_status === 'pending' || !existing.admin_status;
 
           if (currentIsPending && !existingIsPending) {
-            latestByAsin.set(product.asin, product);
+            latestByKey.set(key, product);
           } else if (!currentIsPending && existingIsPending) {
             // keep existing pending — don't replace
           } else {
@@ -225,11 +226,11 @@ export default function AdminValidationPage() {
             const currentDate = new Date(product.created_at).getTime();
             const existingDate = new Date(existing.created_at).getTime();
             if (currentDate > existingDate) {
-              latestByAsin.set(product.asin, product);
+              latestByKey.set(key, product);
             }
           }
         });
-        processedData = Array.from(latestByAsin.values());
+        processedData = Array.from(latestByKey.values());
       }
 
       // 2️⃣ Get all ASINs

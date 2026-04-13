@@ -925,7 +925,7 @@ export default function PurchasesPage() {
       // ✅ FIX: Always keep admin_confirmed rows so they show in Order Confirmed tab
       let processedData = enrichedData;
       if (!showAllJourneys) {
-        const latestByAsin = new Map();
+        const latestByKey = new Map();
         const confirmedRows: typeof enrichedData = [];
 
         enrichedData.forEach((product: any) => {
@@ -935,18 +935,19 @@ export default function PurchasesPage() {
             return;
           }
 
-          const existing = latestByAsin.get(product.asin);
+          const key = `${product.asin}|${product.seller_tag || ''}`;
+          const existing = latestByKey.get(key);
           const currentJourney = product.journey_number || 1;
           const existingJourney = existing?.journey_number || 1;
 
           if (!existing || currentJourney > existingJourney) {
-            latestByAsin.set(product.asin, product);
+            latestByKey.set(key, product);
           }
         });
 
         // Merge: latest non-confirmed + all confirmed (dedup by id)
         const mergedMap = new Map<string, any>();
-        for (const p of latestByAsin.values()) mergedMap.set(p.id, p);
+        for (const p of latestByKey.values()) mergedMap.set(p.id, p);
         for (const p of confirmedRows) mergedMap.set(p.id, p);
         processedData = Array.from(mergedMap.values());
       }
@@ -1181,7 +1182,7 @@ export default function PurchasesPage() {
       // ✅ FIX: Always keep admin_confirmed rows so they show in Order Confirmed tab
       let processedData = enrichedData;
       if (!showAllJourneys) {
-        const latestByAsin = new Map();
+        const latestByKey = new Map();
         const confirmedRows: typeof enrichedData = [];
 
         enrichedData.forEach((product: any) => {
@@ -1191,18 +1192,19 @@ export default function PurchasesPage() {
             return;
           }
 
-          const existing = latestByAsin.get(product.asin);
+          const key = `${product.asin}|${product.seller_tag || ''}`;
+          const existing = latestByKey.get(key);
           const currentJourney = product.journey_number || 1;
           const existingJourney = existing?.journey_number || 1;
 
           if (!existing || currentJourney > existingJourney) {
-            latestByAsin.set(product.asin, product);
+            latestByKey.set(key, product);
           }
         });
 
         // Merge: latest non-confirmed + all confirmed (dedup by id)
         const mergedMap = new Map<string, any>();
-        for (const p of latestByAsin.values()) mergedMap.set(p.id, p);
+        for (const p of latestByKey.values()) mergedMap.set(p.id, p);
         for (const p of confirmedRows) mergedMap.set(p.id, p);
         processedData = Array.from(mergedMap.values());
       }
