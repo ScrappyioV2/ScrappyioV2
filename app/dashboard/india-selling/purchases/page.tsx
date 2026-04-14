@@ -711,7 +711,7 @@ export default function PurchasesPage() {
             <select
               value={product.address ?? ''}
               onChange={(e) => handleCellEdit(product.id, 'address', e.target.value || null)}
-              className="w-full px-2 py-1.5 bg-[#111111] border border-emerald-500/50 rounded text-xs text-emerald-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full px-2 py-1.5 bg-[#1a1a1a] border border-emerald-500/50 rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark] cursor-pointer"
             >
               <option value="">-</option>
               <option value="A">A</option>
@@ -796,7 +796,7 @@ export default function PurchasesPage() {
                     [product.id]: { ...prev[product.id], period: e.target.value, quantity: prev[product.id]?.quantity || 1 }
                   }))}
                   style={{ backgroundColor: '#1f2937', color: '#fff' }}
-                  className="text-xs border border-gray-600 rounded px-2 py-1.5 cursor-pointer appearance-auto"
+                  className="text-xs border border-gray-600 rounded px-2 py-1.5 cursor-pointer appearance-auto [color-scheme:dark]"
                 >
                   <option value="" style={{ backgroundColor: '#1f2937', color: '#fff' }}>No S&S</option>
                   {Object.entries(SNS_PERIOD_LABELS).map(([value, label]) => (
@@ -3171,7 +3171,7 @@ export default function PurchasesPage() {
                         <select
                           defaultValue={item.sns_period}
                           id={`sns-period-${item.id}`}
-                          className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1"
+                          className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1 [color-scheme:dark] cursor-pointer"
                         >
                           {Object.entries(SNS_PERIOD_LABELS).map(([v, l]) => (
                             <option key={v} value={v}>{l}</option>

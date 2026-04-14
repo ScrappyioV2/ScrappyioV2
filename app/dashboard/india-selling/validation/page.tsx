@@ -2998,7 +2998,7 @@ export default function ValidationPage() {
                                 onChange={(e) => {
                                     handleCellEdit(product.id, 'amazon_category', e.target.value || null);
                                 }}
-                                className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer truncate"
+                                className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-white focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer truncate [color-scheme:dark]"
                                 title={product.amazon_category || 'Select category'}
                             >
                                 <option value="" style={{ backgroundColor: '#1a1a1a', color: '#9ca3af' }}>Select Category...</option>
@@ -3017,7 +3017,7 @@ export default function ValidationPage() {
                         <select
                             value={product.fulfillment_channel || 'Seller Flex'}
                             onChange={(e) => handleCellEdit(product.id, 'fulfillment_channel', e.target.value)}
-                            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-white focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer [color-scheme:dark]"
                         >
                             <option value="Seller Flex" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Seller Flex</option>
                             <option value="Easy Ship" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Easy Ship</option>
@@ -3033,7 +3033,7 @@ export default function ValidationPage() {
                         <select
                             value={product.shipping_zone || 'National'}
                             onChange={(e) => handleCellEdit(product.id, 'shipping_zone', e.target.value)}
-                            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-gray-200 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg px-2 py-1.5 text-xs text-white focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer [color-scheme:dark]"
                         >
                             <option value="Local" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Local</option>
                             <option value="Regional" style={{ backgroundColor: '#1a1a1a', color: '#e5e7eb' }}>Regional</option>

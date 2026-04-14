@@ -2268,7 +2268,7 @@ export default function AdminValidationPage() {
               <select
                 value={product.purchase_currency || 'INR'}
                 onChange={(e) => handleCellEdit(product.id, 'purchase_currency', e.target.value)}
-                className="w-12 px-1 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-gray-100 focus:outline-none focus:border-orange-500"
+                className="w-12 px-1 py-1 bg-[#1a1a1a] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:border-orange-500 [color-scheme:dark] cursor-pointer"
               >
                 <option value="INR">₹</option>
                 <option value="USD">$</option>

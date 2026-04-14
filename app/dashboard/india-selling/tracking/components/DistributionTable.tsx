@@ -613,7 +613,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                                                 <select
                                                     value={product.distribution_status}
                                                     onChange={(e) => handleStatusChange(product.id, e.target.value)}
-                                                    className={`px-2 py-1 rounded-lg text-xs font-bold border cursor-pointer bg-[#111111] ${statusColors[product.distribution_status] || 'text-gray-400 border-white/[0.1]'}`}
+                                                    className={`px-2 py-1 rounded-lg text-xs font-bold border cursor-pointer bg-[#1a1a1a] [color-scheme:dark] ${statusColors[product.distribution_status] || 'text-gray-400 border-white/[0.1]'}`}
                                                 >
                                                     <option value="pending">⏳ Pending</option>
                                                     <option value="shipped">🚚 Shipped</option>
