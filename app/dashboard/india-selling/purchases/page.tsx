@@ -74,6 +74,7 @@ type PassFileProduct = {
   sns_next_due?: string | null
   split_id?: string | null
   split_from_id?: string | null
+  source?: string | null
 }
 
 // ADD THIS TYPE
@@ -303,7 +304,14 @@ export default function PurchasesPage() {
         if (!visibleColumns.asin) return null;
         return (
           <td key={colkey} className="px-6 py-4 font-mono text-sm text-gray-300" style={{ width: columnWidths.asin }}>
-            <div className="truncate">{product.asin}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="truncate">{product.asin}</span>
+              {(product as any).source === 'copy' && (
+                <span className="flex-shrink-0 px-1.5 py-0.5 text-[9px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded uppercase tracking-wider">
+                  Copy
+                </span>
+              )}
+            </div>
           </td>
         );
 
@@ -1058,6 +1066,7 @@ export default function PurchasesPage() {
           sku: copyItem.sku || null,
           journey_id: newJourneyId,
           journey_number: nextJourneyNumber,
+          source: 'copy',
         });
 
       if (error) throw error;
@@ -1137,6 +1146,7 @@ export default function PurchasesPage() {
           sku: copyItem.sku || null,
           journey_id: newJourneyId,
           journey_number: nextJourneyNumber,
+          source: 'copy',
         });
 
       if (error) throw error;
