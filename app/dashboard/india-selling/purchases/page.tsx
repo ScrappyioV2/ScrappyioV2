@@ -1891,7 +1891,8 @@ export default function PurchasesPage() {
         let trackingDeleteQuery = supabase
           .from('india_inbound_tracking')
           .delete()
-          .eq('asin', product.asin);
+          .eq('asin', product.asin)
+          .eq('seller_tag', product.seller_tag);
         if (product.journey_id) {
           trackingDeleteQuery = trackingDeleteQuery.eq('journey_id', product.journey_id);
         }
@@ -1942,6 +1943,9 @@ export default function PurchasesPage() {
             target_price_validation: (product as any).target_price_validation,
             target_price_link_validation: (product as any).target_price_link_validation,
             pending_quantity: (product as any).pending_quantity,
+            sns_active: (product as any).sns_active || false,
+            sns_period: (product as any).sns_period || null,
+            sns_quantity: (product as any).sns_quantity || null,
             admin_confirmed: true,
             status: 'confirmed',
           }, { onConflict: 'id' });
