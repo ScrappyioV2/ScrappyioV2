@@ -1128,9 +1128,9 @@ export default function PurchasesPage() {
     checkSnsDue();
   }, []);
 
-  const handleEditSns = async (snsItem: any, newPeriod: string, newQuantity: number) => {
+  const handleEditSns = async (snsItem: any, newPeriod: string, newQuantity: number, customDueDate?: string) => {
     try {
-      const nextDue = calculateNextDue(newPeriod);
+      const nextDue = customDueDate ? new Date(customDueDate) : calculateNextDue(newPeriod);
       await supabase.from('india_purchase_sns')
         .update({
           sns_period: newPeriod,
@@ -1150,20 +1150,8 @@ export default function PurchasesPage() {
   const handleRemoveSns = async (snsItem: any) => {
     try {
       await supabase.from('india_purchase_sns').delete().eq('id', snsItem.id);
-      await supabase.from('india_purchases').insert({
-        asin: snsItem.asin,
-        product_name: snsItem.product_name,
-        brand: snsItem.brand,
-        seller_tag: snsItem.seller_tag,
-        funnel: snsItem.funnel,
-        sku: snsItem.sku,
-        remark: snsItem.remark,
-        sns_active: false,
-        buying_quantities: snsItem.buying_quantities || { [snsItem.seller_tag]: snsItem.sns_quantity },
-      });
-      showToast('S&S removed. Product returned to Purchase Main File.', 'success');
+      showToast('S&S subscription removed', 'success');
       fetchSns();
-      fetchProducts();
     } catch {
       showToast('Failed to remove S&S', 'error');
     }
@@ -3335,7 +3323,16 @@ export default function PurchasesPage() {
                       )}
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-400">
-                      {item.sns_next_due ? new Date(item.sns_next_due).toLocaleDateString() : '-'}
+                      {snsEditingId === item.id ? (
+                        <input
+                          type="date"
+                          defaultValue={item.sns_next_due ? new Date(item.sns_next_due).toISOString().split('T')[0] : ''}
+                          id={`sns-due-${item.id}`}
+                          className="bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1 [color-scheme:dark]"
+                        />
+                      ) : (
+                        item.sns_next_due ? new Date(item.sns_next_due).toLocaleDateString() : '-'
+                      )}
                     </td>
                     <td className="px-6 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
@@ -3345,7 +3342,8 @@ export default function PurchasesPage() {
                               onClick={() => {
                                 const periodEl = document.getElementById(`sns-period-${item.id}`) as HTMLSelectElement;
                                 const qtyEl = document.getElementById(`sns-qty-${item.id}`) as HTMLInputElement;
-                                handleEditSns(item, periodEl.value, parseInt(qtyEl.value) || 1);
+                                const dueEl = document.getElementById(`sns-due-${item.id}`) as HTMLInputElement;
+                                handleEditSns(item, periodEl.value, parseInt(qtyEl.value) || 1, dueEl?.value || undefined);
                               }}
                               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded font-semibold transition-colors"
                             >Save</button>
@@ -3586,7 +3584,7 @@ export default function PurchasesPage() {
                 </tr>
               ) : (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] group">
+                  <tr key={product.id} className={`hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] group ${activeTab === 'order_confirmed' && product.sns_active ? 'border-l-4 border-l-teal-500 bg-teal-900/10' : ''}`}>
                     {/* Checkbox */}
                     {visibleColumns.checkbox && (
                       <td className="px-6 py-4 text-center" style={{ width: columnWidths.checkbox }}>
