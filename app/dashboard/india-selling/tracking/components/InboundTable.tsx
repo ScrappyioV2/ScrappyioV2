@@ -528,20 +528,15 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     // ============================================
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
-            const product = products.find(p => p.id === id);
-            const siblingIds = product
-                ? products.filter(p => p.asin === product.asin).map(p => p.id)
-                : [id];
-
             const { error } = await supabase
                 .from('india_inbound_tracking')
                 .update({ status: newStatus })
-                .in('id', siblingIds);
+                .eq('id', id);
 
             if (error) throw error;
 
             setProducts(prev => prev.map(p =>
-                siblingIds.includes(p.id) ? { ...p, status: newStatus } : p
+                p.id === id ? { ...p, status: newStatus } : p
             ));
         } catch (error) {
             console.error('Error updating status:', error);
