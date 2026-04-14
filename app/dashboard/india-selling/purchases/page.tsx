@@ -1066,11 +1066,77 @@ export default function PurchasesPage() {
       return;
     }
 
-    for (const tag of copySellerModal.selected) {
-      await handleSendCopyToPurchases(copySellerModal.copy, tag);
+    const selectedTags = Array.from(copySellerModal.selected);
+    const copyItem = copySellerModal.copy;
+
+    // If only 1 tag selected, use single-tag flow
+    if (selectedTags.length === 1) {
+      await handleSendCopyToPurchases(copyItem, selectedTags[0]);
+      setCopySellerModal(null);
+      return;
     }
 
-    setCopySellerModal(null);
+    try {
+      // Check if this ASIN already exists in purchases
+      const { data: existing } = await supabase
+        .from('india_purchases')
+        .select('id')
+        .eq('asin', copyItem.asin)
+        .is('move_to', null)
+        .or('sent_to_admin.is.null,sent_to_admin.eq.false')
+        .maybeSingle();
+
+      if (existing) {
+        showToast(`${copyItem.asin} already exists in purchases`, 'info');
+        setCopySellerModal(null);
+        return;
+      }
+
+      // Build merged buying_quantities
+      const buyingQuantities: Record<string, number> = {};
+      for (const tag of selectedTags) {
+        buyingQuantities[tag] = 0;
+      }
+
+      // Insert ONE merged row
+      const { error } = await supabase
+        .from('india_purchases')
+        .insert({
+          asin: copyItem.asin,
+          product_name: copyItem.product_name,
+          brand: copyItem.brand,
+          seller_tag: selectedTags.join(', '),
+          funnel: copyItem.funnel,
+          product_link: copyItem.india_link || null,
+          inr_purchase_link: null,
+          origin: 'India',
+          origin_india: true,
+          origin_china: false,
+          origin_us: false,
+          buying_price: 0,
+          buying_quantity: 0,
+          buying_quantities: buyingQuantities,
+          remark: copyItem.remark || null,
+          sku: copyItem.sku || null,
+        });
+
+      if (error) throw error;
+
+      setCopySellerModal(null);
+      showToast(`${copyItem.asin} (${selectedTags.join(', ')}) sent to Purchase Main File`, 'success');
+      await refreshProductsSilently();
+
+      logActivity({
+        action: 'copy_to_purchases',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_purchases',
+        asin: copyItem.asin,
+        details: { from: 'copies', to: 'purchases', seller_tags: selectedTags }
+      });
+    } catch (err: any) {
+      showToast(`Failed: ${err.message}`, 'error');
+    }
   };
 
   // S&S functions
