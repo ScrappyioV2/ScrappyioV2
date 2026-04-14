@@ -136,7 +136,7 @@ export default function PurchasesPage() {
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [copies, setCopies] = useState<any[]>([]);
   const [selectedCopyIds, setSelectedCopyIds] = useState<Set<string>>(new Set());
-  const [copySellerModal, setCopySellerModal] = useState<{ copy: any; tags: string[] } | null>(null);
+  const [copySellerModal, setCopySellerModal] = useState<{ copy: any; tags: string[]; selected: Set<string> } | null>(null);
   const [snsData, setSnsData] = useState<any[]>([]);
   const [snsSelections, setSnsSelections] = useState<Record<string, { period: string; quantity: number }>>({});
   const [snsEditingId, setSnsEditingId] = useState<string | null>(null);
@@ -999,7 +999,7 @@ export default function PurchasesPage() {
 
       // If multi-tag and no tag selected yet, show modal
       if (tags.length > 1 && !selectedTag) {
-        setCopySellerModal({ copy: copyItem, tags });
+        setCopySellerModal({ copy: copyItem, tags, selected: new Set<string>() });
         return;
       }
 
@@ -1058,6 +1058,19 @@ export default function PurchasesPage() {
     } catch (err: any) {
       showToast(`Failed: ${err.message}`, 'error');
     }
+  };
+
+  const handleSendCopyMultipleTags = async () => {
+    if (!copySellerModal || copySellerModal.selected.size === 0) {
+      showToast('Select at least one seller tag', 'info');
+      return;
+    }
+
+    for (const tag of copySellerModal.selected) {
+      await handleSendCopyToPurchases(copySellerModal.copy, tag);
+    }
+
+    setCopySellerModal(null);
   };
 
   // S&S functions
@@ -4093,21 +4106,50 @@ export default function PurchasesPage() {
       {copySellerModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setCopySellerModal(null)}>
           <div className="bg-[#111111] border border-white/[0.1] rounded-2xl p-6 w-[400px] shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-white text-lg font-semibold mb-2">Select Seller Tag</h3>
-            <p className="text-gray-400 text-sm mb-4">ASIN {copySellerModal.copy.asin} has multiple seller tags. Choose which one to send to purchases.</p>
+            <h3 className="text-white text-lg font-semibold mb-2">Select Seller Tags</h3>
+            <p className="text-gray-400 text-sm mb-4">ASIN {copySellerModal.copy.asin} — select one or more tags to send to purchases.</p>
             <div className="flex flex-wrap gap-3 mb-6">
-              {copySellerModal.tags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => handleSendCopyToPurchases(copySellerModal.copy, tag)}
-                  className={`px-4 py-3 rounded-xl font-bold text-sm transition-all hover:scale-105 border ${SELLER_STYLES[tag] || 'bg-[#1a1a1a] text-white border-white/[0.1]'}`}
-                >
-                  {tag}
-                </button>
-              ))}
+              {copySellerModal.tags.map(tag => {
+                const isSelected = copySellerModal.selected.has(tag);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      setCopySellerModal(prev => {
+                        if (!prev) return prev;
+                        const next = new Set(prev.selected);
+                        if (next.has(tag)) next.delete(tag);
+                        else next.add(tag);
+                        return { ...prev, selected: next };
+                      });
+                    }}
+                    className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                      isSelected
+                        ? 'ring-2 ring-orange-500 border-orange-500 scale-110'
+                        : 'border-transparent opacity-60 hover:opacity-100'
+                    } ${SELLER_STYLES[tag] || 'bg-[#1a1a1a] text-white'}`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex justify-end">
-              <button onClick={() => setCopySellerModal(null)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">Cancel</button>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-400">{copySellerModal.selected.size} selected</span>
+              <div className="flex gap-2">
+                <button onClick={() => setCopySellerModal(null)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">Cancel</button>
+                <button
+                  onClick={handleSendCopyMultipleTags}
+                  disabled={copySellerModal.selected.size === 0}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    copySellerModal.selected.size > 0
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Send ({copySellerModal.selected.size})
+                </button>
+              </div>
             </div>
           </div>
         </div>
