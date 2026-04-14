@@ -1719,6 +1719,17 @@ export default function ValidationPage() {
             return;
         }
 
+        // Check all selected items have category
+        const selectedProducts = products.filter(p => selectedIds.has(p.id));
+        const missingCategory = selectedProducts.filter(p => !p.amazon_category);
+        if (missingCategory.length > 0) {
+            setToast({
+                message: `${missingCategory.length} item(s) missing Category. Please select Category for all items before moving to Pass.`,
+                type: 'warning'
+            });
+            return;
+        }
+
         setConfirmDialog({
             title: 'Move to Pass File',
             message: `Move ${selectedIds.size} items to Pass File?`,
@@ -2111,6 +2122,12 @@ export default function ValidationPage() {
         const judgement = product.calculated_judgement;
 
         if (!judgement || judgement === 'PENDING') return;
+
+        // Block PASS if category not selected
+        if (judgement === 'PASS' && !product.amazon_category) {
+            setToast({ message: 'Please select a Category before moving to Pass', type: 'warning' });
+            return;
+        }
 
         // LOCK this product — no autoCalc or refresh can touch it
         movingIdsRef.current.add(product.id);
