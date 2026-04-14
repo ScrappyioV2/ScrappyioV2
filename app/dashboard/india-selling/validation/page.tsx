@@ -187,6 +187,8 @@ interface Stats {
     pending: number;
     rejected: number;
     reworking: number;
+    india_link_nf: number;
+    usa_link_nf: number;
 }
 
 interface Filters {
@@ -195,7 +197,7 @@ interface Filters {
     funnel: string;
 }
 
-type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file';
+type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file' | 'india_link_nf' | 'usa_link_nf';
 
 const SELLER_STYLES: Record<string, string> = {
     GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',    // Golden Aura - YELLOW
@@ -309,7 +311,7 @@ export default function ValidationPage() {
     const [loading, setLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
-    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0, reworking: 0 });
+    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0, reworking: 0, india_link_nf: 0, usa_link_nf: 0 });
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
@@ -341,7 +343,7 @@ export default function ValidationPage() {
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
     const [tabPages, setTabPages] = useState<Record<FileTab, number>>({
-        main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reworking: 1, reject_file: 1,
+        main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reworking: 1, reject_file: 1, india_link_nf: 1, usa_link_nf: 1,
     });
     const [rowsPerPage] = useState(100);
     const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
@@ -675,12 +677,14 @@ export default function ValidationPage() {
 
     const fetchStats = async () => {
         try {
-            const [passRes, failRes, pendingRes, rejectRes, reworkRes, totalRes] = await Promise.all([
+            const [passRes, failRes, pendingRes, rejectRes, reworkRes, indiaLinkNfRes, usaLinkNfRes, totalRes] = await Promise.all([
                 supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'PASS'),
                 supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'FAIL'),
                 supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).or('judgement.is.null,judgement.eq.PENDING'),
                 supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'REJECT'),
                 supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'REWORKING'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'INDIA_LINK_NF'),
+                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'USA_LINK_NF'),
                 supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }),
             ]);
 
@@ -691,6 +695,8 @@ export default function ValidationPage() {
                 pending: pendingRes.count ?? 0,
                 rejected: rejectRes.count ?? 0,
                 reworking: reworkRes.count ?? 0,
+                india_link_nf: indiaLinkNfRes.count ?? 0,
+                usa_link_nf: usaLinkNfRes.count ?? 0,
             })
         } catch (err) {
             console.error('Error fetching stats:', err)
@@ -821,12 +827,12 @@ export default function ValidationPage() {
     };
 
     // ✅ Cache filtered products per tab
-    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [] });
+    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [], india_link_nf: [], usa_link_nf: [] });
 
     // ✅ Add this useEffect to clear cache when products change
     useEffect(() => {
         // Clear cache when products array updates
-        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [] };
+        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [], india_link_nf: [], usa_link_nf: [] };
     }, [products]);
 
 
@@ -926,6 +932,10 @@ export default function ValidationPage() {
             result = products.filter(p => p.judgement === 'REJECT');
         } else if (activeTab === 'reworking') {
             result = products.filter(p => p.judgement === 'REWORKING');
+        } else if (activeTab === 'india_link_nf') {
+            result = products.filter(p => p.judgement === 'INDIA_LINK_NF');
+        } else if (activeTab === 'usa_link_nf') {
+            result = products.filter(p => p.judgement === 'USA_LINK_NF');
         } else if (activeTab === 'pending' || activeTab === 'main_file') {
             result = products.filter(p => !p.judgement || p.judgement === 'PENDING');
         }
@@ -1927,6 +1937,120 @@ export default function ValidationPage() {
                     await fetchStats();
                 } catch (err) {
                     console.error('Move to reworking error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                } finally {
+                    setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
+                    setTimeout(() => { idsArray.forEach(id => movingIdsRef.current.delete(id)); }, 10000);
+                }
+            }
+        });
+    };
+
+    const handleMoveToIndiaLinkNFClick = () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
+        }
+
+        setConfirmDialog({
+            title: 'Move to India Link NF',
+            message: `Move ${selectedIds.size} items to India Link Not Found?`,
+            confirmText: 'Move to India Link NF',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const idsArray = Array.from(selectedIds);
+                idsArray.forEach(id => movingIdsRef.current.add(id));
+                localEditCountRef.current += 1;
+
+                try {
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update({ judgement: 'INDIA_LINK_NF' })
+                        .in('id', idsArray);
+
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
+
+                    setProducts(prev =>
+                        prev.map(p => selectedIds.has(p.id)
+                            ? { ...p, judgement: 'INDIA_LINK_NF' }
+                            : p
+                        )
+                    );
+                    setSelectedIds(new Set());
+                    setToast({ message: `Moved ${idsArray.length} items to India Link NF`, type: 'success' });
+
+                    logBatchActivity(
+                        products.filter(p => selectedIds.has(p.id)).map(p => ({
+                            asin: p.asin,
+                            details: { seller_tag: p.seller_tag, from: 'main_file', to: 'india_link_nf' }
+                        })),
+                        { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+                    );
+
+                    await fetchStats();
+                } catch (err) {
+                    console.error('Move to India Link NF error:', err);
+                    setToast({ message: 'Failed to move items', type: 'error' });
+                } finally {
+                    setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
+                    setTimeout(() => { idsArray.forEach(id => movingIdsRef.current.delete(id)); }, 10000);
+                }
+            }
+        });
+    };
+
+    const handleMoveToUsaLinkNFClick = () => {
+        if (selectedIds.size === 0) {
+            setToast({ message: 'No items selected', type: 'warning' });
+            return;
+        }
+
+        setConfirmDialog({
+            title: 'Move to USA Link NF',
+            message: `Move ${selectedIds.size} items to USA Link Not Found?`,
+            confirmText: 'Move to USA Link NF',
+            type: 'warning',
+            onConfirm: async () => {
+                setConfirmDialog(null);
+                const idsArray = Array.from(selectedIds);
+                idsArray.forEach(id => movingIdsRef.current.add(id));
+                localEditCountRef.current += 1;
+
+                try {
+                    const { error } = await supabase
+                        .from('india_validation_main_file')
+                        .update({ judgement: 'USA_LINK_NF' })
+                        .in('id', idsArray);
+
+                    if (error) {
+                        console.error('Supabase error:', error);
+                        throw error;
+                    }
+
+                    setProducts(prev =>
+                        prev.map(p => selectedIds.has(p.id)
+                            ? { ...p, judgement: 'USA_LINK_NF' }
+                            : p
+                        )
+                    );
+                    setSelectedIds(new Set());
+                    setToast({ message: `Moved ${idsArray.length} items to USA Link NF`, type: 'success' });
+
+                    logBatchActivity(
+                        products.filter(p => selectedIds.has(p.id)).map(p => ({
+                            asin: p.asin,
+                            details: { seller_tag: p.seller_tag, from: 'main_file', to: 'usa_link_nf' }
+                        })),
+                        { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
+                    );
+
+                    await fetchStats();
+                } catch (err) {
+                    console.error('Move to USA Link NF error:', err);
                     setToast({ message: 'Failed to move items', type: 'error' });
                 } finally {
                     setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
@@ -2949,7 +3073,7 @@ export default function ValidationPage() {
                                         </div>
                                     </>
                                 )}
-                                {checkedCount > 0 && hasOrigin && (
+                                {product.check_brand && hasOrigin && (
                                     <button onClick={() => handleChecklistOk(product.id)} className="px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-md transition-all w-fit text-xs">
                                         OK
                                     </button>
@@ -3131,6 +3255,14 @@ export default function ValidationPage() {
                                 <span className="text-[11px] font-medium text-cyan-400 uppercase tracking-wider">Reworking</span>
                                 <span className="text-sm sm:text-lg font-bold text-cyan-300">{stats.reworking}</span>
                             </div>
+                            <div className="flex items-center gap-2.5 bg-amber-900/30 rounded-lg px-3.5 py-2 border border-amber-500/20">
+                                <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">India Link NF</span>
+                                <span className="text-sm sm:text-lg font-bold text-amber-300">{stats.india_link_nf}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5 bg-blue-900/30 rounded-lg px-3.5 py-2 border border-blue-500/20">
+                                <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider">USA Link NF</span>
+                                <span className="text-sm sm:text-lg font-bold text-blue-300">{stats.usa_link_nf}</span>
+                            </div>
                         </div>
                         {/* File Tabs */}
                         <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-5 p-1 sm:p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
@@ -3140,6 +3272,8 @@ export default function ValidationPage() {
                                 { id: 'fail_file', label: 'Failed File' },
                                 { id: 'reworking', label: 'Reworking' },
                                 { id: 'reject_file', label: 'Rejected' },
+                                { id: 'india_link_nf', label: 'India Link NF' },
+                                { id: 'usa_link_nf', label: 'USA Link NF' },
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -3246,7 +3380,7 @@ export default function ValidationPage() {
                             </div>
 
                             {/* Move to Main */}
-                            {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file') && (
+                            {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file' || activeTab === 'india_link_nf' || activeTab === 'usa_link_nf') && (
                                 <button
                                     onClick={handleMoveToMainClick}
                                     disabled={selectedIds.size === 0}
@@ -3275,6 +3409,40 @@ export default function ValidationPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
                                     <span className="hidden sm:inline">Move to Reworking</span>
+                                </button>
+                            )}
+
+                            {activeTab === 'main_file' && (
+                                <button
+                                    onClick={handleMoveToIndiaLinkNFClick}
+                                    disabled={selectedIds.size === 0}
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-amber-900/20 ${selectedIds.size === 0
+                                        ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                        : 'bg-amber-600 text-white hover:bg-amber-500 border border-amber-500'
+                                        }`}
+                                >
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.172 13.828a4 4 0 015.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+                                    </svg>
+                                    <span className="hidden sm:inline">India Link NF</span>
+                                </button>
+                            )}
+
+                            {activeTab === 'main_file' && (
+                                <button
+                                    onClick={handleMoveToUsaLinkNFClick}
+                                    disabled={selectedIds.size === 0}
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 transition whitespace-nowrap shadow-lg shadow-blue-900/20 ${selectedIds.size === 0
+                                        ? 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
+                                        : 'bg-blue-600 text-white hover:bg-blue-500 border border-blue-500'
+                                        }`}
+                                >
+                                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.172 13.828a4 4 0 015.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+                                    </svg>
+                                    <span className="hidden sm:inline">USA Link NF</span>
                                 </button>
                             )}
 
