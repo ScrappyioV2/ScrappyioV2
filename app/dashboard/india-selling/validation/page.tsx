@@ -3291,7 +3291,7 @@ export default function ValidationPage() {
                         {/* Action Buttons */}
                         <div className="flex flex-wrap items-center gap-3 mb-6">
                             {/* Search Bar */}
-                            <div className="relative flex-1 min-w-0 max-w-xs group">
+                            <div className="relative w-64 shrink-0 group">
                                 <svg
                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-orange-500 transition-colors"
                                     fill="none"
