@@ -688,6 +688,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                                 <div className="flex gap-1.5">
                                                                     <span className="flex items-center gap-1 text-[10px]">
                                                                         <span className={`px-1.5 py-0.5 rounded font-bold ${SELLER_STYLES[candidate.tag] || "bg-[#1a1a1a] text-white"}`}>{candidate.tag}</span>
+                                                                        {candidate.item.sns_active && <span className="px-1.5 py-0.5 bg-teal-900/50 text-teal-300 rounded font-medium">S&S</span>}
                                                                     </span>
                                                                 </div>
                                                             </div>
