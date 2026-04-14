@@ -2491,6 +2491,27 @@ export default function PurchasesPage() {
     return result;
   })();
 
+  // ─── Filtered S&S ───
+  const filteredSns = (() => {
+    let result = snsData;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((s: any) =>
+        s.asin?.toLowerCase().includes(q) ||
+        s.product_name?.toLowerCase().includes(q) ||
+        s.brand?.toLowerCase().includes(q) ||
+        s.sku?.toLowerCase().includes(q)
+      );
+    }
+    if (funnelFilter !== 'ALL') {
+      result = result.filter((s: any) => s.funnel === funnelFilter);
+    }
+    if (sellerTagFilter !== 'ALL') {
+      result = result.filter((s: any) => s.seller_tag?.toUpperCase().includes(sellerTagFilter));
+    }
+    return result;
+  })();
+
   // ─── STEP 2: Pagination (OUTSIDE the filter, after it) ───
   const totalPages = Math.ceil(allFilteredProducts.length / rowsPerPage) || 1;
   const filteredProducts = allFilteredProducts.slice(
@@ -3287,13 +3308,13 @@ export default function PurchasesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
-                {snsData.length === 0 ? (
+                {filteredSns.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-16 text-center text-gray-300">
                       <span className="text-lg font-semibold text-gray-400">No S&S subscriptions yet</span>
                     </td>
                   </tr>
-                ) : snsData.map(item => (
+                ) : filteredSns.map((item: any) => (
                   <tr key={item.id} className="hover:bg-white/[0.05] transition-colors">
                     <td className="px-6 py-3 text-sm font-mono text-orange-400">{item.asin}</td>
                     <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{item.product_name || '-'}</td>
@@ -3367,6 +3388,10 @@ export default function PurchasesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          {/* S&S Footer */}
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 text-sm text-gray-300">
+            Showing <span className="font-bold text-white">{filteredSns.length}</span> of <span className="font-bold text-white">{snsData.length}</span> subscriptions
           </div>
         </div>
       ) : activeTab === 'copy' ? (
