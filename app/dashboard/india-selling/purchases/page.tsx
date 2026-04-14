@@ -1005,47 +1005,76 @@ export default function PurchasesPage() {
 
       const tag = selectedTag || tags[0] || '';
 
-      // Check if this ASIN+tag already exists in purchases
-      const { data: existing } = await supabase
+      // Check if this ASIN already exists in purchases (any tag combo, in main file)
+      const { data: existingRow } = await supabase
         .from('india_purchases')
-        .select('id')
+        .select('id, seller_tag, buying_quantities')
         .eq('asin', copyItem.asin)
-        .eq('seller_tag', tag)
         .is('move_to', null)
-        .or('sent_to_admin.is.null,sent_to_admin.eq.false')
+        .eq('sent_to_admin', false)
+        .eq('admin_confirmed', false)
         .maybeSingle();
 
-      if (existing) {
-        showToast(`${copyItem.asin} with ${tag} already exists in purchases`, 'info');
-        return;
+      if (existingRow) {
+        // Check if this specific tag already exists in the row
+        const existingTags = (existingRow.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+        if (existingTags.includes(tag)) {
+          showToast(`${copyItem.asin} with ${tag} already exists in purchases`, 'info');
+          return;
+        }
+
+        // MERGE: add tag to existing row
+        const newTags = [...existingTags, tag];
+        const newBuyingQuantities = { ...(existingRow.buying_quantities || {}), [tag]: 0 };
+
+        const { error } = await supabase
+          .from('india_purchases')
+          .update({
+            seller_tag: newTags.join(', '),
+            buying_quantities: newBuyingQuantities,
+          })
+          .eq('id', existingRow.id);
+
+        if (error) throw error;
+
+        setCopySellerModal(null);
+        showToast(`${tag} merged into existing ${copyItem.asin} row in purchases`, 'success');
+        await refreshProductsSilently();
+      } else {
+        // No existing row — create new with ALL copy data
+        const { error } = await supabase
+          .from('india_purchases')
+          .insert({
+            asin: copyItem.asin,
+            product_name: copyItem.product_name,
+            brand: copyItem.brand,
+            seller_tag: tag,
+            funnel: copyItem.funnel,
+            product_link: copyItem.india_link || null,
+            inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
+            seller_link: copyItem.seller_link || null,
+            origin: copyItem.origin || 'India',
+            origin_india: copyItem.origin_india ?? true,
+            origin_china: copyItem.origin_china ?? false,
+            origin_us: copyItem.origin_us ?? false,
+            buying_price: copyItem.buying_price || 0,
+            buying_quantity: copyItem.buying_quantity || 0,
+            buying_quantities: { [tag]: copyItem.buying_quantity || 0 },
+            product_weight: copyItem.product_weight || null,
+            usd_price: copyItem.usd_price || null,
+            inr_purchase: copyItem.inr_purchase || null,
+            target_price: copyItem.target_price || null,
+            profit: copyItem.profit || null,
+            remark: copyItem.remark || null,
+            sku: copyItem.sku || null,
+          });
+
+        if (error) throw error;
+
+        setCopySellerModal(null);
+        showToast(`${copyItem.asin} (${tag}) sent to Purchase Main File`, 'success');
+        await refreshProductsSilently();
       }
-
-      const { error } = await supabase
-        .from('india_purchases')
-        .insert({
-          asin: copyItem.asin,
-          product_name: copyItem.product_name,
-          brand: copyItem.brand,
-          seller_tag: tag,
-          funnel: copyItem.funnel,
-          product_link: copyItem.india_link || null,
-          inr_purchase_link: copyItem.amz_link || copyItem.india_link || null,
-          origin: 'India',
-          origin_india: true,
-          origin_china: false,
-          origin_us: false,
-          buying_price: 0,
-          buying_quantity: 0,
-          buying_quantities: { [tag]: 0 },
-          remark: copyItem.remark || null,
-          sku: copyItem.sku || null,
-        });
-
-      if (error) throw error;
-
-      setCopySellerModal(null);
-      showToast(`${copyItem.asin} (${tag}) sent to Purchase Main File`, 'success');
-      await refreshProductsSilently();
 
       logActivity({
         action: 'copy_to_purchases',
@@ -1069,7 +1098,6 @@ export default function PurchasesPage() {
     const selectedTags = Array.from(copySellerModal.selected);
     const copyItem = copySellerModal.copy;
 
-    // If only 1 tag selected, use single-tag flow
     if (selectedTags.length === 1) {
       await handleSendCopyToPurchases(copyItem, selectedTags[0]);
       setCopySellerModal(null);
@@ -1077,53 +1105,83 @@ export default function PurchasesPage() {
     }
 
     try {
-      // Check if this ASIN already exists in purchases
-      const { data: existing } = await supabase
+      const { data: existingRow } = await supabase
         .from('india_purchases')
-        .select('id')
+        .select('id, seller_tag, buying_quantities')
         .eq('asin', copyItem.asin)
         .is('move_to', null)
-        .or('sent_to_admin.is.null,sent_to_admin.eq.false')
+        .eq('sent_to_admin', false)
+        .eq('admin_confirmed', false)
         .maybeSingle();
 
-      if (existing) {
-        showToast(`${copyItem.asin} already exists in purchases`, 'info');
-        setCopySellerModal(null);
-        return;
+      if (existingRow) {
+        const existingTags = (existingRow.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+        const newTags = [...existingTags];
+        const newBuyingQuantities = { ...(existingRow.buying_quantities || {}) };
+
+        for (const tag of selectedTags) {
+          if (!newTags.includes(tag)) {
+            newTags.push(tag);
+            newBuyingQuantities[tag] = 0;
+          }
+        }
+
+        if (newTags.length === existingTags.length) {
+          showToast(`All selected tags already exist in purchases`, 'info');
+          setCopySellerModal(null);
+          return;
+        }
+
+        const { error } = await supabase
+          .from('india_purchases')
+          .update({
+            seller_tag: newTags.join(', '),
+            buying_quantities: newBuyingQuantities,
+          })
+          .eq('id', existingRow.id);
+
+        if (error) throw error;
+
+        const addedTags = selectedTags.filter(t => !existingTags.includes(t));
+        showToast(`${addedTags.join(', ')} merged into existing ${copyItem.asin} row`, 'success');
+      } else {
+        const buyingQuantities: Record<string, number> = {};
+        for (const tag of selectedTags) {
+          buyingQuantities[tag] = 0;
+        }
+
+        const { error } = await supabase
+          .from('india_purchases')
+          .insert({
+            asin: copyItem.asin,
+            product_name: copyItem.product_name,
+            brand: copyItem.brand,
+            seller_tag: selectedTags.join(', '),
+            funnel: copyItem.funnel,
+            product_link: copyItem.india_link || null,
+            inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
+            seller_link: copyItem.seller_link || null,
+            origin: copyItem.origin || 'India',
+            origin_india: copyItem.origin_india ?? true,
+            origin_china: copyItem.origin_china ?? false,
+            origin_us: copyItem.origin_us ?? false,
+            buying_price: copyItem.buying_price || 0,
+            buying_quantity: copyItem.buying_quantity || 0,
+            buying_quantities: buyingQuantities,
+            product_weight: copyItem.product_weight || null,
+            usd_price: copyItem.usd_price || null,
+            inr_purchase: copyItem.inr_purchase || null,
+            target_price: copyItem.target_price || null,
+            profit: copyItem.profit || null,
+            remark: copyItem.remark || null,
+            sku: copyItem.sku || null,
+          });
+
+        if (error) throw error;
+        showToast(`${copyItem.asin} (${selectedTags.join(', ')}) sent to Purchase Main File`, 'success');
       }
-
-      // Build merged buying_quantities
-      const buyingQuantities: Record<string, number> = {};
-      for (const tag of selectedTags) {
-        buyingQuantities[tag] = 0;
-      }
-
-      // Insert ONE merged row
-      const { error } = await supabase
-        .from('india_purchases')
-        .insert({
-          asin: copyItem.asin,
-          product_name: copyItem.product_name,
-          brand: copyItem.brand,
-          seller_tag: selectedTags.join(', '),
-          funnel: copyItem.funnel,
-          product_link: copyItem.india_link || null,
-          inr_purchase_link: copyItem.amz_link || copyItem.india_link || null,
-          origin: 'India',
-          origin_india: true,
-          origin_china: false,
-          origin_us: false,
-          buying_price: 0,
-          buying_quantity: 0,
-          buying_quantities: buyingQuantities,
-          remark: copyItem.remark || null,
-          sku: copyItem.sku || null,
-        });
-
-      if (error) throw error;
 
       setCopySellerModal(null);
-      showToast(`${copyItem.asin} (${selectedTags.join(', ')}) sent to Purchase Main File`, 'success');
       await refreshProductsSilently();
 
       logActivity({
@@ -1608,6 +1666,19 @@ export default function PurchasesPage() {
           remark: (product as any).remark,
           sku: (product as any).sku,
           category: (product as any).category,
+          seller_link: (product as any).seller_link || null,
+          buying_price: product.buying_price || null,
+          buying_quantity: product.buying_quantity || null,
+          product_weight: (product as any).product_weight || null,
+          usd_price: (product as any).usd_price || null,
+          inr_purchase: (product as any).inr_purchase || null,
+          inr_purchase_link: (product as any).inr_purchase_link || null,
+          target_price: (product as any).target_price || null,
+          origin: (product as any).origin || 'India',
+          origin_india: (product as any).origin_india ?? true,
+          origin_china: (product as any).origin_china ?? false,
+          origin_us: (product as any).origin_us ?? false,
+          profit: (product as any).profit || null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'asin' });
       } catch (copyErr) {
