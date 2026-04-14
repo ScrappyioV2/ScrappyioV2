@@ -2139,13 +2139,17 @@ export default function PurchasesPage() {
         }
         await adminDeleteQuery;
 
-        // 2. Delete the individual purchase rows created for moved tags
-        await supabase
+        // 2. Delete the individual purchase rows created for moved tags (same journey only)
+        let deleteIndividualQuery = supabase
           .from('india_purchases')
           .delete()
           .eq('asin', product.asin)
           .eq('sent_to_admin', true)
           .neq('id', product.id);
+        if (product.journey_id) {
+          deleteIndividualQuery = deleteIndividualQuery.eq('journey_id', product.journey_id);
+        }
+        await deleteIndividualQuery;
 
         // 3. Restore original row — check if ASIN already has a row in purchases (from copies send-back)
         const { data: existingPurchaseRow } = await supabase
