@@ -2107,7 +2107,7 @@ export default function ValidationPage() {
 
     // Check if all required fields are filled for moving
     const isReadyToMove = (product: ValidationProduct): boolean => {
-        return !!(
+        const baseReady = !!(
             product.product_weight &&
             product.usd_price &&
             product.inr_purchase &&
@@ -2115,6 +2115,11 @@ export default function ValidationPage() {
             product.calculated_judgement &&
             product.calculated_judgement !== 'PENDING'
         );
+        // PASS requires category; FAIL does not
+        if (product.calculated_judgement === 'PASS') {
+            return baseReady && !!product.amazon_category;
+        }
+        return baseReady;
     };
 
     // Move ASIN to Pass/Fail based on calculated judgement
