@@ -47,6 +47,7 @@ type DistributionProduct = {
     notes: string | null;
     moved_from_checking_at: string | null;
     created_at: string | null;
+    sns_active?: boolean | null;
 };
 
 interface DistributionTableProps {
@@ -556,7 +557,10 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
 
                                             {/* Product Name */}
                                             <td className="px-6 py-4 text-sm text-gray-100 border-r border-white/[0.1]">
-                                                <div className="truncate max-w-[200px]" title={product.product_name || ''}>{product.product_name || '-'}</div>
+                                                <div className="flex items-center">
+                                                    <span className="truncate max-w-[200px]" title={product.product_name || ''}>{product.product_name || '-'}</span>
+                                                    {product.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                                                </div>
                                             </td>
 
                                             {/* Box Number */}

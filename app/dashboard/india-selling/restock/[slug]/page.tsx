@@ -47,6 +47,7 @@ type RestockItem = {
     created_at?: string | null
     moved_at?: string | null
     distribution_id?: string | null
+    sns_active?: boolean | null
 }
 
 type SortField = 'asin' | 'product_name' | 'buying_price' | 'created_at' | 'status'
@@ -234,7 +235,10 @@ function RestockRollbackModal({
                                             </a>
                                         </td>
                                         <td className="px-6 py-4.5 text-sm text-gray-300">
-                                            <div className="truncate max-w-[200px]">{item.product_name || '-'}</div>
+                                            <div className="flex items-center">
+                                                <span className="truncate max-w-[200px]">{item.product_name || '-'}</span>
+                                                {item.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4.5 text-center text-sm text-gray-300">{item.seller_tag || '-'}</td>
                                         <td className="px-6 py-4.5 text-center text-sm text-gray-300">

@@ -225,7 +225,12 @@ function EditBoxModal({ open, boxGroup, onClose, onSuccess, showToast }: any) {
                                                     {item.asin} <span className="text-[10px]">↗</span>
                                                 </a>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-300 truncate max-w-[200px]">{item.product_name || '-'}</td>
+                                            <td className="px-6 py-4 text-gray-300 max-w-[200px]">
+                                                <div className="flex items-center">
+                                                    <span className="truncate">{item.product_name || '-'}</span>
+                                                    {item.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 text-center">
                                                 <input type="number" min={0} max={maxAllowed} value={quantities[item.id] ?? 0}
                                                     onChange={e => setQuantities(prev => ({ ...prev, [item.id]: Math.min(Number(e.target.value) || 0, maxAllowed) }))}

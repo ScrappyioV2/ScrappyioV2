@@ -231,8 +231,11 @@ function BoxSummaryModal({
                                         <td className="px-6 py-4 font-mono text-gray-300">
                                             {item.asin}
                                         </td>
-                                        <td className="px-6 py-4 text-gray-100 truncate max-w-[200px]">
-                                            {item.product_name || "-"}
+                                        <td className="px-6 py-4 text-gray-100 max-w-[200px]">
+                                            <div className="flex items-center">
+                                                <span className="truncate">{item.product_name || "-"}</span>
+                                                {item.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-center text-gray-300">
                                             {item.buying_price

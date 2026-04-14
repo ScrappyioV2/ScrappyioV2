@@ -37,6 +37,7 @@ type InvoiceItem = {
   check_cleaning?: boolean | null;
   damaged_quantity?: number | null;
   offline_sell_qty?: number | null;
+  sns_active?: boolean | null;
 };
 
 type GroupedInvoice = {
@@ -1270,7 +1271,10 @@ export default function CheckingTable({
                           style={{ width: columnWidths.product_name }}
                           className="px-3 py-2 text-sm text-gray-300 border-r border-white/[0.1]"
                         >
-                          {item.product_name || '-'}
+                          <div className="flex items-center">
+                            <span className="truncate max-w-[180px]" title={item.product_name || ''}>{item.product_name || '-'}</span>
+                            {item.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                          </div>
                         </td>
                       )}
 
