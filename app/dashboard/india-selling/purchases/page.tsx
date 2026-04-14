@@ -2034,36 +2034,81 @@ export default function PurchasesPage() {
           .eq('sent_to_admin', true)
           .neq('id', product.id);
 
-        // 3. Restore original row — add back moved tags
-        const wasMultiTag = originalSellerTag && originalSellerTag.includes(',');
+        // 3. Restore original row — check if ASIN already has a row in purchases (from copies send-back)
+        const { data: existingPurchaseRow } = await supabase
+          .from('india_purchases')
+          .select('id, seller_tag, buying_quantities')
+          .eq('asin', product.asin)
+          .is('move_to', null)
+          .eq('sent_to_admin', false)
+          .eq('admin_confirmed', false)
+          .neq('id', product.id)
+          .maybeSingle();
 
-        if (wasMultiTag) {
-          const totalQty = originalBuyingQuantities
-            ? Object.values(originalBuyingQuantities).reduce((sum, v) => sum + (Number(v) || 0), 0)
-            : product.buying_quantity || 0;
+        if (existingPurchaseRow) {
+          // MERGE: add original tags back to the existing row
+          const existingTags = (existingPurchaseRow.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+          const originalTags = (originalSellerTag || product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+          const originalQties = originalBuyingQuantities || product.buying_quantities || {};
+
+          const newTags = [...existingTags];
+          const newBuyingQuantities = { ...(existingPurchaseRow.buying_quantities || {}) };
+
+          for (const tag of originalTags) {
+            if (!newTags.includes(tag)) {
+              newTags.push(tag);
+              newBuyingQuantities[tag] = (originalQties as any)[tag] || 0;
+            }
+          }
+
+          const newTotal = Object.values(newBuyingQuantities).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
 
           await supabase
             .from('india_purchases')
             .update({
-              seller_tag: originalSellerTag,
-              buying_quantities: originalBuyingQuantities || {},
-              buying_quantity: totalQty,
-              sent_to_admin: false,
-              sent_to_admin_at: null,
-              admin_confirmed: false,
-              admin_confirmed_at: null,
+              seller_tag: newTags.join(', '),
+              buying_quantities: newBuyingQuantities,
+              buying_quantity: newTotal,
             })
+            .eq('id', existingPurchaseRow.id);
+
+          // Delete the original sent_to_admin row since we merged into existing
+          await supabase
+            .from('india_purchases')
+            .delete()
             .eq('id', product.id);
         } else {
-          await supabase
-            .from('india_purchases')
-            .update({
-              sent_to_admin: false,
-              sent_to_admin_at: null,
-              admin_confirmed: false,
-              admin_confirmed_at: null,
-            })
-            .eq('id', product.id);
+          // No existing row — restore original as before
+          const wasMultiTag = originalSellerTag && originalSellerTag.includes(',');
+
+          if (wasMultiTag) {
+            const totalQty = originalBuyingQuantities
+              ? Object.values(originalBuyingQuantities).reduce((sum, v) => sum + (Number(v) || 0), 0)
+              : product.buying_quantity || 0;
+
+            await supabase
+              .from('india_purchases')
+              .update({
+                seller_tag: originalSellerTag,
+                buying_quantities: originalBuyingQuantities || {},
+                buying_quantity: totalQty,
+                sent_to_admin: false,
+                sent_to_admin_at: null,
+                admin_confirmed: false,
+                admin_confirmed_at: null,
+              })
+              .eq('id', product.id);
+          } else {
+            await supabase
+              .from('india_purchases')
+              .update({
+                sent_to_admin: false,
+                sent_to_admin_at: null,
+                admin_confirmed: false,
+                admin_confirmed_at: null,
+              })
+              .eq('id', product.id);
+          }
         }
 
         // Skip generic update, handle everything here
