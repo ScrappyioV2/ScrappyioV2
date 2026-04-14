@@ -1008,7 +1008,7 @@ export default function PurchasesPage() {
       // Check if this ASIN already exists in purchases (any tag combo, in main file)
       const { data: existingRow } = await supabase
         .from('india_purchases')
-        .select('id, seller_tag, buying_quantities')
+        .select('id, seller_tag, buying_quantities, journey_id')
         .eq('asin', copyItem.asin)
         .is('move_to', null)
         .eq('sent_to_admin', false)
@@ -1023,23 +1023,86 @@ export default function PurchasesPage() {
           return;
         }
 
-        // MERGE: add tag to existing row
-        const newTags = [...existingTags, tag];
-        const newBuyingQuantities = { ...(existingRow.buying_quantities || {}), [tag]: 0 };
+        // Check if this tag already went through tracking for this journey
+        // If yes, don't merge — create new independent row
+        let shouldCreateNew = false;
+        if ((existingRow as any).journey_id) {
+          const { data: trackingCheck } = await supabase
+            .from('india_inbound_tracking')
+            .select('id')
+            .eq('asin', copyItem.asin)
+            .eq('journey_id', (existingRow as any).journey_id)
+            .eq('seller_tag', tag)
+            .maybeSingle();
+          if (trackingCheck) {
+            shouldCreateNew = true;
+          }
+        }
 
-        const { error } = await supabase
-          .from('india_purchases')
-          .update({
-            seller_tag: newTags.join(', '),
-            buying_quantities: newBuyingQuantities,
-          })
-          .eq('id', existingRow.id);
+        if (shouldCreateNew) {
+          // Tag already tracked in this journey — create fresh row with new journey
+          const { data: maxJourney } = await supabase
+            .from('india_asin_history')
+            .select('journey_number')
+            .eq('asin', copyItem.asin)
+            .order('journey_number', { ascending: false })
+            .limit(1);
+          const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
+          const newJourneyId = crypto.randomUUID();
 
-        if (error) throw error;
+          const { error } = await supabase
+            .from('india_purchases')
+            .insert({
+              asin: copyItem.asin,
+              product_name: copyItem.product_name,
+              brand: copyItem.brand,
+              seller_tag: tag,
+              funnel: copyItem.funnel,
+              product_link: copyItem.india_link || null,
+              inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
+              seller_link: copyItem.seller_link || null,
+              origin: copyItem.origin || 'India',
+              origin_india: copyItem.origin_india ?? true,
+              origin_china: copyItem.origin_china ?? false,
+              origin_us: copyItem.origin_us ?? false,
+              buying_price: copyItem.buying_price || 0,
+              buying_quantity: copyItem.buying_quantity || 0,
+              buying_quantities: { [tag]: copyItem.buying_quantity || 0 },
+              product_weight: copyItem.product_weight || null,
+              usd_price: copyItem.usd_price || null,
+              inr_purchase: copyItem.inr_purchase || null,
+              target_price: copyItem.target_price || null,
+              profit: copyItem.profit || null,
+              remark: copyItem.remark || null,
+              sku: copyItem.sku || null,
+              journey_id: newJourneyId,
+              journey_number: nextJourneyNumber,
+            });
 
-        setCopySellerModal(null);
-        showToast(`${tag} merged into existing ${copyItem.asin} row in purchases`, 'success');
-        await refreshProductsSilently();
+          if (error) throw error;
+
+          setCopySellerModal(null);
+          showToast(`${copyItem.asin} (${tag}) created as new journey — previous journey already tracked`, 'success');
+          await refreshProductsSilently();
+        } else {
+          // Safe to merge — tag hasn't been tracked in this journey
+          const newTags = [...existingTags, tag];
+          const newBuyingQuantities = { ...(existingRow.buying_quantities || {}), [tag]: 0 };
+
+          const { error } = await supabase
+            .from('india_purchases')
+            .update({
+              seller_tag: newTags.join(', '),
+              buying_quantities: newBuyingQuantities,
+            })
+            .eq('id', existingRow.id);
+
+          if (error) throw error;
+
+          setCopySellerModal(null);
+          showToast(`${tag} merged into existing ${copyItem.asin} row in purchases`, 'success');
+          await refreshProductsSilently();
+        }
       } else {
         // No existing row — create new with ALL copy data
         // Fetch next journey number for this ASIN
