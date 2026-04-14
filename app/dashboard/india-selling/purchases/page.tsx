@@ -1677,13 +1677,39 @@ export default function PurchasesPage() {
         tagsToKeep.push(...skippedTags);
       }
 
-      // Save copy for future validation skip
+      // Save copy for future validation skip — MERGE tags, never lose them
       try {
+        const currentTags = (product.seller_tag || (product as any).validation_seller_tag || '')
+          .split(',').map((t: string) => t.trim()).filter(Boolean);
+
+        // Fetch existing copy to merge tags
+        const { data: existingCopy } = await supabase
+          .from('india_purchase_copies')
+          .select('seller_tag')
+          .eq('asin', product.asin)
+          .maybeSingle();
+
+        let mergedTags = [...currentTags];
+        if (existingCopy?.seller_tag) {
+          const existingTags = existingCopy.seller_tag.split(',').map((t: string) => t.trim()).filter(Boolean);
+          for (const tag of existingTags) {
+            if (!mergedTags.includes(tag)) {
+              mergedTags.push(tag);
+            }
+          }
+        }
+        // Also include tags being moved (they're about to be split off)
+        for (const tag of tagsToMove) {
+          if (!mergedTags.includes(tag)) {
+            mergedTags.push(tag);
+          }
+        }
+
         await supabase.from('india_purchase_copies').upsert({
           asin: product.asin,
           product_name: product.product_name,
           brand: (product as any).brand,
-          seller_tag: product.seller_tag || (product as any).validation_seller_tag,
+          seller_tag: mergedTags.join(', '),
           funnel: product.funnel,
           india_link: product.product_link,
           amz_link: (product as any).amz_link,
