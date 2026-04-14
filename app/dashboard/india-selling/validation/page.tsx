@@ -1877,7 +1877,6 @@ export default function ValidationPage() {
                         .from('india_validation_main_file')
                         .update({
                             judgement: 'REWORKING',
-                            calculated_judgement: 'FAIL',
                             // check_brand: false,
                             // check_item_expire: false,
                             // check_small_size: false,
@@ -1901,7 +1900,6 @@ export default function ValidationPage() {
                             ? {
                                 ...p,
                                 judgement: 'REWORKING',
-                                calculated_judgement: 'FAIL',
                                 // check_brand: false,
                                 // check_item_expire: false,
                                 // check_small_size: false,
