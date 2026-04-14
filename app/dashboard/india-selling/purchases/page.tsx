@@ -3319,7 +3319,16 @@ export default function PurchasesPage() {
                     <td className="px-6 py-3 text-sm font-mono text-orange-400">{item.asin}</td>
                     <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{item.product_name || '-'}</td>
                     <td className="px-6 py-3 text-sm text-gray-300">{item.brand || '-'}</td>
-                    <td className="px-6 py-3 text-sm text-gray-300">{item.seller_tag || '-'}</td>
+                    <td className="px-6 py-3 text-sm">
+                      {item.seller_tag ? (
+                        <div className="flex flex-wrap gap-1">
+                          {item.seller_tag.split(',').map((tag: string) => {
+                            const clean = tag.trim();
+                            return <span key={clean} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${SELLER_STYLES[clean] || 'bg-[#1a1a1a] text-white'}`}>{clean}</span>;
+                          })}
+                        </div>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
                     <td className="px-6 py-3 text-sm">
                       {snsEditingId === item.id ? (
                         <select
