@@ -135,6 +135,8 @@ export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [copies, setCopies] = useState<any[]>([]);
+  const [selectedCopyIds, setSelectedCopyIds] = useState<Set<string>>(new Set());
+  const [copySellerModal, setCopySellerModal] = useState<{ copy: any; tags: string[] } | null>(null);
   const [snsData, setSnsData] = useState<any[]>([]);
   const [snsSelections, setSnsSelections] = useState<Record<string, { period: string; quantity: number }>>({});
   const [snsEditingId, setSnsEditingId] = useState<string | null>(null);
@@ -988,6 +990,73 @@ export default function PurchasesPage() {
       showToast('Copy deleted', 'success');
     } catch {
       showToast('Failed to delete copy', 'error');
+    }
+  };
+
+  const handleSendCopyToPurchases = async (copyItem: any, selectedTag?: string) => {
+    try {
+      const tags = (copyItem.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+
+      // If multi-tag and no tag selected yet, show modal
+      if (tags.length > 1 && !selectedTag) {
+        setCopySellerModal({ copy: copyItem, tags });
+        return;
+      }
+
+      const tag = selectedTag || tags[0] || '';
+
+      // Check if this ASIN+tag already exists in purchases
+      const { data: existing } = await supabase
+        .from('india_purchases')
+        .select('id')
+        .eq('asin', copyItem.asin)
+        .eq('seller_tag', tag)
+        .is('move_to', null)
+        .or('sent_to_admin.is.null,sent_to_admin.eq.false')
+        .maybeSingle();
+
+      if (existing) {
+        showToast(`${copyItem.asin} with ${tag} already exists in purchases`, 'info');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('india_purchases')
+        .insert({
+          asin: copyItem.asin,
+          product_name: copyItem.product_name,
+          brand: copyItem.brand,
+          seller_tag: tag,
+          funnel: copyItem.funnel,
+          product_link: copyItem.india_link || null,
+          inr_purchase_link: null,
+          origin: 'India',
+          origin_india: true,
+          origin_china: false,
+          origin_us: false,
+          buying_price: 0,
+          buying_quantity: 0,
+          buying_quantities: { [tag]: 0 },
+          remark: copyItem.remark || null,
+          sku: copyItem.sku || null,
+        });
+
+      if (error) throw error;
+
+      setCopySellerModal(null);
+      showToast(`${copyItem.asin} (${tag}) sent to Purchase Main File`, 'success');
+      await refreshProductsSilently();
+
+      logActivity({
+        action: 'copy_to_purchases',
+        marketplace: 'india',
+        page: 'purchases',
+        table_name: 'india_purchases',
+        asin: copyItem.asin,
+        details: { from: 'copies', to: 'purchases', seller_tag: tag }
+      });
+    } catch (err: any) {
+      showToast(`Failed: ${err.message}`, 'error');
     }
   };
 
@@ -2413,6 +2482,27 @@ export default function PurchasesPage() {
     }
   }); // ← filter ends here
 
+  // ─── Filtered copies ───
+  const filteredCopies = (() => {
+    let result = copies;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((c: any) =>
+        c.asin?.toLowerCase().includes(q) ||
+        c.product_name?.toLowerCase().includes(q) ||
+        c.brand?.toLowerCase().includes(q) ||
+        c.sku?.toLowerCase().includes(q)
+      );
+    }
+    if (funnelFilter !== 'ALL') {
+      result = result.filter((c: any) => c.funnel === funnelFilter);
+    }
+    if (sellerTagFilter !== 'ALL') {
+      result = result.filter((c: any) => c.seller_tag?.toUpperCase().includes(sellerTagFilter));
+    }
+    return result;
+  })();
+
   // ─── STEP 2: Pagination (OUTSIDE the filter, after it) ───
   const totalPages = Math.ceil(allFilteredProducts.length / rowsPerPage) || 1;
   const filteredProducts = allFilteredProducts.slice(
@@ -3287,46 +3377,114 @@ export default function PurchasesPage() {
             <table className="w-full table-auto">
               <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">ASIN</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Product Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Brand</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Seller Tag</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Funnel</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedCopyIds.size === filteredCopies.length && filteredCopies.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedCopyIds(new Set(filteredCopies.map((c: any) => c.id)));
+                        else setSelectedCopyIds(new Set());
+                      }}
+                      className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                    />
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">ASIN</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">SKU</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Product Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Brand</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Product Link</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Funnel</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Seller Tag</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Remark</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
-                {copies.length === 0 ? (
+                {filteredCopies.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-gray-300">
-                      <span className="text-lg font-semibold text-gray-400">No copies saved yet</span>
+                    <td colSpan={11} className="px-4 py-16 text-center text-gray-300">
+                      <div className="flex flex-col items-center">
+                        <svg className="w-12 h-12 mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        <span className="text-lg font-semibold text-gray-400">No copies found</span>
+                      </div>
                     </td>
                   </tr>
-                ) : copies.map(c => (
+                ) : filteredCopies.map((c: any) => (
                   <tr key={c.id} className="hover:bg-white/[0.05] transition-colors">
+                    <td className="px-6 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedCopyIds.has(c.id)}
+                        onChange={(e) => {
+                          const next = new Set(selectedCopyIds);
+                          if (e.target.checked) next.add(c.id);
+                          else next.delete(c.id);
+                          setSelectedCopyIds(next);
+                        }}
+                        className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-3 text-sm font-mono text-orange-400">{c.asin}</td>
+                    <td className="px-6 py-3 text-xs text-gray-300">{c.sku || '-'}</td>
                     <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{c.product_name || '-'}</td>
                     <td className="px-6 py-3 text-sm text-gray-300">{c.brand || '-'}</td>
-                    <td className="px-6 py-3 text-sm text-gray-300">{c.seller_tag || '-'}</td>
                     <td className="px-6 py-3 text-sm">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.funnel === 'RS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                        {c.funnel || '-'}
-                      </span>
+                      {c.india_link ? (
+                        <a href={c.india_link.startsWith('http') ? c.india_link : `https://${c.india_link}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 hover:underline text-xs font-medium">View</a>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.funnel ? (
+                        <span className={`w-8 h-8 inline-flex items-center justify-center rounded-lg font-bold text-xs ${c.funnel === 'RS' ? 'bg-emerald-600 text-white' : c.funnel === 'DP' ? 'bg-amber-500 text-black' : 'bg-slate-600 text-white'}`}>{c.funnel}</span>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.seller_tag ? (
+                        <div className="flex flex-wrap gap-1">
+                          {c.seller_tag.split(',').map((tag: string) => {
+                            const clean = tag.trim();
+                            return <span key={clean} className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${SELLER_STYLES[clean] || 'bg-[#1a1a1a] text-white'}`}>{clean}</span>;
+                          })}
+                        </div>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.remark ? (
+                        <span className="text-xs text-gray-300 truncate max-w-[100px] block" title={c.remark}>{c.remark}</span>
+                      ) : <span className="text-xs text-gray-300">-</span>}
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-400">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
                     <td className="px-6 py-3 text-center">
-                      <button
-                        onClick={() => handleDeleteCopy(c)}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleSendCopyToPurchases(c)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                          title="Send to Purchase Main File"
+                        >
+                          Send
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCopy(c)}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          {/* Footer */}
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 text-sm text-gray-300">
+            Showing <span className="font-bold text-white">{filteredCopies.length}</span> of <span className="font-bold text-white">{copies.length}</span> copies
+            {selectedCopyIds.size > 0 && (
+              <span className="ml-3 text-orange-500 font-semibold">({selectedCopyIds.size} selected)</span>
+            )}
           </div>
         </div>
       ) : (
@@ -3898,6 +4056,30 @@ export default function PurchasesPage() {
         </div>
         );
       })()}
+
+      {/* Copy Seller Tag Selection Modal */}
+      {copySellerModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setCopySellerModal(null)}>
+          <div className="bg-[#111111] border border-white/[0.1] rounded-2xl p-6 w-[400px] shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white text-lg font-semibold mb-2">Select Seller Tag</h3>
+            <p className="text-gray-400 text-sm mb-4">ASIN {copySellerModal.copy.asin} has multiple seller tags. Choose which one to send to purchases.</p>
+            <div className="flex flex-wrap gap-3 mb-6">
+              {copySellerModal.tags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => handleSendCopyToPurchases(copySellerModal.copy, tag)}
+                  className={`px-4 py-3 rounded-xl font-bold text-sm transition-all hover:scale-105 border ${SELLER_STYLES[tag] || 'bg-[#1a1a1a] text-white border-white/[0.1]'}`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setCopySellerModal(null)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notifications */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none">
