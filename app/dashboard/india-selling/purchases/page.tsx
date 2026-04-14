@@ -1005,151 +1005,66 @@ export default function PurchasesPage() {
 
       const tag = selectedTag || tags[0] || '';
 
-      // Check if this ASIN already exists in purchases (any tag combo, in main file)
-      const { data: existingRow } = await supabase
-        .from('india_purchases')
-        .select('id, seller_tag, buying_quantities, journey_id')
+      // Always create new independent row — never merge with existing
+      const { data: maxJourney } = await supabase
+        .from('india_asin_history')
+        .select('journey_number')
         .eq('asin', copyItem.asin)
+        .order('journey_number', { ascending: false })
+        .limit(1);
+      const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
+      const newJourneyId = crypto.randomUUID();
+
+      // Check if this exact tag+journey already exists (prevent double-click)
+      const { data: exactDupe } = await supabase
+        .from('india_purchases')
+        .select('id')
+        .eq('asin', copyItem.asin)
+        .eq('seller_tag', tag)
         .is('move_to', null)
         .eq('sent_to_admin', false)
         .eq('admin_confirmed', false)
         .maybeSingle();
 
-      if (existingRow) {
-        // Check if this specific tag already exists in the row
-        const existingTags = (existingRow.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-        if (existingTags.includes(tag)) {
-          showToast(`${copyItem.asin} with ${tag} already exists in purchases`, 'info');
-          return;
-        }
-
-        // Check if this tag already went through tracking for this journey
-        // If yes, don't merge — create new independent row
-        let shouldCreateNew = false;
-        if ((existingRow as any).journey_id) {
-          const { data: trackingCheck } = await supabase
-            .from('india_inbound_tracking')
-            .select('id')
-            .eq('asin', copyItem.asin)
-            .eq('journey_id', (existingRow as any).journey_id)
-            .eq('seller_tag', tag)
-            .maybeSingle();
-          if (trackingCheck) {
-            shouldCreateNew = true;
-          }
-        }
-
-        if (shouldCreateNew) {
-          // Tag already tracked in this journey — create fresh row with new journey
-          const { data: maxJourney } = await supabase
-            .from('india_asin_history')
-            .select('journey_number')
-            .eq('asin', copyItem.asin)
-            .order('journey_number', { ascending: false })
-            .limit(1);
-          const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
-          const newJourneyId = crypto.randomUUID();
-
-          const { error } = await supabase
-            .from('india_purchases')
-            .insert({
-              asin: copyItem.asin,
-              product_name: copyItem.product_name,
-              brand: copyItem.brand,
-              seller_tag: tag,
-              funnel: copyItem.funnel,
-              product_link: copyItem.india_link || null,
-              inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
-              seller_link: copyItem.seller_link || null,
-              origin: copyItem.origin || 'India',
-              origin_india: copyItem.origin_india ?? true,
-              origin_china: copyItem.origin_china ?? false,
-              origin_us: copyItem.origin_us ?? false,
-              buying_price: copyItem.buying_price || 0,
-              buying_quantity: copyItem.buying_quantity || 0,
-              buying_quantities: { [tag]: copyItem.buying_quantity || 0 },
-              product_weight: copyItem.product_weight || null,
-              usd_price: copyItem.usd_price || null,
-              inr_purchase: copyItem.inr_purchase || null,
-              target_price: copyItem.target_price || null,
-              profit: copyItem.profit || null,
-              remark: copyItem.remark || null,
-              sku: copyItem.sku || null,
-              journey_id: newJourneyId,
-              journey_number: nextJourneyNumber,
-            });
-
-          if (error) throw error;
-
-          setCopySellerModal(null);
-          showToast(`${copyItem.asin} (${tag}) created as new journey — previous journey already tracked`, 'success');
-          await refreshProductsSilently();
-        } else {
-          // Safe to merge — tag hasn't been tracked in this journey
-          const newTags = [...existingTags, tag];
-          const newBuyingQuantities = { ...(existingRow.buying_quantities || {}), [tag]: 0 };
-
-          const { error } = await supabase
-            .from('india_purchases')
-            .update({
-              seller_tag: newTags.join(', '),
-              buying_quantities: newBuyingQuantities,
-            })
-            .eq('id', existingRow.id);
-
-          if (error) throw error;
-
-          setCopySellerModal(null);
-          showToast(`${tag} merged into existing ${copyItem.asin} row in purchases`, 'success');
-          await refreshProductsSilently();
-        }
-      } else {
-        // No existing row — create new with ALL copy data
-        // Fetch next journey number for this ASIN
-        const { data: maxJourney } = await supabase
-          .from('india_asin_history')
-          .select('journey_number')
-          .eq('asin', copyItem.asin)
-          .order('journey_number', { ascending: false })
-          .limit(1);
-        const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
-        const newJourneyId = crypto.randomUUID();
-
-        const { error } = await supabase
-          .from('india_purchases')
-          .insert({
-            asin: copyItem.asin,
-            product_name: copyItem.product_name,
-            brand: copyItem.brand,
-            seller_tag: tag,
-            funnel: copyItem.funnel,
-            product_link: copyItem.india_link || null,
-            inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
-            seller_link: copyItem.seller_link || null,
-            origin: copyItem.origin || 'India',
-            origin_india: copyItem.origin_india ?? true,
-            origin_china: copyItem.origin_china ?? false,
-            origin_us: copyItem.origin_us ?? false,
-            buying_price: copyItem.buying_price || 0,
-            buying_quantity: copyItem.buying_quantity || 0,
-            buying_quantities: { [tag]: copyItem.buying_quantity || 0 },
-            product_weight: copyItem.product_weight || null,
-            usd_price: copyItem.usd_price || null,
-            inr_purchase: copyItem.inr_purchase || null,
-            target_price: copyItem.target_price || null,
-            profit: copyItem.profit || null,
-            remark: copyItem.remark || null,
-            sku: copyItem.sku || null,
-            journey_id: newJourneyId,
-            journey_number: nextJourneyNumber,
-          });
-
-        if (error) throw error;
-
-        setCopySellerModal(null);
-        showToast(`${copyItem.asin} (${tag}) sent to Purchase Main File`, 'success');
-        await refreshProductsSilently();
+      if (exactDupe) {
+        showToast(`${copyItem.asin} with ${tag} already has a pending row in purchases`, 'info');
+        return;
       }
+
+      const { error } = await supabase
+        .from('india_purchases')
+        .insert({
+          asin: copyItem.asin,
+          product_name: copyItem.product_name,
+          brand: copyItem.brand,
+          seller_tag: tag,
+          funnel: copyItem.funnel,
+          product_link: copyItem.india_link || null,
+          inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
+          seller_link: copyItem.seller_link || null,
+          origin: copyItem.origin || 'India',
+          origin_india: copyItem.origin_india ?? true,
+          origin_china: copyItem.origin_china ?? false,
+          origin_us: copyItem.origin_us ?? false,
+          buying_price: copyItem.buying_price || 0,
+          buying_quantity: copyItem.buying_quantity || 0,
+          buying_quantities: { [tag]: copyItem.buying_quantity || 0 },
+          product_weight: copyItem.product_weight || null,
+          usd_price: copyItem.usd_price || null,
+          inr_purchase: copyItem.inr_purchase || null,
+          target_price: copyItem.target_price || null,
+          profit: copyItem.profit || null,
+          remark: copyItem.remark || null,
+          sku: copyItem.sku || null,
+          journey_id: newJourneyId,
+          journey_number: nextJourneyNumber,
+        });
+
+      if (error) throw error;
+
+      setCopySellerModal(null);
+      showToast(`${copyItem.asin} (${tag}) sent to Purchase Main File`, 'success');
+      await refreshProductsSilently();
 
       logActivity({
         action: 'copy_to_purchases',
@@ -1180,95 +1095,54 @@ export default function PurchasesPage() {
     }
 
     try {
-      const { data: existingRow } = await supabase
-        .from('india_purchases')
-        .select('id, seller_tag, buying_quantities')
+      // Always create new independent row with new journey
+      const { data: maxJourney } = await supabase
+        .from('india_asin_history')
+        .select('journey_number')
         .eq('asin', copyItem.asin)
-        .is('move_to', null)
-        .eq('sent_to_admin', false)
-        .eq('admin_confirmed', false)
-        .maybeSingle();
+        .order('journey_number', { ascending: false })
+        .limit(1);
+      const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
+      const newJourneyId = crypto.randomUUID();
 
-      if (existingRow) {
-        const existingTags = (existingRow.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-        const newTags = [...existingTags];
-        const newBuyingQuantities = { ...(existingRow.buying_quantities || {}) };
-
-        for (const tag of selectedTags) {
-          if (!newTags.includes(tag)) {
-            newTags.push(tag);
-            newBuyingQuantities[tag] = 0;
-          }
-        }
-
-        if (newTags.length === existingTags.length) {
-          showToast(`All selected tags already exist in purchases`, 'info');
-          setCopySellerModal(null);
-          return;
-        }
-
-        const { error } = await supabase
-          .from('india_purchases')
-          .update({
-            seller_tag: newTags.join(', '),
-            buying_quantities: newBuyingQuantities,
-          })
-          .eq('id', existingRow.id);
-
-        if (error) throw error;
-
-        const addedTags = selectedTags.filter(t => !existingTags.includes(t));
-        showToast(`${addedTags.join(', ')} merged into existing ${copyItem.asin} row`, 'success');
-      } else {
-        const buyingQuantities: Record<string, number> = {};
-        for (const tag of selectedTags) {
-          buyingQuantities[tag] = 0;
-        }
-
-        // Fetch next journey number for this ASIN
-        const { data: maxJourney } = await supabase
-          .from('india_asin_history')
-          .select('journey_number')
-          .eq('asin', copyItem.asin)
-          .order('journey_number', { ascending: false })
-          .limit(1);
-        const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
-        const newJourneyId = crypto.randomUUID();
-
-        const { error } = await supabase
-          .from('india_purchases')
-          .insert({
-            asin: copyItem.asin,
-            product_name: copyItem.product_name,
-            brand: copyItem.brand,
-            seller_tag: selectedTags.join(', '),
-            funnel: copyItem.funnel,
-            product_link: copyItem.india_link || null,
-            inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
-            seller_link: copyItem.seller_link || null,
-            origin: copyItem.origin || 'India',
-            origin_india: copyItem.origin_india ?? true,
-            origin_china: copyItem.origin_china ?? false,
-            origin_us: copyItem.origin_us ?? false,
-            buying_price: copyItem.buying_price || 0,
-            buying_quantity: copyItem.buying_quantity || 0,
-            buying_quantities: buyingQuantities,
-            product_weight: copyItem.product_weight || null,
-            usd_price: copyItem.usd_price || null,
-            inr_purchase: copyItem.inr_purchase || null,
-            target_price: copyItem.target_price || null,
-            profit: copyItem.profit || null,
-            remark: copyItem.remark || null,
-            sku: copyItem.sku || null,
-            journey_id: newJourneyId,
-            journey_number: nextJourneyNumber,
-          });
-
-        if (error) throw error;
-        showToast(`${copyItem.asin} (${selectedTags.join(', ')}) sent to Purchase Main File`, 'success');
+      const buyingQuantities: Record<string, number> = {};
+      for (const tag of selectedTags) {
+        buyingQuantities[tag] = 0;
       }
 
+      const { error } = await supabase
+        .from('india_purchases')
+        .insert({
+          asin: copyItem.asin,
+          product_name: copyItem.product_name,
+          brand: copyItem.brand,
+          seller_tag: selectedTags.join(', '),
+          funnel: copyItem.funnel,
+          product_link: copyItem.india_link || null,
+          inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
+          seller_link: copyItem.seller_link || null,
+          origin: copyItem.origin || 'India',
+          origin_india: copyItem.origin_india ?? true,
+          origin_china: copyItem.origin_china ?? false,
+          origin_us: copyItem.origin_us ?? false,
+          buying_price: copyItem.buying_price || 0,
+          buying_quantity: copyItem.buying_quantity || 0,
+          buying_quantities: buyingQuantities,
+          product_weight: copyItem.product_weight || null,
+          usd_price: copyItem.usd_price || null,
+          inr_purchase: copyItem.inr_purchase || null,
+          target_price: copyItem.target_price || null,
+          profit: copyItem.profit || null,
+          remark: copyItem.remark || null,
+          sku: copyItem.sku || null,
+          journey_id: newJourneyId,
+          journey_number: nextJourneyNumber,
+        });
+
+      if (error) throw error;
+
       setCopySellerModal(null);
+      showToast(`${copyItem.asin} (${selectedTags.join(', ')}) sent to Purchase Main File`, 'success');
       await refreshProductsSilently();
 
       logActivity({
@@ -1277,7 +1151,7 @@ export default function PurchasesPage() {
         page: 'purchases',
         table_name: 'india_purchases',
         asin: copyItem.asin,
-        details: { from: 'copies', to: 'purchases', seller_tags: selectedTags }
+        details: { from: 'copies', to: 'purchases', seller_tags: selectedTags, journey_id: newJourneyId }
       });
     } catch (err: any) {
       showToast(`Failed: ${err.message}`, 'error');
@@ -2151,81 +2025,36 @@ export default function PurchasesPage() {
         }
         await deleteIndividualQuery;
 
-        // 3. Restore original row — check if ASIN already has a row in purchases (from copies send-back)
-        const { data: existingPurchaseRow } = await supabase
-          .from('india_purchases')
-          .select('id, seller_tag, buying_quantities')
-          .eq('asin', product.asin)
-          .is('move_to', null)
-          .eq('sent_to_admin', false)
-          .eq('admin_confirmed', false)
-          .neq('id', product.id)
-          .maybeSingle();
+        // Restore original row as-is
+        const wasMultiTag = originalSellerTag && originalSellerTag.includes(',');
 
-        if (existingPurchaseRow) {
-          // MERGE: add original tags back to the existing row
-          const existingTags = (existingPurchaseRow.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-          const originalTags = (originalSellerTag || product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-          const originalQties = originalBuyingQuantities || product.buying_quantities || {};
-
-          const newTags = [...existingTags];
-          const newBuyingQuantities = { ...(existingPurchaseRow.buying_quantities || {}) };
-
-          for (const tag of originalTags) {
-            if (!newTags.includes(tag)) {
-              newTags.push(tag);
-              newBuyingQuantities[tag] = (originalQties as any)[tag] || 0;
-            }
-          }
-
-          const newTotal = Object.values(newBuyingQuantities).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
+        if (wasMultiTag) {
+          const totalQty = originalBuyingQuantities
+            ? Object.values(originalBuyingQuantities).reduce((sum, v) => sum + (Number(v) || 0), 0)
+            : product.buying_quantity || 0;
 
           await supabase
             .from('india_purchases')
             .update({
-              seller_tag: newTags.join(', '),
-              buying_quantities: newBuyingQuantities,
-              buying_quantity: newTotal,
+              seller_tag: originalSellerTag,
+              buying_quantities: originalBuyingQuantities || {},
+              buying_quantity: totalQty,
+              sent_to_admin: false,
+              sent_to_admin_at: null,
+              admin_confirmed: false,
+              admin_confirmed_at: null,
             })
-            .eq('id', existingPurchaseRow.id);
-
-          // Delete the original sent_to_admin row since we merged into existing
-          await supabase
-            .from('india_purchases')
-            .delete()
             .eq('id', product.id);
         } else {
-          // No existing row — restore original as before
-          const wasMultiTag = originalSellerTag && originalSellerTag.includes(',');
-
-          if (wasMultiTag) {
-            const totalQty = originalBuyingQuantities
-              ? Object.values(originalBuyingQuantities).reduce((sum, v) => sum + (Number(v) || 0), 0)
-              : product.buying_quantity || 0;
-
-            await supabase
-              .from('india_purchases')
-              .update({
-                seller_tag: originalSellerTag,
-                buying_quantities: originalBuyingQuantities || {},
-                buying_quantity: totalQty,
-                sent_to_admin: false,
-                sent_to_admin_at: null,
-                admin_confirmed: false,
-                admin_confirmed_at: null,
-              })
-              .eq('id', product.id);
-          } else {
-            await supabase
-              .from('india_purchases')
-              .update({
-                sent_to_admin: false,
-                sent_to_admin_at: null,
-                admin_confirmed: false,
-                admin_confirmed_at: null,
-              })
-              .eq('id', product.id);
-          }
+          await supabase
+            .from('india_purchases')
+            .update({
+              sent_to_admin: false,
+              sent_to_admin_at: null,
+              admin_confirmed: false,
+              admin_confirmed_at: null,
+            })
+            .eq('id', product.id);
         }
 
         // Skip generic update, handle everything here
