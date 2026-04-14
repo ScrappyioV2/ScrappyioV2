@@ -1097,75 +1097,12 @@ export default function PurchasesPage() {
     const selectedTags = Array.from(copySellerModal.selected);
     const copyItem = copySellerModal.copy;
 
-    if (selectedTags.length === 1) {
-      await handleSendCopyToPurchases(copyItem, selectedTags[0]);
-      setCopySellerModal(null);
-      return;
+    // Send each tag as its own independent row
+    for (const tag of selectedTags) {
+      await handleSendCopyToPurchases(copyItem, tag);
     }
 
-    try {
-      // Always create new independent row with new journey
-      const { data: maxJourney } = await supabase
-        .from('india_asin_history')
-        .select('journey_number')
-        .eq('asin', copyItem.asin)
-        .order('journey_number', { ascending: false })
-        .limit(1);
-      const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
-      const newJourneyId = crypto.randomUUID();
-
-      const buyingQuantities: Record<string, number> = {};
-      for (const tag of selectedTags) {
-        buyingQuantities[tag] = 0;
-      }
-
-      const { error } = await supabase
-        .from('india_purchases')
-        .insert({
-          asin: copyItem.asin,
-          product_name: copyItem.product_name,
-          brand: copyItem.brand,
-          seller_tag: selectedTags.join(', '),
-          funnel: copyItem.funnel,
-          product_link: copyItem.india_link || null,
-          inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.india_link || null,
-          seller_link: copyItem.seller_link || null,
-          origin: copyItem.origin || 'India',
-          origin_india: copyItem.origin_india ?? true,
-          origin_china: copyItem.origin_china ?? false,
-          origin_us: copyItem.origin_us ?? false,
-          buying_price: copyItem.buying_price || 0,
-          buying_quantity: copyItem.buying_quantity || 0,
-          buying_quantities: buyingQuantities,
-          product_weight: copyItem.product_weight || null,
-          usd_price: copyItem.usd_price || null,
-          inr_purchase: copyItem.inr_purchase || null,
-          target_price: copyItem.target_price || null,
-          profit: copyItem.profit || null,
-          remark: copyItem.remark || null,
-          sku: copyItem.sku || null,
-          journey_id: newJourneyId,
-          journey_number: nextJourneyNumber,
-          source: 'copy',
-        });
-
-      if (error) throw error;
-
-      setCopySellerModal(null);
-      showToast(`${copyItem.asin} (${selectedTags.join(', ')}) sent to Purchase Main File`, 'success');
-      await refreshProductsSilently();
-
-      logActivity({
-        action: 'copy_to_purchases',
-        marketplace: 'india',
-        page: 'purchases',
-        table_name: 'india_purchases',
-        asin: copyItem.asin,
-        details: { from: 'copies', to: 'purchases', seller_tags: selectedTags, journey_id: newJourneyId }
-      });
-    } catch (err: any) {
-      showToast(`Failed: ${err.message}`, 'error');
-    }
+    setCopySellerModal(null);
   };
 
   // S&S functions
