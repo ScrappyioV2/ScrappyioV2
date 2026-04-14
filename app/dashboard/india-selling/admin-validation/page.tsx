@@ -1038,6 +1038,7 @@ export default function AdminValidationPage() {
           .update(bulkConfirmPayload)
           .eq('asin', product.asin)
           .eq('sent_to_admin', true)
+          .eq('admin_confirmed', false)
           .eq('seller_tag', product.seller_tag);
 
         // Use journey_id for precise matching when available
@@ -1056,6 +1057,7 @@ export default function AdminValidationPage() {
           let retryQuery = supabase.from('india_purchases')
             .update(bulkConfirmPayload)
             .eq('asin', product.asin)
+            .eq('admin_confirmed', false)
             .eq('seller_tag', product.seller_tag);
           if (product.journey_id) {
             retryQuery = retryQuery.eq('journey_id', product.journey_id);
@@ -1408,6 +1410,7 @@ export default function AdminValidationPage() {
         .update(confirmPayload)
         .eq('asin', cleanAsin)
         .eq('sent_to_admin', true)
+        .eq('admin_confirmed', false)
         .eq('seller_tag', product.seller_tag);
 
       if (product.journey_id) {
@@ -1429,6 +1432,7 @@ export default function AdminValidationPage() {
         let retryQuery = supabase.from('india_purchases')
           .update(confirmPayload)
           .eq('asin', cleanAsin)
+          .eq('admin_confirmed', false)
           .eq('seller_tag', product.seller_tag);
         if (product.journey_id) {
           retryQuery = retryQuery.eq('journey_id', product.journey_id);

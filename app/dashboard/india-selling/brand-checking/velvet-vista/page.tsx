@@ -449,6 +449,16 @@ export default function VelvetvistaPage() {
                   .eq('id', existingPurchase.id);
               }
             } else {
+              // Fetch next journey number
+              const { data: maxJ } = await supabase
+                .from('india_asin_history')
+                .select('journey_number')
+                .eq('asin', product.asin)
+                .order('journey_number', { ascending: false })
+                .limit(1);
+              const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
+              const newJID = crypto.randomUUID();
+
               await supabase.from('india_purchases').insert({
                 asin: product.asin,
                 product_name: product.product_name,
@@ -458,6 +468,9 @@ export default function VelvetvistaPage() {
                 sku: product.sku,
                 remark: product.remark,
                 buying_quantities: { [SELLER_CODE]: 0 },
+                buying_quantity: 0,
+                journey_id: newJID,
+                journey_number: nextJN,
                 product_link: product.product_link || null,
                 inr_purchase_link: product.amz_link || null,
                 origin: 'India',
@@ -465,7 +478,6 @@ export default function VelvetvistaPage() {
                 origin_china: false,
                 origin_us: false,
                 buying_price: 0,
-                buying_quantity: 0,
               });
             }
 

@@ -1042,6 +1042,16 @@ export default function PurchasesPage() {
         await refreshProductsSilently();
       } else {
         // No existing row — create new with ALL copy data
+        // Fetch next journey number for this ASIN
+        const { data: maxJourney } = await supabase
+          .from('india_asin_history')
+          .select('journey_number')
+          .eq('asin', copyItem.asin)
+          .order('journey_number', { ascending: false })
+          .limit(1);
+        const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
+        const newJourneyId = crypto.randomUUID();
+
         const { error } = await supabase
           .from('india_purchases')
           .insert({
@@ -1067,6 +1077,8 @@ export default function PurchasesPage() {
             profit: copyItem.profit || null,
             remark: copyItem.remark || null,
             sku: copyItem.sku || null,
+            journey_id: newJourneyId,
+            journey_number: nextJourneyNumber,
           });
 
         if (error) throw error;
@@ -1150,6 +1162,16 @@ export default function PurchasesPage() {
           buyingQuantities[tag] = 0;
         }
 
+        // Fetch next journey number for this ASIN
+        const { data: maxJourney } = await supabase
+          .from('india_asin_history')
+          .select('journey_number')
+          .eq('asin', copyItem.asin)
+          .order('journey_number', { ascending: false })
+          .limit(1);
+        const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
+        const newJourneyId = crypto.randomUUID();
+
         const { error } = await supabase
           .from('india_purchases')
           .insert({
@@ -1175,6 +1197,8 @@ export default function PurchasesPage() {
             profit: copyItem.profit || null,
             remark: copyItem.remark || null,
             sku: copyItem.sku || null,
+            journey_id: newJourneyId,
+            journey_number: nextJourneyNumber,
           });
 
         if (error) throw error;
