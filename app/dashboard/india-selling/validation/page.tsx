@@ -2117,7 +2117,7 @@ export default function ValidationPage() {
         );
         // PASS requires category; FAIL does not
         if (product.calculated_judgement === 'PASS') {
-            return baseReady && !!product.amazon_category;
+            return baseReady && !!product.amazon_category && CATEGORY_NAMES.includes(product.amazon_category);
         }
         return baseReady;
     };
