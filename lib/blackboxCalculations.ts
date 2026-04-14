@@ -175,11 +175,12 @@ export function calculateProductValues(
   if (inputA > 0 && weight > 0 && inputB > 0) {
     
     // Load Constants
-    const dollarRate = parseFloat(String(constants.dollar_rate)) || 90;
-    const bankFeePercent = parseFloat(String(constants.bank_conversion_rate)) || 0.02;
-    const shippingPerKg = parseFloat(String(constants.shipping_charge_per_kg)) || 950;
-    const commissionPercent = parseFloat(String(constants.commission_rate)) || 0.25;
-    const packingCost = parseFloat(String(constants.packing_cost)) || 25;
+    const sf = (v: any, fb: number) => { const n = parseFloat(String(v)); return isNaN(n) ? fb : n; };
+    const dollarRate = sf(constants.dollar_rate, 90);
+    const bankFeePercent = sf(constants.bank_conversion_rate, 0.02);
+    const shippingPerKg = sf(constants.shipping_charge_per_kg, 950);
+    const commissionPercent = sf(constants.commission_rate, 0.25);
+    const packingCost = sf(constants.packing_cost, 25);
 
     let totalCost = 0;
     let totalRevenue = 0;

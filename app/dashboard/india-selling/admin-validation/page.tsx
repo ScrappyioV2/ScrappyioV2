@@ -690,9 +690,9 @@ export default function AdminValidationPage() {
     if (!isFinite(result.total_cost) || !isFinite(result.profit)) return null;
 
     const baseProductCost = effectiveUSD * dollarRate;
-    const bankFeeCost = baseProductCost * (adminConstants.bank_conversion_rate || 0.02);
-    const internationalShipping = (weight * (adminConstants.shipping_charge_per_kg || 950)) / 1000;
-    const packingCost = adminConstants.packing_cost || 25;
+    const bankFeeCost = baseProductCost * (adminConstants.bank_conversion_rate ?? 0.02);
+    const internationalShipping = (weight * (adminConstants.shipping_charge_per_kg ?? 950)) / 1000;
+    const packingCost = adminConstants.packing_cost ?? 25;
 
     return {
       ...result,
