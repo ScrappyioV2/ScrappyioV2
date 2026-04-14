@@ -537,14 +537,18 @@ export default function AdminValidationPage() {
     try {
       // Modal inputs are user-friendly (2 for 2%, 25 for 25%)
       // Convert to blackbox format (decimals) for local state
+      const safeFloat = (val: string, fallback: number) => {
+        const n = parseFloat(val);
+        return isNaN(n) ? fallback : n;
+      };
       const newConstants: CalculationConstants = {
         ...adminConstants,
-        dollar_rate: parseFloat(modalInputs.dollarrate) || adminConstants.dollar_rate,
-        bank_conversion_rate: (parseFloat(modalInputs.bankfee) || adminConstants.bank_conversion_rate * 100) / 100,
-        shipping_charge_per_kg: parseFloat(modalInputs.shipping) || adminConstants.shipping_charge_per_kg,
-        commission_rate: (parseFloat(modalInputs.commission) || adminConstants.commission_rate * 100) / 100,
-        packing_cost: parseFloat(modalInputs.packingcost) || adminConstants.packing_cost,
-        target_profit_percent: parseFloat(modalInputs.targetprofit) || 10,
+        dollar_rate: safeFloat(modalInputs.dollarrate, adminConstants.dollar_rate),
+        bank_conversion_rate: safeFloat(modalInputs.bankfee, adminConstants.bank_conversion_rate * 100) / 100,
+        shipping_charge_per_kg: safeFloat(modalInputs.shipping, adminConstants.shipping_charge_per_kg),
+        commission_rate: safeFloat(modalInputs.commission, adminConstants.commission_rate * 100) / 100,
+        packing_cost: safeFloat(modalInputs.packingcost, adminConstants.packing_cost),
+        target_profit_percent: safeFloat(modalInputs.targetprofit, 10),
       };
 
       // Update local state immediately
