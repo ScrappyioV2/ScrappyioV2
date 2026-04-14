@@ -711,11 +711,12 @@ export default function PurchasesPage() {
             <select
               value={product.address ?? ''}
               onChange={(e) => handleCellEdit(product.id, 'address', e.target.value || null)}
-              className="w-full px-2 py-1.5 bg-[#1a1a1a] border border-emerald-500/50 rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark] cursor-pointer"
+              style={{ backgroundColor: '#1a1a1a', color: '#fff' }}
+              className="w-full px-2 py-1.5 border border-emerald-500/50 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 [color-scheme:dark] cursor-pointer"
             >
-              <option value="">-</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
+              <option value="" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>-</option>
+              <option value="A" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>A</option>
+              <option value="B" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>B</option>
             </select>
           </td>
         );
@@ -1497,7 +1498,9 @@ export default function PurchasesPage() {
           p.id === product.id ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() } : p
         ));
       } else {
-        // Multi-tag → split into individual rows
+        // Multi-tag — keep remaining tags merged in original row
+
+        // Fetch fresh data
         const { data: freshProduct } = await supabase
           .from('india_purchases')
           .select('*')
@@ -1505,13 +1508,38 @@ export default function PurchasesPage() {
           .single();
 
         if (!freshProduct) throw new Error('Product not found');
-
-        // Delete original multi-tag row
-        await supabase.from('india_purchases').delete().eq('id', product.id);
-
         const { id: _id, created_at: _ca, ...restFields } = freshProduct;
 
-        // Create individual rows for tags sent to admin
+        if (tagsToKeep.length > 0) {
+          // PARTIAL MOVE: Update original row — remove moved tags, keep remaining merged
+          const keptQties: Record<string, number> = {};
+          for (const tag of tagsToKeep) {
+            keptQties[tag] = buyingQuantities[tag] || 0;
+          }
+          const keptTotal = Object.values(keptQties).reduce((s, v) => s + (Number(v) || 0), 0);
+
+          const { error: updateError } = await supabase
+            .from('india_purchases')
+            .update({
+              seller_tag: tagsToKeep.join(', '),
+              buying_quantities: keptQties,
+              buying_quantity: keptTotal,
+            })
+            .eq('id', product.id);
+          if (updateError) throw updateError;
+        } else {
+          // ALL tags moved — mark original as sent_to_admin
+          const { error: updateError } = await supabase
+            .from('india_purchases')
+            .update({
+              sent_to_admin: true,
+              sent_to_admin_at: new Date().toISOString(),
+            })
+            .eq('id', product.id);
+          if (updateError) throw updateError;
+        }
+
+        // Create individual purchase rows for each tag going to admin
         for (const tag of actuallyMoved) {
           await supabase.from('india_purchases').insert({
             ...restFields,
@@ -1525,41 +1553,34 @@ export default function PurchasesPage() {
           });
         }
 
-        // Create individual rows for tags staying in Main File
-        for (const tag of tagsToKeep) {
-          await supabase.from('india_purchases').insert({
-            ...restFields,
-            seller_tag: tag,
-            buying_quantities: { [tag]: buyingQuantities[tag] || 0 },
-            buying_quantity: buyingQuantities[tag] || 0,
-            sent_to_admin: false,
-            sent_to_admin_at: null,
-            admin_confirmed: false,
-            admin_confirmed_at: null,
-          });
-        }
-
         // Optimistic UI
-        setProducts(prev => {
-          const without = prev.filter(p => p.id !== product.id);
-          const keptRows = tagsToKeep.map(tag => ({
-            ...product,
-            id: 'temp-' + tag + '-' + Date.now(),
-            seller_tag: tag,
-            buying_quantities: { [tag]: buyingQuantities[tag] || 0 } as Record<string, number>,
-            buying_quantity: buyingQuantities[tag] || 0,
-            sent_to_admin: false,
-            admin_confirmed: false,
-          }));
-          return [...without, ...keptRows];
-        });
-
         if (tagsToKeep.length > 0) {
+          const keptQties2: Record<string, number> = {};
+          for (const tag of tagsToKeep) {
+            keptQties2[tag] = buyingQuantities[tag] || 0;
+          }
+          const keptTotal2 = Object.values(keptQties2).reduce((s, v) => s + (Number(v) || 0), 0);
+
+          setProducts(prev => prev.map(p =>
+            p.id === product.id
+              ? {
+                  ...p,
+                  seller_tag: tagsToKeep.join(', '),
+                  buying_quantities: keptQties2 as Record<string, number>,
+                  buying_quantity: keptTotal2,
+                }
+              : p
+          ));
           showToast(
             `Sent ${actuallyMoved.join(', ')} to Admin. ${tagsToKeep.join(', ')} kept in purchases.`,
             'success'
           );
         } else {
+          setProducts(prev => prev.map(p =>
+            p.id === product.id
+              ? { ...p, sent_to_admin: true, sent_to_admin_at: new Date().toISOString() }
+              : p
+          ));
           showToast('Sent to Admin Validation', 'success');
         }
       }
@@ -1788,17 +1809,7 @@ export default function PurchasesPage() {
       const updateData: any = {}
 
       if (toStatus === 'sent_to_admin') {
-        updateData['sent_to_admin'] = false
-        updateData['sent_to_admin_at'] = null
-        updateData['admin_confirmed'] = false
-        updateData['admin_confirmed_at'] = null
-        if (originalSellerTag) {
-          updateData['seller_tag'] = originalSellerTag
-        }
-        if (originalBuyingQuantities) {
-          updateData['buying_quantities'] = originalBuyingQuantities
-        }
-
+        // 1. Delete admin validation entries
         let adminDeleteQuery = supabase
           .from('india_admin_validation')
           .delete()
@@ -1806,27 +1817,67 @@ export default function PurchasesPage() {
         if (product.journey_id) {
           adminDeleteQuery = adminDeleteQuery.eq('journey_id', product.journey_id);
         }
-        const { error: deleteError } = await adminDeleteQuery;
+        await adminDeleteQuery;
 
-        if (deleteError) {
-          console.error('Error deleting from admin validation:', deleteError)
-        }
-
-        // Bug 8 fix: Delete any duplicate purchases rows created by admin confirm INSERT fallback.
-        // During partial move, admin confirm creates a NEW row (because sent_to_admin=false on remaining-tags row).
-        // On rollback, that extra row must be removed to prevent duplicates.
-        let orphanCleanup = supabase
+        // 2. Delete the individual purchase rows created for moved tags
+        await supabase
           .from('india_purchases')
           .delete()
           .eq('asin', product.asin)
+          .eq('sent_to_admin', true)
           .neq('id', product.id);
-        if (product.journey_id) {
-          orphanCleanup = orphanCleanup.eq('journey_id', product.journey_id);
+
+        // 3. Restore original row — add back moved tags
+        const wasMultiTag = originalSellerTag && originalSellerTag.includes(',');
+
+        if (wasMultiTag) {
+          const totalQty = originalBuyingQuantities
+            ? Object.values(originalBuyingQuantities).reduce((sum, v) => sum + (Number(v) || 0), 0)
+            : product.buying_quantity || 0;
+
+          await supabase
+            .from('india_purchases')
+            .update({
+              seller_tag: originalSellerTag,
+              buying_quantities: originalBuyingQuantities || {},
+              buying_quantity: totalQty,
+              sent_to_admin: false,
+              sent_to_admin_at: null,
+              admin_confirmed: false,
+              admin_confirmed_at: null,
+            })
+            .eq('id', product.id);
+        } else {
+          await supabase
+            .from('india_purchases')
+            .update({
+              sent_to_admin: false,
+              sent_to_admin_at: null,
+              admin_confirmed: false,
+              admin_confirmed_at: null,
+            })
+            .eq('id', product.id);
         }
-        const { error: orphanError } = await orphanCleanup;
-        if (orphanError) {
-          console.error('Error cleaning up orphaned confirmed row:', orphanError);
-        }
+
+        // Skip generic update, handle everything here
+        setMovementHistory(prev => {
+          const newHistory = { ...prev };
+          const arr = [...(newHistory[activeTab] || [])];
+          arr.pop();
+          newHistory[activeTab] = arr;
+          return newHistory;
+        });
+        showToast(`Rolled back ${product.product_name}`, 'success');
+        logActivity({
+          action: 'rollback',
+          marketplace: 'india',
+          page: 'purchases',
+          table_name: 'india_purchases',
+          asin: product.asin,
+          details: { from: toStatus, to: fromStatus }
+        });
+        await refreshProductsSilently();
+        return; // Early return
       } else if (toStatus === 'tracking') {
         // Rollback from tracking → delete from tracking tables, restore in purchases
         const rawSellerTag = product.seller_tag || '';
