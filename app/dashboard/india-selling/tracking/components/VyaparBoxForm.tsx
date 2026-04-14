@@ -705,8 +705,11 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                     </td>
 
                                     {/* Product Name */}
-                                    <td className="px-6 py-4 text-sm text-gray-300 truncate max-w-[200px]" title={row.productName}>
-                                        {row.productName || <span className="text-gray-500 italic">—</span>}
+                                    <td className="px-6 py-4 text-sm text-gray-300" title={row.productName}>
+                                        <div className="flex items-center">
+                                            <span className="truncate max-w-[200px]">{row.productName || <span className="text-gray-500 italic">—</span>}</span>
+                                            {row.inboundItem?.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                                        </div>
                                     </td>
 
                                     {/* SKU */}
