@@ -286,6 +286,8 @@ export default function GenericRollbackModal({
     const [searchQuery, setSearchQuery] = useState('');
     const [processing, setProcessing] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [expandedRollbackBoxes, setExpandedRollbackBoxes] = useState<Set<string>>(new Set());
+    const isBoxMode = direction === 'CHECKING_TO_BOXES';
 
     const config = getFieldMapping(direction);
 
@@ -366,6 +368,23 @@ export default function GenericRollbackModal({
         );
     });
 
+    // Group by box_number for CHECKING_TO_BOXES
+    const groupedByBox = isBoxMode
+        ? Object.entries(
+            filteredItems.reduce<Record<string, RollbackItem[]>>((acc, item) => {
+                const box = item.box_number || 'Unknown';
+                if (!acc[box]) acc[box] = [];
+                acc[box].push(item);
+                return acc;
+            }, {})
+        ).map(([boxNumber, boxItems]) => ({
+            boxNumber,
+            items: boxItems,
+            totalQty: boxItems.reduce((sum, i) => sum + (i.actual_quantity || i.buying_quantity || 0), 0),
+            asinCount: new Set(boxItems.map(i => i.asin)).size || boxItems.length,
+        }))
+        : [];
+
     // ─── SELECT ───
     const handleSelectAll = (checked: boolean) => {
         if (checked) setSelectedIds(new Set(filteredItems.map(i => i.id)));
@@ -376,6 +395,41 @@ export default function GenericRollbackModal({
         const newSet = new Set(selectedIds);
         if (checked) newSet.add(id); else newSet.delete(id);
         setSelectedIds(newSet);
+    };
+
+    const handleSelectBox = (boxNumber: string, checked: boolean) => {
+        const boxItems = filteredItems.filter(i => (i.box_number || 'Unknown') === boxNumber);
+        const newSet = new Set(selectedIds);
+        boxItems.forEach(i => {
+            if (checked) newSet.add(i.id);
+            else newSet.delete(i.id);
+        });
+        setSelectedIds(newSet);
+    };
+
+    const isBoxSelected = (boxNumber: string) => {
+        const boxItems = filteredItems.filter(i => (i.box_number || 'Unknown') === boxNumber);
+        return boxItems.length > 0 && boxItems.every(i => selectedIds.has(i.id));
+    };
+
+    const isBoxPartial = (boxNumber: string) => {
+        const boxItems = filteredItems.filter(i => (i.box_number || 'Unknown') === boxNumber);
+        const selectedCount = boxItems.filter(i => selectedIds.has(i.id)).length;
+        return selectedCount > 0 && selectedCount < boxItems.length;
+    };
+
+    const handleSelectAllBoxes = (checked: boolean) => {
+        if (checked) setSelectedIds(new Set(filteredItems.map(i => i.id)));
+        else setSelectedIds(new Set());
+    };
+
+    const toggleRollbackBox = (boxNumber: string) => {
+        setExpandedRollbackBoxes(prev => {
+            const next = new Set(prev);
+            if (next.has(boxNumber)) next.delete(boxNumber);
+            else next.add(boxNumber);
+            return next;
+        });
     };
 
     // ─── ROLLBACK ───
@@ -495,7 +549,96 @@ export default function GenericRollbackModal({
                         <div className="flex items-center justify-center h-64">
                             <div className="text-lg text-gray-500">No items found in {effectiveConfig.sourceLabel}</div>
                         </div>
+                    ) : isBoxMode ? (
+                        /* ── BOX-GROUPED VIEW ── */
+                        <div className="space-y-3">
+                            {/* Select All */}
+                            <div className="flex items-center gap-3 px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.1]">
+                                <input
+                                    type="checkbox"
+                                    checked={filteredItems.length > 0 && filteredItems.every(i => selectedIds.has(i.id))}
+                                    onChange={(e) => handleSelectAllBoxes(e.target.checked)}
+                                    className="w-5 h-5 cursor-pointer accent-indigo-600"
+                                />
+                                <span className="text-sm text-gray-400">Select All Boxes ({groupedByBox.length})</span>
+                            </div>
+
+                            {groupedByBox.map(({ boxNumber, items: boxItems, totalQty }) => {
+                                const isSelected = isBoxSelected(boxNumber);
+                                const isPartial = isBoxPartial(boxNumber);
+                                const isExpanded = expandedRollbackBoxes.has(boxNumber);
+                                const uniqueAsins = new Set(boxItems.map(i => i.asin)).size;
+
+                                return (
+                                    <div
+                                        key={boxNumber}
+                                        className={`border rounded-xl overflow-hidden transition-all ${
+                                            isSelected
+                                                ? 'border-amber-500/50 bg-amber-500/10'
+                                                : isPartial
+                                                ? 'border-amber-500/30 bg-amber-500/5'
+                                                : 'border-white/[0.1] bg-[#111111]'
+                                        }`}
+                                    >
+                                        {/* Box Header */}
+                                        <div className="flex items-center gap-3 px-4 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                ref={(el) => { if (el) el.indeterminate = isPartial; }}
+                                                onChange={(e) => handleSelectBox(boxNumber, e.target.checked)}
+                                                className="w-5 h-5 cursor-pointer accent-amber-500 flex-shrink-0"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            <div
+                                                className="flex-1 flex items-center gap-3 cursor-pointer"
+                                                onClick={() => toggleRollbackBox(boxNumber)}
+                                            >
+                                                <svg
+                                                    className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                                <span className="text-lg">📦</span>
+                                                <span className="font-bold text-white">{boxNumber}</span>
+                                                <span className="text-sm text-gray-400">
+                                                    {uniqueAsins} ASIN{uniqueAsins !== 1 ? 's' : ''} · {totalQty} qty
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Box Items (expanded) */}
+                                        {isExpanded && (
+                                            <div className="border-t border-white/[0.06] bg-[#0a0a0a]">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="text-xs text-gray-500">
+                                                            <th className="px-4 py-2 text-left pl-14">ASIN</th>
+                                                            <th className="px-4 py-2 text-left">Product Name</th>
+                                                            <th className="px-4 py-2 text-center">Seller</th>
+                                                            <th className="px-4 py-2 text-center">Qty</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-white/[0.04]">
+                                                        {boxItems.map(item => (
+                                                            <tr key={item.id} className="text-sm">
+                                                                <td className="px-4 py-2 pl-14 font-mono text-gray-100">{item.asin}</td>
+                                                                <td className="px-4 py-2 text-gray-500 truncate max-w-[200px]">{item.product_name || '-'}</td>
+                                                                <td className="px-4 py-2 text-center text-gray-400">{item.seller_tag || '-'}</td>
+                                                                <td className="px-4 py-2 text-center text-gray-400">{item.actual_quantity || item.buying_quantity || '-'}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     ) : (
+                        /* ── ORIGINAL INDIVIDUAL ITEM VIEW (unchanged) ── */
                         <table className="w-full">
                             <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0">
                                 <tr>
@@ -553,7 +696,12 @@ export default function GenericRollbackModal({
                 <div className="bg-[#111111] border-t border-white/[0.1] px-6 py-4 flex items-center justify-between">
                     <div className="text-sm text-gray-400">
                         {selectedIds.size > 0 && (
-                            <span className="font-semibold text-amber-400">{selectedIds.size} item(s) selected</span>
+                            <span className="font-semibold text-amber-400">
+                                {isBoxMode
+                                    ? `${groupedByBox.filter(g => isBoxSelected(g.boxNumber)).length} box(es) · ${selectedIds.size} items selected`
+                                    : `${selectedIds.size} item(s) selected`
+                                }
+                            </span>
                         )}
                         {selectedIds.size === 0 && `${filteredItems.length} items available`}
                     </div>
