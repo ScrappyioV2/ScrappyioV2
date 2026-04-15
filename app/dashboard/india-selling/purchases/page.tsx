@@ -1906,24 +1906,76 @@ export default function PurchasesPage() {
       }
 
       for (const product of selectedProducts) {
-        // 1. Reset sent_to_purchases in validation
-        let validationQuery = supabase
-          .from('india_validation_main_file')
-          .update({ sent_to_purchases: false, sent_to_purchases_at: null })
-          .eq('asin', product.asin);
+        // 1. Reset or create validation entry
+        if (product.source === 'copy') {
+          // Copy-sent row — check if validation row exists for this ASIN
+          const { data: existingVal } = await supabase
+            .from('india_validation_main_file')
+            .select('id, seller_tag')
+            .eq('asin', product.asin)
+            .maybeSingle();
 
-        if (product.journey_id) {
-          validationQuery = validationQuery.eq('current_journey_id', product.journey_id);
-        }
-
-        const { error: valError } = await validationQuery;
-        if (valError) {
-          console.error('Validation reset error:', valError);
-          // Fallback: try without journey_id
-          await supabase
+          if (existingVal) {
+            // Merge seller_tag and reset
+            const existingTags = (existingVal.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+            const currentTag = (product.seller_tag || '').trim();
+            if (currentTag && !existingTags.includes(currentTag)) {
+              existingTags.push(currentTag);
+            }
+            await supabase
+              .from('india_validation_main_file')
+              .update({
+                seller_tag: existingTags.join(', '),
+                sent_to_purchases: false,
+                sent_to_purchases_at: null,
+                is_new: true,
+              })
+              .eq('id', existingVal.id);
+          } else {
+            // No validation row — create fresh
+            const newJourneyId = generateUUID();
+            await supabase
+              .from('india_validation_main_file')
+              .insert({
+                asin: product.asin,
+                product_name: product.product_name,
+                current_journey_id: newJourneyId,
+                journey_number: product.journey_number || 1,
+                status: 'pending',
+                brand: (product as any).brand || null,
+                seller_tag: product.seller_tag || '',
+                funnel: product.funnel || null,
+                origin: (product as any).origin || 'India',
+                india_link: product.product_link || null,
+                remark: (product as any).remark || null,
+                sku: (product as any).sku || null,
+                no_of_seller: 1,
+                sent_to_purchases: false,
+                admin_status: 'pending',
+                judgement: 'PENDING',
+                calculated_judgement: null,
+                is_new: true,
+              });
+          }
+        } else {
+          // Normal row — reset sent_to_purchases in existing validation entry
+          let validationQuery = supabase
             .from('india_validation_main_file')
             .update({ sent_to_purchases: false, sent_to_purchases_at: null })
             .eq('asin', product.asin);
+
+          if (product.journey_id) {
+            validationQuery = validationQuery.eq('current_journey_id', product.journey_id);
+          }
+
+          const { error: valError } = await validationQuery;
+          if (valError) {
+            console.error('Validation reset error:', valError);
+            await supabase
+              .from('india_validation_main_file')
+              .update({ sent_to_purchases: false, sent_to_purchases_at: null })
+              .eq('asin', product.asin);
+          }
         }
 
         // 2. Delete from purchases
