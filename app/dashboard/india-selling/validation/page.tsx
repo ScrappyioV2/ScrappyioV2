@@ -599,7 +599,36 @@ export default function ValidationPage() {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_main_file' }, (payload) => {
                 if (localEditCountRef.current > 0) return;
                 if (movingIdsRef.current.size > 0) return;
-                debouncedRefresh();
+
+                const eventType = payload.eventType;
+
+                if (eventType === 'INSERT' && payload.new) {
+                    const newProduct = payload.new as ValidationProduct;
+                    if (movingIdsRef.current.has(newProduct.id)) return;
+                    setProducts(prev => {
+                        if (prev.some(p => p.id === newProduct.id)) return prev;
+                        return [newProduct, ...prev];
+                    });
+                } else if (eventType === 'UPDATE' && payload.new) {
+                    const updated = payload.new as ValidationProduct;
+                    if (movingIdsRef.current.has(updated.id)) return;
+                    const editTime = recentEditsRef.current.get(updated.id);
+                    if (editTime && Date.now() - editTime < 10000) return;
+                    setProducts(prev => prev.map(p => {
+                        if (p.id !== updated.id) return p;
+                        return {
+                            ...updated,
+                            calculated_judgement: p.calculated_judgement || updated.calculated_judgement,
+                        };
+                    }));
+                } else if (eventType === 'DELETE') {
+                    const oldId = (payload.old as any)?.id;
+                    if (oldId) {
+                        setProducts(prev => prev.filter(p => p.id !== oldId));
+                    }
+                }
+
+                debouncedStats();
             })
 
             .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_pass_file' }, () => debouncedStats())
