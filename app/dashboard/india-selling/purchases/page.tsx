@@ -1491,17 +1491,14 @@ export default function PurchasesPage() {
       // Insert one admin validation row per seller tag
       const skippedTags: string[] = [];
       for (const tag of tagsToMove) {
-        // Check if this specific tag is already in admin
-        let existingAdminQuery = supabase
+        // Check if this specific tag is already pending in admin (ANY journey)
+        const { data: existingAdmin } = await supabase
           .from('india_admin_validation')
           .select('id')
           .eq('asin', product.asin)
           .eq('admin_status', 'pending')
-          .eq('seller_tag', tag);
-        if (product.journey_id) {
-          existingAdminQuery = existingAdminQuery.eq('journey_id', product.journey_id);
-        }
-        const { data: existingAdmin } = await existingAdminQuery.maybeSingle();
+          .eq('seller_tag', tag)
+          .maybeSingle();
 
         if (existingAdmin) {
           skippedTags.push(tag);
