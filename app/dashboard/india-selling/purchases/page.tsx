@@ -133,6 +133,14 @@ const FUNNEL_STYLES: Record<string, string> = {
 };
 
 export default function PurchasesPage() {
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return generateUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  };
+
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
   const [copies, setCopies] = useState<any[]>([]);
@@ -1027,7 +1035,7 @@ export default function PurchasesPage() {
         .order('journey_number', { ascending: false })
         .limit(1);
       const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
-      const newJourneyId = crypto.randomUUID();
+      const newJourneyId = generateUUID();
 
       // Double-click guard (UI-only, no DB check)
       const dupeKey = `copy_send_${copyItem.asin}_${tag}`;
@@ -1137,7 +1145,7 @@ export default function PurchasesPage() {
             .order('journey_number', { ascending: false })
             .limit(1);
           const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 1) + 1;
-          const newJourneyId = crypto.randomUUID();
+          const newJourneyId = generateUUID();
 
           await supabase.from('india_purchases').insert({
             asin: item.asin,
@@ -1219,7 +1227,7 @@ export default function PurchasesPage() {
         showToast('Product not found. Please refresh.', 'error');
         return;
       }
-      const splitFromId = crypto.randomUUID();
+      const splitFromId = generateUUID();
       const inserts = entries.map(([key, qty]) => {
         const tag = isSingleTag ? baseTag : key;
         const { id, created_at, ...rest } = freshProduct;
@@ -1228,7 +1236,7 @@ export default function PurchasesPage() {
           seller_tag: tag,
           buying_quantities: { [tag]: qty },
           buying_quantity: qty,
-          split_id: crypto.randomUUID(),
+          split_id: generateUUID(),
           split_from_id: splitFromId,
         };
       });
