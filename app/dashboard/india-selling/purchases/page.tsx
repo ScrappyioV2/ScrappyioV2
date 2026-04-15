@@ -2945,56 +2945,32 @@ export default function PurchasesPage() {
       </div>
 
       {/* Tabs - Midnight Theme Pills */}
-      <div className="flex-none flex gap-1.5 sm:gap-2 mb-3 sm:mb-6 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
-        {/* 1. Main File */}
-        <button
-          onClick={() => setActiveTab('main_file')}
-          className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})</span>
-          {activeTab === 'main_file' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
-        </button>
+      <div className="flex-none flex items-start gap-1.5 sm:gap-2 mb-3 sm:mb-6 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
+        {/* Main File + Copies (stacked) */}
+        <div className="flex flex-col gap-1">
+          <button onClick={() => setActiveTab('main_file')} className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file' ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400' : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'}`}>
+            <span className="relative z-10">Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})</span>
+            {activeTab === 'main_file' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
+          </button>
+          <button onClick={() => setActiveTab('copy')} className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'copy' ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400' : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'}`}>
+            <span className="relative z-10">Copies ({copies.length})</span>
+            {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
+          </button>
+        </div>
 
-        {/* 2. Order Confirmed */}
-        <button
-          onClick={() => setActiveTab('order_confirmed')}
-          className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-emerald-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
-          {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
-        </button>
+        {/* Confirmed + S&S (stacked) */}
+        <div className="flex flex-col gap-1">
+          <button onClick={() => setActiveTab('order_confirmed')} className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed' ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-emerald-400' : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'}`}>
+            <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
+            {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
+          </button>
+          <button onClick={() => setActiveTab('sns')} className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'sns' ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-teal-400' : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'}`}>
+            <span className="relative z-10">S&S ({snsData.length})</span>
+            {activeTab === 'sns' && <div className="absolute inset-0 opacity-10 bg-teal-500" />}
+          </button>
+        </div>
 
-        {/* Copy Tab */}
-        <button
-          onClick={() => setActiveTab('copy')}
-          className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'copy'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">Copies ({copies.length})</span>
-          {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
-        </button>
-
-        {/* S&S Tab */}
-        <button
-          onClick={() => setActiveTab('sns')}
-          className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'sns'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-teal-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">S&S ({snsData.length})</span>
-          {activeTab === 'sns' && <div className="absolute inset-0 opacity-10 bg-teal-500" />}
-        </button>
-
-        {/* 3. India */}
+        {/* Rest of tabs stay horizontal */}
         <button
           onClick={() => setActiveTab('india')}
           className={`px-3 sm:px-5 py-2 text-xs sm:text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'india'
