@@ -186,7 +186,7 @@ export async function moveProductWithHistory(
   // Log movement history
   const { error: historyError } = await supabase
     .from('listing_errors')
-    .insert({
+    .upsert({
       marketplace,
       seller_id: sellerId,
       error_status: 'movement_history',
@@ -200,7 +200,7 @@ export async function moveProductWithHistory(
       to_table: toStatus,
       remark: product.remark ?? null,
       moved_at: new Date().toISOString(),
-    });
+    }, { onConflict: 'marketplace,seller_id,asin,error_status' });
 
   if (historyError) console.error('History log failed:', historyError);
 }
