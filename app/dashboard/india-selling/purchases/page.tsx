@@ -946,6 +946,12 @@ export default function PurchasesPage() {
             return;
           }
 
+          // Always keep copy-sent rows — each is an independent journey
+          if (product.source === 'copy') {
+            confirmedRows.push(product);
+            return;
+          }
+
           const key = `${product.asin}|${product.seller_tag || ''}`;
           const existing = latestByKey.get(key);
           const currentJourney = product.journey_number || 1;
@@ -1298,6 +1304,12 @@ export default function PurchasesPage() {
         enrichedData.forEach((product: any) => {
           // Always keep confirmed rows — they must show in the Confirmed tab
           if (product.admin_confirmed === true) {
+            confirmedRows.push(product);
+            return;
+          }
+
+          // Always keep copy-sent rows — each is an independent journey
+          if (product.source === 'copy') {
             confirmedRows.push(product);
             return;
           }
