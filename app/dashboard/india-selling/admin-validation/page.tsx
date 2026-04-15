@@ -214,6 +214,13 @@ export default function AdminValidationPage() {
             return;
           }
 
+          // Different journey_id = always show as separate row
+          if (existing && product.journey_id && existing.journey_id && product.journey_id !== existing.journey_id) {
+            const uniqueKey = `${key}|${product.journey_id}`;
+            latestByKey.set(uniqueKey, product);
+            return;
+          }
+
           const currentIsPending = product.admin_status === 'pending' || !product.admin_status;
           const existingIsPending = existing.admin_status === 'pending' || !existing.admin_status;
 
