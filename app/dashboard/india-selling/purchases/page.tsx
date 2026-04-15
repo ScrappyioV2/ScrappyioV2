@@ -1023,21 +1023,14 @@ export default function PurchasesPage() {
       const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
       const newJourneyId = crypto.randomUUID();
 
-      // Check if this exact tag+journey already exists (prevent double-click)
-      const { data: exactDupe } = await supabase
-        .from('india_purchases')
-        .select('id')
-        .eq('asin', copyItem.asin)
-        .eq('seller_tag', tag)
-        .is('move_to', null)
-        .eq('sent_to_admin', false)
-        .eq('admin_confirmed', false)
-        .maybeSingle();
-
-      if (exactDupe) {
-        showToast(`${copyItem.asin} with ${tag} already has a pending row in purchases`, 'info');
+      // Double-click guard (UI-only, no DB check)
+      const dupeKey = `copy_send_${copyItem.asin}_${tag}`;
+      if ((window as any)[dupeKey]) {
+        showToast(`Already sending ${copyItem.asin} (${tag})...`, 'info');
         return;
       }
+      (window as any)[dupeKey] = true;
+      setTimeout(() => { delete (window as any)[dupeKey]; }, 3000);
 
       const { error } = await supabase
         .from('india_purchases')
