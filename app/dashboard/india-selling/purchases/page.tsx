@@ -1986,10 +1986,6 @@ export default function PurchasesPage() {
 
         if (delError) throw delError;
 
-        // Delete copy when sending back to validation
-        try {
-          await supabase.from('india_purchase_copies').delete().eq('asin', product.asin);
-        } catch {}
 
         // 3. Log activity
         logActivity({
