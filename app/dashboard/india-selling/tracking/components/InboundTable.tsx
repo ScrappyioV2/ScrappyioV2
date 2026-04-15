@@ -626,6 +626,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                 tracking_details: row.tracking_details ?? null,
                 delivery_date: row.delivery_date ?? null,
                 product_link: row.product_link ?? null,
+                sns_active: row.sns_active ?? false,
 
                 // QC flag
                 good_condition: false,

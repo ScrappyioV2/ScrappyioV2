@@ -515,6 +515,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                 box_number: p.box_number,
                 check_status: 'pending',
                 moved_from_boxes_at: new Date().toISOString(),
+                sns_active: p.sns_active ?? false,
             }));
 
             // 2. Insert into checking table

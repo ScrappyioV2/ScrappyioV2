@@ -388,6 +388,7 @@ export default function CheckingTable({
           moved_at: now,
           buying_quantity: seller.allocated,
           status: 'pending',
+          sns_active: item.sns_active ?? false,
         };
 
         const { error: insertError } = await supabase
@@ -408,6 +409,7 @@ export default function CheckingTable({
           max_price: Math.round(salesPrice * 1.20 * 100) / 100,
           remark: item.remark ?? null,
           seller_link: (item as any).seller_link ?? null,
+          sns_active: item.sns_active ?? false,
         };
 
         // Insert pending row

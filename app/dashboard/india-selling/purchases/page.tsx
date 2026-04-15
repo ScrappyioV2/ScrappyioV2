@@ -1241,12 +1241,14 @@ export default function PurchasesPage() {
       const splitFromId = generateUUID();
       const inserts = entries.map(([key, qty]) => {
         const tag = isSingleTag ? baseTag : key;
-        const { id, created_at, ...rest } = freshProduct;
+        const { id, created_at, journey_id, journey_number, ...rest } = freshProduct;
         return {
           ...rest,
           seller_tag: tag,
           buying_quantities: { [tag]: qty },
           buying_quantity: qty,
+          journey_id: generateUUID(),
+          journey_number: journey_number || 1,
           split_id: generateUUID(),
           split_from_id: splitFromId,
         };
