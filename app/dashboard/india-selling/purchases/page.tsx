@@ -1055,8 +1055,8 @@ export default function PurchasesPage() {
           origin_china: copyItem.origin_china ?? false,
           origin_us: copyItem.origin_us ?? false,
           buying_price: copyItem.buying_price || 0,
-          buying_quantity: copyItem.buying_quantity || 0,
-          buying_quantities: { [tag]: copyItem.buying_quantity || 0 },
+          buying_quantity: (copyItem.buying_quantities && copyItem.buying_quantities[tag]) ?? copyItem.buying_quantity ?? 0,
+          buying_quantities: { [tag]: (copyItem.buying_quantities && copyItem.buying_quantities[tag]) ?? copyItem.buying_quantity ?? 0 },
           product_weight: copyItem.product_weight || null,
           usd_price: copyItem.usd_price || null,
           inr_purchase: copyItem.inr_purchase || null,
@@ -1569,7 +1569,7 @@ export default function PurchasesPage() {
         // Fetch existing copy to merge tags
         const { data: existingCopy } = await supabase
           .from('india_purchase_copies')
-          .select('seller_tag')
+          .select('seller_tag, buying_quantities')
           .eq('asin', product.asin)
           .maybeSingle();
 
@@ -1589,6 +1589,15 @@ export default function PurchasesPage() {
           }
         }
 
+        // Merge buying_quantities from existing copy and current product
+        let mergedBuyingQuantities: Record<string, number> = {};
+        if (existingCopy?.buying_quantities && typeof existingCopy.buying_quantities === 'object') {
+          mergedBuyingQuantities = { ...existingCopy.buying_quantities };
+        }
+        if ((product as any).buying_quantities && typeof (product as any).buying_quantities === 'object') {
+          mergedBuyingQuantities = { ...mergedBuyingQuantities, ...(product as any).buying_quantities };
+        }
+
         await supabase.from('india_purchase_copies').upsert({
           asin: product.asin,
           product_name: product.product_name,
@@ -1603,6 +1612,7 @@ export default function PurchasesPage() {
           seller_link: (product as any).seller_link || null,
           buying_price: product.buying_price || null,
           buying_quantity: product.buying_quantity || null,
+          buying_quantities: Object.keys(mergedBuyingQuantities).length > 0 ? mergedBuyingQuantities : null,
           product_weight: (product as any).product_weight || null,
           usd_price: (product as any).usd_price || null,
           inr_purchase: (product as any).inr_purchase || null,
