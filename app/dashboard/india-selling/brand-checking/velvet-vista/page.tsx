@@ -1077,8 +1077,8 @@ export default function VelvetvistaPage() {
                     {/* Dropdown Menu */}
                     {isMoveToDropdownOpen && (
                       <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsMoveToDropdownOpen(false)} />
-                        <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-xl p-2 z-20 w-48 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="fixed inset-0 z-40" onClick={() => setIsMoveToDropdownOpen(false)} />
+                        <div className="absolute top-full right-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-xl p-2 z-50 w-48 animate-in fade-in zoom-in-95 duration-200">
                           <button onClick={() => handleMoveFromReject('high_demand')} className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-lg transition-colors flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                             Restock
