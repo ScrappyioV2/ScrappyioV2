@@ -820,9 +820,18 @@ export default function PurchasesPage() {
                   className="text-xs border border-gray-600 rounded px-2 py-1.5 cursor-pointer appearance-auto [color-scheme:dark]"
                 >
                   <option value="" style={{ backgroundColor: '#1f2937', color: '#fff' }}>No S&S</option>
-                  {Object.entries(SNS_PERIOD_LABELS).map(([value, label]) => (
-                    <option key={value} value={value} style={{ backgroundColor: '#1f2937', color: '#fff' }}>{label}</option>
-                  ))}
+                  <option value="2_weeks" style={{ backgroundColor: '#1f2937', color: '#fff' }}>2 Weeks</option>
+                  <option value="3_weeks" style={{ backgroundColor: '#1f2937', color: '#fff' }}>3 Weeks</option>
+                  <option value="4_weeks" style={{ backgroundColor: '#1f2937', color: '#fff' }}>4 Weeks</option>
+                  <option value="5_weeks" style={{ backgroundColor: '#1f2937', color: '#fff' }}>5 Weeks</option>
+                  <option value="6_weeks" style={{ backgroundColor: '#1f2937', color: '#fff' }}>6 Weeks</option>
+                  <option value="7_weeks" style={{ backgroundColor: '#1f2937', color: '#fff' }}>7 Weeks</option>
+                  <option value="1_month" style={{ backgroundColor: '#1f2937', color: '#fff' }}>1 Month</option>
+                  <option value="2_months" style={{ backgroundColor: '#1f2937', color: '#fff' }}>2 Months</option>
+                  <option value="3_months" style={{ backgroundColor: '#1f2937', color: '#fff' }}>3 Months</option>
+                  <option value="4_months" style={{ backgroundColor: '#1f2937', color: '#fff' }}>4 Months</option>
+                  <option value="5_months" style={{ backgroundColor: '#1f2937', color: '#fff' }}>5 Months</option>
+                  <option value="6_months" style={{ backgroundColor: '#1f2937', color: '#fff' }}>6 Months</option>
                 </select>
               </td>
               <td className="px-3 py-2">
