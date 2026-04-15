@@ -618,7 +618,9 @@ export default function ValidationPage() {
                         if (p.id !== updated.id) return p;
                         return {
                             ...updated,
+                            judgement: p.judgement || updated.judgement,
                             calculated_judgement: p.calculated_judgement || updated.calculated_judgement,
+                            sent_to_purchases: p.sent_to_purchases ?? updated.sent_to_purchases,
                         };
                     }));
                 } else if (eventType === 'DELETE') {
