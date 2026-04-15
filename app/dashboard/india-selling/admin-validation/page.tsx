@@ -2187,6 +2187,14 @@ export default function AdminValidationPage() {
                   </button>
                 </div>
 
+                {/* Category */}
+                {product.amazon_category && (
+                  <div className="flex justify-between items-center py-1.5 mb-1 bg-orange-500/10 rounded-lg px-2">
+                    <span className="text-gray-400">Category</span>
+                    <span className="text-orange-400 font-medium">{product.amazon_category}</span>
+                  </div>
+                )}
+
                 {/* Selling Price */}
                 <div className="flex justify-between items-center py-2 border-b border-white/[0.08]">
                   <span className="text-gray-300">Selling Price (Revenue)</span>
