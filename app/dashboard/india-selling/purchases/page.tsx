@@ -98,6 +98,7 @@ const calculateNextDue = (period: string): Date => {
     case '2_weeks': now.setDate(now.getDate() + 14); break;
     case '3_weeks': now.setDate(now.getDate() + 21); break;
     case '1_month': now.setMonth(now.getMonth() + 1); break;
+    case '4_weeks': now.setDate(now.getDate() + 28); break;
     case '5_weeks': now.setDate(now.getDate() + 35); break;
     case '6_weeks': now.setDate(now.getDate() + 42); break;
     case '7_weeks': now.setDate(now.getDate() + 49); break;
@@ -115,6 +116,7 @@ const SNS_PERIOD_LABELS: Record<string, string> = {
   '2_weeks': '2 Weeks',
   '3_weeks': '3 Weeks',
   '1_month': '1 Month',
+  '4_weeks': '4 Weeks',
   '5_weeks': '5 Weeks',
   '6_weeks': '6 Weeks',
   '7_weeks': '7 Weeks',
