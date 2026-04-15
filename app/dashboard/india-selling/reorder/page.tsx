@@ -812,68 +812,37 @@ export default function ReorderPage() {
             if (copyData) {
               copyFound = true;
 
-              const { data: existingPurchase } = await supabase
-                .from('india_purchases')
-                .select('id, seller_tag, buying_quantities, product_link, origin, inr_purchase_link')
+              // ALWAYS create new independent row — never merge with existing
+              const { data: maxJ } = await supabase
+                .from('india_asin_history')
+                .select('journey_number')
                 .eq('asin', product.asin)
-                .is('move_to', null)
-                .eq('admin_confirmed', false)
-                .or('sent_to_admin.is.null,sent_to_admin.eq.false')
-              .maybeSingle();
+                .order('journey_number', { ascending: false })
+                .limit(1);
+              const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
+              const newJID = crypto.randomUUID();
 
-              if (existingPurchase) {
-                const existingTags = existingPurchase.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];
-                if (!existingTags.includes(activeSeller.tag)) {
-                  const newTag = [...existingTags, activeSeller.tag].join(',');
-                  const newBuyingQty = { ...(existingPurchase.buying_quantities || {}), [activeSeller.tag]: 0 };
-                  const mergeUpdate: Record<string, any> = {
-                    seller_tag: newTag,
-                    buying_quantities: newBuyingQty,
-                  };
-                  // Fill blank fields if the existing row is missing them
-                  if (!existingPurchase.product_link && product.seller_link) mergeUpdate.product_link = product.seller_link;
-                  if (!existingPurchase.origin) {
-                    mergeUpdate.origin = 'India';
-                    mergeUpdate.origin_india = true;
-                    mergeUpdate.origin_china = false;
-                    mergeUpdate.origin_us = false;
-                  }
-                  await supabase.from('india_purchases')
-                    .update(mergeUpdate)
-                    .eq('id', existingPurchase.id);
-                }
-              } else {
-                // Fetch max journey_number for this ASIN
-                const { data: maxJourney } = await supabase
-                  .from('india_asin_history')
-                  .select('journey_number')
-                  .eq('asin', product.asin)
-                  .order('journey_number', { ascending: false })
-                  .limit(1);
-                const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 1) + 1;
-                const newJourneyId = crypto.randomUUID();
-
-                await supabase.from('india_purchases').insert({
-                  asin: product.asin,
-                  product_name: product.product_name,
-                  brand: (product as any).brand || null,
-                  seller_tag: activeSeller.tag,
-                  funnel: product.funnel,
-                  sku: product.sku,
-                  remark: product.remark,
-                  buying_quantities: { [activeSeller.tag]: 0 },
-                  product_link: product.seller_link || null,
-                  inr_purchase_link: null,
-                  origin: 'India',
-                  origin_india: true,
-                  origin_china: false,
-                  origin_us: false,
-                  buying_price: 0,
-                  buying_quantity: 0,
-                  journey_id: newJourneyId,
-                  journey_number: nextJourneyNumber,
-                });
-              }
+              await supabase.from('india_purchases').insert({
+                asin: product.asin,
+                product_name: product.product_name,
+                brand: (product as any).brand || null,
+                seller_tag: activeSeller.tag,
+                funnel: product.funnel,
+                sku: product.sku,
+                remark: product.remark,
+                buying_quantities: { [activeSeller.tag]: 0 },
+                product_link: product.seller_link || null,
+                inr_purchase_link: null,
+                origin: 'India',
+                origin_india: true,
+                origin_china: false,
+                origin_us: false,
+                buying_price: 0,
+                buying_quantity: 0,
+                journey_id: newJID,
+                journey_number: nextJN,
+                source: 'reorder',
+              });
 
               // Delete from reorder
               await supabase.from('tracking_ops').delete().eq('id', product.id);
@@ -886,7 +855,7 @@ export default function ReorderPage() {
                 page: 'reorder',
                 table_name: 'tracking_ops',
                 asin: product.asin,
-                details: { from: 'reorder', to: 'india_purchases_direct', ops_type: 'reorder' }
+                details: { from: 'reorder', to: 'india_purchases_direct', ops_type: 'reorder', journey_number: nextJN }
               });
               return;
             }
@@ -928,45 +897,76 @@ export default function ReorderPage() {
           // 3. Generate NEW Journey ID
           const newJourneyId = generateUUID();
 
-          // 4. Insert into Validation Main File with RESTORED DATA
-          const { error: insertError } = await supabase
+          // 4. Insert or Update Validation Main File — MERGE seller_tag
+          const { data: existingValidation } = await supabase
             .from('india_validation_main_file')
-            .upsert({
-              asin: product.asin,
+            .select('id, seller_tag')
+            .eq('asin', product.asin)
+            .maybeSingle();
 
-              // Use master data name if available, otherwise current reorder name
-              product_name: masterData?.product_name || product.product_name,
+          if (existingValidation) {
+            // ASIN exists — merge seller_tag and update journey
+            const existingTags = (existingValidation.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+            let mergedTag = existingTags;
+            if (!existingTags.includes(activeSeller.tag)) {
+              mergedTag = [...existingTags, activeSeller.tag];
+            }
 
-              current_journey_id: newJourneyId, // ✅ New ID
-              journey_number: nextJourneyNum,   // ✅ FIXED: Uses actual max + 1
-              status: 'pending',
+            const { error: updateError } = await supabase
+              .from('india_validation_main_file')
+              .update({
+                seller_tag: mergedTag.join(', '),
+                no_of_seller: mergedTag.length,
+                current_journey_id: newJourneyId,
+                journey_number: nextJourneyNum,
+                // Only update these if they're currently empty
+                product_name: masterData?.product_name || undefined,
+                brand: masterData?.brand || undefined,
+                funnel: masterData?.funnel || undefined,
+                india_link: masterData?.india_link || product.seller_link || undefined,
+                remark: product.remark ?? undefined,
+                sku: masterData?.sku || product.sku || undefined,
+                // Mark as needing re-validation
+                is_new: true,
+                sent_to_purchases: false,
+              })
+              .eq('id', existingValidation.id);
 
-              // ♻️ RESTORED FIELDS (The "Bag" Contents)
-              brand: masterData?.brand || null,
-              seller_tag: activeSeller.tag,
-              funnel: masterData?.funnel || null,
-              origin: masterData?.origin || 'India', // Default to India if unknown
-              india_link: masterData?.india_link || product.seller_link,
-              remark: product.remark ?? null,
-              sku: masterData?.sku || product.sku || null,
-              // Reset operational fields
-              no_of_seller: 1,
-              sent_to_purchases: false,
-              admin_status: 'pending',
-              // Reset work fields for new journey
-              judgement: 'PENDING',
-              calculated_judgement: null,
-              is_new: true,
-              usd_price: null,
-              product_weight: null,
-              inr_purchase: null,
-              inr_purchase_link: null,
-              total_cost: null,
-              total_revenue: null,
-              profit: null,
-            }, { onConflict: 'asin' })
+            if (updateError) throw updateError;
+          } else {
+            // ASIN doesn't exist — insert fresh
+            const { error: insertError } = await supabase
+              .from('india_validation_main_file')
+              .insert({
+                asin: product.asin,
+                product_name: masterData?.product_name || product.product_name,
+                current_journey_id: newJourneyId,
+                journey_number: nextJourneyNum,
+                status: 'pending',
+                brand: masterData?.brand || null,
+                seller_tag: activeSeller.tag,
+                funnel: masterData?.funnel || null,
+                origin: masterData?.origin || 'India',
+                india_link: masterData?.india_link || product.seller_link,
+                remark: product.remark ?? null,
+                sku: masterData?.sku || product.sku || null,
+                no_of_seller: 1,
+                sent_to_purchases: false,
+                admin_status: 'pending',
+                judgement: 'PENDING',
+                calculated_judgement: null,
+                is_new: true,
+                usd_price: null,
+                product_weight: null,
+                inr_purchase: null,
+                inr_purchase_link: null,
+                total_cost: null,
+                total_revenue: null,
+                profit: null,
+              });
 
-          if (insertError) throw insertError
+            if (insertError) throw insertError;
+          }
 
           // 5. 🗑️ REMOVE from Reorder Page (It has moved on)
           const { error: deleteError } = await supabase
