@@ -316,6 +316,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
                 distribution_id: p.id,
                 moved_at: new Date().toISOString(),
                 status: 'pending',
+                sns_active: p.sns_active ?? false,
             }));
 
             const { error: insertError } = await supabase

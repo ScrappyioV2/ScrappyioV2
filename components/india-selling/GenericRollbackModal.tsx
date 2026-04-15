@@ -99,6 +99,7 @@ const getFieldMapping = (direction: RollbackDirection) => {
                     product_weight: item.product_weight ?? null,
                     status: 'delivered',
                     address: item.address ?? null,
+                    sns_active: item.sns_active ?? false,
                 }),
             };
         case 'CHECKING_TO_BOXES':
@@ -142,6 +143,7 @@ const getFieldMapping = (direction: RollbackDirection) => {
                     box_status: 'sealed',
                     total_box_weight: item.total_box_weight ?? null,
                     inbound_tracking_id: item.inbound_tracking_id ?? null,
+                    sns_active: item.sns_active ?? false,
                 }),
             };
         case 'DISTRIBUTION_TO_CHECKING':
@@ -221,6 +223,7 @@ const getFieldMapping = (direction: RollbackDirection) => {
                     delivery_date: item.delivery_date ?? null,
                     product_link: item.product_link ?? null,
                     good_condition: item.good_condition ?? false,
+                    sns_active: item.sns_active ?? false,
                     check_mrp_label: item.check_mrp_label ?? null,
                     check_gelatin: item.check_gelatin ?? null,
                     check_amazon_badge: item.check_amazon_badge ?? null,
