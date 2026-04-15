@@ -1888,11 +1888,14 @@ export default function PurchasesPage() {
       // Check for orphaned tracking entries before proceeding
       const orphanedAsins: string[] = [];
       for (const product of selectedProducts) {
-        const { data: trackingEntries } = await supabase
+        let trackingQuery = supabase
           .from('india_inbound_tracking')
           .select('id')
-          .eq('asin', product.asin)
-          .limit(1);
+          .eq('asin', product.asin);
+        if (product.journey_id) {
+          trackingQuery = trackingQuery.eq('journey_id', product.journey_id);
+        }
+        const { data: trackingEntries } = await trackingQuery.limit(1);
         if (trackingEntries && trackingEntries.length > 0) {
           orphanedAsins.push(product.asin);
         }
