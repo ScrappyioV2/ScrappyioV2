@@ -972,7 +972,7 @@ export default function CostechVenturesPage() {
     <>
       <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-500/20">
         {/* HEADER */}
-        <div className="sticky top-0 z-20 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6">
+        <div className="sticky top-0 z-40 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-4 sm:pt-6 px-4 sm:px-6 lg:px-6">
           <div className="max-w-[1920px] mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
               <div className="space-y-1">
