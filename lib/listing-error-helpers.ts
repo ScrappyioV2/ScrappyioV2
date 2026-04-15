@@ -167,6 +167,18 @@ export async function moveProductWithHistory(
   toStatus: string,
   extraFields?: Record<string, any>
 ) {
+  // If moving to done/listed, remove any existing row with same status to prevent unique constraint violation
+  if (toStatus === 'done' || toStatus === 'error' || toStatus === 'removed') {
+    await supabase
+      .from('listing_errors')
+      .delete()
+      .eq('marketplace', marketplace)
+      .eq('seller_id', sellerId)
+      .eq('asin', product.asin)
+      .eq('error_status', toStatus)
+      .neq('id', product.id);
+  }
+
   // Move the product (just update the status)
   const { error: moveError } = await moveProduct(supabase, product.id, toStatus, extraFields);
   if (moveError) throw moveError;
