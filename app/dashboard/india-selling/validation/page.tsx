@@ -582,6 +582,12 @@ export default function ValidationPage() {
         }, 1500) // 1.5 second delay
     ).current;
 
+    const debouncedStats = useRef(
+        debounce(async () => {
+            await fetchStats();
+        }, 5000)
+    ).current;
+
     useEffect(() => {
         if (authLoading) return;
 
@@ -596,8 +602,8 @@ export default function ValidationPage() {
                 debouncedRefresh();
             })
 
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_pass_file' }, () => fetchStats())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_fail_file' }, () => fetchStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_pass_file' }, () => debouncedStats())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'india_validation_fail_file' }, () => debouncedStats())
             .subscribe();
 
         const handleVisibilityChange = () => {
@@ -608,7 +614,7 @@ export default function ValidationPage() {
                 if (now - lastVisibilityRefreshRef.current < 10000) return;
                 lastVisibilityRefreshRef.current = now;
                 refreshProductsSilently();
-                fetchStats();
+                debouncedStats();
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -677,27 +683,20 @@ export default function ValidationPage() {
 
     const fetchStats = async () => {
         try {
-            const [passRes, failRes, pendingRes, rejectRes, reworkRes, indiaLinkNfRes, usaLinkNfRes, totalRes] = await Promise.all([
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'PASS'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'FAIL'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).or('judgement.is.null,judgement.eq.PENDING'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'REJECT'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'REWORKING'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'INDIA_LINK_NF'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }).eq('judgement', 'USA_LINK_NF'),
-                supabase.from('india_validation_main_file').select('id', { count: 'exact', head: true }),
-            ]);
-
-            setStats({
-                total: totalRes.count ?? 0,
-                passed: passRes.count ?? 0,
-                failed: failRes.count ?? 0,
-                pending: pendingRes.count ?? 0,
-                rejected: rejectRes.count ?? 0,
-                reworking: reworkRes.count ?? 0,
-                india_link_nf: indiaLinkNfRes.count ?? 0,
-                usa_link_nf: usaLinkNfRes.count ?? 0,
-            })
+            const { data, error } = await supabase.rpc('get_validation_stats');
+            if (error) throw error;
+            if (data) {
+                setStats({
+                    total: data.total ?? 0,
+                    passed: data.passed ?? 0,
+                    failed: data.failed ?? 0,
+                    pending: data.pending ?? 0,
+                    rejected: data.rejected ?? 0,
+                    reworking: data.reworking ?? 0,
+                    india_link_nf: data.india_link_nf ?? 0,
+                    usa_link_nf: data.usa_link_nf ?? 0,
+                });
+            }
         } catch (err) {
             console.error('Error fetching stats:', err)
             setToast({ message: 'Failed to load stats', type: 'error' })
@@ -971,9 +970,7 @@ export default function ValidationPage() {
         }
 
         result = [...result].sort((a, b) => {
-            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-            return dateB - dateA; // newest first
+            return (b.created_at || '').localeCompare(a.created_at || '');
         });
 
         return result;
@@ -1292,7 +1289,7 @@ export default function ValidationPage() {
                 })
             );
 
-            await fetchStats();
+            debouncedStats();
 
             // ✅ DETAILED SUMMARY TOASTS
             if (updated === 0) {
@@ -1368,7 +1365,7 @@ export default function ValidationPage() {
 
                     setToast({ message: 'INDIA prices updated via CSV', type: 'success' })
                     fetchProducts()
-                    fetchStats()
+                    debouncedStats()
                 } catch (err) {
                     console.error(err)
                     setToast({ message: 'INDIA price CSV update failed', type: 'error' })
@@ -1705,7 +1702,7 @@ export default function ValidationPage() {
                         { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
                     );
 
-                    await fetchStats();
+                    debouncedStats();
 
                 } catch (err) {
                     console.error('Move to main error:', err);
@@ -1777,7 +1774,7 @@ export default function ValidationPage() {
                         { action: 'pass', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
                     );
 
-                    await fetchStats();
+                    debouncedStats();
 
                 } catch (err) {
                     console.error('Move to pass error:', err);
@@ -1838,7 +1835,7 @@ export default function ValidationPage() {
                         { action: 'fail', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
                     );
 
-                    await fetchStats();
+                    debouncedStats();
 
                 } catch (err) {
                     console.error('Move to fail error:', err);
@@ -1932,7 +1929,7 @@ export default function ValidationPage() {
                         { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
                     );
 
-                    await fetchStats();
+                    debouncedStats();
                 } catch (err) {
                     console.error('Move to reworking error:', err);
                     setToast({ message: 'Failed to move items', type: 'error' });
@@ -1989,7 +1986,7 @@ export default function ValidationPage() {
                         { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
                     );
 
-                    await fetchStats();
+                    debouncedStats();
                 } catch (err) {
                     console.error('Move to India Link NF error:', err);
                     setToast({ message: 'Failed to move items', type: 'error' });
@@ -2046,7 +2043,7 @@ export default function ValidationPage() {
                         { action: 'move', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
                     );
 
-                    await fetchStats();
+                    debouncedStats();
                 } catch (err) {
                     console.error('Move to USA Link NF error:', err);
                     setToast({ message: 'Failed to move items', type: 'error' });
@@ -2101,7 +2098,7 @@ export default function ValidationPage() {
                 { action: 'reject', marketplace: 'india', page: 'validation', table_name: 'india_validation_main_file' }
             );
             // await fetchProducts()
-            await fetchStats()
+            debouncedStats()
         } catch (err) {
             console.error('Move to reject error', err)
             setToast({ message: 'Failed to move items', type: 'error' })
@@ -2224,7 +2221,7 @@ export default function ValidationPage() {
 
         setToast({ message: `Recalculated ${productsToRecalc.length} products`, type: 'info' })
         fetchProducts()
-        fetchStats()
+        debouncedStats()
     }
 
     // Check if all required fields are filled for moving
@@ -2304,7 +2301,7 @@ export default function ValidationPage() {
                 details: { seller_tag: product.seller_tag, funnel: product.funnel, judgement: finalJudgement },
             });
 
-            await fetchStats();
+            debouncedStats();
         } catch (err: any) {
             console.error('Move by judgement error', err);
             setToast({ message: err?.message || 'Unexpected error', type: 'error' });
@@ -2375,7 +2372,7 @@ export default function ValidationPage() {
                 });
                 movingIdsRef.current.delete(last.product.id);
                 await fetchProducts();
-                await fetchStats();
+                debouncedStats();
             } catch (err: any) {
                 console.error('Rollback from pass error:', err);
                 setToast({ message: 'Rollback failed: ' + err.message, type: 'error' });
@@ -2458,7 +2455,7 @@ export default function ValidationPage() {
                     details: { from: 'purchases', to: 'passfile' }
                 });
                 await fetchProducts();
-                await fetchStats();
+                debouncedStats();
             } catch (err: any) {
                 console.error('Rollback from purchases error:', err);
                 setToast({ message: 'Rollback failed: ' + err.message, type: 'error' });
@@ -2501,7 +2498,7 @@ export default function ValidationPage() {
 
                 movingIdsRef.current.delete(last.product.id);
                 await fetchProducts();
-                await fetchStats();
+                debouncedStats();
             } catch (err: any) {
                 console.error('Rollback to reworking error:', err);
                 setToast({ message: `Rollback failed: ${err.message}`, type: 'error' });
