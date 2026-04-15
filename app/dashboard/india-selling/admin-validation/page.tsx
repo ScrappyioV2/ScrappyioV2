@@ -2072,7 +2072,7 @@ export default function AdminValidationPage() {
       case 'target_price':
         return (
           <td key={col_key} className="px-6 py-4">
-            <input type="number" defaultValue={product.target_price}
+            <input type="number" defaultValue={product.target_price ?? ''}
               onBlur={(e) => { const v = parseFloat(e.target.value); if (v !== product.target_price) handleCellEdit(product.id, 'targetprice', v); }}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -2124,7 +2124,7 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-6 py-4 text-sm">
             <div className="relative">
-              <input type="number" step="0.01" defaultValue={product.product_weight}
+              <input type="number" step="0.01" defaultValue={product.product_weight ?? ''}
                 onBlur={(e) => { const v = parseFloat(e.target.value) || null; if (v !== product.product_weight) handleCellEdit(product.id, 'productweight', v); }}
                 className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 placeholder="g"
@@ -2289,7 +2289,7 @@ export default function AdminValidationPage() {
                 <option value="INR">₹</option>
                 <option value="USD">$</option>
               </select>
-              <input type="number" defaultValue={product.buying_price}
+              <input type="number" defaultValue={product.buying_price ?? ''}
                 onBlur={(e) => { const v = parseFloat(e.target.value); if (v !== product.buying_price) handleCellEdit(product.id, 'buyingprice', v); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                 className="w-24 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
