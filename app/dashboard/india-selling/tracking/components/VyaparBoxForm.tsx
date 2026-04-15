@@ -355,6 +355,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                         moved_from_inbound_at: new Date().toISOString(),
                         total_box_weight: weightNum,
                         inbound_tracking_id: item.id,
+                        sns_active: item.sns_active ?? false,
                     });
 
                     // Update inbound tracking
@@ -470,6 +471,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                             inbound_tracking_id: trackingId || item.id,
                             box_created_at: new Date().toISOString(),
                             moved_from_inbound_at: new Date().toISOString(),
+                            sns_active: item.sns_active ?? false,
                         });
                     } else {
                         // Update existing
