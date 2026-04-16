@@ -856,6 +856,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                             product_link: r.product_link ?? null,
                             seller_link: r.seller_link ?? null,
                             journey_id: r.journey_id ?? null,
+                            sns_active: r.sns_active ?? false,
                             action: 'moved_to_checking',
                             reason: null,
                             original_created_at: r.created_at ?? null,
