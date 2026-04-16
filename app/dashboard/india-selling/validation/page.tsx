@@ -807,27 +807,6 @@ export default function ValidationPage() {
         return Array.from(map.values());
     };
 
-    const populateUsaLinks = async (products: ValidationProduct[]) => {
-        // Update local state FIRST (instant UI)
-        setProducts(prev => prev.map(p =>
-            !p.usa_link && p.asin
-                ? { ...p, usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` }
-                : p
-        ));
-
-        // Then write to DB in background
-        const BATCH = 100;
-        for (let i = 0; i < products.length; i += BATCH) {
-            const batch = products.slice(i, i + BATCH);
-            await Promise.all(batch.map(p =>
-                supabase
-                    .from('india_validation_main_file')
-                    .update({ usa_link: `https://www.amazon.com/dp/${p.asin}?th=1&psc=1` })
-                    .eq('id', p.id)
-            ));
-        }
-    };
-
     const fetchProducts = async () => {
         setLoading(true);
         try {
@@ -840,12 +819,6 @@ export default function ValidationPage() {
             const asins = validationData.map(p => p.asin).filter(Boolean);
 
             setProducts(dedupeById(validationData));
-
-            // ✅ Auto-populate usa_link IN BACKGROUND (non-blocking)
-            const missingUsaLink = validationData.filter(p => p.asin && !p.usa_link);
-            if (missingUsaLink.length > 0 && missingUsaLink.length < 200) {
-                populateUsaLinks(missingUsaLink);
-            }
 
         } catch (err) {
             console.error('Fetch error:', err);
