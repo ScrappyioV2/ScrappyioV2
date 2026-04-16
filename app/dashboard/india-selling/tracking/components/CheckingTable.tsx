@@ -389,6 +389,7 @@ export default function CheckingTable({
           buying_quantity: seller.allocated,
           status: 'pending',
           sns_active: item.sns_active ?? false,
+          journey_id: item.journey_id ?? null,
         };
 
         const { error: insertError } = await supabase
@@ -410,6 +411,7 @@ export default function CheckingTable({
           remark: item.remark ?? null,
           seller_link: (item as any).seller_link ?? null,
           sns_active: item.sns_active ?? false,
+          journey_id: item.journey_id ?? null,
         };
 
         // Insert pending row
