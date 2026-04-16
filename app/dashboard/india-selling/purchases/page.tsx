@@ -1169,7 +1169,7 @@ export default function PurchasesPage() {
           const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 1) + 1;
           const newJourneyId = generateUUID();
 
-          await supabase.from('india_purchases').insert({
+          const { error: snsInsertError } = await supabase.from('india_purchases').insert({
             asin: item.asin,
             product_name: item.product_name,
             brand: item.brand,
@@ -1188,6 +1188,10 @@ export default function PurchasesPage() {
             journey_id: newJourneyId,
             journey_number: nextJourneyNumber,
           });
+          if (snsInsertError) {
+            console.error(`S&S auto-insert failed for ${item.asin}:`, snsInsertError);
+            continue; // Skip due-date advance; retry on next check
+          }
 
           const nextDue = calculateNextDue(item.sns_period);
           await supabase.from('india_purchase_sns')
@@ -1727,7 +1731,7 @@ export default function PurchasesPage() {
 
         // Create individual purchase rows for each tag going to admin
         for (const tag of actuallyMoved) {
-          await supabase.from('india_purchases').insert({
+          const { error: splitInsertError } = await supabase.from('india_purchases').insert({
             ...restFields,
             seller_tag: tag,
             buying_quantities: { [tag]: buyingQuantities[tag] || 0 },
@@ -1737,6 +1741,7 @@ export default function PurchasesPage() {
             admin_confirmed: false,
             admin_confirmed_at: null,
           });
+          if (splitInsertError) throw splitInsertError;
         }
 
         // Optimistic UI
