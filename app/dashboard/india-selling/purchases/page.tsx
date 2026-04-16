@@ -1039,13 +1039,24 @@ export default function PurchasesPage() {
       const tag = selectedTag || tags[0] || '';
 
       // Always create new independent row — never merge with existing
-      const { data: maxJourney } = await supabase
-        .from('india_asin_history')
-        .select('journey_number')
-        .eq('asin', copyItem.asin)
-        .order('journey_number', { ascending: false })
-        .limit(1);
-      const nextJourneyNumber = (maxJourney?.[0]?.journey_number || 0) + 1;
+      // Rule 10: check BOTH india_asin_history AND india_purchases for true max journey_number
+      const [{ data: maxHistory }, { data: maxPurchase }] = await Promise.all([
+        supabase
+          .from('india_asin_history')
+          .select('journey_number')
+          .eq('asin', copyItem.asin)
+          .order('journey_number', { ascending: false })
+          .limit(1),
+        supabase
+          .from('india_purchases')
+          .select('journey_number')
+          .eq('asin', copyItem.asin)
+          .order('journey_number', { ascending: false })
+          .limit(1),
+      ]);
+      const maxHistoryNum = maxHistory?.[0]?.journey_number || 0;
+      const maxPurchaseNum = maxPurchase?.[0]?.journey_number || 0;
+      const nextJourneyNumber = Math.max(maxHistoryNum, maxPurchaseNum) + 1;
       const newJourneyId = generateUUID();
 
       // Double-click guard (UI-only, no DB check)
