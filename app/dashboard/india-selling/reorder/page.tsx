@@ -814,14 +814,25 @@ export default function ReorderPage() {
               copyFound = true;
 
               // ALWAYS create new independent row — never merge with existing
-              const { data: maxJ } = await supabase
-                .from('india_asin_history')
-                .select('journey_number')
-                .eq('asin', product.asin)
-                .order('journey_number', { ascending: false })
-                .limit(1);
-              const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
-              const newJID = crypto.randomUUID();
+              // Rule 10: check BOTH india_asin_history AND india_purchases for true max
+              const [{ data: maxHistJ }, { data: maxPurchJ }] = await Promise.all([
+                supabase
+                  .from('india_asin_history')
+                  .select('journey_number')
+                  .eq('asin', product.asin)
+                  .order('journey_number', { ascending: false })
+                  .limit(1),
+                supabase
+                  .from('india_purchases')
+                  .select('journey_number')
+                  .eq('asin', product.asin)
+                  .order('journey_number', { ascending: false })
+                  .limit(1),
+              ]);
+              const maxHistNum = maxHistJ?.[0]?.journey_number || 0;
+              const maxPurchNum = maxPurchJ?.[0]?.journey_number || 0;
+              const nextJN = Math.max(maxHistNum, maxPurchNum) + 1;
+              const newJID = generateUUID();
 
               await supabase.from('india_purchases').insert({
                 asin: product.asin,
@@ -843,6 +854,7 @@ export default function ReorderPage() {
                 journey_id: newJID,
                 journey_number: nextJN,
                 source: 'reorder',
+                sns_active: product.sns_active ?? false,
               });
 
               // Delete from reorder
@@ -864,22 +876,35 @@ export default function ReorderPage() {
             console.error('Copy check failed, falling back to normal flow:', copyErr);
           }
 
-          // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
-          const { data: historyData, error: historyError } = await supabase
-            .from('india_asin_history')
-            .select('journey_number')
-            .eq('asin', product.asin)
-            .order('journey_number', { ascending: false })
-            .limit(1)
-            .maybeSingle()
+          // 🔍 STEP 1: Fetch the ACTUAL max journey_number
+          // Rule 10: check BOTH india_asin_history AND india_purchases for true max
+          const [
+            { data: historyData, error: historyError },
+            { data: purchaseData, error: purchaseError }
+          ] = await Promise.all([
+            supabase
+              .from('india_asin_history')
+              .select('journey_number')
+              .eq('asin', product.asin)
+              .order('journey_number', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from('india_purchases')
+              .select('journey_number')
+              .eq('asin', product.asin)
+              .order('journey_number', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ])
 
-          if (historyError && historyError.code !== 'PGRST116') {
-            throw historyError
-          }
+          if (historyError && historyError.code !== 'PGRST116') throw historyError
+          if (purchaseError && purchaseError.code !== 'PGRST116') throw purchaseError
 
-          // Calculate ACTUAL next journey number
-          const currentMaxJourney = historyData?.journey_number || 1
-          const nextJourneyNum = currentMaxJourney + 1
+          // Calculate ACTUAL next journey number across both tables
+          const maxHistoryJ = historyData?.journey_number || 0
+          const maxPurchaseJ = purchaseData?.journey_number || 0
+          const nextJourneyNum = Math.max(maxHistoryJ, maxPurchaseJ) + 1
 
 
           // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
