@@ -906,6 +906,8 @@ export default function CheckingTable({
         origin_india: item.origin_india ?? false, origin_china: item.origin_china ?? false,
         origin_us: item.origin_us ?? false, tracking_details: item.tracking_details,
         delivery_date: item.delivery_date,
+        journey_id: item.journey_id ?? null,
+        sns_active: item.sns_active ?? false,
       }));
       const { error: insertError } = await supabase.from('india_box_checking').insert(checkingRows);
       if (insertError) throw insertError;
