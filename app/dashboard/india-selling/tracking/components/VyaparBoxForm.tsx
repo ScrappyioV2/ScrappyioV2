@@ -403,6 +403,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                 product_link: r.product_link ?? null,
                 seller_link: r.seller_link ?? null,
                 journey_id: r.journey_id ?? null,
+                sns_active: r.sns_active ?? false,
                 action: "created",
                 reason: null,
                 original_created_at: new Date().toISOString(),

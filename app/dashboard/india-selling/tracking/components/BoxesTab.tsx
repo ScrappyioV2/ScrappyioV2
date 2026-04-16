@@ -366,6 +366,7 @@ type BoxProduct = {
     box_created_at?: string | null;
     total_box_weight?: number | null;
     inbound_tracking_id?: string | null;
+    sns_active?: boolean;
 };
 
 type GroupedBox = {
@@ -1433,8 +1434,11 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                                                     </a>
                                                                                 </td>
                                                                                 <td className="px-6 py-4 text-sm text-gray-100">
-                                                                                    <div className="truncate max-w-[200px]">
-                                                                                        {item.product_name || "-"}
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <div className="truncate max-w-[200px]">
+                                                                                            {item.product_name || "-"}
+                                                                                        </div>
+                                                                                        {item.sns_active && <span className="px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
                                                                                     </div>
                                                                                 </td>
                                                                                 <td className="px-6 py-4 text-center">
@@ -1711,7 +1715,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                                             {group.items.map((item, i) => (
                                                                 <tr key={i} className="hover:bg-white/[0.05]">
                                                                     <td className="px-6 py-4 font-mono text-gray-100">{item.asin}</td>
-                                                                    <td className="px-6 py-4 text-gray-300"><div className="truncate max-w-[200px]">{item.product_name || '-'}</div></td>
+                                                                    <td className="px-6 py-4 text-gray-300"><div className="flex items-center gap-1"><div className="truncate max-w-[200px]">{item.product_name || '-'}</div>{item.sns_active && <span className="px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>
                                                                     <td className="px-6 py-4 text-center">
                                                                         {item.seller_tag ? (
                                                                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[item.seller_tag] || 'bg-[#1a1a1a] text-white'}`}>{item.seller_tag}</span>
