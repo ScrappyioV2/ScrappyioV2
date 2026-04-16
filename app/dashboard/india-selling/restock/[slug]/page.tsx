@@ -980,7 +980,7 @@ export default function RestockPage() {
                                                             </a>
                                                         </td>
                                                         <td className="px-6 py-4 font-mono text-sm text-gray-300"><div className="truncate max-w-[100px]" title={item.sku || '-'}>{item.sku || '-'}</div></td>
-                                                        <td className="px-6 py-4 text-sm text-gray-100"><div className="truncate max-w-[200px]" title={item.product_name || '-'}>{item.product_name || '-'}</div></td>
+                                                        <td className="px-6 py-4 text-sm text-gray-100"><div className="flex items-center gap-1"><div className="truncate max-w-[200px]" title={item.product_name || '-'}>{item.product_name || '-'}</div>{item.sns_active && <span className="px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>
                                                         <td className="px-6 py-4 text-center">
                                                             <div className="flex flex-col gap-1 items-center">
                                                                 {item.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}
@@ -1041,7 +1041,7 @@ export default function RestockPage() {
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 font-mono text-sm text-gray-300"><div className="truncate max-w-[100px]">{first.sku || '-'}</div></td>
-                                                        <td className="px-6 py-4 text-sm text-gray-100"><div className="truncate max-w-[200px]">{first.product_name || '-'}</div></td>
+                                                        <td className="px-6 py-4 text-sm text-gray-100"><div className="flex items-center gap-1"><div className="truncate max-w-[200px]">{first.product_name || '-'}</div>{asinItems.some(i => i.sns_active) && <span className="px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>
                                                         <td className="px-6 py-4 text-center">
                                                             <div className="flex flex-col gap-1 items-center">
                                                                 {first.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}
@@ -1073,7 +1073,7 @@ export default function RestockPage() {
                                                         <tr key={item.id} className="bg-[#111111]/20 hover:bg-white/[0.05] transition-colors">
                                                             <td className="px-6 py-4 pl-9 font-mono text-sm text-gray-300">↳</td>
                                                             <td className="px-6 py-4 font-mono text-sm text-gray-300"><div className="truncate max-w-[100px]" title={item.sku || '-'}>{item.sku || '-'}</div></td>
-                                                            <td className="px-6 py-4 text-sm text-gray-100"><div className="truncate max-w-[200px]" title={item.product_name || '-'}>{item.product_name || '-'}</div></td>
+                                                            <td className="px-6 py-4 text-sm text-gray-100"><div className="flex items-center gap-1"><div className="truncate max-w-[200px]" title={item.product_name || '-'}>{item.product_name || '-'}</div>{item.sns_active && <span className="px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}</div></td>
                                                             <td className="px-6 py-4 text-center">
                                                                 <div className="flex flex-col gap-1 items-center">
                                                                     {item.origin_india && <span className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-semibold">India</span>}

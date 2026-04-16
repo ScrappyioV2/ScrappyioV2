@@ -185,7 +185,7 @@ export default function ReorderPage() {
       // ✅ Fetch journey_id from unified listing_errors
       const { data: listedItems, error: listError } = await supabase
         .from('listing_errors')
-        .select('asin, product_name, seller_link, journey_id, journey_number, remark, sku')
+        .select('asin, product_name, seller_link, journey_id, journey_number, remark, sku, sns_active')
         .eq('marketplace', 'india')
         .eq('seller_id', activeSeller.id)
         .eq('error_status', 'done')
@@ -222,6 +222,7 @@ export default function ReorderPage() {
           is_in_final_reorder: false,
           remark: p.remark ?? null,
           sku: p.sku ?? null,
+          sns_active: p.sns_active ?? false,
         }))
 
       if (newItems.length > 0) {
