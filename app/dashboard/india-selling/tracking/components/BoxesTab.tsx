@@ -816,6 +816,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                         check_item_expire: false,
                         check_small_size: false,
                         check_multi_seller: false,
+                        sns_active: (p as any).sns_active ?? false,
                         moved_from_boxes_at: new Date().toISOString(),
                     }));
 
