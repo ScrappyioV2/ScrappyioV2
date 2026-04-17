@@ -227,7 +227,7 @@ export default function UBeautyListingPage() {
   }, [fetchProducts, activeTab]);
 
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
-    const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).single();
+    const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE).single();
     if (stats) {
       const pendingChange = increment > 0 ? -1 : 1;
       const updates = {
@@ -235,7 +235,7 @@ export default function UBeautyListingPage() {
         [type]: Math.max(0, stats[type] + increment),
         updated_at: new Date().toISOString()
       };
-      await supabase.from('listing_error_progress').update(updates).eq('seller_id', SELLER_ID);
+      await supabase.from('listing_error_progress').update(updates).eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE);
     }
   };
 
@@ -283,8 +283,8 @@ export default function UBeautyListingPage() {
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
-        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
-        if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
+        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE).single();
+        if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE);
       }
 
       setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -348,8 +348,8 @@ export default function UBeautyListingPage() {
       if (toTable === 'done') await updateProgressStats('listed', -1);
       else if (toTable === 'error') await updateProgressStats('error', -1);
       else if (toTable === 'removed') {
-        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
-        if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID);
+        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE).single();
+        if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE);
       }
 
       setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
