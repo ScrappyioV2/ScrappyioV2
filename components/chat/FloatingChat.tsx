@@ -49,6 +49,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/dashboard/flipkart/listing-error': 'Flipkart → Listing Errors',
   '/dashboard/flipkart/purchases': 'Flipkart → Purchases',
   '/dashboard/flipkart/tracking': 'Flipkart → Tracking',
+  '/dashboard/flipkart/restock': 'Flipkart → Restock',
   '/dashboard/flipkart/reorder': 'Flipkart → Reorder',
   '/dashboard/flipkart/admin-validation': 'Flipkart → Admin Approvals',
   '/dashboard/manage-sellers': 'Manage Sellers',
@@ -912,6 +913,7 @@ export default function FloatingChat() {
                               <option value="/dashboard/flipkart/listing-error">Listing Errors</option>
                               <option value="/dashboard/flipkart/purchases">Purchases</option>
                               <option value="/dashboard/flipkart/tracking">Tracking</option>
+                              <option value="/dashboard/flipkart/restock">Restock</option>
                               <option value="/dashboard/flipkart/reorder">Reorder</option>
                               <option value="/dashboard/flipkart/admin-validation">Admin Approvals</option>
                             </optgroup>

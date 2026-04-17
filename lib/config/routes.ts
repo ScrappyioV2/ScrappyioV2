@@ -441,6 +441,20 @@ export const APP_ROUTES: AppRoute[] = [
         icon: Truck
       },
       {
+        path: '/dashboard/flipkart/restock',
+        label: 'Restock',
+        permission: 'view-restock',
+        icon: Package,
+        children: [
+          { path: '/dashboard/flipkart/restock/golden-aura', label: 'Golden Aura', permission: 'view-restock' },
+          { path: '/dashboard/flipkart/restock/rudra-retail', label: 'Rudra Retail', permission: 'view-restock' },
+          { path: '/dashboard/flipkart/restock/ubeauty', label: 'UBeauty', permission: 'view-restock' },
+          { path: '/dashboard/flipkart/restock/velvet-vista', label: 'Velvet Vista', permission: 'view-restock' },
+          { path: '/dashboard/flipkart/restock/dropy-ecom', label: 'Dropy Ecom', permission: 'view-restock' },
+          { path: '/dashboard/flipkart/restock/costech-ventures', label: 'Costech Ventures', permission: 'view-restock' }
+        ]
+      },
+      {
         path: '/dashboard/flipkart/reorder',
         label: 'Reorder',
         permission: 'view-reorder',
