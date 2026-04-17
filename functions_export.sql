@@ -3947,7 +3947,7 @@ CREATE OR REPLACE FUNCTION public.unified_get_funnel(mu numeric, p_mkt text DEFA
  IMMUTABLE
 AS $function$
 BEGIN
-  IF p_mkt = 'india' THEN
+  IF p_mkt IN ('india', 'flipkart') THEN
     IF mu >= 5 OR (p_bsr IS NOT NULL AND p_bsr < 40000) THEN RETURN 'RS';
     ELSE RETURN 'DP';
     END IF;
