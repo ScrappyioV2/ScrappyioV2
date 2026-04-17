@@ -110,6 +110,12 @@ export default function AdminValidationPage() {
   // 🆕 NEW: Toggle to show all journey cycles or just latest
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
+  // SKU upload + download dropdown
+  const skuFileInputRef = useRef<HTMLInputElement>(null);
+  const [skuUploading, setSkuUploading] = useState(false);
+  const [skuUploadProgress, setSkuUploadProgress] = useState(0);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+
   // Fetch products from flipkart_admin_validation table
   const fetchProducts = async (showLoader: boolean = false) => {
     try {
@@ -622,6 +628,209 @@ export default function AdminValidationPage() {
 
 
   // Handle confirm selected products
+  const handleSendBackToPurchases = async () => {
+    if (selectedIds.size === 0) {
+      setToast({ message: 'Please select at least one product', type: 'error' });
+      return;
+    }
+
+    const previousProductsLocal = [...products];
+    try {
+      setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+      const selectedProducts = products.filter(p => selectedIds.has(p.id));
+
+      for (const product of selectedProducts) {
+        let query = supabase
+          .from('flipkart_purchases')
+          .update({ sent_to_admin: false, admin_confirmed: false, admin_confirmed_at: null })
+          .eq('asin', product.asin)
+          .eq('seller_tag', product.seller_tag);
+
+        if (product.journey_id) {
+          query = query.eq('journey_id', product.journey_id);
+        }
+
+        const { error: updateError } = await query;
+        if (updateError) throw updateError;
+
+        const { error: deleteError } = await supabase
+          .from('flipkart_admin_validation')
+          .delete()
+          .eq('id', product.id);
+
+        if (deleteError) throw deleteError;
+      }
+
+      setToast({ message: `Sent ${selectedIds.size} products back to Purchases`, type: 'success' });
+      setSelectedIds(new Set());
+      fetchProducts();
+    } catch (error: any) {
+      setProducts(previousProductsLocal);
+      setToast({ message: `Error: ${error.message}`, type: 'error' });
+    }
+  };
+
+  const handleAdminPerSellerQtyEdit = async (
+    id: string,
+    sellerTag: string,
+    qty: number,
+    product: AdminProduct
+  ) => {
+    try {
+      const existing: Record<string, number> =
+        ((product as any).buying_quantities as Record<string, number>) ?? {};
+      const updated = { ...existing, [sellerTag]: isNaN(qty) ? 0 : qty };
+      const total = Object.values(updated).reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+      const { error } = await supabase
+        .from('flipkart_admin_validation')
+        .update({
+          buying_quantities: updated,
+          buying_quantity: total,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Mirror the change to flipkart_purchases for the matching ASIN + seller tag
+      await supabase
+        .from('flipkart_purchases')
+        .update({ buying_quantity: total })
+        .eq('asin', product.asin)
+        .eq('seller_tag', sellerTag);
+
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, buying_quantities: updated, buying_quantity: total } as AdminProduct
+            : p
+        )
+      );
+
+      setToast({ message: `${sellerTag}: ${isNaN(qty) ? 0 : qty} | Total: ${total}`, type: 'success' });
+    } catch (error: any) {
+      console.error('Error updating per-seller quantity:', error.message);
+      setToast({ message: 'Failed to update quantity', type: 'error' });
+    }
+  };
+
+  const handleFunnelChange = async (id: string, newFunnel: string) => {
+    const oldFunnel = products.find(p => p.id === id)?.funnel;
+
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: newFunnel } : p));
+
+    try {
+      const product = products.find(p => p.id === id);
+      if (!product) return;
+
+      const { error: adminError } = await supabase
+        .from('flipkart_admin_validation')
+        .update({ funnel: newFunnel })
+        .eq('id', id);
+
+      if (adminError) {
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel ?? null } : p));
+        setToast({ message: 'Failed to update funnel', type: 'error' });
+        return;
+      }
+
+      await supabase
+        .from('flipkart_purchases')
+        .update({ funnel: newFunnel })
+        .eq('asin', product.asin)
+        .eq('seller_tag', product.seller_tag);
+
+      setToast({ message: `Funnel changed to ${newFunnel}`, type: 'success' });
+    } catch (err) {
+      console.error('Funnel update error:', err);
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, funnel: oldFunnel ?? null } : p));
+      setToast({ message: 'Funnel update failed', type: 'error' });
+    }
+  };
+
+  const downloadCsv = (rows: AdminProduct[], filename: string) => {
+    const headers = ['ASIN', 'Product Name', 'Brand', 'Seller Tag', 'Funnel', 'Buying Price', 'Buying Quantity', 'Status'];
+    const csvLines = [
+      headers.join(','),
+      ...rows.map(p => [
+        p.asin || '',
+        `"${(p.product_name || '').replace(/"/g, '""')}"`,
+        `"${((p as any).brand || '').replace(/"/g, '""')}"`,
+        p.seller_tag || '',
+        p.funnel ?? '',
+        p.buying_price ?? '',
+        p.buying_quantity ?? '',
+        p.admin_status || '',
+      ].join(','))
+    ];
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCurrentPage = () => {
+    const ts = new Date().toISOString().split('T')[0];
+    downloadCsv(filteredProducts, `flipkart-admin-${activeTab}-page-${ts}.csv`);
+    setIsDownloadOpen(false);
+  };
+
+  const handleDownloadAllData = () => {
+    const ts = new Date().toISOString().split('T')[0];
+    downloadCsv(products, `flipkart-admin-${activeTab}-all-${ts}.csv`);
+    setIsDownloadOpen(false);
+  };
+
+  const handleSkuUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (skuFileInputRef.current) skuFileInputRef.current.value = '';
+
+    setSkuUploading(true);
+    setSkuUploadProgress(0);
+
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) throw new Error('CSV is empty or has no data rows');
+
+      const header = lines[0].toLowerCase().split(',').map(s => s.trim());
+      const asinIdx = header.findIndex(h => h === 'asin');
+      const skuIdx = header.findIndex(h => h === 'sku');
+      if (asinIdx === -1 || skuIdx === -1) throw new Error('CSV must have "asin" and "sku" columns');
+
+      const dataRows = lines.slice(1)
+        .map(l => l.split(','))
+        .map(cols => ({ asin: (cols[asinIdx] || '').trim(), sku: (cols[skuIdx] || '').trim() }))
+        .filter(r => r.asin && r.sku);
+
+      if (dataRows.length === 0) throw new Error('No valid asin/sku rows found');
+
+      let updated = 0;
+      for (let i = 0; i < dataRows.length; i++) {
+        const { asin, sku } = dataRows[i];
+        const { error } = await supabase
+          .from('flipkart_admin_validation')
+          .update({ sku })
+          .eq('asin', asin);
+        if (!error) updated++;
+        setSkuUploadProgress(Math.round(((i + 1) / dataRows.length) * 100));
+      }
+
+      setToast({ message: `SKU update complete — ${updated}/${dataRows.length} rows updated`, type: 'success' });
+      fetchProducts(false);
+    } catch (err: any) {
+      console.error('SKU Upload Error:', err);
+      setToast({ message: `SKU Upload Failed: ${err.message}`, type: 'error' });
+    } finally {
+      setSkuUploading(false);
+      setSkuUploadProgress(0);
+    }
+  };
+
   const handleConfirmSelected = async () => {
     if (selectedIds.size === 0) {
       setToast({ message: 'Please select at least one product to confirm', type: 'error' });
@@ -1132,6 +1341,69 @@ export default function AdminValidationPage() {
               {showAllJourneys ? 'Show Latest Only' : 'Show All Journeys'}
             </button>
 
+            {/* Download CSV dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsDownloadOpen(o => !o)}
+                className="px-4 py-2.5 bg-[#111111] text-gray-100 rounded-xl hover:bg-[#1a1a1a] text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg transition-all border border-white/[0.1]"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download CSV
+              </button>
+              {isDownloadOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl z-50 overflow-hidden">
+                  <button
+                    onClick={handleDownloadCurrentPage}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-white/[0.08] transition-colors flex items-center gap-3"
+                  >
+                    <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                    <div>
+                      <div className="font-medium">Current Page</div>
+                      <div className="text-xs text-gray-400">{filteredProducts.length} rows</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleDownloadAllData}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-white/[0.08] transition-colors flex items-center gap-3 border-t border-white/[0.1]"
+                  >
+                    <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                    <div>
+                      <div className="font-medium">All Data</div>
+                      <div className="text-xs text-gray-400">{products.length} rows</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* SKU Upload */}
+            <input
+              ref={skuFileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleSkuUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => skuFileInputRef.current?.click()}
+              disabled={skuUploading}
+              className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-500 disabled:opacity-50 text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-lg shadow-teal-900/20 transition-all border border-teal-500/50"
+              title="Bulk update SKUs from CSV (columns: asin, sku)"
+            >
+              {skuUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> {skuUploadProgress}%
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                  Upload SKUs
+                </>
+              )}
+            </button>
+
             {/* Configure Constants Button */}
             <button
               onClick={() => setIsConstantsModalOpen(true)}
@@ -1156,6 +1428,35 @@ export default function AdminValidationPage() {
           <span className="bg-orange-500/10 px-2 py-1 rounded ml-2">📊</span>
           <span>Double-click any column header to auto-fit its width</span>
         </div>
+
+        {/* Bulk action bar — visible only when rows selected */}
+        {selectedIds.size > 0 && (
+          <div className="mb-3 flex items-center gap-3 px-4 py-3 bg-[#1a1a1a] border border-white/[0.1] rounded-xl">
+            <span className="text-sm text-gray-300">
+              <span className="font-bold text-white">{selectedIds.size}</span> selected
+            </span>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={handleConfirmSelected}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                ✓ Confirm Selected
+              </button>
+              <button
+                onClick={handleSendBackToPurchases}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                ← Send Back to Purchases
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 bg-[#111111] hover:bg-[#252525] text-gray-300 text-xs font-semibold rounded-lg border border-white/[0.1] transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Table - SCROLLABLE ONLY */}
         <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
