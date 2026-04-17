@@ -61,6 +61,7 @@ type PassFileProduct = {
   total_cost?: number | null
   total_revenue?: number | null
   inr_purchase_from_validation?: number | null
+  listing_status?: string | null
   remark: string | null;
 }
 
@@ -453,6 +454,9 @@ export default function PurchasesPage() {
 
           // Status
           status: 'pending',
+          journey_id: product.journey_id || null,
+          journey_number: product.journey_number || 1,
+          listing_status: product.listing_status || null,
         })
 
       if (insertError) throw insertError
@@ -737,6 +741,7 @@ export default function PurchasesPage() {
             admin_status: 'confirmed',                     // ✅ Fixed
             status: 'tracking',
             moved_at: new Date().toISOString(),            // ✅ Fixed
+            listing_status: freshProduct.listing_status || null,
           });
       });
 

@@ -62,6 +62,7 @@ interface ListingProduct {
   source_admin_validation_id?: string;
   journey_id?: string | null;
   journey_number?: number | null;
+  listing_status?: string | null;
   remark: string | null;
 }
 
@@ -211,7 +212,8 @@ export default function GoldenAuraListingPage() {
             final_price: product.selling_price,
             sku: product.sku,
             listed_at: new Date().toISOString()
-          }
+          },
+          listing_status: product.listing_status || null,
         });
 
         if (historyError) {

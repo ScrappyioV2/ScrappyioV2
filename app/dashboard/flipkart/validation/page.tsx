@@ -124,6 +124,7 @@ interface ValidationProduct {
     profit: number | null
     journey_number?: number | null
     current_journey_id?: string | null
+    listing_status?: string | null
 
     status: string | null
     origin_india: boolean | null
@@ -1180,7 +1181,8 @@ export default function ValidationPage() {
                     snapshot_data: snapshotData,
                     profit: product.profit,
                     total_cost: product.total_cost,
-                    status: 'passed'
+                    status: 'passed',
+                    listing_status: product.listing_status || null,
                 })
 
             if (historyError) {
@@ -1236,7 +1238,8 @@ export default function ValidationPage() {
                     profit: product.profit ?? null,
                     remark: product.remark ?? null,
                     journey_id: journeyId,
-                    journey_number: journeyNum
+                    journey_number: journeyNum,
+                    listing_status: product.listing_status || null,
                 })
 
             if (insertError) {

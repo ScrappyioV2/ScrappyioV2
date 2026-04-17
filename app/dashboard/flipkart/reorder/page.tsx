@@ -49,6 +49,7 @@ type ReorderProduct = {
   journey_id?: string // ✅ The Bag Link
   journey_number?: number
   is_in_final_reorder?: boolean
+  listing_status?: string | null
   remark: string | null;
 }
 
@@ -140,7 +141,7 @@ export default function ReorderPage() {
       // ✅ Fetch journey_id from unified listing_errors
       const { data: listedItems, error: listError } = await supabase
         .from('listing_errors')
-        .select('asin, product_name, seller_link, journey_id, journey_number, remark, sku')
+        .select('asin, product_name, seller_link, journey_id, journey_number, remark, sku, listing_status')
         .eq('marketplace', 'flipkart')
         .eq('seller_id', activeSeller.id)
         .eq('error_status', 'done')
@@ -176,6 +177,7 @@ export default function ReorderPage() {
           journey_number: p.journey_number,
           is_in_final_reorder: false,
           remark: p.remark ?? null,
+          listing_status: p.listing_status || null,
         }))
 
       if (newItems.length > 0) {
@@ -823,7 +825,8 @@ export default function ReorderPage() {
               // Reset operational fields
               no_of_seller: 1,
               sent_to_purchases: false,
-              admin_status: 'pending'
+              admin_status: 'pending',
+              listing_status: product.listing_status || null,
             })
 
           if (insertError) throw insertError
