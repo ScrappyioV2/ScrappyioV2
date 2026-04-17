@@ -806,7 +806,7 @@ export default function ReorderPage() {
           try {
             const { data: copyData } = await supabase
               .from('india_purchase_copies')
-              .select('id')
+              .select('*')
               .eq('asin', product.asin)
               .maybeSingle();
 
@@ -836,21 +836,27 @@ export default function ReorderPage() {
 
               await supabase.from('india_purchases').insert({
                 asin: product.asin,
-                product_name: product.product_name,
-                brand: (product as any).brand || null,
+                product_name: copyData.product_name || product.product_name,
+                brand: copyData.brand || (product as any).brand || null,
                 seller_tag: activeSeller.tag,
-                funnel: product.funnel,
-                sku: product.sku,
-                remark: product.remark,
-                buying_quantities: { [activeSeller.tag]: 0 },
-                product_link: product.seller_link || null,
-                inr_purchase_link: null,
-                origin: 'India',
-                origin_india: true,
-                origin_china: false,
-                origin_us: false,
-                buying_price: 0,
-                buying_quantity: 0,
+                funnel: copyData.funnel || product.funnel,
+                sku: copyData.sku || product.sku,
+                remark: copyData.remark || product.remark,
+                buying_quantities: { [activeSeller.tag]: copyData.buying_quantities?.[activeSeller.tag] ?? copyData.buying_quantity ?? 0 },
+                product_link: copyData.india_link || product.seller_link || null,
+                inr_purchase_link: copyData.inr_purchase_link || null,
+                seller_link: copyData.seller_link || null,
+                origin: copyData.origin || 'India',
+                origin_india: copyData.origin_india ?? true,
+                origin_china: copyData.origin_china ?? false,
+                origin_us: copyData.origin_us ?? false,
+                buying_price: copyData.buying_price || 0,
+                buying_quantity: copyData.buying_quantities?.[activeSeller.tag] ?? copyData.buying_quantity ?? 0,
+                product_weight: copyData.product_weight || null,
+                usd_price: copyData.usd_price || null,
+                inr_purchase: copyData.inr_purchase || null,
+                target_price: copyData.target_price || null,
+                profit: copyData.profit || null,
                 journey_id: newJID,
                 journey_number: nextJN,
                 source: 'reorder',
