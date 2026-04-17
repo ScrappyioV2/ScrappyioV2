@@ -3,8 +3,7 @@
 // Profit calculations use India fees until then — acceptable for initial launch
 
 import { supabase } from '@/lib/supabaseClient';
-// TODO: create Flipkart SKU updater (bulkUpdateFlipkartSkuFromFile)
-// import { bulkUpdateIndiaSkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
+import { bulkUpdateFlipkartSkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
 import { useState, useEffect, useRef } from 'react'
 import Toast from '@/components/Toast';
 import { History, X, Loader2, Upload, Download } from 'lucide-react';
@@ -1780,11 +1779,9 @@ export default function AdminValidationPage() {
     setSkuUploadProgress(0);
 
     try {
-      // TODO: create Flipkart SKU updater
-      const result: any = { inputCount: 0, effectiveAsinCount: 0, updatedCount: 0, duplicateAsinCount: 0, emptySkuRowCount: 0 };
-      // const result = await bulkUpdateIndiaSkuFromFile(file, (progress) => {
-      //   setSkuUploadProgress(progress);
-      // });
+      const result = await bulkUpdateFlipkartSkuFromFile(file, (progress) => {
+        setSkuUploadProgress(progress);
+      });
 
       const messages: string[] = [
         `✅ SKU Update Complete`,
@@ -2776,12 +2773,12 @@ export default function AdminValidationPage() {
             {/* Bulk SKU Upload Button */}
             <button
               onClick={() => skuFileInputRef.current?.click()}
-              disabled={true}
-              title="Flipkart SKU upload not yet implemented"
-              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg opacity-50 cursor-not-allowed ${skuUploading
-                ? 'bg-cyan-800 text-cyan-200 border-cyan-700'
-                : 'bg-cyan-600 text-white border-cyan-500/50 shadow-cyan-900/20'
+              disabled={skuUploading}
+              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-all border shadow-lg ${skuUploading
+                ? 'bg-cyan-800 text-cyan-200 border-cyan-700 cursor-wait'
+                : 'bg-cyan-600 text-white hover:bg-cyan-500 border-cyan-500/50 shadow-cyan-900/20'
                 }`}
+              title="Upload CSV with asin,sku columns to bulk-update SKU across all Flipkart tables"
             >
               {skuUploading ? (
                 <>
