@@ -1030,7 +1030,7 @@ export default function TrackingPage() {
                                                         {visibleColumns.funnelquantity && (
                                                             <td className="px-6 py-4 overflow-hidden text-center border-r border-white/[0.1]" style={{ width: `${columnWidths.funnelquantity}px` }}>
                                                                 {product.validation_funnel ? (
-                                                                    <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${product.validation_funnel === 'HD' ? 'bg-green-500 text-white' :
+                                                                    <span className={`w-9 h-9 inline-flex items-center justify-center rounded-full font-bold text-sm ${(product.validation_funnel === 'HD' || product.validation_funnel === 'RS') ? 'bg-green-500 text-white' :
                                                                         product.validation_funnel === 'LD' ? 'bg-blue-500 text-white' :
                                                                             product.validation_funnel === 'DP' ? 'bg-yellow-400 text-black' :
                                                                                 'bg-gray-400 text-white'

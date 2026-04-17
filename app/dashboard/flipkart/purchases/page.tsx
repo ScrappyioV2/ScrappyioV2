@@ -1660,7 +1660,7 @@ export default function PurchasesPage() {
                       {/* Funnel Qty */}
                       {visibleColumns.funnelquantity && <td className="px-6 py-4 overflow-hidden" style={{ width: `${columnWidths.funnelquantity}px` }}>
                         {product.validation_funnel ? (
-                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${product.validation_funnel === 'HD' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-full font-bold text-xs ${(product.validation_funnel === 'HD' || product.validation_funnel === 'RS') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                             product.validation_funnel === 'LD' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
                               product.validation_funnel === 'DP' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
                                 'bg-[#1a1a1a] text-gray-500'

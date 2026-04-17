@@ -66,11 +66,10 @@ interface ListingProduct {
   remark: string | null;
 }
 
-type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
+type TabType = 'high_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
 
 const TABS = [
   { id: 'high_demand', label: 'High Demand', color: 'text-emerald-400', glow: 'shadow-[0_0_20px_-5px_rgba(52,211,153,0.5)]' },
-  { id: 'low_demand', label: 'Low Demand', color: 'text-blue-400', glow: 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.5)]' },
   { id: 'dropshipping', label: 'Dropshipping', color: 'text-amber-400', glow: 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.5)]' },
   { id: 'done', label: 'Listed', color: 'text-gray-100', glow: '' },
   { id: 'pending', label: 'Pending', color: 'text-orange-500', glow: '' },
