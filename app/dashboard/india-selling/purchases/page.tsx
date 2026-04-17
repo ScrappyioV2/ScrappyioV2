@@ -1637,7 +1637,7 @@ export default function PurchasesPage() {
           mergedBuyingQuantities = { ...mergedBuyingQuantities, ...(product as any).buying_quantities };
         }
 
-        await supabase.from('india_purchase_copies').upsert({
+        const { error: copyUpsertError } = await supabase.from('india_purchase_copies').upsert({
           asin: product.asin,
           product_name: product.product_name,
           brand: (product as any).brand,
@@ -1664,6 +1664,7 @@ export default function PurchasesPage() {
           profit: (product as any).profit || null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'asin' });
+        if (copyUpsertError) console.error('Copy upsert failed:', copyUpsertError);
       } catch (copyErr) {
         console.error('Failed to save copy:', copyErr);
       }
