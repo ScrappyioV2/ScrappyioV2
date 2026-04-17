@@ -63,6 +63,9 @@ type PassFileProduct = {
   inr_purchase_from_validation?: number | null
   listing_status?: string | null
   source?: string | null
+  split_id?: string | null
+  split_from_id?: string | null
+  buying_quantities?: Record<string, number> | null
   remark: string | null;
 }
 
@@ -96,6 +99,8 @@ export default function PurchasesPage() {
   const [copies, setCopies] = useState<any[]>([]);
   const [selectedCopyIds, setSelectedCopyIds] = useState<Set<string>>(new Set());
   const [copySellerModal, setCopySellerModal] = useState<{ copy: any; tags: string[]; selected: Set<string> } | null>(null);
+  const [splitModalProduct, setSplitModalProduct] = useState<PassFileProduct | null>(null);
+  const [splitQuantities, setSplitQuantities] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -401,6 +406,49 @@ export default function PurchasesPage() {
     const copyItem = copySellerModal.copy;
     for (const tag of selectedTags) {
       await handleSendCopyToPurchases(copyItem, tag);
+    }
+  };
+
+  const handleSplitOrder = async (product: PassFileProduct, quantities: Record<string, number>) => {
+    try {
+      const entries = Object.entries(quantities).filter(([_, qty]) => qty > 0);
+      if (entries.length < 2) {
+        setToast({ message: 'Need at least 2 splits with quantity > 0', type: 'error' }); return;
+      }
+      const isSingleTag = !(product.seller_tag || '').includes(',');
+      const baseTag = (product.seller_tag || 'GR').split(',')[0].trim();
+      const { data: freshProduct } = await supabase
+        .from('flipkart_purchases')
+        .select('*')
+        .eq('id', product.id)
+        .single();
+      if (!freshProduct) {
+        setToast({ message: 'Product not found. Please refresh.', type: 'error' }); return;
+      }
+      const splitFromId = generateUUID();
+      const inserts = entries.map(([key, qty]) => {
+        const tag = isSingleTag ? baseTag : key;
+        const { id, created_at, journey_id, journey_number, ...rest } = freshProduct;
+        return {
+          ...rest,
+          seller_tag: tag,
+          buying_quantities: { [tag]: qty },
+          buying_quantity: qty,
+          journey_id: generateUUID(),
+          journey_number: journey_number || 1,
+          split_id: generateUUID(),
+          split_from_id: splitFromId,
+          listing_status: freshProduct.listing_status || null,
+        };
+      });
+      await supabase.from('flipkart_purchases').delete().eq('id', product.id);
+      const { error: insertError } = await supabase.from('flipkart_purchases').insert(inserts);
+      if (insertError) throw new Error(`Split insert failed: ${insertError.message}`);
+      setSplitModalProduct(null);
+      setToast({ message: `Order split into ${entries.length} rows`, type: 'success' }); setTimeout(() => setToast(null), 3000);
+      await refreshProductsSilently();
+    } catch (err: any) {
+      setToast({ message: err.message || 'Failed to split order', type: 'error' });
     }
   };
 
@@ -1711,6 +1759,29 @@ export default function PurchasesPage() {
                           </button>
                           <button type="button" onClick={() => handlePriceWait(product)} className="w-8 h-8 bg-yellow-500 text-black border border-yellow-600 rounded-md hover:bg-yellow-400 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Price Wait">PW</button>
                           <button type="button" onClick={() => handleNotFound(product)} className="w-8 h-8 bg-red-500 text-white border border-red-600 rounded-md hover:bg-red-600 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold" title="Not Found">NF</button>
+                          {activeTab === 'order_confirmed' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const tags = (product.validation_seller_tag || product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+                                const totalQty = product.buying_quantity || 0;
+                                const isSingleTag = tags.length <= 1;
+                                const tag = tags[0] || 'GR';
+                                if (isSingleTag) {
+                                  setSplitQuantities({ [`${tag}_1`]: Math.ceil(totalQty / 2), [`${tag}_2`]: Math.floor(totalQty / 2) });
+                                } else {
+                                  const initial: Record<string, number> = {};
+                                  tags.forEach((t: string) => { initial[t] = (product.buying_quantities as any)?.[t] || 0; });
+                                  setSplitQuantities(initial);
+                                }
+                                setSplitModalProduct(product);
+                              }}
+                              className="w-8 h-8 bg-purple-600 text-white border border-purple-700 rounded-md hover:bg-purple-500 flex items-center justify-center flex-shrink-0 transition-colors text-xs font-bold"
+                              title="Split Order"
+                            >
+                              SP
+                            </button>
+                          )}
                         </div>
                       </td>}
                     </tr>
@@ -1995,6 +2066,97 @@ export default function PurchasesPage() {
           </div>
         </div>
       )}
+
+      {splitModalProduct && (() => {
+        const isSingleTagSplit = !(splitModalProduct.seller_tag || '').includes(',');
+        const baseTag = (splitModalProduct.seller_tag || 'GR').split(',')[0].trim();
+        const buyingQty = (splitModalProduct.buying_quantities || {}) as Record<string, number>;
+        const totalOriginal = isSingleTagSplit
+          ? (buyingQty[baseTag] || splitModalProduct.buying_quantity || 0)
+          : Object.values(buyingQty).reduce((a, b) => a + (b || 0), 0);
+        const totalSplit = Object.values(splitQuantities).reduce((a, b) => a + (b || 0), 0);
+        const remaining = totalOriginal - totalSplit;
+        const validRows = Object.entries(splitQuantities).filter(([_, q]) => q > 0).length;
+
+        return (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setSplitModalProduct(null)}>
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-[460px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="mb-5">
+                <h3 className="text-white text-lg font-semibold">Split Order</h3>
+                <p className="text-gray-400 text-sm mt-1">{splitModalProduct.asin} — {splitModalProduct.product_name}</p>
+              </div>
+
+              <div className="flex gap-3 mb-5">
+                <div className="flex-1 bg-gray-800 rounded-xl p-3 text-center">
+                  <p className="text-gray-400 text-xs mb-1">Total quantity</p>
+                  <p className="text-white text-xl font-semibold">{totalOriginal}</p>
+                </div>
+                <div className="flex-1 bg-gray-800 rounded-xl p-3 text-center">
+                  <p className="text-gray-400 text-xs mb-1">Allocated</p>
+                  <p className="text-teal-400 text-xl font-semibold">{totalSplit}</p>
+                </div>
+                <div className={`flex-1 rounded-xl p-3 text-center ${remaining === 0 ? 'bg-green-900/30' : remaining < 0 ? 'bg-red-900/30' : 'bg-gray-800'}`}>
+                  <p className="text-gray-400 text-xs mb-1">Remaining</p>
+                  <p className={`text-xl font-semibold ${remaining === 0 ? 'text-green-400' : remaining < 0 ? 'text-red-400' : 'text-amber-400'}`}>{remaining}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-5">
+                {Object.entries(splitQuantities).map(([key, qty], index) => (
+                  <div key={key} className="flex items-center gap-3 bg-gray-800/50 rounded-lg px-4 py-3">
+                    <span className="text-white text-sm font-medium w-16">
+                      {isSingleTagSplit ? `Split ${index + 1}` : key}
+                    </span>
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={qty === 0 ? '' : qty.toString()}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setSplitQuantities(prev => ({ ...prev, [key]: val === '' ? 0 : parseInt(val, 10) }));
+                        }}
+                        className="w-full bg-gray-700 text-white border border-gray-600 focus:border-teal-500 focus:outline-none rounded-lg px-3 py-2 text-sm text-center"
+                      />
+                    </div>
+                    {isSingleTagSplit && Object.keys(splitQuantities).length > 2 && (
+                      <button
+                        onClick={() => setSplitQuantities(prev => { const next = { ...prev }; delete next[key]; return next; })}
+                        className="text-red-400 hover:text-red-300 text-sm px-2 py-1 hover:bg-red-900/20 rounded transition-colors"
+                      >✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {isSingleTagSplit && (
+                <button
+                  onClick={() => {
+                    const nextIndex = Object.keys(splitQuantities).length + 1;
+                    setSplitQuantities(prev => ({ ...prev, [`${baseTag}_${nextIndex}`]: 0 }));
+                  }}
+                  className="w-full py-2 mb-5 border border-dashed border-gray-600 hover:border-teal-500 rounded-lg text-sm text-gray-400 hover:text-teal-400 transition-colors"
+                >+ Add another split</button>
+              )}
+
+              {remaining < 0 && (
+                <p className="text-red-400 text-xs mb-4 text-center">Split quantities exceed total by {Math.abs(remaining)}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button onClick={() => setSplitModalProduct(null)} className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">Cancel</button>
+                <button
+                  onClick={() => handleSplitOrder(splitModalProduct, splitQuantities)}
+                  disabled={totalSplit === 0 || remaining < 0}
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    totalSplit > 0 && remaining >= 0 ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+                >Confirm Split ({validRows} rows)</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {toast && (
         <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
