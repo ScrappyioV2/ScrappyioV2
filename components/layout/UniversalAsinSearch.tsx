@@ -177,10 +177,10 @@ function resolveTable(tableName: string, productName?: string | null, status?: s
     if (m) { const s = seller(+m[1]); return mk('Flipkart', 'brand-checking', 'Brand Checking', `/dashboard/flipkart/brand-checking/${s?.slug}`, s?.name, undefined, productName, status) }
 
     m = tableName.match(/^flipkart_brand_checking_listed_seller_(\d+)$/)
-    if (m) { const s = seller(+m[1]); return mk('Flipkart', 'listed-bc', 'Listed Products', `/dashboard/flipkart/listed-brand-checking/${s?.slug}`, s?.name, undefined, productName, status) }
+    if (m) { const s = seller(+m[1]); return mk('Flipkart', 'listed-bc', 'Brand Checking Review (Listed)', `/dashboard/flipkart/brand-checking-review/${s?.slug}`, s?.name, undefined, productName, status) }
 
     m = tableName.match(/^flipkart_brand_checking_not_listed_seller_(\d+)$/)
-    if (m) { const s = seller(+m[1]); return mk('Flipkart', 'not-listed-bc', 'Not Listed', `/dashboard/flipkart/not-listed-brand-checking/${s?.slug}`, s?.name, undefined, productName, status) }
+    if (m) { const s = seller(+m[1]); return mk('Flipkart', 'not-listed-bc', 'Brand Checking Review (Not Listed)', `/dashboard/flipkart/brand-checking-review/${s?.slug}`, s?.name, undefined, productName, status) }
 
     if (tableName === 'flipkart_validation_main_file')
         return mk('Flipkart', 'validation', 'Validation', '/dashboard/flipkart/validation', undefined, undefined, productName, status)
