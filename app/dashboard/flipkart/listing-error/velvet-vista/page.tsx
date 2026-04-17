@@ -3,7 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import PageTransition from '@/components/layout/PageTransition';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
+import { ensureAbsoluteUrl } from '@/lib/utils';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import {
   fetchTabProducts,
   moveProductWithHistory,
@@ -12,9 +16,6 @@ import {
   subscribeToListingErrors,
   type Marketplace,
 } from '@/lib/listing-error-helpers';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ensureAbsoluteUrl } from '@/lib/utils';
 import {
   Search,
   RotateCcw,
@@ -40,7 +41,6 @@ const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // Fallback for older browsers
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -62,14 +62,15 @@ interface ListingProduct {
   source_admin_validation_id?: string;
   journey_id?: string | null;
   journey_number?: number | null;
-  listing_status?: string | null;
   remark: string | null;
+  seller_tag?: string | null; // 🆕
+  sns_active?: boolean | null;
 }
 
-type TabType = 'high_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
+type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
 
 const TABS = [
-  { id: 'high_demand', label: 'High Demand', color: 'text-emerald-400', glow: 'shadow-[0_0_20px_-5px_rgba(52,211,153,0.5)]' },
+  { id: 'high_demand', label: 'Restock', color: 'text-emerald-400', glow: 'shadow-[0_0_20px_-5px_rgba(52,211,153,0.5)]' },
   { id: 'dropshipping', label: 'Dropshipping', color: 'text-amber-400', glow: 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.5)]' },
   { id: 'done', label: 'Listed', color: 'text-gray-100', glow: '' },
   { id: 'pending', label: 'Pending', color: 'text-orange-500', glow: '' },
@@ -87,8 +88,8 @@ export default function VelvetVistaListingPage() {
   const [products, setProducts] = useState<ListingProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const { logActivity } = useActivityLogger();
 
-  // Pagination State
   const [page, setPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -109,8 +110,54 @@ export default function VelvetVistaListingPage() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
+  const [editingRemarkText, setEditingRemarkText] = useState('');
+  const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
 
-  // Reset page when tab changes
+  const SELLER_TAG_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV' };
+  const SELLER_NAME_MAP: Record<number, string> = {
+    1: 'Golden Aura', 2: 'Rudra Retail', 3: 'UBeauty',
+    4: 'Velvet Vista', 5: 'Dropy Ecom', 6: 'Costech Ventures',
+    7: 'Maverick', 8: 'Kalash'
+  };
+
+  type CrossSellerInfo = { tag: string; sellerName: string; listedAt: string | null };
+  const [listedByOthers, setListedByOthers] = useState<Record<string, CrossSellerInfo[]>>({});
+  const [minPercent, setMinPercent] = useState(5);
+  const [maxPercent, setMaxPercent] = useState(20);
+  const [editingMinHeader, setEditingMinHeader] = useState(false);
+  const [editingMaxHeader, setEditingMaxHeader] = useState(false);
+  const [tempHeaderValue, setTempHeaderValue] = useState('');
+
+  // Calculate min/max from price
+  const calcMin = (price: number | null) => price ? Math.round(price * (1 - minPercent / 100) * 100) / 100 : null;
+  const calcMax = (price: number | null) => price ? Math.round(price * (1 + maxPercent / 100) * 100) / 100 : null;
+  const batchUpdateMinMax = async (newMinPct: number, newMaxPct: number) => {
+    try {
+      const statuses = activeTab === 'high_demand' ? ['high_demand', 'low_demand'] : [activeTab];
+      const { data } = await supabase.from('listing_errors')
+        .select('id, selling_price')
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .in('error_status', statuses);
+
+      const updates = (data || [])
+        .filter((p: any) => p.selling_price)
+        .map((p: any) =>
+          supabase.from('listing_errors').update({
+            min_price: Math.round(p.selling_price * (1 - newMinPct / 100) * 100) / 100,
+            max_price: Math.round(p.selling_price * (1 + newMaxPct / 100) * 100) / 100,
+          }).eq('id', p.id)
+        );
+      await Promise.all(updates);
+
+      setToast({ message: `Updated Min(${newMinPct}%) / Max(${newMaxPct}%) for all products`, type: 'success' });
+      fetchProducts();
+    } catch (err) {
+      console.error('Batch update error', err);
+      setToast({ message: 'Failed to update prices', type: 'error' });
+    }
+  };
+
   useEffect(() => {
     setPage(1);
     setSearchQuery('');
@@ -123,7 +170,7 @@ export default function VelvetVistaListingPage() {
     }
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setPage(1); // Reset to page 1 on new search
+      setPage(1);
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -139,10 +186,23 @@ export default function VelvetVistaListingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movementHistory, activeTab]);
 
-  // ✅ UPDATED FETCH LOGIC WITH PAGINATION
-  const fetchProducts = useCallback(async () => {
+  const fetchCrossSellerStatus = async (asins: string[]) => {
+    if (asins.length === 0) return;
+    const crossStatus = await checkCrossSellerStatus(supabase, MARKETPLACE, asins, SELLER_ID);
+    const statusMap: Record<string, CrossSellerInfo[]> = {};
+    for (const [asin, sellerIds] of Object.entries(crossStatus)) {
+      statusMap[asin] = sellerIds.map(id => ({
+        tag: SELLER_TAG_MAP[id],
+        sellerName: SELLER_NAME_MAP[id],
+        listedAt: null,
+      }));
+    }
+    setListedByOthers(statusMap);
+  };
+
+  const fetchProducts = useCallback(async (showLoader = false) => {
     if (!user) return;
-    setLoading(true);
+    if (showLoader) setLoading(true);
     try {
       const { data, count, error } = await fetchTabProducts(
         supabase, MARKETPLACE, SELLER_ID, activeTab,
@@ -151,6 +211,7 @@ export default function VelvetVistaListingPage() {
       if (error) throw error;
       setProducts(data || []);
       setTotalItems(count || 0);
+      fetchCrossSellerStatus((data || []).map((p: any) => p.asin));
     } catch (err: any) {
       console.error('Fetch error:', err);
       setToast({ message: 'Failed to load data', type: 'error' });
@@ -160,13 +221,13 @@ export default function VelvetVistaListingPage() {
   }, [activeTab, debouncedSearch, user, page]);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(true);
     const channel = subscribeToListingErrors(supabase, MARKETPLACE, SELLER_ID, () => fetchProducts());
     return () => { supabase.removeChannel(channel); };
   }, [fetchProducts, activeTab]);
 
   const updateProgressStats = async (type: 'listed' | 'error', increment: number) => {
-    const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).single();
+    const { data: stats } = await supabase.from('listing_error_progress').select('*').eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE).single();
     if (stats) {
       const pendingChange = increment > 0 ? -1 : 1;
       const updates = {
@@ -174,7 +235,7 @@ export default function VelvetVistaListingPage() {
         [type]: Math.max(0, stats[type] + increment),
         updated_at: new Date().toISOString()
       };
-      await supabase.from('listing_error_progress').update(updates).eq('seller_id', SELLER_ID);
+      await supabase.from('listing_error_progress').update(updates).eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE);
     }
   };
 
@@ -188,17 +249,17 @@ export default function VelvetVistaListingPage() {
   const handleMoveProduct = async (product: ListingProduct, target: 'done' | 'error' | 'removed', reason?: string) => {
     setProcessingId(product.id);
 
-    // ✅ SELF-HEALING: If no journey_id exists (old data), start a fresh chain now.
-    // This ensures the item will work correctly when it reaches the Reorder page.
     const journeyId = product.journey_id || generateUUID();
     const journeyNum = product.journey_number || 1;
 
     try {
-      const extraFields: Record<string, any> = {};
+      const extraFields: Record<string, any> = {
+        min_price: calcMin(product.selling_price),
+        max_price: calcMax(product.selling_price),
+      };
       if (target === 'done') extraFields.final_listed_price = product.selling_price;
       if (target === 'error') extraFields.error_reason = reason || 'Unknown Error';
 
-      // 2. 📸 HISTORY SNAPSHOT (Only if Listed)
       if (target === 'done') {
         const { error: historyError } = await supabase.from('flipkart_asin_history').insert({
           asin: product.asin,
@@ -206,37 +267,44 @@ export default function VelvetVistaListingPage() {
           journey_number: journeyNum,
           stage: 'listing_done',
           status: 'listed',
-          profit: null, // We don't verify profit at this stage, just listing
+          profit: null,
           snapshot_data: {
             final_price: product.selling_price,
             sku: product.sku,
             listed_at: new Date().toISOString()
-          },
-          listing_status: product.listing_status || null,
+          }
         });
-
-        if (historyError) {
-          console.error("⚠️ History snapshot failed:", historyError);
-          // We continue anyway, don't block the user
-        }
+        if (historyError) console.error("⚠️ History snapshot failed:", historyError);
       }
 
       await moveProductWithHistory(supabase, MARKETPLACE, SELLER_ID, product, activeTab, target, extraFields);
       await logHistory(product, activeTab, target);
 
-      // 6. Update Stats
       if (target === 'done') await updateProgressStats('listed', 1);
       else if (target === 'error') await updateProgressStats('error', 1);
       else if (target === 'removed') {
-        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
-        if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID);
+        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE).single();
+        if (stats) await supabase.from('listing_error_progress').update({ total_pending: Math.max(0, stats.total_pending - 1) }).eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE);
       }
 
-      // 7. UI Update
       setProducts(prev => prev.filter(p => p.id !== product.id));
       setToast({ message: `Moved to ${target === 'done' ? 'Listed' : target}`, type: 'success' });
 
-      // Handle empty page
+      logActivity({
+        action: target === 'done' ? 'listed' : target === 'error' ? 'error' : 'removed',
+        marketplace: 'flipkart',
+        page: 'listing-error',
+        table_name: 'listing_errors',
+        asin: product.asin,
+        details: {
+          from: activeTab,
+          to: target,
+          seller_id: SELLER_ID,
+          seller_name: 'rudra-retail',
+          ...(reason ? { error_reason: reason } : {})
+        }
+      });
+
       if (products.length === 1 && page > 1) {
         setPage(prev => prev - 1);
       } else {
@@ -251,6 +319,14 @@ export default function VelvetVistaListingPage() {
       setSelectedForError(null);
       setErrorReasonInput('');
     }
+  };
+
+  const handleRemarkSave = async (productId: string, newRemark: string | null) => {
+    try {
+      const { error } = await updateRemark(supabase, productId, newRemark ?? '');
+      if (error) throw error;
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, remark: newRemark } : p));
+    } catch (err: any) { console.error('Failed to update remark:', err); }
   };
 
   const handleRollBack = async () => {
@@ -272,13 +348,22 @@ export default function VelvetVistaListingPage() {
       if (toTable === 'done') await updateProgressStats('listed', -1);
       else if (toTable === 'error') await updateProgressStats('error', -1);
       else if (toTable === 'removed') {
-        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).single();
-        if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID);
+        const { data: stats } = await supabase.from('listing_error_progress').select('total_pending').eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE).single();
+        if (stats) await supabase.from('listing_error_progress').update({ total_pending: stats.total_pending + 1 }).eq('seller_id', SELLER_ID).eq('marketplace', MARKETPLACE);
       }
 
       setMovementHistory((prev) => ({ ...prev, [activeTab]: null }));
       fetchProducts();
       setToast({ message: `Restored ${product.asin} to ${activeTab} and Pending`, type: 'success' });
+
+      logActivity({
+        action: 'rollback',
+        marketplace: 'flipkart',
+        page: 'listing-error',
+        table_name: 'listing_errors',
+        asin: product.asin,
+        details: { from: toTable, to: fromTable, seller_id: SELLER_ID, seller_name: 'rudra-retail' }
+      });
     } catch (err: any) {
       console.error("Rollback error:", err);
       setToast({ message: "Rollback failed", type: 'error' });
@@ -291,35 +376,35 @@ export default function VelvetVistaListingPage() {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <PageTransition>
+    <>
       <div className="h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30 flex flex-col overflow-hidden">
         <div className="flex-1 flex flex-col w-full mx-auto p-3 overflow-hidden">
           {/* === HEADER & CONTROLS === */}
           <div className="flex-none space-y-4 pb-4">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/[0.1]">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-white/[0.1]">
               <div className="space-y-1">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                    <LayoutList className="w-6 h-6 text-orange-500" />
+                    <LayoutList className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                   </div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
+                  <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-white">{SELLER_NAME}</h1>
                 </div>
-                <p className="text-gray-400 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
+                <p className="text-xs sm:text-sm text-gray-300 pl-[3.25rem]">Listing & Error Resolution Dashboard</p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.1] text-xs font-mono text-gray-300">
-                  TOTAL ITEMS: <span className="text-white font-bold text-base ml-2">{totalItems}</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="px-3 sm:px-4 py-2 bg-[#111111] rounded-lg border border-white/[0.1] text-xs font-mono text-gray-300">
+                  <span className="hidden sm:inline">TOTAL ITEMS:</span><span className="sm:hidden">TOTAL:</span> <span className="text-white font-bold text-sm sm:text-base ml-1 sm:ml-2">{totalItems}</span>
                 </div>
               </div>
             </header>
 
             <div className="space-y-6">
-              <div className="flex flex-wrap gap-2 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit">
+              <div className="flex flex-wrap gap-2 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
-                    className={`relative px-5 py-2.5 text-sm font-medium rounded-xl transition-all duration-300 z-10 ${activeTab === tab.id ? 'text-white font-semibold' : 'text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'}`}
+                    className={`relative px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-300 z-10 whitespace-nowrap ${activeTab === tab.id ? 'text-white font-semibold' : 'text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'}`}
                   >
                     {activeTab === tab.id && (
                       <motion.div
@@ -336,7 +421,7 @@ export default function VelvetVistaListingPage() {
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-4 rounded-2xl border border-white/[0.1]">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 bg-[#1a1a1a] p-3 sm:p-4 rounded-2xl border border-white/[0.1]">
                 <div className="relative w-full sm:w-96 group">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
                   <input
@@ -358,7 +443,7 @@ export default function VelvetVistaListingPage() {
                   whileTap={hasRollback ? { scale: 0.98 } : {}}
                   onClick={handleRollBack}
                   disabled={!hasRollback}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${hasRollback ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/10 hover:bg-orange-400' : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'}`}
+                  className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${hasRollback ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/10 hover:bg-orange-400' : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'}`}
                 >
                   <RotateCcw className="w-4 h-4" />
                   Undo Action
@@ -369,8 +454,6 @@ export default function VelvetVistaListingPage() {
 
           {/* === TABLE CONTAINER === */}
           <div className="flex-1 min-h-0 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] flex flex-col relative overflow-hidden">
-
-            {/* Scrollable Table Area */}
             <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
 
               {loading ? (
@@ -393,9 +476,82 @@ export default function VelvetVistaListingPage() {
                       <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider w-1/3 border-r border-white/[0.1] last:border-r-0">Product Details</th>
                       <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0">SKU</th>
                       <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0">Price</th>
+                      {/* MIN PRICE - EDITABLE HEADER */}
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0 cursor-pointer select-none"
+                        onClick={() => { setEditingMinHeader(true); setTempHeaderValue(String(minPercent)); }}>
+                        {editingMinHeader ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-amber-400">Min</span>
+                            <input
+                              autoFocus
+                              type="number"
+                              value={tempHeaderValue}
+                              onChange={(e) => setTempHeaderValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseFloat(tempHeaderValue);
+                                  if (!isNaN(val) && val >= 0 && val <= 100) {
+                                    setMinPercent(val);
+                                    setEditingMinHeader(false);
+                                    batchUpdateMinMax(val, maxPercent);
+                                  }
+                                }
+                                if (e.key === 'Escape') setEditingMinHeader(false);
+                              }}
+                              onBlur={() => setEditingMinHeader(false)}
+                              className="w-12 px-1 py-0.5 bg-[#111111] border border-orange-500 rounded text-xs text-white text-center focus:ring-1 focus:ring-orange-500"
+                            />
+                            <span className="text-amber-400">%</span>
+                          </div>
+                        ) : (
+                          <span className="hover:text-amber-400 transition-colors" title="Click to edit %">
+                            Min ({minPercent}%) ✎
+                          </span>
+                        )}
+                      </th>
+
+                      {/* MAX PRICE - EDITABLE HEADER */}
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider border-r border-white/[0.1] last:border-r-0 cursor-pointer select-none"
+                        onClick={() => { setEditingMaxHeader(true); setTempHeaderValue(String(maxPercent)); }}>
+                        {editingMaxHeader ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-sky-400">Max</span>
+                            <input
+                              autoFocus
+                              type="number"
+                              value={tempHeaderValue}
+                              onChange={(e) => setTempHeaderValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseFloat(tempHeaderValue);
+                                  if (!isNaN(val) && val >= 0 && val <= 100) {
+                                    setMaxPercent(val);
+                                    setEditingMaxHeader(false);
+                                    batchUpdateMinMax(minPercent, val);
+                                  }
+                                }
+                                if (e.key === 'Escape') setEditingMaxHeader(false);
+                              }}
+                              onBlur={() => setEditingMaxHeader(false)}
+                              className="w-12 px-1 py-0.5 bg-[#111111] border border-orange-500 rounded text-xs text-white text-center focus:ring-1 focus:ring-orange-500"
+                            />
+                            <span className="text-sky-400">%</span>
+                          </div>
+                        ) : (
+                          <span className="hover:text-sky-400 transition-colors" title="Click to edit %">
+                            Max ({maxPercent}%) ✎
+                          </span>
+                        )}
+                      </th>
+                      {/* 🆕 SELLER TAG COLUMN HEADER */}
+                      <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Seller Tag</th>
                       <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Source</th>
                       <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Remark</th>
-                      {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                      {/* 🆕 ACTIONS on ALL tabs: Restock, Dropshipping, Pending get full actions; Listed gets Error+Remove; Error & Removed get nothing extra */}
+                      {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                        <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Actions</th>
+                      )}
+                      {activeTab === 'done' && (
                         <th className="px-6 py-5 text-xs font-bold text-white uppercase tracking-wider text-center border-r border-white/[0.1] last:border-r-0">Actions</th>
                       )}
                       {activeTab === 'error' && (
@@ -412,11 +568,20 @@ export default function VelvetVistaListingPage() {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ delay: index * 0.03, duration: 0.2 }}
-                          className="group hover:bg-white/[0.05] transition-colors"
+                          className={`group transition-colors ${(() => {
+                            const currentSellerTag = SELLER_TAG_MAP[SELLER_ID];
+                            const otherTags = (product.seller_tag?.split(',').map(t => t.trim().toUpperCase()).filter(Boolean) || [])
+                              .filter(t => t !== currentSellerTag);
+                            const allOthersListed = otherTags.length > 0 && otherTags.every(tag =>
+                              (listedByOthers[product.asin] || []).some(s => s.tag === tag)
+                            );
+                            return allOthersListed ? 'bg-emerald-500/10 hover:bg-emerald-900/30' : 'hover:bg-white/[0.05]';
+                          })()
+                            }`}
                         >
                           <td className="px-6 py-4 text-sm font-medium text-gray-300 font-mono tracking-tight border-r border-white/[0.1] last:border-r-0">{product.asin}</td>
                           <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
-                            <div className="text-sm text-gray-100 truncate max-w-sm" title={product.product_name || ''}>{product.product_name}</div>
+                            <div className="text-sm text-gray-100 truncate max-w-sm" title={product.product_name || ''}>{product.product_name}{product.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium inline-block">S&S</span>}</div>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-300 font-mono border-r border-white/[0.1] last:border-r-0">{product.sku}</td>
                           <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
@@ -424,28 +589,74 @@ export default function VelvetVistaListingPage() {
                               {product.selling_price ? `₹${product.selling_price}` : '-'}
                             </span>
                           </td>
+
+                          {/* MIN PRICE CELL */}
+                          <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
+                            <span className="inline-flex px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/20 text-sm font-semibold font-mono">
+                              {product.selling_price ? `₹${calcMin(product.selling_price)}` : '-'}
+                            </span>
+                          </td>
+
+                          {/* MAX PRICE CELL */}
+                          <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
+                            <span className="inline-flex px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 border border-sky-500/20 text-sm font-semibold font-mono">
+                              {product.selling_price ? `₹${calcMax(product.selling_price)}` : '-'}
+                            </span>
+                          </td>
+
+                          {/* SELLER TAG COLUMN CELL */}
+                          <td className="px-6 py-4 text-center border-r border-white/[0.1] last:border-r-0">
+                            {product.seller_tag ? (
+                              <div className="grid grid-cols-2 gap-2.5 justify-items-center w-fit mx-auto">
+                                {product.seller_tag.split(',').map((tag: string) => {
+                                  const cleanTag = tag.trim().toUpperCase();
+                                  const crossInfo = (listedByOthers[product.asin] || []).find(s => s.tag === cleanTag);
+                                  const isListedByOther = !!crossInfo;
+                                  const tooltipText = isListedByOther
+                                    ? `✓ Listed by ${crossInfo.sellerName}${crossInfo.listedAt ? ` on ${new Date(crossInfo.listedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}`
+                                    : cleanTag;
+                                  return (
+                                    <span key={cleanTag} title={tooltipText} className={`relative w-7 h-7 flex items-center justify-center rounded-full text-[9px] font-bold cursor-default ${SELLER_STYLES[cleanTag] || 'bg-[#1a1a1a] text-white'} ${isListedByOther ? 'ring-2 ring-emerald-400' : ''}`}>
+                                      {cleanTag}
+                                      {isListedByOther && (
+                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center">
+                                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        </span>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </td>
+
                           <td className="px-6 py-4 text-center border-r border-white/[0.1] last:border-r-0">
                             {product.seller_link ? (
                               <a href={ensureAbsoluteUrl(product.seller_link || '')} target="_blank" className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#111111] text-gray-400 hover:bg-white/[0.05]/100 hover:text-white transition-all duration-200">
                                 <ExternalLink className="w-4 h-4" />
                               </a>
-                            ) : <span className="text-gray-500">-</span>}
+                            ) : <span className="text-gray-300">-</span>}
                           </td>
-                          {/* ✅ ADD THIS NEW REMARK COLUMN */}
+
                           <td className="px-6 py-4 text-center border-r border-white/[0.1] last:border-r-0">
                             {product.remark ? (
                               <button
-                                onClick={() => setSelectedRemark(product.remark)}
+                                onClick={() => { setSelectedRemark(product.remark || ' '); setEditingRemarkText(product.remark || ''); setEditingRemarkProductId(product.id); }}
                                 className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
                               >
                                 View
                               </button>
                             ) : (
-                              <span className="text-gray-500">-</span>
+                              <button onClick={() => { setSelectedRemark(' '); setEditingRemarkText(''); setEditingRemarkProductId(product.id); }} className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer">+ Add</button>
                             )}
                           </td>
 
-                          {['high_demand', 'low_demand', 'dropshipping', 'pending'].includes(activeTab) && (
+                          {/* Original actions for Restock, Dropshipping, Pending */}
+                          {['high_demand', 'dropshipping', 'pending'].includes(activeTab) && (
                             <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
                               <div className="flex items-center justify-center gap-3">
                                 <motion.button
@@ -484,6 +695,35 @@ export default function VelvetVistaListingPage() {
                             </td>
                           )}
 
+                          {/* 🆕 ACTIONS FOR LISTED TAB - Move to Error or Removed */}
+                          {activeTab === 'done' && (
+                            <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
+                              <div className="flex items-center justify-center gap-3">
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => { setSelectedForError(product); setIsReasonModalOpen(true); }}
+                                  disabled={processingId === product.id}
+                                  className="p-2 rounded-lg bg-rose-500/20 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white hover:shadow-[0_0_15px_-3px_rgba(244,63,94,0.4)] transition-all"
+                                  title="Move to Error"
+                                >
+                                  <X className="w-4 h-4" />
+                                </motion.button>
+
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleMoveProduct(product, 'removed')}
+                                  disabled={processingId === product.id}
+                                  className="p-2 rounded-lg bg-[#111111] text-gray-500 border border-white/[0.1] hover:bg-[#1a1a1a] hover:text-white transition-all"
+                                  title="Move to Removed"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </motion.button>
+                              </div>
+                            </td>
+                          )}
+
                           {activeTab === 'error' && (
                             <td className="px-6 py-4 border-r border-white/[0.1] last:border-r-0">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-medium">
@@ -500,17 +740,17 @@ export default function VelvetVistaListingPage() {
               )}
             </div>
 
-            {/* ✅ PAGINATION FOOTER */}
-            <div className="flex-none border-t border-white/[0.1] bg-[#1a1a1a] p-4 flex items-center justify-between">
-              <span className="text-sm text-gray-300">
-                Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span> products
+            {/* PAGINATION FOOTER */}
+            <div className="flex-none border-t border-white/[0.1] bg-[#1a1a1a] p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <span className="text-xs sm:text-sm text-gray-300">
+                Showing <span className="font-medium text-white">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(page * ITEMS_PER_PAGE, totalItems)}</span> of <span className="font-medium text-white">{totalItems}</span>
               </span>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-sm font-medium text-gray-500 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
@@ -523,20 +763,19 @@ export default function VelvetVistaListingPage() {
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || totalPages === 0}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-sm font-medium text-gray-500 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
-
           </div>
 
-          {/* CUSTOM ERROR REASON MODAL */}
+          {/* ERROR REASON MODAL */}
           {isReasonModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a1a1a]">
-              <div className="bg-[#111111] border border-white/[0.1] p-6 rounded-2xl w-full max-w-md shadow-2xl">
+              <div className="bg-[#111111] border border-white/[0.1] p-4 sm:p-6 rounded-2xl w-full max-w-md mx-3 sm:mx-0 shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-4">Report Error</h3>
                 <p className="text-gray-400 mb-4 text-sm">Why are you rejecting <b>{selectedForError?.asin}</b>?</p>
                 <input
@@ -561,6 +800,7 @@ export default function VelvetVistaListingPage() {
             </div>
           )}
 
+          {/* REMARK MODAL */}
           <AnimatePresence>
             {selectedRemark && (
               <>
@@ -568,7 +808,7 @@ export default function VelvetVistaListingPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  onClick={() => setSelectedRemark(null)}
+                  onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
                   className="fixed inset-0 z-50 bg-[#111111]/60"
                 />
                 <motion.div
@@ -579,24 +819,66 @@ export default function VelvetVistaListingPage() {
                 >
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
+                    className="bg-[#111111] rounded-2xl shadow-2xl max-w-2xl w-full mx-3 sm:mx-4 border border-white/[0.1] overflow-hidden pointer-events-auto"
                   >
                     <div className="flex items-center justify-between px-6 py-4 bg-[#111111] border-b border-white/[0.1]">
                       <h2 className="text-xl font-bold text-white">Remark Details</h2>
-                      <button onClick={() => setSelectedRemark(null)} className="p-2 hover:bg-[#1a1a1a] rounded-lg transition-colors">
+                      <button onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }} className="p-2 hover:bg-[#1a1a1a] rounded-lg transition-colors">
                         <X className="w-5 h-5 text-gray-400" />
                       </button>
                     </div>
-                    <div className="p-6 max-h-[70vh] overflow-y-auto">
-                      <div className="bg-[#111111] rounded-lg p-4 border border-white/[0.1]">
-                        <p className="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap">{selectedRemark}</p>
-                      </div>
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="bg-[#1a1a1a]/50 rounded-xl p-5 border border-white/[0.1]">
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/[0.1]">
+                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Validation Remark</span>
                     </div>
-                    <div className="px-6 py-4 bg-[#111111] border-t border-white/[0.1] flex justify-end">
-                      <button onClick={() => setSelectedRemark(null)} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors">
-                        Close
+                    <textarea
+                      value={editingRemarkText}
+                      onChange={(e) => setEditingRemarkText(e.target.value)}
+                      className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none min-h-[100px] placeholder:text-gray-500"
+                      placeholder="Enter remark..."
+                      rows={4}
+                    />
+                    <div className="mt-4 pt-3 border-t border-white/[0.1] flex items-center justify-between text-xs text-gray-300">
+                      <span>{editingRemarkText.length} characters</span>
+                      <span>{editingRemarkText.split('\n').length} lines</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-6 py-4 bg-[#1a1a1a]/50 border-t border-white/[0.1] flex items-center justify-between">
+                  <div className="text-xs text-gray-300">
+                    Press <kbd className="px-2 py-1 bg-[#1a1a1a] rounded text-gray-500">Esc</kbd> to close
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => (() => { try { navigator.clipboard?.writeText(editingRemarkText); } catch { const t = document.createElement('textarea'); t.value = editingRemarkText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()}
+                      className="px-4 py-2 bg-[#1a1a1a] hover:bg-slate-600 text-gray-100 rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Copy
+                    </button>
+                    {editingRemarkText.trim() !== (selectedRemark || '').trim() && editingRemarkProductId && (
+                      <button
+                        onClick={async () => {
+                          if (!editingRemarkProductId) return;
+                          await handleRemarkSave(editingRemarkProductId, editingRemarkText.trim() || null);
+                          setSelectedRemark(null);
+                          setEditingRemarkText('');
+                          setEditingRemarkProductId(null);
+                        }}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors text-sm shadow-lg shadow-emerald-900/20"
+                      >
+                        Save
                       </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={() => { setSelectedRemark(null); setEditingRemarkText(''); setEditingRemarkProductId(null); }}
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
                   </div>
                 </motion.div>
               </>
@@ -607,6 +889,6 @@ export default function VelvetVistaListingPage() {
           )}
         </div>
       </div>
-    </PageTransition>
-  );
+    </>
+  )
 }
