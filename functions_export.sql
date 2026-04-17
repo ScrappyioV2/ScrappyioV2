@@ -62,44 +62,114 @@ CREATE OR REPLACE FUNCTION public.bulk_insert_flipkart_master_with_distribution(
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
- SET statement_timeout TO '300s'
 AS $function$
-DECLARE ic INT:=0; uc INT:=0; al TEXT[]; ip BOOLEAN; s INT; tags TEXT[]:=ARRAY['GR','RR','UB','VV','DE','CV'];
+DECLARE ic INT:=0; al TEXT[]; s INT; tags TEXT[]:=ARRAY['GR','RR','UB','VV','DE','CV'];
 BEGIN
-  IF jsonb_array_length(batch_data)>500 THEN RETURN json_build_object('success',false,'error','Batch too large'); END IF;
   SELECT array_agg((e->>'asin')::text) INTO al FROM jsonb_array_elements(batch_data) e;
-  SELECT (e->>'product_name') IS NULL INTO ip FROM jsonb_array_elements(batch_data) e LIMIT 1;
 
-  IF ip THEN
-    UPDATE flipkart_master_sellers m SET monthly_unit=NULLIF((e->>'monthly_unit')::text,'')::numeric,remark=(e->>'remark')::text
-    FROM jsonb_array_elements(batch_data) e WHERE m.asin=(e->>'asin')::text;
-    GET DIAGNOSTICS uc=ROW_COUNT;
-    UPDATE brand_checking bc SET monthly_unit=m.monthly_unit,remark=m.remark,funnel=unified_get_funnel(m.monthly_unit)
-    FROM flipkart_master_sellers m WHERE bc.marketplace='flipkart' AND bc.asin=m.asin AND m.asin=ANY(al);
-    UPDATE seller_products sp SET product_status=funnel_to_product_status(unified_get_funnel(m.monthly_unit)),funnel=unified_get_funnel(m.monthly_unit),monthly_unit=m.monthly_unit,remark=m.remark
-    FROM flipkart_master_sellers m WHERE sp.marketplace='flipkart' AND sp.asin=m.asin AND m.asin=ANY(al) AND sp.product_status IN ('high_demand','dropshipping','low_demand');
-    RETURN json_build_object('success',true,'updated_count',uc);
-  ELSE
-    INSERT INTO flipkart_master_sellers (asin,amz_link,product_name,remark,brand,price,monthly_unit,monthly_sales,bsr,seller,category,dimensions,weight,weight_unit,link)
-    SELECT (e->>'asin')::text,(e->>'amz_link')::text,(e->>'product_name')::text,(e->>'remark')::text,(e->>'brand')::text,
-      NULLIF((e->>'price')::text,'')::numeric,NULLIF((e->>'monthly_unit')::text,'')::numeric,NULLIF((e->>'monthly_sales')::text,'')::numeric,
-      NULLIF((e->>'bsr')::text,'')::numeric,NULLIF((e->>'seller')::text,'')::numeric,(e->>'category')::text,(e->>'dimensions')::text,
-      NULLIF((e->>'weight')::text,'')::numeric,(e->>'weight_unit')::text,(e->>'link')::text
-    FROM jsonb_array_elements(batch_data) e ON CONFLICT (asin) DO NOTHING;
-    GET DIAGNOSTICS ic=ROW_COUNT;
-    FOR s IN 1..6 LOOP
-      INSERT INTO brand_checking (marketplace,seller_id,source_id,tag,asin,link,product_name,brand,price,monthly_unit,monthly_sales,bsr,seller,category,dimensions,weight,weight_unit,remark,amz_link,funnel)
-      SELECT 'flipkart',s,m.id,tags[s],m.asin,m.link,m.product_name,m.brand,m.price,m.monthly_unit,m.monthly_sales,m.bsr,m.seller,m.category,m.dimensions,m.weight,m.weight_unit,m.remark,
-        'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin='||m.asin||'&itemcondition=new',unified_get_funnel(m.monthly_unit)
-      FROM flipkart_master_sellers m WHERE m.asin=ANY(al) ON CONFLICT (marketplace,seller_id,asin) DO NOTHING;
-      INSERT INTO seller_products (marketplace,seller_id,asin,product_name,brand,funnel,monthly_unit,product_link,amz_link,remark,product_status)
-      SELECT 'flipkart',s,bc.asin,bc.product_name,bc.brand,bc.funnel,bc.monthly_unit,bc.link,bc.amz_link,bc.remark,funnel_to_product_status(bc.funnel)
-      FROM brand_checking bc WHERE bc.marketplace='flipkart' AND bc.seller_id=s AND bc.asin=ANY(al)
-      ON CONFLICT (marketplace,seller_id,asin) WHERE product_status!='movement_history' DO NOTHING;
-    END LOOP;
-    RETURN json_build_object('success',true,'inserted_count',ic);
-  END IF;
-EXCEPTION WHEN OTHERS THEN RETURN json_build_object('success',false,'error',SQLERRM);
+  ALTER TABLE flipkart_master_sellers DISABLE TRIGGER USER;
+
+  INSERT INTO flipkart_master_sellers (
+    asin, amz_link, product_name, remark, brand, price,
+    monthly_unit, monthly_sales, bsr, seller, category,
+    dimensions, weight, weight_unit, link, sku,
+    category_root, category_sub, category_child, category_tree
+  )
+  SELECT
+    (e->>'asin')::text, (e->>'amz_link')::text, (e->>'product_name')::text,
+    (e->>'remark')::text, (e->>'brand')::text, NULLIF(e->>'price','')::numeric,
+    NULLIF(e->>'monthly_unit','')::numeric, NULLIF(e->>'monthly_sales','')::numeric,
+    NULLIF(e->>'bsr','')::numeric, NULLIF(e->>'seller','')::numeric,
+    (e->>'category')::text, (e->>'dimensions')::text,
+    NULLIF(e->>'weight','')::numeric, (e->>'weight_unit')::text,
+    (e->>'link')::text, (e->>'sku')::text,
+    (e->>'category_root')::text, (e->>'category_sub')::text,
+    COALESCE(
+      (e->>'category_child')::text,
+      CASE WHEN e->>'category_tree' IS NOT NULL THEN
+        TRIM((string_to_array(e->>'category_tree', '›'))[array_length(string_to_array(e->>'category_tree', '›'), 1)])
+      END
+    ),
+    (e->>'category_tree')::text
+  FROM jsonb_array_elements(batch_data) e
+  ON CONFLICT (asin) DO UPDATE SET
+    amz_link=COALESCE(EXCLUDED.amz_link, flipkart_master_sellers.amz_link),
+    product_name=COALESCE(EXCLUDED.product_name, flipkart_master_sellers.product_name),
+    remark=COALESCE(EXCLUDED.remark, flipkart_master_sellers.remark),
+    brand=COALESCE(EXCLUDED.brand, flipkart_master_sellers.brand),
+    price=COALESCE(EXCLUDED.price, flipkart_master_sellers.price),
+    monthly_unit=COALESCE(EXCLUDED.monthly_unit, flipkart_master_sellers.monthly_unit),
+    monthly_sales=COALESCE(EXCLUDED.monthly_sales, flipkart_master_sellers.monthly_sales),
+    bsr=COALESCE(EXCLUDED.bsr, flipkart_master_sellers.bsr),
+    seller=COALESCE(EXCLUDED.seller, flipkart_master_sellers.seller),
+    category=COALESCE(EXCLUDED.category, flipkart_master_sellers.category),
+    dimensions=COALESCE(EXCLUDED.dimensions, flipkart_master_sellers.dimensions),
+    weight=COALESCE(EXCLUDED.weight, flipkart_master_sellers.weight),
+    weight_unit=COALESCE(EXCLUDED.weight_unit, flipkart_master_sellers.weight_unit),
+    link=COALESCE(EXCLUDED.link, flipkart_master_sellers.link),
+    sku=COALESCE(EXCLUDED.sku, flipkart_master_sellers.sku),
+    category_root=COALESCE(EXCLUDED.category_root, flipkart_master_sellers.category_root),
+    category_sub=COALESCE(EXCLUDED.category_sub, flipkart_master_sellers.category_sub),
+    category_child=COALESCE(EXCLUDED.category_child, flipkart_master_sellers.category_child),
+    category_tree=COALESCE(EXCLUDED.category_tree, flipkart_master_sellers.category_tree),
+    updated_at=CURRENT_TIMESTAMP;
+
+  GET DIAGNOSTICS ic=ROW_COUNT;
+
+  ALTER TABLE flipkart_master_sellers ENABLE TRIGGER USER;
+
+  FOR s IN 1..6 LOOP
+    INSERT INTO brand_checking (
+      marketplace, seller_id, source_id, tag, asin, link, product_name, brand,
+      price, monthly_unit, monthly_sales, bsr, seller, category, dimensions,
+      weight, weight_unit, remark, amz_link, funnel, sku,
+      category_root, category_sub, category_child, category_tree,
+      approval_status
+    )
+    SELECT
+      'flipkart', s, m.id, tags[s], m.asin, m.link, m.product_name, m.brand,
+      m.price, m.monthly_unit, m.monthly_sales, m.bsr, m.seller, m.category,
+      m.dimensions, m.weight, m.weight_unit, m.remark,
+      'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin='||m.asin||'&itemcondition=new',
+      unified_get_funnel(m.monthly_unit, 'flipkart', m.bsr), m.sku,
+      m.category_root, m.category_sub, m.category_child, m.category_tree,
+      'pending'
+    FROM flipkart_master_sellers m WHERE m.asin=ANY(al)
+    ON CONFLICT (marketplace, seller_id, asin) DO UPDATE SET
+      product_name=EXCLUDED.product_name, brand=EXCLUDED.brand, price=EXCLUDED.price,
+      monthly_unit=EXCLUDED.monthly_unit, monthly_sales=EXCLUDED.monthly_sales,
+      bsr=EXCLUDED.bsr, seller=EXCLUDED.seller, category=EXCLUDED.category,
+      dimensions=EXCLUDED.dimensions, weight=EXCLUDED.weight,
+      weight_unit=EXCLUDED.weight_unit, remark=EXCLUDED.remark, funnel=EXCLUDED.funnel,
+      sku=EXCLUDED.sku,
+      category_root=EXCLUDED.category_root, category_sub=EXCLUDED.category_sub,
+      category_child=EXCLUDED.category_child, category_tree=EXCLUDED.category_tree,
+      updated_at=CURRENT_TIMESTAMP;
+
+    INSERT INTO seller_products (
+      marketplace, seller_id, asin, product_name, brand, funnel,
+      monthly_unit, product_link, amz_link, remark, sku, product_status
+    )
+    SELECT
+      'flipkart', s, bc.asin, bc.product_name, bc.brand, bc.funnel,
+      bc.monthly_unit, bc.link, bc.amz_link, bc.remark, bc.sku,
+      funnel_to_product_status(bc.funnel)
+    FROM brand_checking bc
+    WHERE bc.marketplace='flipkart' AND bc.seller_id=s AND bc.asin=ANY(al)
+    ON CONFLICT (marketplace, seller_id, asin) WHERE product_status!='movement_history'
+    DO UPDATE SET
+      product_name=EXCLUDED.product_name, brand=EXCLUDED.brand,
+      monthly_unit=EXCLUDED.monthly_unit, product_link=EXCLUDED.product_link,
+      amz_link=EXCLUDED.amz_link, remark=EXCLUDED.remark, funnel=EXCLUDED.funnel,
+      sku=EXCLUDED.sku, product_status=EXCLUDED.product_status,
+      updated_at=CURRENT_TIMESTAMP;
+  END LOOP;
+
+  RETURN json_build_object('success', true, 'inserted_count', ic);
+
+EXCEPTION WHEN OTHERS THEN
+  ALTER TABLE flipkart_master_sellers ENABLE TRIGGER USER;
+  RAISE;
 END;
 $function$
 
@@ -1095,32 +1165,91 @@ CREATE OR REPLACE FUNCTION public.bulkupdateflipkartasinremarkmonthlyunitbatched
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
-DECLARE v_start TIMESTAMP:=clock_timestamp(); v_updated INT:=0; v_moved INT:=0; v_offset INT:=0; v_total INT; v_batch jsonb; v_rc INT;
+DECLARE
+  v_start TIMESTAMP := clock_timestamp();
+  v_updated INT := 0;
+  v_moved INT := 0;
+  v_offset INT := 0;
+  v_total INT;
+  v_batch jsonb;
+  v_rc INT;
 BEGIN
-  v_total:=jsonb_array_length(batchdata);
-  IF v_total=0 THEN RETURN jsonb_build_object('success',false,'message','No data'); END IF;
-  DROP TABLE IF EXISTS _tmp_bulk_asins;
-  CREATE TEMP TABLE _tmp_bulk_asins (asin TEXT PRIMARY KEY) ON COMMIT DROP;
-  INSERT INTO _tmp_bulk_asins SELECT COALESCE(r->>'asin',r->>'ASIN') FROM jsonb_array_elements(batchdata) r;
-  LOOP EXIT WHEN v_offset>=v_total;
-    v_batch:=(SELECT jsonb_agg(elem) FROM (SELECT elem FROM jsonb_array_elements(batchdata) WITH ORDINALITY AS t(elem,ord) WHERE ord>v_offset AND ord<=v_offset+batchsize) sub);
+  v_total := jsonb_array_length(batchdata);
+  IF v_total = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'No data');
+  END IF;
+
+  DROP TABLE IF EXISTS _tmp_fk_bulk_asins;
+  CREATE TEMP TABLE _tmp_fk_bulk_asins (asin TEXT PRIMARY KEY) ON COMMIT DROP;
+  INSERT INTO _tmp_fk_bulk_asins
+    SELECT COALESCE(r->>'asin', r->>'ASIN') FROM jsonb_array_elements(batchdata) r;
+
+  LOOP
+    EXIT WHEN v_offset >= v_total;
+    v_batch := (
+      SELECT jsonb_agg(elem)
+      FROM (
+        SELECT elem FROM jsonb_array_elements(batchdata) WITH ORDINALITY AS t(elem, ord)
+        WHERE ord > v_offset AND ord <= v_offset + batchsize
+      ) sub
+    );
     EXIT WHEN v_batch IS NULL;
-    WITH u AS (SELECT COALESCE(r->>'asin',r->>'ASIN')::TEXT as asin, COALESCE(r->>'remark',r->>'Remark')::TEXT as remark,
-      COALESCE((r->>'monthly_unit')::NUMERIC,(r->>'monthlyunit')::NUMERIC,(r->>'Monthly Units Sold')::NUMERIC,0) as monthly_unit FROM jsonb_array_elements(v_batch) r)
-    UPDATE flipkart_master_sellers m SET remark=u.remark, monthly_unit=u.monthly_unit,
-      funnel=unified_get_funnel(u.monthly_unit), updated_at=NOW()
-    FROM u WHERE m.asin=u.asin;
-    GET DIAGNOSTICS v_rc=ROW_COUNT; v_updated:=v_updated+v_rc; v_offset:=v_offset+batchsize;
+
+    WITH u AS (
+      SELECT COALESCE(r->>'asin', r->>'ASIN')::TEXT AS asin,
+             COALESCE(r->>'remark', r->>'Remark')::TEXT AS remark,
+             COALESCE((r->>'monthly_unit')::NUMERIC,
+                      (r->>'monthlyunit')::NUMERIC,
+                      (r->>'Monthly Units Sold')::NUMERIC, 0) AS monthly_unit
+      FROM jsonb_array_elements(v_batch) r
+    )
+    UPDATE flipkart_master_sellers m
+    SET remark = u.remark,
+        monthly_unit = u.monthly_unit,
+        updated_at = NOW()
+    FROM u WHERE m.asin = u.asin;
+
+    GET DIAGNOSTICS v_rc = ROW_COUNT;
+    v_updated := v_updated + v_rc;
+    v_offset := v_offset + batchsize;
   END LOOP;
-  UPDATE brand_checking bc SET remark=m.remark, monthly_unit=m.monthly_unit, funnel=unified_get_funnel(m.monthly_unit), updated_at=NOW()
-  FROM flipkart_master_sellers m JOIN _tmp_bulk_asins t ON t.asin=m.asin WHERE bc.marketplace='flipkart' AND bc.asin=m.asin;
-  UPDATE seller_products sp SET product_status=funnel_to_product_status(unified_get_funnel(m.monthly_unit)), funnel=unified_get_funnel(m.monthly_unit),
-    remark=m.remark, monthly_unit=m.monthly_unit, updated_at=NOW()
-  FROM flipkart_master_sellers m JOIN _tmp_bulk_asins t ON t.asin=m.asin
-  WHERE sp.marketplace='flipkart' AND sp.asin=m.asin AND sp.product_status IN ('high_demand','dropshipping','low_demand');
-  GET DIAGNOSTICS v_rc=ROW_COUNT; v_moved:=v_rc;
-  RETURN jsonb_build_object('success',true,'updatedcount',v_updated,'movedcount',v_moved,'durationseconds',EXTRACT(EPOCH FROM clock_timestamp()-v_start));
-EXCEPTION WHEN OTHERS THEN RETURN jsonb_build_object('success',false,'message',SQLERRM);
+
+  UPDATE brand_checking bc
+  SET remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      funnel = unified_get_funnel(m.monthly_unit, 'flipkart', m.bsr),
+      updated_at = NOW()
+  FROM flipkart_master_sellers m
+  JOIN _tmp_fk_bulk_asins t ON t.asin = m.asin
+  WHERE bc.marketplace = 'flipkart' AND bc.asin = m.asin;
+
+  UPDATE seller_products sp
+  SET product_status = funnel_to_product_status(unified_get_funnel(m.monthly_unit, 'flipkart', m.bsr)),
+      funnel = unified_get_funnel(m.monthly_unit, 'flipkart', m.bsr),
+      remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      updated_at = NOW()
+  FROM flipkart_master_sellers m
+  JOIN _tmp_fk_bulk_asins t ON t.asin = m.asin
+  WHERE sp.marketplace = 'flipkart' AND sp.asin = m.asin
+    AND sp.product_status IN ('high_demand', 'dropshipping', 'low_demand');
+
+  GET DIAGNOSTICS v_rc = ROW_COUNT;
+  v_moved := v_rc;
+
+  FOR s IN 1..6 LOOP
+    PERFORM unified_recalc_progress('flipkart', s);
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'updatedcount', v_updated,
+    'movedcount', v_moved,
+    'durationseconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start)
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
 END;
 $function$
 
@@ -1931,10 +2060,22 @@ BEGIN
     WHEN TG_TABLE_NAME LIKE 'uae%' THEN 'uae' WHEN TG_TABLE_NAME LIKE 'uk%' THEN 'uk' ELSE 'usa' END;
   cnt := marketplace_seller_count(p_mkt); tags := marketplace_tags(p_mkt);
   FOR s IN 1..cnt LOOP
-    INSERT INTO brand_checking (marketplace,seller_id,source_id,tag,asin,link,product_name,brand,price,monthly_unit,monthly_sales,bsr,seller,category,dimensions,weight,weight_unit,remark,amz_link,funnel)
-    VALUES (p_mkt,s,NEW.id,tags[s],NEW.asin,NEW.link,NEW.product_name,NEW.brand,NEW.price,NEW.monthly_unit,NEW.monthly_sales,NEW.bsr,NEW.seller,NEW.category,NEW.dimensions,NEW.weight,NEW.weight_unit,NEW.remark,
-      NEW.amz_link,unified_get_funnel(NEW.monthly_unit, p_mkt, NEW.bsr))
-    ON CONFLICT (marketplace,seller_id,asin) DO NOTHING;
+    INSERT INTO brand_checking (
+      marketplace, seller_id, source_id, tag, asin, link, product_name, brand,
+      price, monthly_unit, monthly_sales, bsr, seller, category, dimensions,
+      weight, weight_unit, remark, amz_link, funnel,
+      category_root, category_sub, category_child, category_tree,
+      approval_status
+    )
+    VALUES (
+      p_mkt, s, NEW.id, tags[s], NEW.asin, NEW.link, NEW.product_name, NEW.brand,
+      NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
+      NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.remark,
+      NEW.amz_link, unified_get_funnel(NEW.monthly_unit, p_mkt, NEW.bsr),
+      NEW.category_root, NEW.category_sub, NEW.category_child, NEW.category_tree,
+      CASE WHEN p_mkt = 'flipkart' THEN 'pending' ELSE NULL END
+    )
+    ON CONFLICT (marketplace, seller_id, asin) DO NOTHING;
   END LOOP;
   RETURN NEW;
 END;
