@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ensureAbsoluteUrl } from '@/lib/utils'
@@ -66,6 +66,7 @@ type PassFileProduct = {
   split_id?: string | null
   split_from_id?: string | null
   buying_quantities?: Record<string, number> | null
+  sku?: string | null
   remark: string | null;
 }
 
@@ -82,7 +83,7 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'sns' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -101,6 +102,10 @@ export default function PurchasesPage() {
   const [copySellerModal, setCopySellerModal] = useState<{ copy: any; tags: string[]; selected: Set<string> } | null>(null);
   const [splitModalProduct, setSplitModalProduct] = useState<PassFileProduct | null>(null);
   const [splitQuantities, setSplitQuantities] = useState<Record<string, number>>({});
+  const [snsItems, setSnsItems] = useState<any[]>([]);
+  const [funnelFilter, setFunnelFilter] = useState<'ALL' | 'RS' | 'DP'>('ALL');
+  const [sellerTagFilter, setSellerTagFilter] = useState<string>('ALL');
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -452,6 +457,110 @@ export default function PurchasesPage() {
     }
   };
 
+  const fetchSns = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('flipkart_purchase_sns')
+        .select('*')
+        .order('sns_next_due', { ascending: true });
+      if (error) throw error;
+      setSnsItems(data || []);
+    } catch (err: any) {
+      console.error('Failed to fetch S&S:', err);
+    }
+  };
+
+  const handleRemoveSns = async (snsId: string) => {
+    try {
+      const { error } = await supabase.from('flipkart_purchase_sns').delete().eq('id', snsId);
+      if (error) throw error;
+      setSnsItems(prev => prev.filter(s => s.id !== snsId));
+      setToast({ message: 'S&S subscription removed', type: 'success' }); setTimeout(() => setToast(null), 3000);
+    } catch (err: any) {
+      setToast({ message: `Failed: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const checkSnsDue = async () => {
+    try {
+      const { data: dueItems } = await supabase
+        .from('flipkart_purchase_sns')
+        .select('*')
+        .lte('sns_next_due', new Date().toISOString());
+
+      if (!dueItems || dueItems.length === 0) return;
+
+      for (const item of dueItems) {
+        try {
+          const newJourneyId = generateUUID();
+          const [{ data: maxH }, { data: maxP }] = await Promise.all([
+            supabase.from('flipkart_asin_history').select('journey_number').eq('asin', item.asin).order('journey_number', { ascending: false }).limit(1),
+            supabase.from('flipkart_purchases').select('journey_number').eq('asin', item.asin).order('journey_number', { ascending: false }).limit(1),
+          ]);
+          const nextJourney = Math.max(maxH?.[0]?.journey_number || 0, maxP?.[0]?.journey_number || 0) + 1;
+
+          const { error: insertError } = await supabase.from('flipkart_purchases').insert({
+            asin: item.asin,
+            product_name: item.product_name,
+            brand: item.brand,
+            seller_tag: item.seller_tag,
+            funnel: item.funnel,
+            sku: item.sku,
+            remark: item.remark,
+            buying_price: item.buying_price,
+            buying_quantity: item.sns_quantity,
+            buying_quantities: item.buying_quantities,
+            journey_id: newJourneyId,
+            journey_number: nextJourney,
+            admin_confirmed: true,
+            sns_active: true,
+            source: 'sns',
+            listing_status: null,
+          });
+
+          if (insertError) {
+            console.error('S&S auto-insert failed:', insertError);
+            continue;
+          }
+
+          const periodMap: Record<string, number> = { '1_month': 30, '2_months': 60, '3_months': 90, '6_months': 180 };
+          const days = periodMap[item.sns_period] || 30;
+          const nextDue = new Date(item.sns_next_due);
+          nextDue.setDate(nextDue.getDate() + days);
+
+          await supabase.from('flipkart_purchase_sns').update({
+            sns_next_due: nextDue.toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq('id', item.id);
+        } catch (err) {
+          console.error('S&S processing error:', err);
+        }
+      }
+    } catch (err) {
+      console.error('S&S due check failed:', err);
+    }
+  };
+
+  const downloadCsv = (data: any[], filename: string) => {
+    if (!data.length) return;
+    const headers = Object.keys(data[0]);
+    const rows = data.map(row => headers.map(h => {
+      const val = row[h];
+      if (val == null) return '';
+      if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+      const str = String(val);
+      return str.includes(',') || str.includes('"') || str.includes('\n') ? `"${str.replace(/"/g, '""')}"` : str;
+    }).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ✅ Ctrl+Z keyboard shortcut for Roll Back
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -469,6 +578,8 @@ export default function PurchasesPage() {
   useEffect(() => {
     fetchProducts()
     fetchCopies()
+    fetchSns()
+    checkSnsDue()
 
     const channel = supabase
       .channel('flipkart_purchases_changes')
@@ -484,7 +595,14 @@ export default function PurchasesPage() {
 
   useEffect(() => {
     if (activeTab === 'copy') fetchCopies();
+    if (activeTab === 'sns') fetchSns();
   }, [activeTab]);
+
+  useEffect(() => {
+    const handleClickOutside = () => { if (isDownloadOpen) setIsDownloadOpen(false); };
+    if (isDownloadOpen) document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isDownloadOpen]);
 
   // ✅✅ ADD THIS NEW useEffect - ESC key for remark modal
   useEffect(() => {
@@ -1058,6 +1176,13 @@ export default function PurchasesPage() {
 
     if (!matchesSearch) return false
 
+    if (funnelFilter !== 'ALL') {
+      if (((p as any).validation_funnel || p.funnel) !== funnelFilter) return false;
+    }
+    if (sellerTagFilter !== 'ALL') {
+      if (!((p.seller_tag || (p as any).validation_seller_tag || '') as string).toUpperCase().includes(sellerTagFilter)) return false;
+    }
+
     switch (activeTab) {
       case 'main_file':  // ✅ Underscore
         return !p.sent_to_admin && !p.move_to  // ✅ Underscores
@@ -1078,6 +1203,16 @@ export default function PurchasesPage() {
         return true
     }
   })
+
+  const filteredCopies = useMemo(() => copies.filter((c: any) => {
+    if (funnelFilter !== 'ALL' && c.funnel !== funnelFilter) return false;
+    if (sellerTagFilter !== 'ALL' && !(c.seller_tag || '').toUpperCase().includes(sellerTagFilter)) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (c.asin || '').toLowerCase().includes(q) || (c.product_name || '').toLowerCase().includes(q);
+    }
+    return true;
+  }), [copies, funnelFilter, sellerTagFilter, searchQuery]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -1244,6 +1379,18 @@ export default function PurchasesPage() {
           <span className="relative z-10">📋 Copies ({copies.length})</span>
           {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-cyan-500" />}
         </button>
+
+        {/* 9. S&S */}
+        <button
+          onClick={() => setActiveTab('sns')}
+          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'sns'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
+            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+            }`}
+        >
+          <span className="relative z-10">S&amp;S ({snsItems.length})</span>
+          {activeTab === 'sns' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
+        </button>
       </div>
 
       {/* Search & Controls */}
@@ -1262,8 +1409,68 @@ export default function PurchasesPage() {
           />
         </div>
 
+        {/* Funnel Filter */}
+        <div className="flex items-center gap-1">
+          {(['ALL', 'RS', 'DP'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFunnelFilter(f)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                funnelFilter === f
+                  ? f === 'RS' ? 'bg-emerald-600 text-white'
+                    : f === 'DP' ? 'bg-amber-500 text-black'
+                    : 'bg-blue-600 text-white'
+                  : 'bg-[#1a1a1a] text-gray-400 hover:text-white border border-white/10'
+              }`}
+            >
+              {f === 'ALL' ? 'All' : f}
+            </button>
+          ))}
+        </div>
+
+        {/* Seller Tag Filter */}
+        <div className="flex items-center gap-1">
+          {['ALL', 'GR', 'RR', 'UB', 'VV', 'DE', 'CV'].map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSellerTagFilter(tag)}
+              className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-lg transition-all ${
+                sellerTagFilter === tag
+                  ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                  : 'bg-[#1a1a1a] text-gray-400 hover:text-white border border-white/10'
+              }`}
+            >
+              {tag === 'ALL' ? 'All' : tag}
+            </button>
+          ))}
+        </div>
+
         {/* Buttons Group */}
         <div className="flex items-center gap-3">
+          {/* Download dropdown */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setIsDownloadOpen(!isDownloadOpen)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-emerald-900/20 border border-emerald-500/50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              Download
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            {isDownloadOpen && (
+              <div className="absolute top-full mt-1 right-0 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl z-50 min-w-[180px] overflow-hidden">
+                <button
+                  onClick={() => { downloadCsv(filteredProducts, 'flipkart_purchases_current.csv'); setIsDownloadOpen(false); }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/10"
+                >Current Page ({filteredProducts.length})</button>
+                <button
+                  onClick={() => { downloadCsv(products, 'flipkart_purchases_all.csv'); setIsDownloadOpen(false); }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/10 border-t border-white/10"
+                >All Data ({products.length})</button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleRollBack}
             disabled={!movementHistory[activeTab]?.length}
@@ -1366,7 +1573,85 @@ export default function PurchasesPage() {
       </div>
 
       {/* Table Container */}
-      {activeTab === 'copy' ? (
+      {activeTab === 'sns' ? (
+        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
+          <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+            <table className="w-full table-auto">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">ASIN</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">SKU</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Product Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Brand</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Seller Tag</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Funnel</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Period</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Quantity</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Next Due</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {snsItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-16 text-center text-gray-300">
+                      <div className="flex flex-col items-center">
+                        <span className="text-4xl mb-3">📅</span>
+                        <span className="text-lg font-semibold text-gray-400">No S&amp;S subscriptions</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : snsItems.map((s: any) => {
+                  const dueDate = s.sns_next_due ? new Date(s.sns_next_due) : null;
+                  const isOverdue = dueDate && dueDate <= new Date();
+                  return (
+                    <tr key={s.id} className="hover:bg-white/[0.05] transition-colors">
+                      <td className="px-6 py-3 text-sm font-mono text-orange-400">{s.asin}</td>
+                      <td className="px-6 py-3 text-xs text-gray-300 font-mono">{s.sku || '-'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{s.product_name || '-'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-300">{s.brand || '-'}</td>
+                      <td className="px-6 py-3 text-sm">
+                        {s.seller_tag ? (
+                          <div className="flex flex-wrap gap-1">
+                            {s.seller_tag.split(',').map((tag: string) => {
+                              const clean = tag.trim();
+                              return <span key={clean} className="w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs bg-[#1a1a1a] text-white border border-white/10">{clean}</span>;
+                            })}
+                          </div>
+                        ) : <span className="text-xs text-gray-300">-</span>}
+                      </td>
+                      <td className="px-6 py-3 text-sm">
+                        {s.funnel ? (
+                          <span className={`w-8 h-8 inline-flex items-center justify-center rounded-lg font-bold text-xs ${s.funnel === 'HD' || s.funnel === 'RS' ? 'bg-emerald-600 text-white' : s.funnel === 'DP' ? 'bg-amber-500 text-black' : 'bg-slate-600 text-white'}`}>{s.funnel}</span>
+                        ) : <span className="text-xs text-gray-300">-</span>}
+                      </td>
+                      <td className="px-6 py-3 text-xs text-gray-300">{(s.sns_period || '').replace('_', ' ')}</td>
+                      <td className="px-6 py-3 text-sm text-right text-gray-200 font-mono">{s.sns_quantity ?? '-'}</td>
+                      <td className={`px-6 py-3 text-xs ${isOverdue ? 'text-rose-400 font-bold' : 'text-gray-400'}`}>
+                        {dueDate ? dueDate.toLocaleDateString() : '-'}
+                        {isOverdue && <span className="ml-1">⚠</span>}
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <button
+                          onClick={() => handleRemoveSns(s.id)}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Remove S&amp;S
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
+            <div className="text-sm text-gray-300">
+              Showing <span className="font-bold text-white">{snsItems.length}</span> S&amp;S subscriptions
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'copy' ? (
         <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
           <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
             <table className="w-full table-auto">
@@ -1375,9 +1660,9 @@ export default function PurchasesPage() {
                   <th className="px-6 py-4 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedCopyIds.size === copies.length && copies.length > 0}
+                      checked={selectedCopyIds.size === filteredCopies.length && filteredCopies.length > 0}
                       onChange={(e) => {
-                        if (e.target.checked) setSelectedCopyIds(new Set(copies.map((c: any) => c.id)));
+                        if (e.target.checked) setSelectedCopyIds(new Set(filteredCopies.map((c: any) => c.id)));
                         else setSelectedCopyIds(new Set());
                       }}
                       className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
@@ -1396,7 +1681,7 @@ export default function PurchasesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
-                {copies.length === 0 ? (
+                {filteredCopies.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="px-4 py-16 text-center text-gray-300">
                       <div className="flex flex-col items-center">
@@ -1407,7 +1692,7 @@ export default function PurchasesPage() {
                       </div>
                     </td>
                   </tr>
-                ) : copies.map((c: any) => (
+                ) : filteredCopies.map((c: any) => (
                   <tr key={c.id} className="hover:bg-white/[0.05] transition-colors">
                     <td className="px-6 py-3 text-center">
                       <input
@@ -1499,6 +1784,10 @@ export default function PurchasesPage() {
                   </th>
                 )}
 
+                <th className="px-4 py-4 text-center text-xs font-bold text-white uppercase bg-[#111111] border-r border-white/[0.1]" style={{ width: '120px' }}>
+                  SKU
+                </th>
+
                 {visibleColumns.asin && (
                   <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase relative group bg-[#111111]" style={{ width: `${columnWidths.asin}px` }}>
                     ASIN
@@ -1587,6 +1876,11 @@ export default function PurchasesPage() {
                           <input type="checkbox" checked={selectedIds.has(product.id)} onChange={(e) => handleSelectRow(product.id, e.target.checked)} className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer" />
                         </td>
                       )}
+
+                      {/* SKU column */}
+                      <td className="px-4 py-4 text-xs text-gray-300 font-mono border-r border-white/[0.06] text-center" style={{ width: '120px' }}>
+                        {product.sku || '-'}
+                      </td>
 
                       {/* ✅ ASIN COLUMN - Only ASIN text */}
                       {visibleColumns.asin && (
