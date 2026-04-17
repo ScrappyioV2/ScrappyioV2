@@ -2809,7 +2809,7 @@ export default function AdminValidationPage() {
                 <div className="absolute right-0 top-full mt-2 w-64 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl z-50 overflow-hidden">
                   <button
                     onClick={handleDownloadCurrentPage}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-[#1a1a1a] transition-colors flex items-center gap-3"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-white/[0.08] transition-colors flex items-center gap-3"
                   >
                     <Download className="w-4 h-4 text-purple-400" />
                     <div>
@@ -2819,7 +2819,7 @@ export default function AdminValidationPage() {
                   </button>
                   <button
                     onClick={handleDownloadAllData}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-[#1a1a1a] transition-colors flex items-center gap-3 border-t border-white/[0.1]"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-100 hover:bg-white/[0.08] transition-colors flex items-center gap-3 border-t border-white/[0.1]"
                   >
                     <Download className="w-4 h-4 text-purple-400" />
                     <div>
