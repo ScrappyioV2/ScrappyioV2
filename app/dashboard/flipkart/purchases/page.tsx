@@ -1273,31 +1273,55 @@ export default function PurchasesPage() {
         </div>
       </div>
 
-      {/* Tabs - Midnight Theme Pills */}
-      <div className="flex-none flex gap-2 mb-6 flex-wrap p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit overflow-x-auto">
-        {/* 1. Main File */}
-        <button
-          onClick={() => setActiveTab('main_file')}
-          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})</span>
-          {activeTab === 'main_file' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
-        </button>
+      {/* Tabs - Midnight Theme Pills (India layout: stacked pairs) */}
+      <div className="flex-none flex items-start gap-2 mb-6 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit overflow-x-auto">
+        {/* Main File + Copies (stacked) */}
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() => setActiveTab('main_file')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'main_file'
+              ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+              }`}
+          >
+            <span className="relative z-10">Main File ({products.filter(p => !p.sent_to_admin && !p.move_to).length})</span>
+            {activeTab === 'main_file' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
+          </button>
+          <button
+            onClick={() => setActiveTab('copy')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'copy'
+              ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-cyan-400'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+              }`}
+          >
+            <span className="relative z-10">Copies ({copies.length})</span>
+            {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-cyan-500" />}
+          </button>
+        </div>
 
-        {/* 2. Order Confirmed */}
-        <button
-          onClick={() => setActiveTab('order_confirmed')}
-          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-emerald-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
-          {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
-        </button>
+        {/* Confirmed + S&S (stacked) */}
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() => setActiveTab('order_confirmed')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'order_confirmed'
+              ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-emerald-400'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+              }`}
+          >
+            <span className="relative z-10">Confirmed ({products.filter(p => p.admin_confirmed === true).length})</span>
+            {activeTab === 'order_confirmed' && <div className="absolute inset-0 opacity-10 bg-emerald-500" />}
+          </button>
+          <button
+            onClick={() => setActiveTab('sns')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'sns'
+              ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-teal-400'
+              : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+              }`}
+          >
+            <span className="relative z-10">S&amp;S ({snsItems.length})</span>
+            {activeTab === 'sns' && <div className="absolute inset-0 opacity-10 bg-teal-500" />}
+          </button>
+        </div>
 
         {/* 3. India */}
         <button
@@ -1367,30 +1391,6 @@ export default function PurchasesPage() {
           <span className="relative z-10">Not Found ({products.filter(p => p.move_to === 'notfound').length})</span>
           {activeTab === 'not_found' && <div className="absolute inset-0 opacity-10 bg-slate-500" />}
         </button>
-
-        {/* 8. Copies */}
-        <button
-          onClick={() => setActiveTab('copy')}
-          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'copy'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-cyan-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">📋 Copies ({copies.length})</span>
-          {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-cyan-500" />}
-        </button>
-
-        {/* 9. S&S */}
-        <button
-          onClick={() => setActiveTab('sns')}
-          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'sns'
-            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-blue-400'
-            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
-            }`}
-        >
-          <span className="relative z-10">S&amp;S ({snsItems.length})</span>
-          {activeTab === 'sns' && <div className="absolute inset-0 opacity-10 bg-blue-500" />}
-        </button>
       </div>
 
       {/* Search & Controls */}
@@ -1409,40 +1409,61 @@ export default function PurchasesPage() {
           />
         </div>
 
-        {/* Funnel Filter */}
-        <div className="flex items-center gap-1">
-          {(['ALL', 'RS', 'DP'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFunnelFilter(f)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                funnelFilter === f
-                  ? f === 'RS' ? 'bg-emerald-600 text-white'
-                    : f === 'DP' ? 'bg-amber-500 text-black'
-                    : 'bg-blue-600 text-white'
-                  : 'bg-[#1a1a1a] text-gray-400 hover:text-white border border-white/10'
+        {/* Funnel Quick Filters */}
+        <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
+          <button
+            onClick={() => setFunnelFilter(funnelFilter === 'RS' ? 'ALL' : 'RS')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'RS'
+              ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-[#111111]'
               }`}
-            >
-              {f === 'ALL' ? 'All' : f}
-            </button>
-          ))}
+          >
+            RS
+          </button>
+          <button
+            onClick={() => setFunnelFilter(funnelFilter === 'DP' ? 'ALL' : 'DP')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${funnelFilter === 'DP'
+              ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-[#111111]'
+              }`}
+          >
+            DP
+          </button>
         </div>
 
         {/* Seller Tag Filter */}
-        <div className="flex items-center gap-1">
-          {['ALL', 'GR', 'RR', 'UB', 'VV', 'DE', 'CV'].map(tag => (
-            <button
-              key={tag}
-              onClick={() => setSellerTagFilter(tag)}
-              className={`w-8 h-8 flex items-center justify-center text-xs font-bold rounded-lg transition-all ${
-                sellerTagFilter === tag
-                  ? 'bg-purple-600 text-white ring-2 ring-purple-400'
-                  : 'bg-[#1a1a1a] text-gray-400 hover:text-white border border-white/10'
+        <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
+          <button
+            onClick={() => setSellerTagFilter('ALL')}
+            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === 'ALL'
+              ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-[#111111]'
               }`}
-            >
-              {tag === 'ALL' ? 'All' : tag}
-            </button>
-          ))}
+          >
+            All
+          </button>
+          {['GR', 'RR', 'UB', 'VV', 'DE', 'CV'].map((tag) => {
+            const tagColors: Record<string, string> = {
+              GR: 'from-yellow-400 to-yellow-600 text-black',
+              RR: 'from-slate-400 to-slate-600 text-white',
+              UB: 'from-pink-400 to-pink-600 text-white',
+              VV: 'from-purple-400 to-purple-600 text-white',
+              DE: 'from-cyan-400 to-cyan-600 text-black',
+              CV: 'from-teal-400 to-teal-600 text-white',
+            };
+            return (
+              <button
+                key={tag}
+                onClick={() => setSellerTagFilter(sellerTagFilter === tag ? 'ALL' : tag)}
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === tag
+                  ? `bg-gradient-to-br ${tagColors[tag]} shadow-lg`
+                  : 'text-gray-400 hover:text-white hover:bg-[#111111]'
+                  }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
         </div>
 
         {/* Buttons Group */}
