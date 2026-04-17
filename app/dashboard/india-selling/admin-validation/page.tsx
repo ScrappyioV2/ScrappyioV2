@@ -2550,7 +2550,7 @@ export default function AdminValidationPage() {
           </div>
 
           {/* Right: Buttons Group */}
-         <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap overflow-x-auto scrollbar-none [&>*]:flex-shrink-0 [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs">
+         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs">
 
             {/* Funnel Filter Pills - RS / DP */}
             <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
