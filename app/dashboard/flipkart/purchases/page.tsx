@@ -62,6 +62,7 @@ type PassFileProduct = {
   total_revenue?: number | null
   inr_purchase_from_validation?: number | null
   listing_status?: string | null
+  source?: string | null
   remark: string | null;
 }
 
@@ -78,12 +79,23 @@ type HistorySnapshot = {
 }
 
 
-type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
+type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 export default function PurchasesPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  };
+
   const [activeTab, setActiveTab] = useState<TabType>('main_file');
   const [products, setProducts] = useState<PassFileProduct[]>([]);
+  const [copies, setCopies] = useState<any[]>([]);
+  const [selectedCopyIds, setSelectedCopyIds] = useState<Set<string>>(new Set());
+  const [copySellerModal, setCopySellerModal] = useState<{ copy: any; tags: string[]; selected: Set<string> } | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -288,6 +300,110 @@ export default function PurchasesPage() {
     }
   }
 
+  const fetchCopies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('flipkart_purchase_copies')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setCopies(data || []);
+    } catch (err: any) {
+      console.error('Failed to fetch copies:', err);
+    }
+  };
+
+  const handleDeleteCopy = async (copyItem: any) => {
+    try {
+      await supabase.from('flipkart_purchase_copies').delete().eq('id', copyItem.id);
+      setCopies(prev => prev.filter(c => c.id !== copyItem.id));
+      setToast({ message: 'Copy deleted', type: 'success' }); setTimeout(() => setToast(null), 3000);
+    } catch (err: any) {
+      setToast({ message: `Failed: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const handleSendCopyToPurchases = async (copyItem: any, selectedTag?: string) => {
+    try {
+      const tags = (copyItem.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+
+      if (tags.length > 1 && !selectedTag) {
+        setCopySellerModal({ copy: copyItem, tags, selected: new Set<string>() });
+        return;
+      }
+
+      const tag = selectedTag || tags[0] || '';
+
+      // Rule 11: check BOTH flipkart_asin_history AND flipkart_purchases for true max
+      const [{ data: maxHistory }, { data: maxPurchase }] = await Promise.all([
+        supabase.from('flipkart_asin_history').select('journey_number').eq('asin', copyItem.asin).order('journey_number', { ascending: false }).limit(1),
+        supabase.from('flipkart_purchases').select('journey_number').eq('asin', copyItem.asin).order('journey_number', { ascending: false }).limit(1),
+      ]);
+      const maxHistoryNum = maxHistory?.[0]?.journey_number || 0;
+      const maxPurchaseNum = maxPurchase?.[0]?.journey_number || 0;
+      const nextJourneyNumber = Math.max(maxHistoryNum, maxPurchaseNum) + 1;
+      const newJourneyId = generateUUID();
+
+      // Double-click guard (UI-only)
+      const dupeKey = `copy_send_${copyItem.asin}_${tag}`;
+      if ((window as any)[dupeKey]) {
+        setToast({ message: `Already sending ${copyItem.asin} (${tag})...` as any, type: 'success' });
+        return;
+      }
+      (window as any)[dupeKey] = true;
+      setTimeout(() => { delete (window as any)[dupeKey]; }, 3000);
+
+      const { error } = await supabase.from('flipkart_purchases').insert({
+        asin: copyItem.asin,
+        product_name: copyItem.product_name,
+        brand: copyItem.brand,
+        seller_tag: tag,
+        funnel: copyItem.funnel,
+        product_link: copyItem.flipkart_link || null,
+        inr_purchase_link: copyItem.inr_purchase_link || copyItem.amz_link || copyItem.flipkart_link || null,
+        seller_link: copyItem.seller_link || null,
+        origin: copyItem.origin || 'India',
+        origin_india: copyItem.origin_india ?? true,
+        origin_china: copyItem.origin_china ?? false,
+        origin_us: copyItem.origin_us ?? false,
+        buying_price: copyItem.buying_price || 0,
+        buying_quantity: (copyItem.buying_quantities && copyItem.buying_quantities[tag]) ?? copyItem.buying_quantity ?? 0,
+        buying_quantities: { [tag]: (copyItem.buying_quantities && copyItem.buying_quantities[tag]) ?? copyItem.buying_quantity ?? 0 },
+        product_weight: copyItem.product_weight || null,
+        usd_price: copyItem.usd_price || null,
+        inr_purchase: copyItem.inr_purchase || null,
+        target_price: copyItem.target_price || null,
+        profit: copyItem.profit || null,
+        remark: copyItem.remark || null,
+        sku: copyItem.sku || null,
+        journey_id: newJourneyId,
+        journey_number: nextJourneyNumber,
+        source: 'copy',
+        listing_status: copyItem.listing_status || null,
+      });
+
+      if (error) throw error;
+
+      setCopySellerModal(null);
+      setToast({ message: `${copyItem.asin} (${tag}) sent to Purchase Main File`, type: 'success' }); setTimeout(() => setToast(null), 3000);
+      await refreshProductsSilently();
+    } catch (err: any) {
+      setToast({ message: `Failed: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const handleSendCopyMultipleTags = async () => {
+    if (!copySellerModal || copySellerModal.selected.size === 0) {
+      setToast({ message: 'Select at least one seller tag', type: 'success' });
+      return;
+    }
+    const selectedTags = Array.from(copySellerModal.selected);
+    const copyItem = copySellerModal.copy;
+    for (const tag of selectedTags) {
+      await handleSendCopyToPurchases(copyItem, tag);
+    }
+  };
+
   // ✅ Ctrl+Z keyboard shortcut for Roll Back
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -304,6 +420,7 @@ export default function PurchasesPage() {
   // ✅ FIXED: Proper async handling in useEffect
   useEffect(() => {
     fetchProducts()
+    fetchCopies()
 
     const channel = supabase
       .channel('flipkart_purchases_changes')
@@ -316,6 +433,10 @@ export default function PurchasesPage() {
       channel.unsubscribe()
     }
   }, [showAllJourneys]);
+
+  useEffect(() => {
+    if (activeTab === 'copy') fetchCopies();
+  }, [activeTab]);
 
   // ✅✅ ADD THIS NEW useEffect - ESC key for remark modal
   useEffect(() => {
@@ -402,6 +523,65 @@ export default function PurchasesPage() {
       if (product.origin_china) originParts.push('China')
       if (product.origin_us) originParts.push('US');
       const originText = originParts.length > 0 ? originParts.join(', ') : 'India'
+
+      // Save copy for future validation skip — MERGE tags, never lose them (mirrors India Rule 9)
+      try {
+        const currentTags = (product.seller_tag || (product as any).validation_seller_tag || '')
+          .split(',').map((t: string) => t.trim()).filter(Boolean);
+
+        const { data: existingCopy } = await supabase
+          .from('flipkart_purchase_copies')
+          .select('seller_tag, buying_quantities')
+          .eq('asin', product.asin)
+          .maybeSingle();
+
+        let mergedTags = [...currentTags];
+        if (existingCopy?.seller_tag) {
+          const existingTags = existingCopy.seller_tag.split(',').map((t: string) => t.trim()).filter(Boolean);
+          for (const tag of existingTags) {
+            if (!mergedTags.includes(tag)) mergedTags.push(tag);
+          }
+        }
+
+        let mergedBuyingQuantities: Record<string, number> = {};
+        if (existingCopy?.buying_quantities && typeof existingCopy.buying_quantities === 'object') {
+          mergedBuyingQuantities = { ...existingCopy.buying_quantities };
+        }
+        if ((product as any).buying_quantities && typeof (product as any).buying_quantities === 'object') {
+          mergedBuyingQuantities = { ...mergedBuyingQuantities, ...(product as any).buying_quantities };
+        }
+
+        const { error: copyUpsertError } = await supabase.from('flipkart_purchase_copies').upsert({
+          asin: product.asin,
+          product_name: product.product_name,
+          brand: (product as any).brand,
+          seller_tag: mergedTags.join(', '),
+          funnel: product.funnel,
+          flipkart_link: product.flipkart_link || product.product_link,
+          amz_link: (product as any).amz_link,
+          remark: (product as any).remark,
+          sku: (product as any).sku,
+          seller_link: (product as any).seller_link || null,
+          buying_price: product.buying_price || null,
+          buying_quantity: product.buying_quantity || null,
+          buying_quantities: Object.keys(mergedBuyingQuantities).length > 0 ? mergedBuyingQuantities : null,
+          product_weight: (product as any).product_weight || null,
+          usd_price: (product as any).usd_price || null,
+          inr_purchase: (product as any).inr_purchase || null,
+          inr_purchase_link: (product as any).inr_purchase_link || null,
+          target_price: (product as any).target_price || null,
+          origin: (product as any).origin || 'India',
+          origin_india: (product as any).origin_india ?? true,
+          origin_china: (product as any).origin_china ?? false,
+          origin_us: (product as any).origin_us ?? false,
+          profit: (product as any).profit || null,
+          listing_status: product.listing_status || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'asin' });
+        if (copyUpsertError) console.error('Copy upsert failed:', copyUpsertError);
+      } catch (copyErr) {
+        console.error('Failed to save copy:', copyErr);
+      }
 
       // Insert into admin validation - ONLY fields that exist in schema
       const { error: insertError } = await supabase
@@ -1004,6 +1184,18 @@ export default function PurchasesPage() {
           <span className="relative z-10">Not Found ({products.filter(p => p.move_to === 'notfound').length})</span>
           {activeTab === 'not_found' && <div className="absolute inset-0 opacity-10 bg-slate-500" />}
         </button>
+
+        {/* 8. Copies */}
+        <button
+          onClick={() => setActiveTab('copy')}
+          className={`px-5 py-2 text-sm font-medium rounded-xl transition-all relative overflow-hidden whitespace-nowrap ${activeTab === 'copy'
+            ? 'text-white bg-[#111111] shadow-[0_0_15px_-5px_currentColor] border border-white/[0.1] text-cyan-400'
+            : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a1a]/50 border border-transparent'
+            }`}
+        >
+          <span className="relative z-10">📋 Copies ({copies.length})</span>
+          {activeTab === 'copy' && <div className="absolute inset-0 opacity-10 bg-cyan-500" />}
+        </button>
       </div>
 
       {/* Search & Controls */}
@@ -1126,6 +1318,122 @@ export default function PurchasesPage() {
       </div>
 
       {/* Table Container */}
+      {activeTab === 'copy' ? (
+        <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
+          <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+            <table className="w-full table-auto">
+              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
+                <tr>
+                  <th className="px-6 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedCopyIds.size === copies.length && copies.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedCopyIds(new Set(copies.map((c: any) => c.id)));
+                        else setSelectedCopyIds(new Set());
+                      }}
+                      className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                    />
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">ASIN</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">SKU</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Product Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Brand</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Product Link</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Funnel</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Seller Tag</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Remark</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {copies.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-16 text-center text-gray-300">
+                      <div className="flex flex-col items-center">
+                        <svg className="w-12 h-12 mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        <span className="text-lg font-semibold text-gray-400">No copies found</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : copies.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-white/[0.05] transition-colors">
+                    <td className="px-6 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedCopyIds.has(c.id)}
+                        onChange={(e) => {
+                          const next = new Set(selectedCopyIds);
+                          if (e.target.checked) next.add(c.id);
+                          else next.delete(c.id);
+                          setSelectedCopyIds(next);
+                        }}
+                        className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-6 py-3 text-sm font-mono text-orange-400">{c.asin}</td>
+                    <td className="px-6 py-3 text-xs text-gray-300">{c.sku || '-'}</td>
+                    <td className="px-6 py-3 text-sm text-gray-100 truncate max-w-xs">{c.product_name || '-'}</td>
+                    <td className="px-6 py-3 text-sm text-gray-300">{c.brand || '-'}</td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.flipkart_link ? (
+                        <a href={c.flipkart_link.startsWith('http') ? c.flipkart_link : `https://${c.flipkart_link}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 hover:underline text-xs font-medium">View</a>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.funnel ? (
+                        <span className={`w-8 h-8 inline-flex items-center justify-center rounded-lg font-bold text-xs ${c.funnel === 'HD' || c.funnel === 'RS' ? 'bg-emerald-600 text-white' : c.funnel === 'DP' ? 'bg-amber-500 text-black' : 'bg-slate-600 text-white'}`}>{c.funnel}</span>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.seller_tag ? (
+                        <div className="flex flex-wrap gap-1">
+                          {c.seller_tag.split(',').map((tag: string) => {
+                            const clean = tag.trim();
+                            return <span key={clean} className="w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs bg-[#1a1a1a] text-white border border-white/10">{clean}</span>;
+                          })}
+                        </div>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm">
+                      {c.remark ? (
+                        <span className="text-xs text-gray-300 truncate max-w-[100px] block" title={c.remark}>{c.remark}</span>
+                      ) : <span className="text-xs text-gray-300">-</span>}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-gray-400">{c.created_at ? new Date(c.created_at).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleSendCopyToPurchases(c)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                          title="Send to Purchase Main File"
+                        >
+                          Send
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCopy(c)}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
+            <div className="text-sm text-gray-300">
+              Showing <span className="font-bold text-white">{copies.length}</span> copies
+              {selectedCopyIds.size > 0 && <span className="ml-2 text-cyan-400 font-semibold">| {selectedCopyIds.size} selected</span>}
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
           <table className="w-full divide-y divide-white/[0.06] table-auto" style={{ minWidth: '2500px' }}>
@@ -1235,7 +1543,12 @@ export default function PurchasesPage() {
                       {/* ✅ ASIN COLUMN - Only ASIN text */}
                       {visibleColumns.asin && (
                         <td className="px-6 py-4 font-mono text-sm text-gray-300" style={{ width: `${columnWidths.asin}px` }}>
-                          <div className="truncate">{product.asin}</div>
+                          <div className="truncate flex items-center gap-1.5">
+                            {product.asin}
+                            {product.source === 'copy' && (
+                              <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-[9px] font-bold tracking-wider" title="Sent from Copies">COPY</span>
+                            )}
+                          </div>
                         </td>
                       )}
 
@@ -1416,6 +1729,7 @@ export default function PurchasesPage() {
           </div>
         </div>
       </div>
+      )}
       {/* ✅ HISTORY SIDEBAR SLIDE-OVER */}
       <AnimatePresence>
         {selectedHistoryAsin && (
@@ -1651,6 +1965,36 @@ export default function PurchasesPage() {
           </>
         )}
       </AnimatePresence>
+
+      {copySellerModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-[#1a1a1a] rounded-xl p-6 max-w-md w-full border border-white/10">
+            <h3 className="text-white font-bold mb-4">Select Seller Tags to Send</h3>
+            <p className="text-gray-400 text-sm mb-4">ASIN: {copySellerModal.copy.asin}</p>
+            <div className="space-y-2 mb-4">
+              {copySellerModal.tags.map(tag => (
+                <label key={tag} className="flex items-center gap-2 text-white cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={copySellerModal.selected.has(tag)}
+                    onChange={(e) => {
+                      const next = new Set(copySellerModal.selected);
+                      if (e.target.checked) next.add(tag); else next.delete(tag);
+                      setCopySellerModal({ ...copySellerModal, selected: next });
+                    }}
+                    className="rounded border-white/10 bg-[#111] text-blue-500"
+                  />
+                  {tag}
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleSendCopyMultipleTags} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500">Send Selected</button>
+              <button onClick={() => setCopySellerModal(null)} className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
