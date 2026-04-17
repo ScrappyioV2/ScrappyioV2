@@ -21,6 +21,11 @@ const DB_COLUMNS = new Set([
   'weight',
   'weight_unit',
   'sku',
+  // Keepa category columns (Flipkart)
+  'category_root',
+  'category_sub',
+  'category_child',
+  'category_tree',
 ]);
 
 const BLOCKED_COLUMNS = new Set([
@@ -122,6 +127,18 @@ export const normalizeDataForDB = (rows: any[]) => {
         if (dbKey === 'dimensions') dbKey = 'dimensions';
         if (dbKey === 'skus') dbKey = 'sku';
 
+        // ---- ALIASES FROM KEEPA EXPORT ----
+
+        // "Name" → product_name
+        if (dbKey === 'name') dbKey = 'product_name';
+
+        // "Categories: Root" → category_root (normalizeHeaderToSnakeCase gives "categories_root")
+        if (dbKey === 'categories_root') dbKey = 'category_root';
+        // "Categories: Sub" → category_sub
+        if (dbKey === 'categories_sub') dbKey = 'category_sub';
+        // "Categories: Tree" → category_tree
+        if (dbKey === 'categories_tree') dbKey = 'category_tree';
+
         // Amazon link – single source of truth
         if (
           dbKey === 'link' ||
@@ -166,6 +183,14 @@ export const normalizeDataForDB = (rows: any[]) => {
       // DEFAULT UNIT
       if (!normalizedRow.weight_unit) {
         normalizedRow.weight_unit = 'kg';
+      }
+
+      // DERIVE category_child from category_tree if not explicitly set
+      if (normalizedRow.category_tree && !normalizedRow.category_child) {
+        const parts = normalizedRow.category_tree.split('›').map((s: string) => s.trim()).filter(Boolean);
+        if (parts.length > 0) {
+          normalizedRow.category_child = parts[parts.length - 1];
+        }
       }
 
       // AUTO-GENERATE LINK IF EMPTY
