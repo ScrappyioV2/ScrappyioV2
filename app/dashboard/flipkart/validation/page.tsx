@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
@@ -237,6 +238,7 @@ const ResizableTH = ({
 
 export default function ValidationPage() {
     const { user, loading: authLoading } = useAuth();
+    const { logActivity } = useActivityLogger();
     // const [editingValue, setEditingValue] = useState<{
     //     id: string
     //     field: string
@@ -1260,6 +1262,16 @@ export default function ValidationPage() {
                 .eq('id', id)
 
             setProducts((prev) => prev.filter((p) => p.id !== id))
+
+            logActivity({
+                action: 'sent_to_purchases',
+                marketplace: 'flipkart',
+                page: 'validation',
+                table_name: 'flipkart_purchases',
+                asin: product.asin,
+                details: { seller_tag: product.seller_tag, journey_id: journeyId, journey_number: journeyNum }
+            });
+
             setToast({ message: 'Sent to Purchases successfully!', type: 'success' })
 
         } catch (err) {
@@ -2223,8 +2235,25 @@ export default function ValidationPage() {
                                                                                 total_cost: result.total_cost, total_revenue: result.total_revenue, profit: result.profit
                                                                             } : p));
                                                                         await fetchStats();
-                                                                        if (finalJudgement === 'PASS') setToast({ message: `✅ ${currentProduct.asin} → Pass File!`, type: 'success' });
-                                                                        else if (finalJudgement === 'FAIL') setToast({ message: `❌ ${currentProduct.asin} → Fail File!`, type: 'error' });
+                                                                        if (finalJudgement === 'PASS') {
+                                                                            logActivity({
+                                                                                action: 'move_to_pass',
+                                                                                marketplace: 'flipkart',
+                                                                                page: 'validation',
+                                                                                table_name: 'flipkart_validation_main_file',
+                                                                                asin: currentProduct.asin,
+                                                                            });
+                                                                            setToast({ message: `✅ ${currentProduct.asin} → Pass File!`, type: 'success' });
+                                                                        } else if (finalJudgement === 'FAIL') {
+                                                                            logActivity({
+                                                                                action: 'move_to_fail',
+                                                                                marketplace: 'flipkart',
+                                                                                page: 'validation',
+                                                                                table_name: 'flipkart_validation_main_file',
+                                                                                asin: currentProduct.asin,
+                                                                            });
+                                                                            setToast({ message: `❌ ${currentProduct.asin} → Fail File!`, type: 'error' });
+                                                                        }
                                                                     }
                                                                 }}
                                                                 placeholder="Enter link + press Enter ↵"
