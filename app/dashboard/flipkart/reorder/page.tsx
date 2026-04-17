@@ -768,22 +768,30 @@ export default function ReorderPage() {
         try {
           setProcessing(true)
 
-          // 🔍 STEP 1: Fetch the ACTUAL max journey_number from history
-          const { data: historyData, error: historyError } = await supabase
-            .from('flipkart_asin_history')
-            .select('journey_number')
-            .eq('asin', product.asin)
-            .order('journey_number', { ascending: false })
-            .limit(1)
-            .maybeSingle()
+          // 🔍 STEP 1: Rule 11 — check BOTH flipkart_asin_history AND flipkart_purchases for true max
+          const [historyResult, purchasesResult] = await Promise.all([
+            supabase
+              .from('flipkart_asin_history')
+              .select('journey_number')
+              .eq('asin', product.asin)
+              .order('journey_number', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from('flipkart_purchases')
+              .select('journey_number')
+              .eq('asin', product.asin)
+              .order('journey_number', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          ])
 
-          if (historyError && historyError.code !== 'PGRST116') {
-            throw historyError
-          }
+          if (historyResult.error && historyResult.error.code !== 'PGRST116') throw historyResult.error
+          if (purchasesResult.error && purchasesResult.error.code !== 'PGRST116') throw purchasesResult.error
 
-          // Calculate ACTUAL next journey number
-          const currentMaxJourney = historyData?.journey_number || 1
-          const nextJourneyNum = currentMaxJourney + 1
+          const historyMax = historyResult.data?.journey_number || 0
+          const purchasesMax = purchasesResult.data?.journey_number || 0
+          const nextJourneyNum = Math.max(historyMax, purchasesMax) + 1
 
 
           // 🔍 STEP 2: Fetch "Master Data" from the Validation Table itself
