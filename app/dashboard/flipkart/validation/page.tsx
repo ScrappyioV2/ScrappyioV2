@@ -703,7 +703,7 @@ export default function ValidationPage() {
 
     const fetchStats = async () => {
         try {
-            const { data, error } = await supabase.rpc('get_validation_stats');
+            const { data, error } = await supabase.rpc('get_flipkart_validation_stats');
             if (error) throw error;
             if (data) {
                 setStats({
