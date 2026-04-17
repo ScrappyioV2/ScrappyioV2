@@ -8,12 +8,11 @@ import {
   XCircle,
   RotateCcw,
   ShieldCheck,
+  ClipboardCheck,
   PlusCircle,
   Users,
   Home,
   Truck,
-  List,
-  ListX,
   Package
 } from 'lucide-react';
 import { AppRoute } from '@/lib/types';
@@ -396,31 +395,17 @@ export const APP_ROUTES: AppRoute[] = [
         ]
       },
       {
-        path: '/dashboard/flipkart/listed-brand-checking',
-        label: 'Listed Products',
+        path: '/dashboard/flipkart/brand-checking-review',
+        label: 'Brand Checking Review',
         permission: 'view-brand-checking',
-        icon: List,
+        icon: ClipboardCheck,
         subRoutes: [
-          { path: '/dashboard/flipkart/listed-brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/listed-brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/listed-brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/listed-brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/listed-brand-checking/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/listed-brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
-        ]
-      },
-      {
-        path: '/dashboard/flipkart/not-listed-brand-checking',
-        label: 'Not Listed Products',
-        permission: 'view-brand-checking',
-        icon: ListX,
-        subRoutes: [
-          { path: '/dashboard/flipkart/not-listed-brand-checking/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/not-listed-brand-checking/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/not-listed-brand-checking/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/not-listed-brand-checking/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/not-listed-brand-checking/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
-          { path: '/dashboard/flipkart/not-listed-brand-checking/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
+          { path: '/dashboard/flipkart/brand-checking-review/golden-aura', label: 'Golden Aura', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking-review/rudra-retail', label: 'Rudra Retail', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking-review/ubeauty', label: 'UBeauty', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking-review/velvet-vista', label: 'Velvet Vista', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking-review/dropy-ecom', label: 'Dropy Ecom', permission: 'view-brand-checking' },
+          { path: '/dashboard/flipkart/brand-checking-review/costech-ventures', label: 'Costech Ventures', permission: 'view-brand-checking' }
         ]
       },
       {
