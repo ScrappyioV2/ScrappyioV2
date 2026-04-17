@@ -684,114 +684,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.bulk_update_india_asin_remark_monthlyunit_batched(batch_data jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  v_updated INT := 0;
-  v_updated_asins TEXT[];
-  v_start_time TIMESTAMP := clock_timestamp();
-BEGIN
-  DROP TABLE IF EXISTS tmp_india_partial;
-  CREATE TEMP TABLE tmp_india_partial AS
-  SELECT
-    COALESCE(r->>'asin', r->>'ASIN')::TEXT AS asin,
-    NULLIF(COALESCE(r->>'remark', r->>'Remark'), '')::TEXT AS new_remark,
-    COALESCE(
-      (r->>'monthly_unit')::NUMERIC,
-      (r->>'monthlyunitssold')::NUMERIC,
-      (r->>'Monthly Units Sold')::NUMERIC
-    ) AS new_monthly_unit
-  FROM jsonb_array_elements(batch_data) AS r;
-
-  CREATE INDEX ON tmp_india_partial(asin);
-
-  -- STEP 1: Update master + recalculate funnel
-  WITH updated AS (
-    UPDATE india_master_sellers m
-    SET
-      remark = COALESCE(t.new_remark, m.remark),
-      monthly_unit = COALESCE(t.new_monthly_unit, m.monthly_unit),
-      funnel = CASE
-        WHEN COALESCE(t.new_monthly_unit, m.monthly_unit) >= 5 THEN 'RS'
-        ELSE 'DP'
-      END,
-      updated_at = NOW()
-    FROM tmp_india_partial t
-    WHERE m.asin = t.asin
-    RETURNING m.asin
-  )
-  SELECT ARRAY_AGG(asin), COUNT(*) INTO v_updated_asins, v_updated FROM updated;
-
-  IF v_updated_asins IS NULL OR array_length(v_updated_asins, 1) = 0 THEN
-    DROP TABLE IF EXISTS tmp_india_partial;
-    RETURN jsonb_build_object('success', true, 'updated_count', 0, 'message', 'No matching ASINs found');
-  END IF;
-
-  -- STEP 2: Sync brand checking (correct table names with underscores)
-  UPDATE india_brand_checking_seller_1 bc
-  SET remark = m.remark, monthly_unit = m.monthly_unit, updated_at = NOW()
-  FROM india_master_sellers m JOIN tmp_india_partial t ON t.asin = m.asin
-  WHERE bc.asin = m.asin;
-
-  UPDATE india_brand_checking_seller_2 bc
-  SET remark = m.remark, monthly_unit = m.monthly_unit, updated_at = NOW()
-  FROM india_master_sellers m JOIN tmp_india_partial t ON t.asin = m.asin
-  WHERE bc.asin = m.asin;
-
-  UPDATE india_brand_checking_seller_3 bc
-  SET remark = m.remark, monthly_unit = m.monthly_unit, updated_at = NOW()
-  FROM india_master_sellers m JOIN tmp_india_partial t ON t.asin = m.asin
-  WHERE bc.asin = m.asin;
-
-  UPDATE india_brand_checking_seller_4 bc
-  SET remark = m.remark, monthly_unit = m.monthly_unit, updated_at = NOW()
-  FROM india_master_sellers m JOIN tmp_india_partial t ON t.asin = m.asin
-  WHERE bc.asin = m.asin;
-
-  UPDATE india_brand_checking_seller_5 bc
-  SET remark = m.remark, monthly_unit = m.monthly_unit, updated_at = NOW()
-  FROM india_master_sellers m JOIN tmp_india_partial t ON t.asin = m.asin
-  WHERE bc.asin = m.asin;
-
-  UPDATE india_brand_checking_seller_6 bc
-  SET remark = m.remark, monthly_unit = m.monthly_unit, updated_at = NOW()
-  FROM india_master_sellers m JOIN tmp_india_partial t ON t.asin = m.asin
-  WHERE bc.asin = m.asin;
-
-  -- STEP 3: Update india_demand_sorting (single table, RS/DP funnel swap)
-  UPDATE india_demand_sorting ds
-  SET
-    monthly_unit = m.monthly_unit,
-    remark = m.remark,
-    funnel = m.funnel,
-    product_name = m.product_name,
-    brand = m.brand,
-    price = m.price,
-    link = m.link,
-    amz_link = 'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin=' || m.asin || '&itemCondition=new',
-    updated_at = NOW()
-  FROM india_master_sellers m
-  WHERE ds.asin = m.asin
-    AND m.asin = ANY(v_updated_asins);
-
-  DROP TABLE IF EXISTS tmp_india_partial;
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'updated_count', v_updated,
-    'duration_seconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start_time),
-    'message', format('%s products updated. Funnel recalculated (RS/DP).', v_updated)
-  );
-
-EXCEPTION WHEN OTHERS THEN
-  DROP TABLE IF EXISTS tmp_india_partial;
-  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.bulk_update_india_master_partial(batch_data jsonb)
  RETURNS json
  LANGUAGE plpgsql
@@ -916,264 +808,93 @@ CREATE OR REPLACE FUNCTION public.bulk_update_uae_asin_remark_monthly_unit_batch
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
-AS $function$
-DECLARE
-  v_updated INT := 0;
-BEGIN
-  SET LOCAL session_replication_role = replica;
-
-  -- 1. Bulk update master table
-  UPDATE uae_master_sellers m
-  SET
-    remark = COALESCE(b.new_remark, m.remark),
-    monthly_unit = COALESCE(b.new_monthly_unit, m.monthly_unit),
-    updated_at = NOW()
-  FROM (
-    SELECT (r->>'asin')::TEXT AS asin,
-           NULLIF(r->>'remark', '')::TEXT AS new_remark,
-           (r->>'monthly_unit')::NUMERIC AS new_monthly_unit
-    FROM jsonb_array_elements(batchdata) AS r
-  ) b WHERE m.asin = b.asin;
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
-
-  -- 2. Update all 4 brand checking tables
-  UPDATE uae_brand_checking_seller_1 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_brand_checking_seller_2 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_brand_checking_seller_3 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_brand_checking_seller_4 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-
-  -- 3. Update all 12 funnel sub-tables
-  UPDATE uae_seller_1_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_1_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_1_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-
-  UPDATE uae_seller_2_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_2_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_2_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-
-  UPDATE uae_seller_3_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_3_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_3_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-
-  UPDATE uae_seller_4_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_4_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uae_seller_4_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-
-  SET LOCAL session_replication_role = DEFAULT;
-
-  RETURN jsonb_build_object('updatedcount', v_updated, 'skippedcount', jsonb_array_length(batchdata) - v_updated);
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.bulk_update_uk_asin_remark_monthly_unit(batch_data jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
 DECLARE
-  updated_count INT := 0;
-  redistributed_count INT := 0;
-  error_msg TEXT;
+  v_start TIMESTAMP := clock_timestamp();
+  v_updated INT := 0;
+  v_moved INT := 0;
+  v_offset INT := 0;
+  v_total INT;
+  v_batch jsonb;
+  v_rc INT;
 BEGIN
-  RAISE NOTICE 'Partial update called with % items', jsonb_array_length(batch_data);
-  
-  -- ============================================
-  -- STEP 1: Update Master Table
-  -- ============================================
-  BEGIN
-    WITH updates AS (
-      UPDATE uk_master_sellers m
-      SET 
-        remark = COALESCE((item->>'remark')::TEXT, m.remark),
-        monthly_unit = COALESCE((item->>'monthly_unit')::NUMERIC, m.monthly_unit),
-        updated_at = NOW()
-      FROM jsonb_array_elements(batch_data) AS item
-      WHERE m.asin = (item->>'asin')::TEXT
-      RETURNING m.asin
-    )
-    SELECT COUNT(*) INTO updated_count FROM updates;
-    
-    RAISE NOTICE 'Updated % records in master table', updated_count;
-    
-  EXCEPTION WHEN OTHERS THEN
-    error_msg := SQLERRM;
-    RAISE WARNING 'Master update failed: %', error_msg;
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'Master update failed: ' || error_msg,
-      'updated_count', 0
+  v_total := jsonb_array_length(batchdata);
+  IF v_total = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'No data');
+  END IF;
+
+  DROP TABLE IF EXISTS _tmp_uae_bulk_asins;
+  CREATE TEMP TABLE _tmp_uae_bulk_asins (asin TEXT PRIMARY KEY) ON COMMIT DROP;
+  INSERT INTO _tmp_uae_bulk_asins
+    SELECT COALESCE(r->>'asin', r->>'ASIN') FROM jsonb_array_elements(batchdata) r;
+
+  LOOP
+    EXIT WHEN v_offset >= v_total;
+    v_batch := (
+      SELECT jsonb_agg(elem)
+      FROM (
+        SELECT elem FROM jsonb_array_elements(batchdata) WITH ORDINALITY AS t(elem, ord)
+        WHERE ord > v_offset AND ord <= v_offset + batchsize
+      ) sub
     );
-  END;
-  
-  -- ============================================
-  -- STEP 2: Update Brand Checking Tables
-  -- ============================================
-  BEGIN
-    -- Seller 1
-    UPDATE uk_brand_checking_seller_1 bc
-    SET 
-      remark = COALESCE((item->>'remark')::TEXT, bc.remark),
-      monthly_unit = COALESCE((item->>'monthly_unit')::NUMERIC, bc.monthly_unit),
+    EXIT WHEN v_batch IS NULL;
+
+    WITH u AS (
+      SELECT COALESCE(r->>'asin', r->>'ASIN')::TEXT AS asin,
+             COALESCE(r->>'remark', r->>'Remark')::TEXT AS remark,
+             COALESCE((r->>'monthly_unit')::NUMERIC,
+                      (r->>'monthlyunit')::NUMERIC,
+                      (r->>'Monthly Units Sold')::NUMERIC, 0) AS monthly_unit
+      FROM jsonb_array_elements(v_batch) r
+    )
+    UPDATE uae_master_sellers m
+    SET remark = u.remark,
+        monthly_unit = u.monthly_unit,
+        updated_at = NOW()
+    FROM u WHERE m.asin = u.asin;
+
+    GET DIAGNOSTICS v_rc = ROW_COUNT;
+    v_updated := v_updated + v_rc;
+    v_offset := v_offset + batchsize;
+  END LOOP;
+
+  UPDATE brand_checking bc
+  SET remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      funnel = unified_get_funnel(m.monthly_unit, 'uae', m.bsr),
       updated_at = NOW()
-    FROM jsonb_array_elements(batch_data) AS item
-    WHERE bc.asin = (item->>'asin')::TEXT;
-    
-    -- Seller 2
-    UPDATE uk_brand_checking_seller_2 bc
-    SET 
-      remark = COALESCE((item->>'remark')::TEXT, bc.remark),
-      monthly_unit = COALESCE((item->>'monthly_unit')::NUMERIC, bc.monthly_unit),
+  FROM uae_master_sellers m
+  JOIN _tmp_uae_bulk_asins t ON t.asin = m.asin
+  WHERE bc.marketplace = 'uae' AND bc.asin = m.asin;
+
+  UPDATE seller_products sp
+  SET product_status = funnel_to_product_status(unified_get_funnel(m.monthly_unit, 'uae', m.bsr)),
+      funnel = unified_get_funnel(m.monthly_unit, 'uae', m.bsr),
+      remark = m.remark,
+      monthly_unit = m.monthly_unit,
       updated_at = NOW()
-    FROM jsonb_array_elements(batch_data) AS item
-    WHERE bc.asin = (item->>'asin')::TEXT;
-    
-    -- Seller 3
-    UPDATE uk_brand_checking_seller_3 bc
-    SET 
-      remark = COALESCE((item->>'remark')::TEXT, bc.remark),
-      monthly_unit = COALESCE((item->>'monthly_unit')::NUMERIC, bc.monthly_unit),
-      updated_at = NOW()
-    FROM jsonb_array_elements(batch_data) AS item
-    WHERE bc.asin = (item->>'asin')::TEXT;
-    
-    -- Seller 4
-    UPDATE uk_brand_checking_seller_4 bc
-    SET 
-      remark = COALESCE((item->>'remark')::TEXT, bc.remark),
-      monthly_unit = COALESCE((item->>'monthly_unit')::NUMERIC, bc.monthly_unit),
-      updated_at = NOW()
-    FROM jsonb_array_elements(batch_data) AS item
-    WHERE bc.asin = (item->>'asin')::TEXT;
-    
-    RAISE NOTICE 'Updated brand checking tables';
-    
-  EXCEPTION WHEN OTHERS THEN
-    error_msg := SQLERRM;
-    RAISE WARNING 'Brand checking update failed: %', error_msg;
-  END;
-  
-  -- ============================================
-  -- STEP 3: Redistribute to Correct Funnels
-  -- ============================================
-  BEGIN
-    -- Create temp table
-    CREATE TEMP TABLE IF NOT EXISTS temp_update_asins_uk AS
-    SELECT (item->>'asin')::TEXT AS asin
-    FROM jsonb_array_elements(batch_data) AS item;
-    
-    -- SELLER 1 REDISTRIBUTION
-    DELETE FROM uk_seller_1_high_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_1_dropshipping WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_1_low_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    
-    INSERT INTO uk_seller_1_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'HD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_1 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit > 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark, updated_at = NOW();
-    
-    INSERT INTO uk_seller_1_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'DP', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_1 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit BETWEEN 1 AND 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark, updated_at = NOW();
-    
-    INSERT INTO uk_seller_1_low_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'LD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_1 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND (bc.monthly_unit <= 0 OR bc.monthly_unit IS NULL)
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark, updated_at = NOW();
-    
-    -- SELLER 2 REDISTRIBUTION
-    DELETE FROM uk_seller_2_high_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_2_dropshipping WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_2_low_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    
-    INSERT INTO uk_seller_2_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'HD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_2 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit > 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    INSERT INTO uk_seller_2_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'DP', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_2 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit BETWEEN 1 AND 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    INSERT INTO uk_seller_2_low_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'LD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_2 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND (bc.monthly_unit <= 0 OR bc.monthly_unit IS NULL)
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    -- SELLER 3 REDISTRIBUTION
-    DELETE FROM uk_seller_3_high_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_3_dropshipping WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_3_low_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    
-    INSERT INTO uk_seller_3_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'HD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_3 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit > 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    INSERT INTO uk_seller_3_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'DP', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_3 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit BETWEEN 1 AND 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    INSERT INTO uk_seller_3_low_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'LD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_3 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND (bc.monthly_unit <= 0 OR bc.monthly_unit IS NULL)
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    -- SELLER 4 REDISTRIBUTION
-    DELETE FROM uk_seller_4_high_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_4_dropshipping WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    DELETE FROM uk_seller_4_low_demand WHERE asin IN (SELECT asin FROM temp_update_asins_uk);
-    
-    INSERT INTO uk_seller_4_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'HD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_4 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit > 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    INSERT INTO uk_seller_4_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'DP', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_4 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND bc.monthly_unit BETWEEN 1 AND 60
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    INSERT INTO uk_seller_4_low_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT bc.asin, bc.product_name, bc.brand, 'LD', bc.monthly_unit, bc.link, bc.amz_link, bc.remark
-    FROM uk_brand_checking_seller_4 bc
-    WHERE bc.asin IN (SELECT asin FROM temp_update_asins_uk) AND (bc.monthly_unit <= 0 OR bc.monthly_unit IS NULL)
-    ON CONFLICT (asin) DO UPDATE SET monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark;
-    
-    GET DIAGNOSTICS redistributed_count = ROW_COUNT;
-    
-    DROP TABLE IF EXISTS temp_update_asins_uk;
-    
-    RAISE NOTICE 'Redistributed products to correct funnels';
-    
-  EXCEPTION WHEN OTHERS THEN
-    DROP TABLE IF EXISTS temp_update_asins_uk;
-    error_msg := SQLERRM;
-    RAISE WARNING 'Funnel redistribution failed: %', error_msg;
-  END;
-  
+  FROM uae_master_sellers m
+  JOIN _tmp_uae_bulk_asins t ON t.asin = m.asin
+  WHERE sp.marketplace = 'uae' AND sp.asin = m.asin
+    AND sp.product_status IN ('high_demand', 'dropshipping', 'low_demand');
+
+  GET DIAGNOSTICS v_rc = ROW_COUNT;
+  v_moved := v_rc;
+
+  FOR s IN 1..4 LOOP
+    PERFORM unified_recalc_progress('uae', s);
+  END LOOP;
+
   RETURN jsonb_build_object(
     'success', true,
-    'updated_count', updated_count,
-    'redistributed_count', redistributed_count,
-    'message', format('Successfully updated %s products', updated_count)
+    'updatedcount', v_updated,
+    'movedcount', v_moved,
+    'durationseconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start)
   );
-  
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
 END;
 $function$
 
@@ -1182,52 +903,93 @@ CREATE OR REPLACE FUNCTION public.bulk_update_uk_asin_remark_monthly_unit_batche
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 DECLARE
+  v_start TIMESTAMP := clock_timestamp();
   v_updated INT := 0;
+  v_moved INT := 0;
+  v_offset INT := 0;
+  v_total INT;
+  v_batch jsonb;
+  v_rc INT;
 BEGIN
-  SET LOCAL session_replication_role = replica;
+  v_total := jsonb_array_length(batchdata);
+  IF v_total = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'No data');
+  END IF;
 
-  -- 1. Bulk update master table
-  UPDATE uk_master_sellers m
-  SET
-    remark = COALESCE(b.new_remark, m.remark),
-    monthly_unit = COALESCE(b.new_monthly_unit, m.monthly_unit),
-    updated_at = NOW()
-  FROM (
-    SELECT (r->>'asin')::TEXT AS asin,
-           NULLIF(r->>'remark', '')::TEXT AS new_remark,
-           (r->>'monthly_unit')::NUMERIC AS new_monthly_unit
-    FROM jsonb_array_elements(batchdata) AS r
-  ) b WHERE m.asin = b.asin;
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  DROP TABLE IF EXISTS _tmp_uk_bulk_asins;
+  CREATE TEMP TABLE _tmp_uk_bulk_asins (asin TEXT PRIMARY KEY) ON COMMIT DROP;
+  INSERT INTO _tmp_uk_bulk_asins
+    SELECT COALESCE(r->>'asin', r->>'ASIN') FROM jsonb_array_elements(batchdata) r;
 
-  -- 2. Update all 4 brand checking tables
-  UPDATE uk_brand_checking_seller_1 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_brand_checking_seller_2 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_brand_checking_seller_3 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_brand_checking_seller_4 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+  LOOP
+    EXIT WHEN v_offset >= v_total;
+    v_batch := (
+      SELECT jsonb_agg(elem)
+      FROM (
+        SELECT elem FROM jsonb_array_elements(batchdata) WITH ORDINALITY AS t(elem, ord)
+        WHERE ord > v_offset AND ord <= v_offset + batchsize
+      ) sub
+    );
+    EXIT WHEN v_batch IS NULL;
 
-  -- 3. Update all 12 funnel sub-tables
-  UPDATE uk_seller_1_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_1_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_1_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+    WITH u AS (
+      SELECT COALESCE(r->>'asin', r->>'ASIN')::TEXT AS asin,
+             COALESCE(r->>'remark', r->>'Remark')::TEXT AS remark,
+             COALESCE((r->>'monthly_unit')::NUMERIC,
+                      (r->>'monthlyunit')::NUMERIC,
+                      (r->>'Monthly Units Sold')::NUMERIC, 0) AS monthly_unit
+      FROM jsonb_array_elements(v_batch) r
+    )
+    UPDATE uk_master_sellers m
+    SET remark = u.remark,
+        monthly_unit = u.monthly_unit,
+        updated_at = NOW()
+    FROM u WHERE m.asin = u.asin;
 
-  UPDATE uk_seller_2_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_2_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_2_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+    GET DIAGNOSTICS v_rc = ROW_COUNT;
+    v_updated := v_updated + v_rc;
+    v_offset := v_offset + batchsize;
+  END LOOP;
 
-  UPDATE uk_seller_3_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_3_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_3_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+  UPDATE brand_checking bc
+  SET remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      funnel = unified_get_funnel(m.monthly_unit, 'uk', m.bsr),
+      updated_at = NOW()
+  FROM uk_master_sellers m
+  JOIN _tmp_uk_bulk_asins t ON t.asin = m.asin
+  WHERE bc.marketplace = 'uk' AND bc.asin = m.asin;
 
-  UPDATE uk_seller_4_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_4_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE uk_seller_4_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+  UPDATE seller_products sp
+  SET product_status = funnel_to_product_status(unified_get_funnel(m.monthly_unit, 'uk', m.bsr)),
+      funnel = unified_get_funnel(m.monthly_unit, 'uk', m.bsr),
+      remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      updated_at = NOW()
+  FROM uk_master_sellers m
+  JOIN _tmp_uk_bulk_asins t ON t.asin = m.asin
+  WHERE sp.marketplace = 'uk' AND sp.asin = m.asin
+    AND sp.product_status IN ('high_demand', 'dropshipping', 'low_demand');
 
-  SET LOCAL session_replication_role = DEFAULT;
+  GET DIAGNOSTICS v_rc = ROW_COUNT;
+  v_moved := v_rc;
 
-  RETURN jsonb_build_object('updatedcount', v_updated, 'skippedcount', jsonb_array_length(batchdata) - v_updated);
+  FOR s IN 1..4 LOOP
+    PERFORM unified_recalc_progress('uk', s);
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'updatedcount', v_updated,
+    'movedcount', v_moved,
+    'durationseconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start)
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
 END;
 $function$
 
@@ -1236,38 +998,93 @@ CREATE OR REPLACE FUNCTION public.bulk_update_usa_asin_remark_monthly_unit_batch
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 DECLARE
+  v_start TIMESTAMP := clock_timestamp();
   v_updated INT := 0;
+  v_moved INT := 0;
+  v_offset INT := 0;
+  v_total INT;
+  v_batch jsonb;
+  v_rc INT;
 BEGIN
-  SET LOCAL session_replication_role = replica;
+  v_total := jsonb_array_length(batchdata);
+  IF v_total = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'No data');
+  END IF;
 
-  UPDATE usa_master_sellers m
-  SET remark = COALESCE(b.new_remark, m.remark), monthly_unit = COALESCE(b.new_monthly_unit, m.monthly_unit), updated_at = NOW()
-  FROM (SELECT (r->>'asin')::TEXT AS asin, NULLIF(r->>'remark','')::TEXT AS new_remark, (r->>'monthly_unit')::NUMERIC AS new_monthly_unit FROM jsonb_array_elements(batchdata) AS r) b WHERE m.asin = b.asin;
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  DROP TABLE IF EXISTS _tmp_usa_bulk_asins;
+  CREATE TEMP TABLE _tmp_usa_bulk_asins (asin TEXT PRIMARY KEY) ON COMMIT DROP;
+  INSERT INTO _tmp_usa_bulk_asins
+    SELECT COALESCE(r->>'asin', r->>'ASIN') FROM jsonb_array_elements(batchdata) r;
 
-  UPDATE usa_brand_checking_seller_1 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_brand_checking_seller_2 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_brand_checking_seller_3 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_brand_checking_seller_4 t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit), updated_at = NOW() FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+  LOOP
+    EXIT WHEN v_offset >= v_total;
+    v_batch := (
+      SELECT jsonb_agg(elem)
+      FROM (
+        SELECT elem FROM jsonb_array_elements(batchdata) WITH ORDINALITY AS t(elem, ord)
+        WHERE ord > v_offset AND ord <= v_offset + batchsize
+      ) sub
+    );
+    EXIT WHEN v_batch IS NULL;
 
-  UPDATE usa_seller_1_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_1_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_1_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_2_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_2_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_2_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_3_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_3_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_3_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_4_high_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_4_dropshipping t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
-  UPDATE usa_seller_4_low_demand t SET remark = COALESCE(b.nr, t.remark), monthly_unit = COALESCE(b.mu, t.monthly_unit) FROM (SELECT (r->>'asin')::TEXT a, NULLIF(r->>'remark','')::TEXT nr, (r->>'monthly_unit')::NUMERIC mu FROM jsonb_array_elements(batchdata) r) b WHERE t.asin = b.a;
+    WITH u AS (
+      SELECT COALESCE(r->>'asin', r->>'ASIN')::TEXT AS asin,
+             COALESCE(r->>'remark', r->>'Remark')::TEXT AS remark,
+             COALESCE((r->>'monthly_unit')::NUMERIC,
+                      (r->>'monthlyunit')::NUMERIC,
+                      (r->>'Monthly Units Sold')::NUMERIC, 0) AS monthly_unit
+      FROM jsonb_array_elements(v_batch) r
+    )
+    UPDATE usa_master_sellers m
+    SET remark = u.remark,
+        monthly_unit = u.monthly_unit,
+        updated_at = NOW()
+    FROM u WHERE m.asin = u.asin;
 
-  SET LOCAL session_replication_role = DEFAULT;
+    GET DIAGNOSTICS v_rc = ROW_COUNT;
+    v_updated := v_updated + v_rc;
+    v_offset := v_offset + batchsize;
+  END LOOP;
 
-  RETURN jsonb_build_object('updatedcount', v_updated, 'skippedcount', jsonb_array_length(batchdata) - v_updated);
+  UPDATE brand_checking bc
+  SET remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      funnel = unified_get_funnel(m.monthly_unit, 'usa', m.bsr),
+      updated_at = NOW()
+  FROM usa_master_sellers m
+  JOIN _tmp_usa_bulk_asins t ON t.asin = m.asin
+  WHERE bc.marketplace = 'usa' AND bc.asin = m.asin;
+
+  UPDATE seller_products sp
+  SET product_status = funnel_to_product_status(unified_get_funnel(m.monthly_unit, 'usa', m.bsr)),
+      funnel = unified_get_funnel(m.monthly_unit, 'usa', m.bsr),
+      remark = m.remark,
+      monthly_unit = m.monthly_unit,
+      updated_at = NOW()
+  FROM usa_master_sellers m
+  JOIN _tmp_usa_bulk_asins t ON t.asin = m.asin
+  WHERE sp.marketplace = 'usa' AND sp.asin = m.asin
+    AND sp.product_status IN ('high_demand', 'dropshipping', 'low_demand');
+
+  GET DIAGNOSTICS v_rc = ROW_COUNT;
+  v_moved := v_rc;
+
+  FOR s IN 1..4 LOOP
+    PERFORM unified_recalc_progress('usa', s);
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'updatedcount', v_updated,
+    'movedcount', v_moved,
+    'durationseconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start)
+  );
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
 END;
 $function$
 
@@ -1365,129 +1182,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.debug_insert_india_bc1_test_row()
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  INSERT INTO public.india_brand_checking_seller_1 (
-    asin, product_name, funnel
-  )
-  VALUES (
-    '0230600514',
-    'TEST ROW',
-    'DP'
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'asin', '0230600514'
-  );
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.distribute_india_catchup()
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  v_start   TIMESTAMP := clock_timestamp();
-  v_count   INTEGER := 0;
-  v_rs      INTEGER := 0;
-  v_dp      INTEGER := 0;
-BEGIN
-  DROP TABLE IF EXISTS tmp_undist_india;
-  CREATE TEMP TABLE tmp_undist_india AS
-  SELECT fm.asin
-  FROM india_master_sellers fm
-  WHERE NOT EXISTS (
-    SELECT 1 FROM india_brand_checking_seller_1 bc WHERE bc.asin = fm.asin
-  );
-  GET DIAGNOSTICS v_count = ROW_COUNT;
-
-  IF v_count = 0 THEN
-    DROP TABLE IF EXISTS tmp_undist_india;
-    RETURN jsonb_build_object('success', true, 'processed', 0,
-      'message', 'No undistributed records found');
-  END IF;
-
-  FOR i IN 1..6 LOOP
-    -- Brand checking
-    EXECUTE format($sql$
-      INSERT INTO india_brand_checking_seller_%s
-        (asin, product_name, brand, price, monthly_unit, monthly_sales,
-         bsr, seller, category, dimensions, weight, weight_unit,
-         link, amz_link, remark, funnel, created_at, updated_at)
-      SELECT fm.asin, fm.product_name, fm.brand, fm.price, fm.monthly_unit,
-             fm.monthly_sales, fm.bsr, fm.seller, fm.category, fm.dimensions,
-             fm.weight, fm.weight_unit, fm.link,
-             'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin='
-               || fm.asin || '&itemCondition=new',
-             fm.remark,
-             CASE WHEN COALESCE(fm.monthly_unit, 0) >= 5 THEN 'RS' ELSE 'DP' END,
-             fm.created_at, NOW()
-      FROM india_master_sellers fm
-      JOIN tmp_undist_india ua ON fm.asin = ua.asin
-      ON CONFLICT (asin) DO UPDATE SET
-        monthly_unit = EXCLUDED.monthly_unit, funnel = EXCLUDED.funnel,
-        remark = EXCLUDED.remark, updated_at = NOW()
-    $sql$, i);
-
-    -- RS → high_demand
-    EXECUTE format($sql$
-      INSERT INTO india_seller_%s_high_demand
-        (asin, product_name, brand, monthly_unit, product_link, amz_link, remark,
-         created_at, updated_at)
-      SELECT fm.asin, fm.product_name, fm.brand, fm.monthly_unit, fm.link,
-             'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin='
-               || fm.asin || '&itemCondition=new',
-             fm.remark, fm.created_at, NOW()
-      FROM india_master_sellers fm
-      JOIN tmp_undist_india ua ON fm.asin = ua.asin
-      WHERE COALESCE(fm.monthly_unit, 0) >= 5
-      ON CONFLICT (asin) DO UPDATE SET
-        monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark,
-        updated_at = NOW()
-    $sql$, i);
-
-    -- DP → dropshipping
-    EXECUTE format($sql$
-      INSERT INTO india_seller_%s_dropshipping
-        (asin, product_name, brand, monthly_unit, product_link, amz_link, remark,
-         created_at, updated_at)
-      SELECT fm.asin, fm.product_name, fm.brand, fm.monthly_unit, fm.link,
-             'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin='
-               || fm.asin || '&itemCondition=new',
-             fm.remark, fm.created_at, NOW()
-      FROM india_master_sellers fm
-      JOIN tmp_undist_india ua ON fm.asin = ua.asin
-      WHERE COALESCE(fm.monthly_unit, 0) < 5
-      ON CONFLICT (asin) DO UPDATE SET
-        monthly_unit = EXCLUDED.monthly_unit, remark = EXCLUDED.remark,
-        updated_at = NOW()
-    $sql$, i);
-  END LOOP;
-
-  SELECT COUNT(*) INTO v_rs  FROM india_seller_1_high_demand   WHERE updated_at > v_start;
-  SELECT COUNT(*) INTO v_dp  FROM india_seller_1_dropshipping  WHERE updated_at > v_start;
-
-  DROP TABLE IF EXISTS tmp_undist_india;
-
-  RETURN jsonb_build_object(
-    'success', true, 'processed', v_count,
-    'restock', v_rs, 'dropshipping', v_dp,
-    'duration_seconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start),
-    'message', format('Catchup: %s distributed (%s RS, %s DP)', v_count, v_rs, v_dp)
-  );
-EXCEPTION WHEN OTHERS THEN
-  DROP TABLE IF EXISTS tmp_undist_india;
-  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.distribute_india_chunked(chunk_offset integer, chunk_limit integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -1528,264 +1222,6 @@ EXCEPTION WHEN OTHERS THEN
   PERFORM set_config('app.bulk_distributing', 'false', true);
   DROP TABLE IF EXISTS tmp_india_chunk;
   RETURN jsonb_build_object('success', false, 'message', SQLERRM);
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.distribute_india_from_queue_chunk(p_limit integer DEFAULT 5000)
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  v_processed int := 0;
-  v_start     timestamp := clock_timestamp();
-BEGIN
-  -- take a locked chunk from the queue
-  CREATE TEMP TABLE tmp_india_queue_chunk AS
-  SELECT asin
-  FROM india_distribution_queue
-  ORDER BY asin
-  LIMIT p_limit
-  FOR UPDATE SKIP LOCKED;
-
-  IF NOT EXISTS (SELECT 1 FROM tmp_india_queue_chunk) THEN
-    RETURN jsonb_build_object(
-      'success', true,
-      'processed', 0,
-      'duration_seconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start)
-    );
-  END IF;
-
-  WITH enriched AS (
-    SELECT m.*
-    FROM tmp_india_queue_chunk q
-    JOIN india_master_sellers m USING (asin)
-    WHERE m.seller BETWEEN 1 AND 6
-  ),
-  ins1 AS (
-    INSERT INTO india_brand_checking_seller_1 (
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, seller, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      created_at, updated_at
-    )
-    SELECT
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, 1, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      NOW(), NOW()
-    FROM enriched
-    WHERE seller = 1
-    ON CONFLICT (asin) DO UPDATE SET
-      link          = EXCLUDED.link,
-      product_name  = EXCLUDED.product_name,
-      brand         = EXCLUDED.brand,
-      price         = EXCLUDED.price,
-      monthly_unit  = EXCLUDED.monthly_unit,
-      monthly_sales = EXCLUDED.monthly_sales,
-      bsr           = EXCLUDED.bsr,
-      seller        = EXCLUDED.seller,
-      category      = EXCLUDED.category,
-      dimensions    = EXCLUDED.dimensions,
-      weight        = EXCLUDED.weight,
-      weight_unit   = EXCLUDED.weight_unit,
-      funnel        = EXCLUDED.funnel,
-      amz_link      = EXCLUDED.amz_link,
-      remark        = EXCLUDED.remark,
-      sku           = EXCLUDED.sku,
-      updated_at    = NOW()
-    RETURNING 1
-  ),
-  ins2 AS (
-    INSERT INTO india_brand_checking_seller_2 (
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, seller, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      created_at, updated_at
-    )
-    SELECT
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, 2, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      NOW(), NOW()
-    FROM enriched
-    WHERE seller = 2
-    ON CONFLICT (asin) DO UPDATE SET
-      link          = EXCLUDED.link,
-      product_name  = EXCLUDED.product_name,
-      brand         = EXCLUDED.brand,
-      price         = EXCLUDED.price,
-      monthly_unit  = EXCLUDED.monthly_unit,
-      monthly_sales = EXCLUDED.monthly_sales,
-      bsr           = EXCLUDED.bsr,
-      seller        = EXCLUDED.seller,
-      category      = EXCLUDED.category,
-      dimensions    = EXCLUDED.dimensions,
-      weight        = EXCLUDED.weight,
-      weight_unit   = EXCLUDED.weight_unit,
-      funnel        = EXCLUDED.funnel,
-      amz_link      = EXCLUDED.amz_link,
-      remark        = EXCLUDED.remark,
-      sku           = EXCLUDED.sku,
-      updated_at    = NOW()
-    RETURNING 1
-  ),
-  ins3 AS (
-    INSERT INTO india_brand_checking_seller_3 (
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, seller, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      created_at, updated_at
-    )
-    SELECT
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, 3, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      NOW(), NOW()
-    FROM enriched
-    WHERE seller = 3
-    ON CONFLICT (asin) DO UPDATE SET
-      link          = EXCLUDED.link,
-      product_name  = EXCLUDED.product_name,
-      brand         = EXCLUDED.brand,
-      price         = EXCLUDED.price,
-      monthly_unit  = EXCLUDED.monthly_unit,
-      monthly_sales = EXCLUDED.monthly_sales,
-      bsr           = EXCLUDED.bsr,
-      seller        = EXCLUDED.seller,
-      category      = EXCLUDED.category,
-      dimensions    = EXCLUDED.dimensions,
-      weight        = EXCLUDED.weight,
-      weight_unit   = EXCLUDED.weight_unit,
-      funnel        = EXCLUDED.funnel,
-      amz_link      = EXCLUDED.amz_link,
-      remark        = EXCLUDED.remark,
-      sku           = EXCLUDED.sku,
-      updated_at    = NOW()
-    RETURNING 1
-  ),
-  ins4 AS (
-    INSERT INTO india_brand_checking_seller_4 (
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, seller, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      created_at, updated_at
-    )
-    SELECT
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, 4, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      NOW(), NOW()
-    FROM enriched
-    WHERE seller = 4
-    ON CONFLICT (asin) DO UPDATE SET
-      link          = EXCLUDED.link,
-      product_name  = EXCLUDED.product_name,
-      brand         = EXCLUDED.brand,
-      price         = EXCLUDED.price,
-      monthly_unit  = EXCLUDED.monthly_unit,
-      monthly_sales = EXCLUDED.monthly_sales,
-      bsr           = EXCLUDED.bsr,
-      seller        = EXCLUDED.seller,
-      category      = EXCLUDED.category,
-      dimensions    = EXCLUDED.dimensions,
-      weight        = EXCLUDED.weight,
-      weight_unit   = EXCLUDED.weight_unit,
-      funnel        = EXCLUDED.funnel,
-      amz_link      = EXCLUDED.amz_link,
-      remark        = EXCLUDED.remark,
-      sku           = EXCLUDED.sku,
-      updated_at    = NOW()
-    RETURNING 1
-  ),
-  ins5 AS (
-    INSERT INTO india_brand_checking_seller_5 (
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, seller, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      created_at, updated_at
-    )
-    SELECT
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, 5, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      NOW(), NOW()
-    FROM enriched
-    WHERE seller = 5
-    ON CONFLICT (asin) DO UPDATE SET
-      link          = EXCLUDED.link,
-      product_name  = EXCLUDED.product_name,
-      brand         = EXCLUDED.brand,
-      price         = EXCLUDED.price,
-      monthly_unit  = EXCLUDED.monthly_unit,
-      monthly_sales = EXCLUDED.monthly_sales,
-      bsr           = EXCLUDED.bsr,
-      seller        = EXCLUDED.seller,
-      category      = EXCLUDED.category,
-      dimensions    = EXCLUDED.dimensions,
-      weight        = EXCLUDED.weight,
-      weight_unit   = EXCLUDED.weight_unit,
-      funnel        = EXCLUDED.funnel,
-      amz_link      = EXCLUDED.amz_link,
-      remark        = EXCLUDED.remark,
-      sku           = EXCLUDED.sku,
-      updated_at    = NOW()
-    RETURNING 1
-  ),
-  ins6 AS (
-    INSERT INTO india_brand_checking_seller_6 (
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, seller, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      created_at, updated_at
-    )
-    SELECT
-      asin, link, product_name, brand, price, monthly_unit,
-      monthly_sales, bsr, 6, category, dimensions, weight,
-      weight_unit, funnel, amz_link, remark, sku,
-      NOW(), NOW()
-    FROM enriched
-    WHERE seller = 6
-    ON CONFLICT (asin) DO UPDATE SET
-      link          = EXCLUDED.link,
-      product_name  = EXCLUDED.product_name,
-      brand         = EXCLUDED.brand,
-      price         = EXCLUDED.price,
-      monthly_unit  = EXCLUDED.monthly_unit,
-      monthly_sales = EXCLUDED.monthly_sales,
-      bsr           = EXCLUDED.bsr,
-      seller        = EXCLUDED.seller,
-      category      = EXCLUDED.category,
-      dimensions    = EXCLUDED.dimensions,
-      weight        = EXCLUDED.weight,
-      weight_unit   = EXCLUDED.weight_unit,
-      funnel        = EXCLUDED.funnel,
-      amz_link      = EXCLUDED.amz_link,
-      remark        = EXCLUDED.remark,
-      sku           = EXCLUDED.sku,
-      updated_at    = NOW()
-    RETURNING 1
-  )
-  SELECT
-    COALESCE((SELECT COUNT(*) FROM ins1), 0) +
-    COALESCE((SELECT COUNT(*) FROM ins2), 0) +
-    COALESCE((SELECT COUNT(*) FROM ins3), 0) +
-    COALESCE((SELECT COUNT(*) FROM ins4), 0) +
-    COALESCE((SELECT COUNT(*) FROM ins5), 0) +
-    COALESCE((SELECT COUNT(*) FROM ins6), 0)
-  INTO v_processed;
-
-  DELETE FROM india_distribution_queue q
-  USING tmp_india_queue_chunk t
-  WHERE q.asin = t.asin;
-
-  DROP TABLE tmp_india_queue_chunk;
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'processed', v_processed,
-    'duration_seconds', EXTRACT(EPOCH FROM clock_timestamp() - v_start)
-  );
 END;
 $function$
 
@@ -3009,283 +2445,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.india_distribute_one_batch(batch_size integer DEFAULT 500)
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  batch_count int := 0;
-  remaining int := 0;
-BEGIN
-  CREATE TEMP TABLE _batch ON COMMIT DROP AS
-  SELECT m.*
-  FROM india_master_sellers m
-  LEFT JOIN india_brand_checking_seller_1 bc ON bc.asin = m.asin
-  WHERE bc.asin IS NULL
-  LIMIT batch_size;
-
-  SELECT count(*) INTO batch_count FROM _batch;
-
-  IF batch_count = 0 THEN
-    DROP TABLE IF EXISTS _batch;
-    RETURN jsonb_build_object('distributed', 0, 'remaining', 0);
-  END IF;
-
-  -- Brand checking sellers 1-8
-  INSERT INTO india_brand_checking_seller_1 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_2 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_3 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_4 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_5 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_6 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_7 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_8 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch ON CONFLICT (asin) DO NOTHING;
-
-  -- High demand (RS funnel) sellers 1-8
-  INSERT INTO india_seller_1_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_2_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_3_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_4_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_5_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_6_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_7_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_8_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS' ON CONFLICT (asin) DO NOTHING;
-
-  -- Dropshipping (DP funnel) sellers 1-8
-  INSERT INTO india_seller_1_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_2_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_3_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_4_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_5_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_6_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_7_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_seller_8_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-  SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP' ON CONFLICT (asin) DO NOTHING;
-
-  DROP TABLE _batch;
-
-  SELECT count(*) INTO remaining
-  FROM india_master_sellers m
-  LEFT JOIN india_brand_checking_seller_1 bc ON bc.asin = m.asin
-  WHERE bc.asin IS NULL;
-
-  RETURN jsonb_build_object('distributed', batch_count, 'remaining', remaining);
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.india_distribute_to_all_tables_batched()
- RETURNS jsonb
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  processed int := 0;
-  batch_count int;
-  t_start timestamptz := clock_timestamp();
-BEGIN
-
-  -- Loop until no more missing records
-  LOOP
-    -- Find records in master NOT yet in brand_checking_seller_1
-    CREATE TEMP TABLE _batch ON COMMIT DROP AS
-    SELECT m.*
-    FROM india_master_sellers m
-    LEFT JOIN india_brand_checking_seller_1 bc ON bc.asin = m.asin
-    WHERE bc.asin IS NULL
-    LIMIT 5000;
-
-    GET DIAGNOSTICS batch_count = ROW_COUNT;
-
-    IF batch_count = 0 THEN
-      DROP TABLE IF EXISTS _batch;
-      EXIT;
-    END IF;
-
-    processed := processed + batch_count;
-
-    INSERT INTO india_brand_checking_seller_1 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_brand_checking_seller_2 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_brand_checking_seller_3 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_brand_checking_seller_4 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_brand_checking_seller_5 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_brand_checking_seller_6 (asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_1_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_2_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_3_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_4_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_5_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_6_high_demand (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'RS'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_1_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_2_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_3_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_4_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_5_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP'
-    ON CONFLICT (asin) DO NOTHING;
-
-    INSERT INTO india_seller_6_dropshipping (asin, product_name, brand, funnel, monthly_unit, product_link, amz_link, remark)
-    SELECT asin, product_name, brand, funnel, monthly_unit, link, amz_link, remark FROM _batch WHERE funnel = 'DP'
-    ON CONFLICT (asin) DO NOTHING;
-
-    DROP TABLE _batch;
-
-  END LOOP;
-
-  RETURN jsonb_build_object(
-    'processed', processed,
-    'time_seconds', EXTRACT(EPOCH FROM clock_timestamp() - t_start)
-  );
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.india_distribute_to_brand_checking_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  v_sellercentral_link TEXT;
-  v_funnel TEXT;
-BEGIN
-  v_sellercentral_link := 'https://sellercentral.amazon.in/hz/approvalrequest/restrictions/approve?asin=' || NEW.asin || '&itemcondition=new';
-  
-  IF COALESCE(NEW.monthly_unit, 0) >= 5 THEN
-    v_funnel := 'RS';
-  ELSIF COALESCE(NEW.bsr, 999999) < 40000 THEN
-    v_funnel := 'RS';
-  ELSE
-    v_funnel := 'DP';
-  END IF;
-
-  INSERT INTO india_brand_checking_seller_1 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_2 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_3 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_4 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_5 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_6 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_7 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  INSERT INTO india_brand_checking_seller_8 (asin, product_name, remark, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, funnel, sku)
-  VALUES (NEW.asin, NEW.product_name, NEW.remark, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.link, v_sellercentral_link, v_funnel, NEW.sku)
-  ON CONFLICT (asin) DO NOTHING;
-
-  RETURN NEW;
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.india_generate_amz_link()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3527,24 +2686,6 @@ BEGIN
     approved = EXCLUDED.approved,
     notapproved = EXCLUDED.notapproved,
     updatedat = EXCLUDED.updatedat;
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.india_sync_master_update_to_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  UPDATE india_brand_checking_seller_1 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_2 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_3 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_4 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_5 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_6 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_7 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  UPDATE india_brand_checking_seller_8 SET remark = NEW.remark, monthly_unit = NEW.monthly_unit, updated_at = now() WHERE asin = NEW.asin;
-  RETURN NEW;
 END;
 $function$
 
@@ -4057,93 +3198,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.recalc_brand_check_progress(p_seller_id integer)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-    v_pending bigint;
-    v_approved bigint;
-    v_not_approved bigint;
-    v_rejected bigint;
-    v_seller_tag text;
-    v_total bigint;
-BEGIN
-    -- 1. Identify Seller
-    IF p_seller_id = 1 THEN v_seller_tag := 'GR';
-    ELSIF p_seller_id = 2 THEN v_seller_tag := 'RR';
-    ELSIF p_seller_id = 3 THEN v_seller_tag := 'UB'; -- UBeauty
-    ELSIF p_seller_id = 4 THEN v_seller_tag := 'VV';
-    END IF;
-
-    -- 2. Count Approved (Shared)
-    SELECT count(*) INTO v_approved 
-    FROM public.usa_validation_main_file 
-    WHERE seller_tag LIKE '%' || v_seller_tag || '%';
-
-    -- 3. Count Pending (Dynamic)
-    IF p_seller_id = 1 THEN
-        SELECT count(*) INTO v_pending FROM public.usa_brand_checking_seller_1;
-    ELSIF p_seller_id = 2 THEN
-        SELECT count(*) INTO v_pending FROM public.usa_brand_checking_seller_2;
-    ELSIF p_seller_id = 3 THEN
-        SELECT count(*) INTO v_pending FROM public.usa_brand_checking_seller_3;
-    ELSIF p_seller_id = 4 THEN
-        SELECT count(*) INTO v_pending FROM public.usa_brand_checking_seller_4;
-    ELSE
-        v_pending := 0;
-    END IF;
-
-    -- 4. Count Not Approved (Dynamic)
-    IF p_seller_id = 1 THEN
-        SELECT count(*) INTO v_not_approved FROM public.usa_seller_1_not_approved;
-    ELSIF p_seller_id = 2 THEN
-        SELECT count(*) INTO v_not_approved FROM public.usa_seller_2_not_approved;
-    ELSIF p_seller_id = 3 THEN
-        SELECT count(*) INTO v_not_approved FROM public.usa_seller_3_not_approved;
-    ELSIF p_seller_id = 4 THEN
-        SELECT count(*) INTO v_not_approved FROM public.usa_seller_4_not_approved;
-    ELSE
-        v_not_approved := 0;
-    END IF;
-
-    -- 5. Count Rejected (Dynamic)
-    IF p_seller_id = 1 THEN
-        SELECT count(*) INTO v_rejected FROM public.usa_seller_1_reject;
-    ELSIF p_seller_id = 2 THEN
-        SELECT count(*) INTO v_rejected FROM public.usa_seller_2_reject;
-    ELSIF p_seller_id = 3 THEN
-        SELECT count(*) INTO v_rejected FROM public.usa_seller_3_reject;
-    ELSIF p_seller_id = 4 THEN
-        SELECT count(*) INTO v_rejected FROM public.usa_seller_4_reject;
-    ELSE
-        v_rejected := 0;
-    END IF;
-
-    -- 6. Calculate Total (Prevents Frontend Crash)
-    v_total := v_pending + v_approved + v_not_approved + v_rejected;
-
-    -- 7. Update Stats
-    UPDATE public.brand_check_progress
-    SET 
-        pending = v_pending,
-        approved = v_approved,
-        not_approved = v_not_approved,
-        rejected = v_rejected,
-        total = v_total,
-        updated_at = now()
-    WHERE seller_id = p_seller_id;
-    
-    -- Insert if missing
-    IF NOT FOUND THEN
-        INSERT INTO public.brand_check_progress (seller_id, pending, approved, not_approved, rejected, total)
-        VALUES (p_seller_id, v_pending, v_approved, v_not_approved, v_rejected, v_total);
-    END IF;
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.recalc_brand_check_progress_for_seller(integer)
  RETURNS void
  LANGUAGE plpgsql
@@ -4529,41 +3583,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.sync_brand_check_total(p_seller_id integer)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  UPDATE brand_check_progress
-  SET total =
-    CASE p_seller_id
-      WHEN 1 THEN
-        (SELECT count(*) FROM usa_seller_1_high_demand) +
-        (SELECT count(*) FROM usa_seller_1_low_demand) +
-        (SELECT count(*) FROM usa_seller_1_dropshipping) +
-        (SELECT count(*) FROM usa_seller_1_not_approved)
-      WHEN 2 THEN
-        (SELECT count(*) FROM usa_seller_2_high_demand) +
-        (SELECT count(*) FROM usa_seller_2_low_demand) +
-        (SELECT count(*) FROM usa_seller_2_dropshipping) +
-        (SELECT count(*) FROM usa_seller_2_not_approved)
-      WHEN 3 THEN
-        (SELECT count(*) FROM usa_seller_3_high_demand) +
-        (SELECT count(*) FROM usa_seller_3_low_demand) +
-        (SELECT count(*) FROM usa_seller_3_dropshipping) +
-        (SELECT count(*) FROM usa_seller_3_not_approved)
-      WHEN 4 THEN
-        (SELECT count(*) FROM usa_seller_4_high_demand) +
-        (SELECT count(*) FROM usa_seller_4_low_demand) +
-        (SELECT count(*) FROM usa_seller_4_dropshipping) +
-        (SELECT count(*) FROM usa_seller_4_not_approved)
-    END,
-    updated_at = now()
-  WHERE seller_id = p_seller_id;
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.sync_usa_admin_validation_origin()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -4606,23 +3625,6 @@ BEGIN
   END IF;
   
   RETURN NEW;
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.trg_brand_check_router()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  seller_id INT;
-BEGIN
-  -- Extract seller_id from table name: usa_seller_2_low_demand → 2
-  seller_id := split_part(TG_TABLE_NAME, '_', 3)::INT;
-
-  PERFORM recalc_brand_check_progress(seller_id);
-
-  RETURN NULL;
 END;
 $function$
 
@@ -4993,72 +3995,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.uae_distribute_to_brand_checking_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Seller 1 (S1)
-  INSERT INTO public.uae_brand_checking_seller_1 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S1', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 2 (S2)
-  INSERT INTO public.uae_brand_checking_seller_2 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S2', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 3 (S3)
-  INSERT INTO public.uae_brand_checking_seller_3 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S3', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 4 (S4)
-  INSERT INTO public.uae_brand_checking_seller_4 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S4', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  RETURN NEW;
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.uae_get_funnel(mu numeric)
  RETURNS text
  LANGUAGE plpgsql
@@ -5179,48 +4115,6 @@ BEGIN
     updated_at = NOW()
   WHERE seller_id = p_seller_id;
 
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.uae_sync_master_update_to_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Seller 1
-  UPDATE uae_brand_checking_seller_1
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  -- Seller 2
-  UPDATE uae_brand_checking_seller_2
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  -- Seller 3
-  UPDATE uae_brand_checking_seller_3
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  -- Seller 4
-  UPDATE uae_brand_checking_seller_4
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  RETURN NEW;
 END;
 $function$
 
@@ -5364,72 +4258,6 @@ BEGIN
     NEW.link, 
     NEW.amz_link, 
     NEW.remark;
-
-  RETURN NEW;
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.uk_distribute_to_brand_checking_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Seller 1 (S1)
-  INSERT INTO public.uk_brand_checking_seller_1 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S1', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 2 (S2)
-  INSERT INTO public.uk_brand_checking_seller_2 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S2', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 3 (S3)
-  INSERT INTO public.uk_brand_checking_seller_3 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S3', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 4 (S4)
-  INSERT INTO public.uk_brand_checking_seller_4 (
-    source_id, tag, asin, link, product_name, brand, price, 
-    monthly_unit, monthly_sales, bsr, seller, category, dimensions, 
-    weight, weight_unit, created_at, updated_at, remark
-  )
-  VALUES (
-    NEW.id, 'S4', NEW.asin, NEW.link, NEW.product_name, NEW.brand,
-    NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller,
-    NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit,
-    NEW.created_at, NEW.updated_at, NEW.remark
-  )
-  ON CONFLICT (asin) DO NOTHING;
 
   RETURN NEW;
 END;
@@ -5586,48 +4414,6 @@ BEGIN
     updated_at = NOW()
   WHERE seller_id = p_seller_id;
 
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.uk_sync_master_update_to_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  -- Seller 1
-  UPDATE uk_brand_checking_seller_1
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  -- Seller 2
-  UPDATE uk_brand_checking_seller_2
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  -- Seller 3
-  UPDATE uk_brand_checking_seller_3
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  -- Seller 4
-  UPDATE uk_brand_checking_seller_4
-  SET
-    remark = NEW.remark,
-    monthly_unit = NEW.monthly_unit,
-    updated_at = now()
-  WHERE asin = NEW.asin;
-
-  RETURN NEW;
 END;
 $function$
 
@@ -5901,37 +4687,6 @@ END;
 $function$
 
 
-CREATE OR REPLACE FUNCTION public.update_velvet_vista_counts()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  UPDATE listing_error_progress
-  SET 
-    total_pending = (SELECT count(*) FROM usa_listing_error_seller_4_pending),
-    listed = (SELECT count(*) FROM usa_listing_error_seller_4_listed), -- Remove if table doesn't exist yet
-    updated_at = now()
-  WHERE seller_id = 4;
-  RETURN NEW;
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.update_vv_pending_count()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  UPDATE listing_error_progress
-  SET 
-    total_pending = (SELECT count(*) FROM usa_listing_error_seller_4_pending),
-    updated_at = now()
-  WHERE seller_id = 4;
-  RETURN NULL;
-END;
-$function$
-
-
 CREATE OR REPLACE FUNCTION public.usa_auto_distribute_to_funnels()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -6086,43 +4841,6 @@ BEGIN
     target_table
   ) USING NEW.asin, NEW.product_name, NEW.brand, funnel_tag, NEW.monthly_unit, NEW.link, NEW.amz_link, NEW.remark;
   
-  RETURN NEW;
-END;
-$function$
-
-
-CREATE OR REPLACE FUNCTION public.usa_distribute_to_brand_checking_sellers()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  calculated_funnel text;
-  v_amz_link text;
-BEGIN
-  calculated_funnel := usa_get_funnel(NEW.monthly_unit);
-  -- Generate AMZ Seller Central link (USA domain)
-  v_amz_link := 'https://sellercentral.amazon.com/hz/approvalrequest/restrictions/approve?asin=' || NEW.asin || '&itemCondition=new';
-
-  -- Seller 1: Golden Aura
-  INSERT INTO usa_brand_checking_seller_1 (source_id, tag, asin, link, product_name, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, remark, amz_link, funnel)
-  VALUES (NEW.id, 'GA', NEW.asin, NEW.link, NEW.product_name, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.remark, v_amz_link, calculated_funnel)
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 2: Rudra Retail
-  INSERT INTO usa_brand_checking_seller_2 (source_id, tag, asin, link, product_name, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, remark, amz_link, funnel)
-  VALUES (NEW.id, 'RR', NEW.asin, NEW.link, NEW.product_name, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.remark, v_amz_link, calculated_funnel)
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 3: UBeauty
-  INSERT INTO usa_brand_checking_seller_3 (source_id, tag, asin, link, product_name, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, remark, amz_link, funnel)
-  VALUES (NEW.id, 'UB', NEW.asin, NEW.link, NEW.product_name, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.remark, v_amz_link, calculated_funnel)
-  ON CONFLICT (asin) DO NOTHING;
-
-  -- Seller 4: Velvet Vista
-  INSERT INTO usa_brand_checking_seller_4 (source_id, tag, asin, link, product_name, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, remark, amz_link, funnel)
-  VALUES (NEW.id, 'VV', NEW.asin, NEW.link, NEW.product_name, NEW.brand, NEW.price, NEW.monthly_unit, NEW.monthly_sales, NEW.bsr, NEW.seller, NEW.category, NEW.dimensions, NEW.weight, NEW.weight_unit, NEW.remark, v_amz_link, calculated_funnel)
-  ON CONFLICT (asin) DO NOTHING;
-
   RETURN NEW;
 END;
 $function$
