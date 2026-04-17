@@ -1,18 +1,24 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { FLIPKART_SELLER_TAG_MAPPING, FlipkartSellerTag } from '@/lib/utils';
+import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+
 
 type InvoiceItem = {
   id: string;
   invoice_number: string;
+  box_number?: string | null;
   asin: string;
+  sku: string | null;
   product_name: string | null;
   product_weight: number | null;
   buying_price: number | null;
   buying_quantity: number | null;
+  actual_quantity?: number | null;
   invoice_date: string | null;
   gst_number: string | null;
   amount: number | null;
@@ -24,6 +30,14 @@ type InvoiceItem = {
   seller_company: string | null;
   action_status: string | null;
   product_received: boolean | null;
+  seller_tag?: string | null;
+  check_mrp_label?: boolean | null;
+  check_gelatin?: boolean | null;
+  check_amazon_badge?: boolean | null;
+  check_cleaning?: boolean | null;
+  damaged_quantity?: number | null;
+  offline_sell_qty?: number | null;
+  sns_active?: boolean | null;
 };
 
 type GroupedInvoice = {
@@ -40,33 +54,28 @@ type GroupedInvoice = {
 
 // ✅ NEW: Default column widths
 const DEFAULT_COLUMN_WIDTHS = {
-  expand: 50,
-  invoice_no: 180,
-  invoice_date: 130,
-  gst_number: 150,
-  product_name: 200,
-  weight: 100,
-  qty: 80,
-  price: 120,
-  amount: 120,
-  tax_amount: 120,
-  tracking: 180,
-  delivery_date: 130,
-  company: 100,
-  upload: 100,
-  action: 120,
+  sr: 60,
+  expand: 160,
+  product_name: 220,
+  asin: 160,
+  weight: 70,
+  qty: 60,
+  tracking: 220,
+  delivery_date: 100,
+  action: 100,
 };
 
 interface CheckingTableProps {
   sellerId: number;
   onCountsChange?: () => void | Promise<void>;
+  refreshKey?: number;
 }
 
 export default function CheckingTable({
   sellerId,
-  onCountsChange
+  onCountsChange,
+  refreshKey
 }: CheckingTableProps) {
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<{
@@ -76,25 +85,33 @@ export default function CheckingTable({
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const { logActivity, logBatchActivity } = useActivityLogger();
   // 🔴 ADD THIS NEW STATE
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
-  const [visibleColumns, setVisibleColumns] = useState({  // ✅ ADDED
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [restockRollbackItems, setRestockRollbackItems] = useState<any[]>([]);
+  const [restockRollbackLoading, setRestockRollbackLoading] = useState(false);
+  const [restockRollbackSelected, setRestockRollbackSelected] = useState<Set<string>>(new Set());
+  const [restockRollbackSearch, setRestockRollbackSearch] = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [checkingTab, setCheckingTab] = useState<'checking' | 'damaged' | 'offline_sell'>('checking');
+  const [recentlySentAsins, setRecentlySentAsins] = useState<Set<string>>(new Set());
+  const [partyFilter, setPartyFilter] = useState('');
+  const [offlineDateFilter, setOfflineDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [offlineDateStart, setOfflineDateStart] = useState('');
+  const [offlineDateEnd, setOfflineDateEnd] = useState('');
+
+  const [visibleColumns, setVisibleColumns] = useState({
+    sr: true,
     expand: true,
     invoice_no: true,
-    invoice_date: true,
-    gst_number: true,
     product_name: true,
+    asin: true,
     weight: true,
     qty: true,
-    price: true,
-    amount: true,
-    tax_amount: true,
-    total_amount: true,
     tracking: true,
     delivery_date: true,
-    company: true,
-    upload: true,
     action: true,
   });
 
@@ -103,6 +120,35 @@ export default function CheckingTable({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
+  const [openChecklistId, setOpenChecklistId] = useState<string | null>(null);
+  const getChecklistLabel = (item: InvoiceItem): string => {
+    const labels: string[] = [];
+    if (item.check_mrp_label) labels.push('MRP');
+    if (item.check_gelatin) labels.push('Gelatin');
+    if (item.check_amazon_badge) labels.push('Amazon');
+    if (item.check_cleaning) labels.push('Cleaning');
+
+    if (labels.length === 0) return '-';
+    if (labels.length === 1) return labels[0];
+    return labels.join(', ');
+  };
+  const hasAnyChecklist = (item: InvoiceItem): boolean => {
+    return !!(
+      item.check_mrp_label ||
+      item.check_gelatin ||
+      item.check_amazon_badge ||
+      item.check_cleaning
+    );
+  };
+  const [checklistDropdownPos, setChecklistDropdownPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+
+  useEffect(() => {
+    localStorage.removeItem('flipkart_checking_table_column_widths');
+  }, []);
 
   // ✅ NEW: Load column widths from localStorage on mount
   useEffect(() => {
@@ -116,10 +162,19 @@ export default function CheckingTable({
     }
   }, []);
 
-  // Fetch data from india_checking table
+  // Fetch data from flipkart_checking table
   useEffect(() => {
     fetchCheckingData();
   }, []);
+
+  // Refresh when other tabs trigger changes
+  useEffect(() => {
+    if (refreshKey) fetchCheckingData();
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (rollbackOpen) { fetchAllRestockItems(); setRestockRollbackSelected(new Set()); setRestockRollbackSearch(''); }
+  }, [rollbackOpen]);
 
   const fetchCheckingData = async () => {
     try {
@@ -132,13 +187,11 @@ export default function CheckingTable({
       let hasMore = true;
 
       while (hasMore) {
+        const tableName = 'flipkart_box_checking';
         const { data, error } = await supabase
-          .from('tracking_ops')
+          .from(tableName)
           .select('*')
-          .eq('marketplace', 'flipkart')
-          .eq('seller_id', sellerId)
-          .eq('ops_type', 'checking')
-          .order('moved_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .range(from, from + batchSize - 1);
 
         if (error) throw error;
@@ -161,34 +214,52 @@ export default function CheckingTable({
     }
   };
 
+  // ✅ Filter by search query AND tab
+  const filteredItems = items.filter((item) => {
+    // Tab filter: action_status
+    const status = item.action_status;
+    if (checkingTab === 'checking' && (status === 'damaged' || status === 'offline_sell' || status === 'pending_restock')) return false;
+    if (checkingTab === 'damaged' && status !== 'damaged') return false;
+    if (checkingTab === 'offline_sell' && status !== 'offline_sell') return false;
 
-  // Group items by invoice_number
-  const groupedInvoices: GroupedInvoice[] = Object.values(
-    items.reduce((acc, item) => {
-      if (!acc[item.invoice_number]) {
-        acc[item.invoice_number] = {
-          invoice_number: item.invoice_number,
-          items: [],
-          invoice_date: item.invoice_date,
-          gst_number: item.gst_number,
-          total_amount: 0,
-          total_tax: 0,
-          seller_company: item.seller_company,
-          uploaded_invoice_url: item.uploaded_invoice_url,
-          uploaded_invoice_name: item.uploaded_invoice_name,
-        };
+    // Date filter for offline sell tab
+    if (checkingTab === 'offline_sell') {
+      const itemDate = (item as any).offline_sold_at ? new Date((item as any).offline_sold_at) : null;
+      if (offlineDateFilter === 'today') {
+        if (!itemDate || itemDate.toDateString() !== new Date().toDateString()) return false;
+      } else if (offlineDateFilter === 'week') {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        if (!itemDate || itemDate < weekAgo) return false;
+      } else if (offlineDateFilter === 'month') {
+        const now = new Date();
+        if (!itemDate || itemDate.getMonth() !== now.getMonth() || itemDate.getFullYear() !== now.getFullYear()) return false;
+      } else if (offlineDateFilter === 'all' && (offlineDateStart || offlineDateEnd)) {
+        if (!itemDate) return false;
+        if (offlineDateStart && itemDate < new Date(offlineDateStart)) return false;
+        if (offlineDateEnd) {
+          const endDate = new Date(offlineDateEnd);
+          endDate.setHours(23, 59, 59, 999);
+          if (itemDate > endDate) return false;
+        }
       }
-      acc[item.invoice_number].items.push(item);
-      acc[item.invoice_number].total_amount += item.amount || 0;
-      acc[item.invoice_number].total_tax += item.tax_amount || 0;
-      return acc;
-    }, {} as Record<string, GroupedInvoice>)
-  );
+    }
+    // Party filter for offline sell tab
+    if (checkingTab === 'offline_sell' && partyFilter) {
+      const p = (item as any).party || '';
+      if (!p.toLowerCase().includes(partyFilter.toLowerCase())) return false;
+    }
 
-  // ✅ Filter by search query
-  const filteredInvoices = groupedInvoices.filter(inv =>
-    inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const q = searchQuery.toLowerCase();
+    if (!q) return true;
+
+    return (
+      (item.invoice_number || '').toLowerCase().includes(q) ||
+      (item.box_number || '').toLowerCase().includes(q) ||
+      (item.product_name || '').toLowerCase().includes(q) ||
+      (item.asin || '').toLowerCase().includes(q) ||
+      (item.sku || '').toLowerCase().includes(q)
+    );
+  });
 
   // Toggle expanded state
   const toggleExpand = (invoiceNumber: string) => {
@@ -208,9 +279,10 @@ export default function CheckingTable({
   const handleCheckboxChange = async (itemId: string, checked: boolean) => {
     try {
 
-      // Update by id — id is unique across tracking_ops
+      // Update database
+      const tableName = 'flipkart_box_checking';
       const { error } = await supabase
-        .from('tracking_ops')
+        .from(tableName)
         .update({ product_received: checked })
         .eq('id', itemId);
 
@@ -229,114 +301,329 @@ export default function CheckingTable({
     }
   };
 
-  // Move ONLY received items to Shipment + Vyapar
-  // Move items to Shipment & Vyapar
-  const handleMoveToShipment = async (itemIds: string[]) => {
+  // Move items to Distribution
+  const handleMoveToRestock = async (itemIds: string[]) => {
     try {
+      if (itemIds.length === 0) {
+        setToast({ message: 'No items selected', type: 'error' });
+        return;
+      }
 
-      // 1. Get items to move from tracking_ops (ops_type='checking')
+      const checkingTableName = 'flipkart_box_checking';
+
       const { data: itemsToMove, error: fetchError } = await supabase
-        .from('tracking_ops')
+        .from(checkingTableName)
         .select('*')
-        .eq('marketplace', 'flipkart')
-        .eq('seller_id', sellerId)
-        .eq('ops_type', 'checking')
-        .in('id', itemIds)
-
-      if (fetchError) throw fetchError
-
-      if (!itemsToMove || itemsToMove.length === 0) {
-        setToast({ message: 'No items found to move.', type: 'error' })
-        return
-      }
-
-
-      // 2. Prepare data (remove id, created_at, product_received)
-      const preparedData = itemsToMove.map((item) => {
-        const { id, created_at, product_received, ops_type, ...rest } = item;
-        return {
-          ...rest,
-          moved_at: new Date().toISOString(),
-        };
-      });
-
-      // 3. Prepare Shipment data
-      const shipmentData = preparedData.map(item => ({
-        ...item,
-        ops_type: 'shipment',
-        status: 'shipped',
-      }));
-
-      // 4. Prepare Vyapar data
-      const vyaparData = preparedData.map(item => ({
-        ...item,
-        ops_type: 'vyapar',
-        status: 'vyapar_logged',
-      }));
-
-      // 5. Insert into tracking_ops as shipment rows
-      const { error: shipmentInsertError } = await supabase
-        .from('tracking_ops')
-        .insert(shipmentData);
-
-      if (shipmentInsertError) {
-        console.error('❌ Shipment insert error:', shipmentInsertError);
-        throw shipmentInsertError;
-      }
-
-
-      // 6. Insert into tracking_ops as vyapar rows
-      const { error: vyaparInsertError } = await supabase
-        .from('tracking_ops')
-        .insert(vyaparData);
-
-      if (vyaparInsertError) {
-        console.error('❌ Vyapar insert error:', vyaparInsertError);
-        throw vyaparInsertError;
-      }
-
-
-      // 7. Delete the checking rows
-      const { error: deleteError } = await supabase
-        .from('tracking_ops')
-        .delete()
         .in('id', itemIds);
 
-      if (deleteError) {
-        console.error('❌ Delete error:', deleteError);
-        throw deleteError;
+      if (fetchError) throw fetchError;
+      if (!itemsToMove || itemsToMove.length === 0) {
+        setToast({ message: 'No items found to move', type: 'error' });
+        return;
       }
 
+      const now = new Date().toISOString();
 
-      // 8. Update local state - remove moved items
-      setItems((prevItems) =>
-        prevItems.filter((item) => !itemIds.includes(item.id))
+      // Get damaged & offline from representative item (set at ASIN level)
+      const representative = itemsToMove[0];
+      const damagedQty = representative.damaged_quantity || 0;
+      const offlineSellQty = representative.offline_sell_qty || 0;
+
+      // Group items by seller_tag
+      const bySeller: Record<string, any[]> = {};
+      itemsToMove.forEach((item: any) => {
+        const tag = (item.seller_tag as FlipkartSellerTag) || 'GR';
+        if (!bySeller[tag]) bySeller[tag] = [];
+        bySeller[tag].push(item);
+      });
+
+      // Calculate total qty across all sellers
+      const sellerEntries = Object.entries(bySeller).map(([tag, items]) => {
+        const qty = items.reduce((sum: number, i: any) => sum + (i.actual_quantity ?? i.buying_quantity ?? 0), 0);
+        return { tag, items, qty };
+      });
+      const totalQty = sellerEntries.reduce((sum, s) => sum + s.qty, 0);
+      const remaining = Math.max(totalQty - damagedQty - offlineSellQty, 0);
+
+      // Proportionally distribute remaining among sellers
+      let distributed = 0;
+      const sellerAllocations = sellerEntries.map((s, idx) => {
+        if (totalQty === 0) return { ...s, allocated: 0 };
+        const share = Math.floor((s.qty / totalQty) * remaining);
+        distributed += share;
+        return { ...s, allocated: share };
+      });
+      // Distribute rounding remainder to sellers with largest qty first
+      let leftover = remaining - distributed;
+      const sortedByQty = [...sellerAllocations].sort((a, b) => b.qty - a.qty);
+      for (let i = 0; leftover > 0 && i < sortedByQty.length; i++) {
+        sortedByQty[i].allocated += 1;
+        leftover--;
+      }
+
+      // Insert proportional pending rows to restock per seller
+      for (const seller of sellerAllocations) {
+        const resolvedSellerId = FLIPKART_SELLER_TAG_MAPPING[seller.tag as FlipkartSellerTag] || sellerId;
+
+        const item = seller.items[0]; // representative for this seller
+        const restockRow = {
+          marketplace: 'flipkart',
+          seller_id: resolvedSellerId,
+          ops_type: 'restock',
+          asin: item.asin,
+          sku: item.sku,
+          product_name: item.product_name,
+          origin_india: item.origin_india ?? false,
+          origin_china: item.origin_china ?? false,
+          origin_us: item.origin_us ?? false,
+          funnel: item.funnel,
+          buying_price: item.buying_price,
+          product_weight: item.product_weight,
+          invoice_number: item.invoice_number,
+          tracking_details: item.tracking_details,
+          delivery_date: item.delivery_date,
+          seller_tag: item.seller_tag,
+          moved_from: 'checking',
+          checking_id: item.id,
+          moved_at: now,
+          buying_quantity: seller.allocated,
+          status: 'pending',
+          sns_active: item.sns_active ?? false,
+          journey_id: item.journey_id ?? null,
+          journey_number: item.journey_number ?? null,
+        };
+
+        const { error: insertError } = await supabase
+          .from('tracking_ops')
+          .insert([restockRow]);
+        if (insertError) throw insertError;
+
+        // Copy to unified listing_errors table — dual-write: pending + funnel-specific
+        const salesPrice = item.buying_price ?? 0;
+        const funnelStr = String(item.funnel || '').toUpperCase();
+        const listingPayload = {
+          asin: item.asin,
+          product_name: item.product_name,
+          sku: item.sku,
+          seller_tag: item.seller_tag,
+          selling_price: salesPrice,
+          min_price: Math.round(salesPrice * 0.95 * 100) / 100,
+          max_price: Math.round(salesPrice * 1.20 * 100) / 100,
+          remark: item.remark ?? null,
+          seller_link: (item as any).seller_link ?? null,
+          sns_active: item.sns_active ?? false,
+          journey_id: item.journey_id ?? null,
+          journey_number: item.journey_number ?? null,
+        };
+
+        // Insert pending row
+        const { error: pendingError } = await supabase
+          .from('listing_errors')
+          .upsert({
+            ...listingPayload,
+            marketplace: 'flipkart',
+            seller_id: resolvedSellerId,
+            error_status: 'pending',
+          }, { onConflict: 'marketplace,seller_id,asin,error_status' });
+        if (pendingError) console.error('Failed to copy pending row to listing_errors:', pendingError);
+
+        // Also insert funnel-specific row (high_demand or dropshipping)
+        const funnelStatus = (funnelStr === 'RS' || funnelStr === 'HD' || funnelStr === 'LD' || funnelStr === '1' || funnelStr === '2')
+          ? 'high_demand'
+          : 'dropshipping';
+        const { error: funnelError } = await supabase
+          .from('listing_errors')
+          .upsert({
+            ...listingPayload,
+            marketplace: 'flipkart',
+            seller_id: resolvedSellerId,
+            error_status: funnelStatus,
+          }, { onConflict: 'marketplace,seller_id,asin,error_status' });
+        if (funnelError) console.error('Failed to copy funnel row to listing_errors:', funnelError);
+      }
+
+      // Mark original checking rows as pending_restock (preserve them)
+      const { error: deleteError } = await supabase
+        .from(checkingTableName)
+        .update({ action_status: 'pending_restock' })
+        .in('id', itemIds);
+      if (deleteError) throw deleteError;
+
+      // Insert back damaged/offline rows into checking
+      const baseKeep = {
+        asin: representative.asin,
+        sku: representative.sku,
+        product_name: representative.product_name,
+        brand: representative.brand,
+        origin_india: representative.origin_india ?? false,
+        origin_china: representative.origin_china ?? false,
+        origin_us: representative.origin_us ?? false,
+        funnel: representative.funnel,
+        buying_price: representative.buying_price,
+        product_weight: representative.product_weight,
+        seller_tag: representative.seller_tag,
+        tracking_details: representative.tracking_details,
+        delivery_date: representative.delivery_date,
+      };
+
+      const keepRows: any[] = [];
+      if (damagedQty > 0) {
+        keepRows.push({ ...baseKeep, buying_quantity: damagedQty, actual_quantity: damagedQty, action_status: 'damaged' });
+      }
+      if (offlineSellQty > 0) {
+        keepRows.push({ ...baseKeep, buying_quantity: offlineSellQty, actual_quantity: offlineSellQty, action_status: 'offline_sell', offline_sold_at: new Date().toISOString() });
+      }
+      if (keepRows.length > 0) {
+        const { error: keepError } = await supabase.from(checkingTableName).insert(keepRows);
+        if (keepError) console.error('Failed to keep damaged/offline in checking:', keepError);
+      }
+
+      // Update local state
+      setItems(prev => {
+        const filtered = prev.filter(i => !itemIds.includes(i.id));
+        // Add the kept rows to local state
+        const newLocalRows = keepRows.map((r, idx) => ({ ...r, id: `temp-${Date.now()}-${idx}` }));
+        return [...filtered, ...newLocalRows];
+      });
+      await onCountsChange?.();
+      // Re-fetch to get proper IDs from DB
+      fetchCheckingData();
+
+      setRecentlySentAsins(new Set(itemsToMove.map((i: any) => i.asin)));
+
+      const sellerTags = sellerAllocations.map(s => s.tag).join(', ');
+      const msg = `✅ ${representative.asin} → Restock (${remaining} qty distributed to ${sellerTags})${damagedQty > 0 ? ` | ${damagedQty} damaged kept` : ''}${offlineSellQty > 0 ? ` | ${offlineSellQty} offline kept` : ''}`;
+      setToast({ message: msg, type: 'success' });
+      setTimeout(() => setToast(null), 5000);
+
+      logBatchActivity(
+        itemsToMove.map((item: any) => ({
+          asin: item.asin,
+          details: { from: 'checking', seller_tag: item.seller_tag },
+        })),
+        {
+          action: 'move',
+          marketplace: 'flipkart',
+          page: 'tracking',
+          table_name: 'restock (multi-seller)',
+        },
       );
+    } catch (error: any) {
+      console.error('Error moving to restock:', error);
+      setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
+    }
+  };
 
-      // 9. Trigger parent count refresh
-      if (onCountsChange) {
-        onCountsChange();
+  const handleSendToRechecking = async (itemIds: string[]) => {
+    try {
+      if (itemIds.length === 0) return;
+      const itemsToRecheck = items.filter(i => itemIds.includes(i.id));
+      const asins = [...new Set(itemsToRecheck.map(i => i.asin))];
+
+      for (const asin of asins) {
+        const recheckedItem = itemsToRecheck.find(i => i.asin === asin);
+        if (!recheckedItem) continue;
+        const recheckedQty = recheckedItem.buying_quantity ?? recheckedItem.actual_quantity ?? 0;
+
+        // Check if there are already restored rows (action_status = null) for this ASIN
+        const { data: existingRows } = await supabase
+          .from('flipkart_box_checking')
+          .select('*')
+          .eq('asin', asin)
+          .is('action_status', null);
+
+        // Also check for pending_restock rows
+        const { data: pendingRows } = await supabase
+          .from('flipkart_box_checking')
+          .select('*')
+          .eq('asin', asin)
+          .eq('action_status', 'pending_restock');
+
+        if (existingRows && existingRows.length > 0) {
+          // Rows already restored (other tab was rechecked first) — add qty proportionally
+          const currentTotal = existingRows.reduce((sum: number, r: any) => sum + (r.actual_quantity ?? r.buying_quantity ?? 0), 0);
+          let distributed = 0;
+          const allocations = existingRows.map((row: any) => {
+            const sellerQty = row.actual_quantity ?? row.buying_quantity ?? 0;
+            const share = Math.floor((sellerQty / currentTotal) * recheckedQty);
+            distributed += share;
+            return { id: row.id, currentQty: sellerQty, share };
+          });
+          let leftover = recheckedQty - distributed;
+          allocations.sort((a, b) => b.currentQty - a.currentQty);
+          for (let i = 0; leftover > 0 && i < allocations.length; i++) {
+            allocations[i].share += 1;
+            leftover--;
+          }
+
+          for (const alloc of allocations) {
+            const newQty = alloc.currentQty + alloc.share;
+            await supabase
+              .from('flipkart_box_checking')
+              .update({ buying_quantity: newQty, actual_quantity: newQty, damaged_quantity: null, offline_sell_qty: null })
+              .eq('id', alloc.id);
+          }
+
+          // Also restore pending_restock rows if any still exist (cleanup)
+          if (pendingRows && pendingRows.length > 0) {
+            await supabase.from('flipkart_box_checking').delete().in('id', pendingRows.map((r: any) => r.id));
+          }
+        } else if (pendingRows && pendingRows.length > 0) {
+          // First recheck — restore pending_restock rows with proportional quantities
+          const originalTotal = pendingRows.reduce((sum: number, r: any) => sum + (r.actual_quantity ?? r.buying_quantity ?? 0), 0);
+          let distributed = 0;
+          const allocations = pendingRows.map((row: any) => {
+            const sellerQty = row.actual_quantity ?? row.buying_quantity ?? 0;
+            const share = Math.floor((sellerQty / originalTotal) * recheckedQty);
+            distributed += share;
+            return { id: row.id, originalQty: sellerQty, share };
+          });
+          let leftover = recheckedQty - distributed;
+          allocations.sort((a, b) => b.originalQty - a.originalQty);
+          for (let i = 0; leftover > 0 && i < allocations.length; i++) {
+            allocations[i].share += 1;
+            leftover--;
+          }
+
+          for (const alloc of allocations) {
+            await supabase
+              .from('flipkart_box_checking')
+              .update({
+                action_status: null,
+                buying_quantity: alloc.share,
+                actual_quantity: alloc.share,
+                damaged_quantity: recheckedItem.action_status === 'damaged' ? alloc.share : null,
+                offline_sell_qty: recheckedItem.action_status === 'offline_sell' ? alloc.share : null,
+              })
+              .eq('id', alloc.id);
+          }
+        }
+
+        // Delete the damaged/offline row
+        await supabase
+          .from('flipkart_box_checking')
+          .delete()
+          .in('id', itemIds.filter(id => items.find(i => i.id === id)?.asin === asin));
       }
 
-      setToast({ message: `${itemsToMove.length} item(s) moved to Shipment + Vyapar!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
+      setToast({ message: `✅ ${asins.join(', ')} sent back to Checking with all sellers`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
+      fetchCheckingData();
     } catch (error: any) {
-      console.error('❌ Error moving items:', error);
-      setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
+      setToast({ message: `Failed: ${error.message}`, type: 'error' });
     }
   };
 
   // Handle edit field with auto-save
   const handleEditField = async (itemId: string, field: string, value: number | null) => {
     try {
-      // Update local state immediately for instant feedback
       setItems((prevItems) => {
         const newItems = prevItems.map((item) => {
           if (item.id === itemId) {
             const updatedItem = { ...item, [field]: value };
 
-            // Auto-calculate amount if qty or price changed
-            if (field === 'buying_quantity' || field === 'buying_price') {
-              const qty = field === 'buying_quantity' ? value : item.buying_quantity;
+            if (field === 'actual_quantity' || field === 'buying_price') {
+              const qty = field === 'actual_quantity' ? value : (item.actual_quantity ?? item.buying_quantity);
               const price = field === 'buying_price' ? value : item.buying_price;
               updatedItem.amount = (qty || 0) * (price || 0);
             }
@@ -345,25 +632,14 @@ export default function CheckingTable({
           }
           return item;
         });
-        return [...newItems]; // Force new array reference
+        return [...newItems];
       });
 
-      // Prepare update data
       const updateData: any = { [field]: value };
 
-      // If qty or price changed, recalculate amount
-      if (field === 'buying_quantity' || field === 'buying_price') {
-        const currentItem = items.find(i => i.id === itemId);
-        if (currentItem) {
-          const qty = field === 'buying_quantity' ? value : currentItem.buying_quantity;
-          const price = field === 'buying_price' ? value : currentItem.buying_price;
-          updateData.amount = (qty || 0) * (price || 0);
-        }
-      }
-
-      // Update by id — id is unique across tracking_ops
+      const tableName = 'flipkart_box_checking';
       const { error } = await supabase
-        .from('tracking_ops')
+        .from(tableName)
         .update(updateData)
         .eq('id', itemId);
 
@@ -372,7 +648,83 @@ export default function CheckingTable({
     } catch (error: any) {
       console.error('Error updating field:', error);
       setToast({ message: `Failed to update: ${error.message}`, type: 'error' });
-      // Revert on error
+      fetchCheckingData();
+    }
+  };
+
+  const handleChecklistChange = async (
+    itemId: string,
+    field:
+      | 'check_mrp_label'
+      | 'check_gelatin'
+      | 'check_amazon_badge'
+      | 'check_cleaning',
+    checked: boolean
+  ) => {
+    try {
+      // local state
+      setItems(prev =>
+        prev.map(it =>
+          it.id === itemId ? { ...it, [field]: checked } : it
+        )
+      );
+
+      const { error } = await supabase
+        .from('flipkart_box_checking')
+        .update({ [field]: checked })
+        .eq('id', itemId);
+
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Checklist update failed', e);
+      setToast({ message: `Failed to update checklist: ${e.message}`, type: 'error' });
+      fetchCheckingData();
+    }
+  };
+
+  // ✅ Update offline sell quantity
+  const handleOfflineSellQtyChange = async (itemId: string, value: number | null) => {
+    try {
+      setItems(prev =>
+        prev.map(it =>
+          it.id === itemId ? { ...it, offline_sell_qty: value } : it
+        )
+      );
+      const { error } = await supabase
+        .from('flipkart_box_checking')
+        .update({ offline_sell_qty: value })
+        .eq('id', itemId);
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Offline sell qty update failed', e);
+      setToast({ message: `Failed to update offline sell qty: ${e.message}`, type: 'error' });
+    }
+  };
+
+  // ✅ Update damaged quantity
+  const handlePartyChange = async (itemId: string, value: string) => {
+    setItems(prev => prev.map(it => it.id === itemId ? { ...it, party: value } as any : it));
+    const { error } = await supabase.from('flipkart_box_checking').update({ party: value }).eq('id', itemId);
+    if (error) console.error('Failed to update party:', error);
+  };
+
+  const handleDamagedQtyChange = async (itemId: string, value: number | null) => {
+    try {
+      setItems(prev =>
+        prev.map(it =>
+          it.id === itemId ? { ...it, damaged_quantity: value } : it
+        )
+      );
+
+      const { error } = await supabase
+        .from('flipkart_box_checking')
+        .update({ damaged_quantity: value })
+        .eq('id', itemId);
+
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Damaged qty update failed', e);
+      setToast({ message: `Failed to update damaged qty: ${e.message}`, type: 'error' });
       fetchCheckingData();
     }
   };
@@ -403,80 +755,20 @@ export default function CheckingTable({
     });
   };
 
-  // Handle bulk move all selected items
-  const handleBulkMoveToShipment = async () => {
+  // Bulk move all selected items to Restock
+  const handleBulkMoveToRestock = async () => {
     if (selectedItemIds.size === 0) {
       setToast({ message: 'No items selected', type: 'error' });
       return;
     }
 
-    const confirmed = confirm(`Move ${selectedItemIds.size} item(s) to Shipment & Vyapar?`);
+    const confirmed = confirm(
+      `Move ${selectedItemIds.size} items to Restock?`,
+    );
     if (!confirmed) return;
 
-    try {
-
-      // 1. Get items from tracking_ops (ops_type='checking')
-      const { data: itemsToMove, error: fetchError } = await supabase
-        .from('tracking_ops')
-        .select('*')
-        .eq('marketplace', 'flipkart')
-        .eq('seller_id', sellerId)
-        .eq('ops_type', 'checking')
-        .in('id', Array.from(selectedItemIds));
-
-      if (fetchError) throw fetchError;
-      if (!itemsToMove || itemsToMove.length === 0) {
-        setToast({ message: 'No items found to move.', type: 'error' });
-        return;
-      }
-
-
-      // 2. Prepare data
-      const preparedData = itemsToMove.map((item: any) => {
-        const { id, created_at, product_received, ops_type, ...rest } = item;
-        return {
-          ...rest,
-          moved_at: new Date().toISOString(),
-        };
-      });
-
-      // 3. Insert into tracking_ops as shipment rows
-      const shipmentData = preparedData.map(item => ({ ...item, ops_type: 'shipment', status: 'shipped' }));
-      const { error: shipmentInsertError } = await supabase
-        .from('tracking_ops')
-        .insert(shipmentData);
-
-      if (shipmentInsertError) throw shipmentInsertError;
-
-      // 4. Insert into tracking_ops as vyapar rows
-      const vyaparData = preparedData.map(item => ({ ...item, ops_type: 'vyapar', status: 'vyapar_logged' }));
-      const { error: vyaparInsertError } = await supabase
-        .from('tracking_ops')
-        .insert(vyaparData);
-
-      if (vyaparInsertError) throw vyaparInsertError;
-
-      // 5. Delete the checking rows
-      const { error: deleteError } = await supabase
-        .from('tracking_ops')
-        .delete()
-        .in('id', Array.from(selectedItemIds));
-
-      if (deleteError) throw deleteError;
-
-      // 6. Update UI
-      setItems(prevItems => prevItems.filter(item => !selectedItemIds.has(item.id)));
-      setSelectedItemIds(new Set());
-
-      if (onCountsChange) {
-        onCountsChange();
-      }
-
-      setToast({ message: `${itemsToMove.length} item(s) moved to Shipment & Vyapar!`, type: 'success' }); setTimeout(() => setToast(null), 3000);
-    } catch (error: any) {
-      console.error('❌ Error moving items:', error);
-      setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
-    }
+    await handleMoveToRestock(Array.from(selectedItemIds));
+    setSelectedItemIds(new Set());
   };
 
   // ✅ NEW: Truncate text helper function
@@ -527,6 +819,36 @@ export default function CheckingTable({
     };
   }, [resizingColumn, startX, startWidth, columnWidths]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!openChecklistId) return;
+
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Ignore clicks on trigger or dropdown content
+      if (
+        target.closest('[data-checklist-trigger="true"]') ||
+        target.closest('[data-checklist-dropdown="true"]')
+      ) {
+        return;
+      }
+
+      setOpenChecklistId(null);
+      setChecklistDropdownPos(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openChecklistId]);
+
+
+  const displayItems = useMemo(() => {
+    return filteredItems;
+  }, [filteredItems]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -535,23 +857,177 @@ export default function CheckingTable({
     );
   }
 
+  const SELLER_ID_TO_TAG: Record<number, string> = {
+    1: 'GR',
+    2: 'RR',
+    3: 'UB',
+    4: 'VV',
+    5: 'DE',
+    6: 'CV',
+  };
+
+  // ============================================
+  // ROLLBACK FROM ALL RESTOCK + LISTING ERROR
+  // ============================================
+  const fetchAllRestockItems = async () => {
+    setRestockRollbackLoading(true);
+    try {
+      const allItems: any[] = [];
+      const { data, error } = await supabase
+        .from('tracking_ops')
+        .select('*')
+        .eq('marketplace', 'flipkart')
+        .eq('ops_type', 'restock')
+        .in('seller_id', [1, 2, 3, 4, 5, 6])
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        data.forEach((item: any) => allItems.push({ ...item, _sellerId: item.seller_id }));
+      }
+      setRestockRollbackItems(allItems);
+    } catch (err) {
+      console.error('Failed to fetch restock items:', err);
+    } finally {
+      setRestockRollbackLoading(false);
+    }
+  };
+
+
+  const handleRestockRollback = async () => {
+    if (restockRollbackSelected.size === 0) return;
+    if (!confirm(`Rollback ${restockRollbackSelected.size} item(s) from Restock & Listing Errors → Checking?`)) return;
+    try {
+      const selectedItems = restockRollbackItems.filter(i => restockRollbackSelected.has(i.id));
+      // Insert back into checking
+      const checkingRows = selectedItems.map(item => ({
+        asin: item.asin, sku: item.sku, product_name: item.product_name,
+        seller_tag: item.seller_tag, funnel: item.funnel,
+        buying_price: item.buying_price, buying_quantity: item.buying_quantity,
+        actual_quantity: item.buying_quantity, product_weight: item.product_weight,
+        origin_india: item.origin_india ?? false, origin_china: item.origin_china ?? false,
+        origin_us: item.origin_us ?? false, tracking_details: item.tracking_details,
+        delivery_date: item.delivery_date,
+        journey_id: item.journey_id ?? null,
+        sns_active: item.sns_active ?? false,
+        journey_number: item.journey_number ?? null,
+      }));
+      const { error: insertError } = await supabase.from('flipkart_box_checking').insert(checkingRows);
+      if (insertError) throw insertError;
+      // Delete from tracking_ops (restock rows) by ids
+      const restockIds = selectedItems.map(i => i.id);
+      if (restockIds.length > 0) {
+        const { error } = await supabase.from('tracking_ops').delete().in('id', restockIds);
+        if (error) throw error;
+      }
+      // Delete from unified listing_errors table for these ASINs
+      const asins = [...new Set(selectedItems.map((i: any) => i.asin))];
+      const sellerIds = [...new Set(selectedItems.map((i: any) => i._sellerId))];
+      for (const sid of sellerIds) {
+        for (const suffix of ['pending', 'high_demand', 'dropshipping', 'error']) {
+          await supabase
+            .from('listing_errors')
+            .delete()
+            .eq('marketplace', 'flipkart')
+            .eq('seller_id', sid)
+            .eq('error_status', suffix)
+            .in('asin', asins);
+        }
+      }
+      // Clean up pending_restock rows
+      await supabase.from('flipkart_box_checking').delete().in('asin', asins).eq('action_status', 'pending_restock');
+
+      setToast({ message: `✅ ${selectedItems.length} item(s) rolled back to Checking (restock + listing errors cleaned)`, type: 'success' });
+      setTimeout(() => setToast(null), 4000);
+      setRollbackOpen(false);
+      fetchCheckingData();
+      if (onCountsChange) onCountsChange();
+    } catch (err: any) {
+      setToast({ message: `Rollback failed: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const checkingCount = new Set(items.filter(i => !i.action_status).map(i => i.asin)).size;
+  const damagedCount = new Set(items.filter(i => i.action_status === 'damaged').map(i => i.asin)).size;
+  const offlineSellCount = new Set(items.filter(i => i.action_status === 'offline_sell').map(i => i.asin)).size;
+
   return (
     <div className="h-full flex flex-col">
       {/* Search Bar & Hide Columns */}
-      <div className="flex-none px-4 pb-4 flex gap-3 items-center">
+      <div className="flex-none px-4 sm:px-6 pt-6 pb-6 flex gap-4 items-center flex-wrap">
+
+        {/* Tabs */}
+        <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
+          {([
+            { id: 'checking' as const, label: 'Checking', count: checkingCount },
+            { id: 'damaged' as const, label: 'Damaged', count: damagedCount },
+            { id: 'offline_sell' as const, label: 'Offline Sell', count: offlineSellCount },
+          ]).map(tab => (
+            <button key={tab.id} onClick={() => setCheckingTab(tab.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${checkingTab === tab.id
+                ? tab.id === 'damaged' ? 'bg-rose-600 text-white shadow-lg'
+                  : tab.id === 'offline_sell' ? 'bg-cyan-600 text-white shadow-lg'
+                    : 'bg-orange-500 text-white shadow-lg'
+                : 'text-gray-500 hover:text-gray-200'}`}>
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
         <input
           type="text"
-          placeholder="Search by Invoice Number..."
+          placeholder="Search by Box, Invoice, ASIN or Product..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 max-w-md px-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
+          className="flex-1 min-w-0 max-w-sm px-4 sm:px-6 py-2 sm:py-2.5 text-sm bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder:text-gray-500"
         />
+
+        {checkingTab === 'offline_sell' && (
+          <>
+            <div className="flex items-center bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
+              {(['all', 'today', 'week', 'month'] as const).map(opt => (
+                <button key={opt} onClick={() => setOfflineDateFilter(opt)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${offlineDateFilter === opt ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-200'}`}>
+                  {opt === 'all' ? 'All' : opt === 'today' ? 'Today' : opt === 'week' ? 'This Week' : 'This Month'}
+                </button>
+              ))}
+            </div>
+            {offlineDateFilter === 'all' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={offlineDateStart}
+                  onChange={(e) => setOfflineDateStart(e.target.value)}
+                  className="px-2 py-1.5 text-xs bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100"
+                />
+                <span className="text-gray-500 text-xs">to</span>
+                <input
+                  type="date"
+                  value={offlineDateEnd}
+                  onChange={(e) => setOfflineDateEnd(e.target.value)}
+                  className="px-2 py-1.5 text-xs bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100"
+                />
+                {(offlineDateStart || offlineDateEnd) && (
+                  <button
+                    onClick={() => { setOfflineDateStart(''); setOfflineDateEnd(''); }}
+                    className="text-gray-500 hover:text-cyan-400 text-xs px-1"
+                  >✕</button>
+                )}
+              </div>
+            )}
+            <input
+              type="text"
+              placeholder="Filter by party..."
+              value={partyFilter}
+              onChange={(e) => setPartyFilter(e.target.value)}
+              className="max-w-[180px] px-3 py-2 text-sm bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-cyan-500 text-gray-100 placeholder:text-gray-500"
+            />
+          </>
+        )}
 
         {/* Hide Columns Button */}
         <div className="relative">
           <button
             onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-            className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] text-xs sm:text-sm font-medium flex items-center gap-2 whitespace-nowrap"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -577,6 +1053,7 @@ export default function CheckingTable({
                       'gst_number': 'GST Number',
                       'product_name': 'Product Name',
                       'weight': 'Weight',
+                      'asin': 'ASIN',
                       'qty': 'Qty',
                       'price': 'Price',
                       'amount': 'Amount',
@@ -635,6 +1112,15 @@ export default function CheckingTable({
             </>
           )}
         </div>
+        {/* ⏪ Rollback from Distribution */}
+        {checkingTab === 'checking' && (
+        <button
+          onClick={() => setRollbackOpen(true)}
+          className="px-4 sm:px-6 py-2 sm:py-2.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+        >
+          ⏪ Rollback from Restock & Listing Errors
+        </button>
+        )}
       </div>
 
       {/* Table Wrapper - Same as page.tsx */}
@@ -642,809 +1128,380 @@ export default function CheckingTable({
         <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-white/[0.1] h-full flex flex-col">
           {/* Table Scroll Container */}
           <div className="flex-1 overflow-y-auto">
-            <table className="w-full divide-y divide-white/[0.06]">
-
-              <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10">
+            <table
+              className="w-full divide-y divide-white/[0.06]"
+              style={{ minWidth: '1100px' }}   // or just omit style={}
+            >
+              <thead className="bg-[#111111] sticky top-0 z-10">
                 <tr>
-                  {/* Expand Column */}
-                  {visibleColumns.expand && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.expand }}>
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('expand', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Invoice No */}
-                  {visibleColumns.invoice_no && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.invoice_no }}>
-                      Invoice No
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('invoice_no', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Invoice Date */}
-                  {visibleColumns.invoice_date && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.invoice_date }}>
-                      Invoice Date
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('invoice_date', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* GST Number */}
-                  {visibleColumns.gst_number && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.gst_number }}>
-                      GST Number
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('gst_number', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Product Name */}
-                  {visibleColumns.product_name && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.product_name }}>
-                      Product Name
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('product_name', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Weight */}
-                  {visibleColumns.weight && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.weight }}>
-                      Weight
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('weight', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Qty */}
-                  {visibleColumns.qty && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.qty }}>
-                      Qty
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('qty', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Price */}
-                  {visibleColumns.price && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.price }}>
-                      Price
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('price', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Amount */}
-                  {visibleColumns.amount && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.amount }}>
-                      Amount
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('amount', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Tax Amount */}
-                  {visibleColumns.tax_amount && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.tax_amount }}>
-                      Tax Amount
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('tax_amount', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
-                    </th>
-                  )}
-
-                  {/* Total Amount */}
-                  {visibleColumns.total_amount && (
+                  {/* Sr. No */}
+                  {visibleColumns.sr && (
                     <th
-                      className="px-4 py-3 text-left text-xs font-semibold text-green-400 uppercase bg-green-900/20 border-r border-white/[0.1] select-none"
-                      onMouseDown={(e) => handleResizeStart('tax_amount', e)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #6366f1';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderRight = '2px solid #475569';
-                      }}
+                      style={{ width: columnWidths.sr }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
                     >
-                      Total Amount
+                      Sr
                     </th>
                   )}
 
-
-                  {/* Tracking Details */}
-                  {visibleColumns.tracking && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.tracking }}>
-                      Tracking Details
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('tracking', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  {/* SKU */}
+                  {visibleColumns.expand && (
+                    <th
+                      style={{ width: columnWidths.expand }}
+                      className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
+                    >
+                      SKU
                     </th>
                   )}
 
-                  {/* Delivery Date */}
-                  {visibleColumns.delivery_date && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.delivery_date }}>
-                      Delivery Date
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('delivery_date', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  {visibleColumns.product_name && (
+                    <th
+                      style={{ width: columnWidths.product_name }}
+                      className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
+                    >
+                      Product
                     </th>
                   )}
 
-                  {/* Company */}
-                  {visibleColumns.company && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.company }}>
-                      Company
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('company', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  <th
+                    style={{ width: columnWidths.asin }}
+                    className="px-3 py-3 text-left text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
+                  >
+                    ASIN
+                  </th>
+
+                  <th
+                    style={{ width: 220 }}
+                    className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
+                  >
+                    Seller Tag
+                  </th>
+
+                  {visibleColumns.weight && (
+                    <th
+                      style={{ width: columnWidths.weight }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
+                    >
+                      Weight
                     </th>
                   )}
 
-                  {/* Upload */}
-                  {visibleColumns.upload && (
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400 relative" style={{ width: columnWidths.upload }}>
-                      Upload
-                      <div
-                        className="absolute top-0 right-0 cursor-col-resize select-none"
-                        style={{
-                          width: '8px',
-                          height: '100%',
-                          backgroundColor: 'transparent',
-                          borderRight: '2px solid #475569',
-                          zIndex: 10,
-                          userSelect: 'none'
-                        }}
-                        onMouseDown={(e) => handleResizeStart('upload', e)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #6366f1';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderRight = '2px solid #475569';
-                        }}
-                      />
+                  {visibleColumns.qty && (
+                    <th
+                      style={{ width: columnWidths.qty }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]"
+                    >
+                      Qty
                     </th>
                   )}
 
-                  {/* 🔴 KEEP THIS SIMPLE - NO BULK BUTTON IN HEADER */}
-                  {visibleColumns.action && (
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400" style={{ width: columnWidths.action }}>
+                  {/* Checklist column */}
+                  {checkingTab === 'checking' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
+                    Checklist
+                  </th>
+                  )}
+
+                  {/* Damaged Qty column */}
+                  {checkingTab === 'checking' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
+                    Damaged Qty
+                  </th>
+                  )}
+
+                  {/* Offline Sell column */}
+                  {checkingTab === 'checking' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-white/[0.1]">
+                    Offline Sell
+                  </th>
+                  )}
+
+                  {/* Qty column for damaged/offline tabs */}
+                  {checkingTab !== 'checking' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
+                    Quantity
+                  </th>
+                  )}
+                  {checkingTab === 'offline_sell' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-cyan-400 uppercase border-r border-white/[0.1]">
+                    Party
+                  </th>
+                  )}
+                  {checkingTab === 'offline_sell' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase border-r border-white/[0.1]">
+                    Date
+                  </th>
+                  )}
+
+                  {checkingTab !== 'checking' && (
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-400 uppercase">Action</th>
+                  )}
+
+                  {visibleColumns.action && checkingTab === 'checking' && (
+                    <th
+                      style={{ width: columnWidths.action }}
+                      className="px-3 py-3 text-center text-xs font-semibold text-gray-400 uppercase"
+                    >
                       Action
                     </th>
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
-                {filteredInvoices.length === 0 ? (
-                  <tr>
-                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center py-8 text-gray-300">
-                      {searchQuery ? 'No invoices found' : 'No checking items available'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInvoices.map((group) => {
-                    const isExpanded = expandedInvoices.has(group.invoice_number);
-                    const hasMultipleItems = group.items.length > 1;
-
-                    return (
-                      <React.Fragment key={group.invoice_number}>
-                        {/* Main Invoice Row */}
-                        <tr
-                          className="border-t border-white/[0.1] hover:bg-white/[0.05] cursor-pointer transition-colors"
-                          onClick={() => hasMultipleItems && toggleExpand(group.invoice_number)}
+                {displayItems.map((item, index) => {
+                  const anyChecklist = hasAnyChecklist(item);
+                  return (
+                    <tr key={item.id} className="bg-[#1a1a1a] hover:bg-[#111111]/60">
+                      {/* SR NO */}
+                      {visibleColumns.sr && (
+                        <td
+                          style={{ width: columnWidths.sr }}
+                          className="px-3 py-2 text-center text-sm text-gray-300 border-r border-white/[0.1]"
                         >
-                          {visibleColumns.expand && (
-                            <td className="px-6 py-4" style={{ width: columnWidths.expand }}>
-                              {hasMultipleItems ? (
-                                isExpanded ? (
-                                  <ChevronDown size={16} className="text-gray-400" />
-                                ) : (
-                                  <ChevronRight size={16} className="text-gray-400" />
-                                )
-                              ) : null}
-                            </td>
-                          )}
-                          {visibleColumns.invoice_no && (
-                            <td className="px-6 py-4 font-semibold text-gray-100" style={{ width: columnWidths.invoice_no }}>
-                              {group.invoice_number}
-                              {hasMultipleItems && (
-                                <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
-                                  {group.items.length} items
-                                </span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.invoice_date && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.invoice_date }}>
-                              {group.invoice_date
-                                ? new Date(group.invoice_date).toLocaleDateString()
-                                : '-'}
-                            </td>
-                          )}
-                          {visibleColumns.gst_number && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.gst_number }}>{group.gst_number || '-'}</td>
-                          )}
+                          {index + 1}
+                        </td>
+                      )}
 
-                          {/* Product Name - WITH TRUNCATION */}
-                          {visibleColumns.product_name && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.product_name }} title={!hasMultipleItems ? (group.items[0].product_name || '') : ''}>
-                              {!hasMultipleItems ? (
-                                truncateText(group.items[0].product_name || '', 30)
-                              ) : (
-                                <span className="text-gray-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* SKU column */}
+                      {visibleColumns.expand && (
+                        <td
+                          style={{ width: columnWidths.expand }}
+                          className="px-3 py-2 text-sm font-mono text-gray-300 border-r border-white/[0.1]"
+                        >
+                          {item.sku || '-'}
+                        </td>
+                      )}
 
-                          {/* Weight - EDITABLE when single item */}
-                          {visibleColumns.weight && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.weight }}>
-                              {!hasMultipleItems ? (
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={group.items[0].product_weight || ''}
-                                  onChange={(e) => handleEditField(group.items[0].id, 'product_weight', parseFloat(e.target.value) || null)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-20 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                                  placeholder="kg"
-                                />
-                              ) : (
-                                <span className="text-gray-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* Product name */}
+                      {visibleColumns.product_name && (
+                        <td
+                          style={{ width: columnWidths.product_name }}
+                          className="px-3 py-2 text-sm text-gray-300 border-r border-white/[0.1]"
+                        >
+                          <div className="flex items-center">
+                            <span className="truncate max-w-[180px]" title={item.product_name || ''}>{item.product_name || '-'}</span>
+                            {item.sns_active && <span className="ml-1 px-1.5 py-0.5 bg-teal-900/50 text-teal-300 text-[10px] rounded font-medium flex-shrink-0">S&S</span>}
+                          </div>
+                        </td>
+                      )}
 
-                          {/* Qty - EDITABLE when single item */}
-                          {visibleColumns.qty && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.qty }}>
-                              {!hasMultipleItems ? (
-                                <input
-                                  type="number"
-                                  value={group.items[0].buying_quantity || ''}
-                                  onChange={(e) => handleEditField(group.items[0].id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-16 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                                  placeholder="0"
-                                />
-                              ) : (
-                                <span className="text-gray-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* ASIN */}
+                      <td
+                        style={{ width: columnWidths.asin }}
+                        className="px-3 py-2 text-sm font-mono border-r border-white/[0.1]"
+                      >
+                        {item.asin ? (
+                          <a href={`https://www.amazon.in/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline">
+                            {item.asin}
+                          </a>
+                        ) : '-'}
+                      </td>
 
-                          {/* Price - EDITABLE when single item */}
-                          {visibleColumns.price && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.price }}>
-                              {!hasMultipleItems ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-400 text-sm">₹</span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={group.items[0].buying_price || ''}
-                                    onChange={(e) => handleEditField(group.items[0].id, 'buying_price', parseFloat(e.target.value) || null)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-24 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                                    placeholder="0.00"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-gray-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
+                      {/* Seller Tag */}
+                      <td
+                        style={{ width: 220 }}
+                        className="px-3 py-2 text-center border-r border-white/[0.1]"
+                      >
+                        <div className="flex flex-wrap gap-1.5 justify-center items-center">
+                          <div className="flex items-center gap-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${SELLER_STYLES[item.seller_tag || ''] || 'bg-[#1a1a1a] text-white'}`}>
+                              {item.seller_tag || '??'}
+                            </span>
+                            <input
+                              type="number"
+                              className="w-14 bg-[#111111] border border-white/[0.1] rounded px-1 py-0.5 text-xs text-white text-center"
+                              value={item.actual_quantity ?? item.buying_quantity ?? 0}
+                              onChange={(e) => {
+                                const newVal = e.target.value === '' ? null : parseInt(e.target.value);
+                                handleEditField(item.id, 'actual_quantity', newVal);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
 
-                          {/* EXISTING COLUMNS */}
-                          {visibleColumns.amount && (
-                            <td className="px-6 py-4 font-semibold text-green-400" style={{ width: columnWidths.amount }}>
-                              ₹ {group.total_amount.toFixed(2)}
-                            </td>
-                          )}
-                          {visibleColumns.tax_amount && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.tax_amount }}>
-                              {group.total_tax > 0 ? `₹ ${group.total_tax.toFixed(2)}` : '-'}
-                            </td>
-                          )}
-                          {visibleColumns.total_amount && (
-                            <td className="px-6 py-4 text-sm font-bold text-green-400 bg-green-900/10 border-r border-white/[0.1]">
-                              ₹ {(group.total_amount + group.total_tax).toFixed(2)}
-                            </td>
-                          )}
+                      {/* Weight */}
+                      {visibleColumns.weight && (
+                        <td
+                          style={{ width: columnWidths.weight }}
+                          className="px-3 py-2 text-center border-r border-white/[0.1]"
+                        >
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            value={item.product_weight ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : null;
+                              handleEditField(item.id, 'product_weight', val);
+                            }}
+                            className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </td>
+                      )}
 
-                          {visibleColumns.tracking && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.tracking }}>
-                              {!hasMultipleItems ? (
-                                group.items[0].tracking_details || '-'
-                              ) : (
-                                <span className="text-gray-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.delivery_date && (
-                            <td className="px-6 py-4 text-gray-300" style={{ width: columnWidths.delivery_date }}>
-                              {!hasMultipleItems && group.items[0].delivery_date ? (
-                                new Date(group.items[0].delivery_date).toLocaleDateString()
-                              ) : !hasMultipleItems ? (
-                                '-'
-                              ) : (
-                                <span className="text-gray-500 text-sm">Multiple</span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.company && (
-                            <td className="px-6 py-4" style={{ width: columnWidths.company }}>
-                              {group.seller_company ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCompany(group.seller_company);
-                                  }}
-                                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                                >
-                                  View
-                                </button>
-                              ) : (
-                                <span className="text-gray-500">-</span>
-                              )}
-                            </td>
-                          )}
-                          {visibleColumns.upload && (
-                            <td className="px-6 py-4" style={{ width: columnWidths.upload }}>
-                              {group.uploaded_invoice_url ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedInvoice({
-                                      url: group.uploaded_invoice_url!,
-                                      name: group.uploaded_invoice_name || 'Invoice',
-                                    });
-                                  }}
-                                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                                >
-                                  View
-                                </button>
-                              ) : (
-                                <span className="text-gray-500">-</span>
-                              )}
-                            </td>
-                          )}
+                      {/* Qty */}
+                      {visibleColumns.qty && (
+                        <td
+                          style={{ width: columnWidths.qty }}
+                          className="px-3 py-2 text-center border-r border-white/[0.1] text-sm text-gray-100 font-bold"
+                        >
+                          {item.actual_quantity ?? item.buying_quantity ?? 0}
+                        </td>
+                      )}
 
-                          {/* Action Column - Selection Checkbox */}
-                          {/* 🔴 SHOW BULK BUTTON IN MAIN INVOICE ROW */}
-                          {/* 🔴 DUAL ACTION: Checkbox + Individual Send + Bulk Button */}
-                          {visibleColumns.action && (
-                            <td className="px-6 py-4 text-center" style={{ width: columnWidths.action }} onClick={(e) => e.stopPropagation()}>
-                              {!hasMultipleItems ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  {/* 🔥 FIXED LOGIC */}
-                                  {selectedItemIds.size === 0 ? (
-                                    // ✅ NO SELECTION - Show individual "Send" button
-                                    <button
-                                      onClick={() => handleMoveToShipment([group.items[0].id])}
-                                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                      title="Send this item to Shipment & Vyapar"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                      </svg>
-                                      Send
-                                    </button>
-                                  ) : selectedItemIds.size === 1 && selectedItemIds.has(group.items[0].id) ? (
-                                    // ✅ SINGLE ITEM SELECTED - Show "Done" button
-                                    <button
-                                      onClick={() => handleMoveToShipment([group.items[0].id])}
-                                      className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                      title="Move this item to Shipment & Vyapar"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                      Done
-                                    </button>
-                                  ) : selectedItemIds.size > 1 && selectedItemIds.has(group.items[0].id) && Array.from(selectedItemIds)[0] === group.items[0].id ? (
-                                    // ✅ MULTIPLE ITEMS SELECTED - Show "Bulk Send" button on first selected row
-                                    <button
-                                      onClick={handleBulkMoveToShipment}
-                                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg whitespace-nowrap flex items-center gap-1"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                      </svg>
-                                      Bulk Send ({selectedItemIds.size})
-                                    </button>
-                                  ) : null}
+                      {/* Checklist */}
+                      {checkingTab === 'checking' && (
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
+                        <div className="inline-flex flex-wrap items-center justify-center gap-2">
+                          <label className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] text-emerald-200 border border-emerald-500/60 hover:bg-emerald-500/20 hover:border-emerald-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_mrp_label}
+                              onChange={(e) =>
+                                handleChecklistChange(item.id, 'check_mrp_label', e.target.checked)
+                              }
+                              className="h-3 w-3 rounded border-emerald-400 bg-[#111111] text-emerald-400 focus:ring-emerald-400"
+                            />
+                            <span>MRP label</span>
+                          </label>
 
-                                  {/* ✅ Checkbox for Selection (Always visible) */}
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedItemIds.has(group.items[0].id)}
-                                    onChange={(e) => handleRowSelect(group.items[0].id, e.target.checked)}
-                                    className="w-5 h-5 cursor-pointer accent-indigo-600 rounded"
-                                    title="Select for bulk action"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-gray-500">-</span>
-                              )}
-                            </td>
-                          )}
-                        </tr>
+                          <label className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] text-amber-200 border border-amber-500/60 hover:bg-amber-500/20 hover:border-amber-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_gelatin}
+                              onChange={(e) =>
+                                handleChecklistChange(item.id, 'check_gelatin', e.target.checked)
+                              }
+                              className="h-3 w-3 rounded border-amber-400 bg-[#111111] text-amber-400 focus:ring-amber-400"
+                            />
+                            <span>Gelatin</span>
+                          </label>
 
-                        {/* Expanded Card - Show individual items */}
-                        {isExpanded && hasMultipleItems && (
-                          <tr>
-                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-orange-500/5 px-6 py-4">
-                              <div className="ml-8 space-y-2">
-                                {group.items.map((item) => (
-                                  <div
-                                    key={item.id}
-                                    className="bg-[#111111] border border-white/[0.1] rounded-lg p-3 shadow-md hover:border-orange-500/50 transition-all"
-                                  >
-                                    <div className="flex items-center gap-6 text-sm">
-                                      {/* ASIN */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">ASIN:</span>
-                                        <span className="font-mono text-orange-500 font-semibold">{item.asin}</span>
-                                      </div>
+                          <label className="inline-flex items-center gap-1 rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] text-sky-200 border border-sky-500/60 hover:bg-sky-500/20 hover:border-sky-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_amazon_badge}
+                              onChange={(e) =>
+                                handleChecklistChange(item.id, 'check_amazon_badge', e.target.checked)
+                              }
+                              className="h-3 w-3 rounded border-sky-400 bg-[#111111] text-sky-400 focus:ring-sky-400"
+                            />
+                            <span>Amazon Badge</span>
+                          </label>
 
-                                      {/* Product Name */}
-                                      <div className="flex items-center gap-2 flex-1 min-w-0" title={item.product_name || ''}>
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Product:</span>
-                                        <span className="text-gray-100 truncate">{item.product_name || '-'}</span>
-                                      </div>
+                          <label className="inline-flex items-center gap-1 rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] text-rose-200 border border-rose-500/60 hover:bg-rose-500/20 hover:border-rose-400 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={!!item.check_cleaning}
+                              onChange={(e) =>
+                                handleChecklistChange(item.id, 'check_cleaning', e.target.checked)
+                              }
+                              className="h-3 w-3 rounded border-rose-400 bg-[#111111] text-rose-400 focus:ring-rose-400"
+                            />
+                            <span>Cleaning</span>
+                          </label>
+                        </div>
+                      </td>
+                      )}
 
-                                      {/* Weight - EDITABLE */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Weight:</span>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          value={item.product_weight || ''}
-                                          onChange={(e) => handleEditField(item.id, 'product_weight', parseFloat(e.target.value) || null)}
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-20 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                                          placeholder="kg"
-                                        />
-                                      </div>
+                      {/* Damaged quantity */}
+                      {checkingTab === 'checking' && (
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.damaged_quantity ?? ''}
+                          onChange={e => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            handleDamagedQtyChange(item.id, val);
+                          }}
+                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                        />
+                      </td>
+                      )}
 
-                                      {/* Quantity - EDITABLE */}
-                                      <div className="flex items-center gap-2 min-w-[100px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Qty:</span>
-                                        <input
-                                          type="number"
-                                          value={item.buying_quantity || ''}
-                                          onChange={(e) => handleEditField(item.id, 'buying_quantity', parseFloat(e.target.value) || null)}
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="w-16 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                                          placeholder="0"
-                                        />
-                                      </div>
+                      {/* Offline Sell quantity */}
+                      {checkingTab === 'checking' && (
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.offline_sell_qty ?? ''}
+                          onChange={e => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            handleOfflineSellQtyChange(item.id, val);
+                          }}
+                          className="w-20 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        />
+                      </td>
+                      )}
 
-                                      {/* Price - EDITABLE */}
-                                      <div className="flex items-center gap-2 min-w-[130px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Price:</span>
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-gray-400 text-sm">₹</span>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={item.buying_price || ''}
-                                            onChange={(e) => handleEditField(item.id, 'buying_price', parseFloat(e.target.value) || null)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="w-24 bg-[#111111] border border-white/[0.1] rounded px-2 py-1 text-gray-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all"
-                                            placeholder="0.00"
-                                          />
-                                        </div>
-                                      </div>
+                      {/* Quantity for damaged/offline tabs */}
+                      {checkingTab !== 'checking' && (
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
+                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${checkingTab === 'damaged' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'}`}>
+                          {item.buying_quantity ?? item.actual_quantity ?? 0}
+                        </span>
+                      </td>
+                      )}
+                      {checkingTab === 'offline_sell' && (
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1]">
+                        <input
+                          type="text"
+                          value={(item as any).party || ''}
+                          onChange={(e) => handlePartyChange(item.id, e.target.value)}
+                          placeholder="Enter party..."
+                          className="w-32 px-2 py-1.5 bg-[#111111] border border-white/[0.1] rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-gray-500"
+                        />
+                      </td>
+                      )}
+                      {checkingTab === 'offline_sell' && (
+                      <td className="px-6 py-4 text-center border-r border-white/[0.1] text-xs text-gray-300">
+                        {(item as any).offline_sold_at ? new Date((item as any).offline_sold_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                      </td>
+                      )}
 
-                                      {/* Amount - AUTO-CALCULATED */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Amount:</span>
-                                        <span className="font-bold text-green-400">
-                                          {item.amount ? `₹ ${item.amount.toFixed(2)}` : '-'}
-                                        </span>
-                                      </div>
+                      {checkingTab !== 'checking' && (
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleSendToRechecking([item.id])}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-400 transition-colors"
+                        >
+                          ↩ Recheck
+                        </button>
+                      </td>
+                      )}
 
-                                      {/* Tracking */}
-                                      <div className="flex items-center gap-2 min-w-[140px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Tracking:</span>
-                                        <span className="text-gray-100 truncate" title={item.tracking_details || ''}>
-                                          {item.tracking_details || '-'}
-                                        </span>
-                                      </div>
-
-                                      {/* Delivery Date */}
-                                      <div className="flex items-center gap-2 min-w-[120px]">
-                                        <span className="text-xs font-semibold text-gray-500 uppercase">Delivery:</span>
-                                        <span className="text-gray-100">
-                                          {item.delivery_date
-                                            ? new Date(item.delivery_date).toLocaleDateString('en-IN', {
-                                              day: '2-digit',
-                                              month: 'short',
-                                            })
-                                            : '-'}
-                                        </span>
-                                      </div>
-
-                                      {/* Action - Checkbox → Done → Move to Shipment */}
-                                      {/* 🔴 DUAL ACTION: Individual Send + Checkbox */}
-                                      {/* Action - Show Done/Bulk Send based on selection */}
-                                      <div className="flex items-center gap-2 min-w-[140px] justify-end">
-                                        {/* 🔥 FIXED LOGIC - Same as main row */}
-                                        {selectedItemIds.size === 0 ? (
-                                          // ✅ NO SELECTION - Show "Send" button
-                                          <button
-                                            onClick={() => handleMoveToShipment([item.id])}
-                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                          >
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                            </svg>
-                                            Send
-                                          </button>
-                                        ) : selectedItemIds.size === 1 && selectedItemIds.has(item.id) ? (
-                                          // ✅ SINGLE ITEM SELECTED - Show "Done" button
-                                          <button
-                                            onClick={() => handleMoveToShipment([item.id])}
-                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1"
-                                          >
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            Done
-                                          </button>
-                                        ) : selectedItemIds.size > 1 && selectedItemIds.has(item.id) && Array.from(selectedItemIds)[0] === item.id ? (
-                                          // ✅ MULTIPLE ITEMS SELECTED - Show "Bulk Send" on first selected item
-                                          <button
-                                            onClick={handleBulkMoveToShipment}
-                                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg whitespace-nowrap flex items-center gap-1"
-                                          >
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                            Bulk Send ({selectedItemIds.size})
-                                          </button>
-                                        ) : null}
-
-                                        {/* ✅ Checkbox - Always visible */}
-                                        <label className="flex items-center gap-1 cursor-pointer group">
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedItemIds.has(item.id)}
-                                            onChange={(e) => handleRowSelect(item.id, e.target.checked)}
-                                            className="w-4 h-4 cursor-pointer accent-indigo-600 rounded"
-                                          />
-                                          <span className="text-xs text-gray-400 group-hover:text-gray-200 transition-colors">
-                                            Select
-                                          </span>
-                                        </label>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })
-                )}
+                      {/* Action */}
+                      {visibleColumns.action && checkingTab === 'checking' && (
+                        <td
+                          style={{ width: columnWidths.action }}
+                          className="px-3 py-2 text-center"
+                        >
+                          <button
+                            onClick={() => handleMoveToRestock([item.id])}
+                            disabled={!anyChecklist}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${anyChecklist
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                              : 'bg-[#1a1a1a] text-gray-500 cursor-not-allowed'
+                              }`}
+                          >
+                            → To Restock
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Footer Count - STICKY AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
-            <div className="text-sm text-gray-300">
-              Showing {filteredInvoices.length} of {groupedInvoices.length} invoices
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
+            <div className="text-xs sm:text-sm text-gray-300">
+              Showing {displayItems.length} items
             </div>
           </div>
         </div>
@@ -1462,8 +1519,8 @@ export default function CheckingTable({
 
       {/* Company Info Modal */}
       {selectedCompany && (
-        <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-md p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-white">Seller Company Details</h3>
               <button
@@ -1480,12 +1537,69 @@ export default function CheckingTable({
         </div>
       )}
 
+      {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] animate-slide-in">
           <div className={`px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-2xl flex items-center gap-3 max-w-[calc(100vw-2rem)] sm:max-w-[600px] border ${toast.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
             <span className="text-2xl">{toast.type === 'success' ? '✅' : '❌'}</span>
             <span className="font-semibold flex-1 text-sm">{toast.message}</span>
             <button onClick={() => setToast(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      )}
+
+      {rollbackOpen && (
+        <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-[#111111] border-b border-white/[0.1] px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">Rollback: Restock → Checking</h2>
+                <p className="text-sm text-gray-300">Items from <span className="text-amber-400">all sellers</span> — also removes from listing errors</p>
+                {recentlySentAsins.size > 0 && (
+                  <p className="text-xs text-amber-400 mt-1">⚡ Recently sent items are highlighted</p>
+                )}
+              </div>
+              <button onClick={() => setRollbackOpen(false)} className="text-gray-400 hover:text-white p-2 hover:bg-[#111111] rounded-lg text-xl">✕</button>
+            </div>
+            <div className="px-6 py-4 border-b border-white/[0.1]">
+              <input type="text" placeholder="Search by ASIN, Product Name, Seller Tag..." value={restockRollbackSearch} onChange={(e) => setRestockRollbackSearch(e.target.value)} className="w-full pl-4 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg focus:outline-none focus:border-orange-500 text-gray-100 placeholder:text-gray-500" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {restockRollbackLoading ? (
+                <div className="flex items-center justify-center h-64 text-gray-400">Loading from all restock tables...</div>
+              ) : (() => {
+                const filtered = restockRollbackItems.filter(i => { if (!restockRollbackSearch) return true; const q = restockRollbackSearch.toLowerCase(); return i.asin?.toLowerCase().includes(q) || i.product_name?.toLowerCase().includes(q) || i.seller_tag?.toLowerCase().includes(q); }).sort((a, b) => { const aRecent = recentlySentAsins.has(a.asin) ? 0 : 1; const bRecent = recentlySentAsins.has(b.asin) ? 0 : 1; return aRecent - bRecent; });
+                return filtered.length === 0 ? (
+                  <div className="flex items-center justify-center h-64 text-gray-500">No items found in Restock</div>
+                ) : (
+                  <table className="w-full"><thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0"><tr>
+                    <th className="px-6 py-4 text-left w-12"><input type="checkbox" checked={filtered.length > 0 && filtered.every(i => restockRollbackSelected.has(i.id))} onChange={(e) => { if (e.target.checked) setRestockRollbackSelected(new Set(filtered.map(i => i.id))); else setRestockRollbackSelected(new Set()); }} className="w-5 h-5 accent-indigo-600" /></th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">ASIN</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-400">Product Name</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400">Seller</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400">Qty</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-400">Status</th>
+                  </tr></thead><tbody className="divide-y divide-white/[0.06]">
+                    {filtered.map(item => (
+                      <tr key={item.id} className={`cursor-pointer ${recentlySentAsins.has(item.asin) ? 'bg-amber-900/30 hover:bg-amber-900/50 border-l-2 border-l-amber-500' : 'hover:bg-white/[0.05]'}`} onClick={() => { const s = new Set(restockRollbackSelected); if (s.has(item.id)) s.delete(item.id); else s.add(item.id); setRestockRollbackSelected(s); }}>
+                        <td className="px-6 py-4"><input type="checkbox" checked={restockRollbackSelected.has(item.id)} readOnly className="w-5 h-5 accent-indigo-600" /></td>
+                        <td className="px-6 py-4 font-mono text-sm text-gray-100">{item.asin}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300"><div className="truncate max-w-[250px]">{item.product_name || '-'}</div></td>
+                        <td className="px-6 py-4 text-center text-sm text-gray-300">{item.seller_tag || '-'}</td>
+                        <td className="px-6 py-4 text-center text-sm text-gray-300">{item.buying_quantity || '-'}</td>
+                        <td className="px-6 py-4 text-center text-sm text-gray-300">{item.status || '-'}</td>
+                      </tr>))}
+                  </tbody></table>
+                );
+              })()}
+            </div>
+            <div className="bg-[#111111] border-t border-white/[0.1] px-6 py-4 flex items-center justify-between">
+              <div className="text-sm text-gray-300">{restockRollbackSelected.size > 0 ? <span className="text-amber-400 font-semibold">{restockRollbackSelected.size} selected</span> : `${restockRollbackItems.length} items available`}</div>
+              <div className="flex gap-3">
+                <button onClick={() => setRollbackOpen(false)} className="px-6 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-gray-500 hover:bg-[#1a1a1a]">Cancel</button>
+                <button onClick={handleRestockRollback} disabled={restockRollbackSelected.size === 0} className={`px-8 py-2.5 rounded-lg font-semibold text-white ${restockRollbackSelected.size === 0 ? 'bg-[#111111] text-gray-500 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-500'}`}>⏪ Rollback {restockRollbackSelected.size > 0 ? `(${restockRollbackSelected.size})` : ''}</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
