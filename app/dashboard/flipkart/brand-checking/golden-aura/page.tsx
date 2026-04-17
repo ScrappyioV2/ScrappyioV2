@@ -1,1000 +1,778 @@
 'use client';
 
-import { useAuth } from '@/lib/hooks/useAuth'
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import FunnelBadge from '../../../../components/FunnelBadge';
-import { generateAmazonLink } from '@/lib/utils';
-import {
-  Search,
-  RotateCcw,
-  LayoutList,
-  Columns,
-  ChevronLeft,
-  ChevronRight,
-  Filter
-} from 'lucide-react';
-const formatUrl = (url: string | null | undefined): string | null => {
-  if (!url) return null;
-  const trimmed = url.trim();
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  return `https://${trimmed}`;
-};
+import { Search, ChevronDown, ChevronRight, Check, X, Filter, RotateCcw } from 'lucide-react';
 
 interface ProductRow {
   id: string;
   asin: string;
-  link: string | null;          // ✅ CHANGED: from product_link to link
   product_name: string | null;
   brand: string | null;
   funnel: string | null;
   monthly_unit: number | null;
+  link: string | null;
   amz_link: string | null;
-  working?: boolean;
-  reason?: string | null;
-  remark?: string | null;
-  // ✅ ADD THESE MISSING FIELDS
-  source_id?: string | null;
-  tag?: string | null;
-  price?: number | null;
-  monthly_sales?: number | null;
-  bsr?: number | null;
-  seller?: string | null;
-  dimensions?: string | null;
-  weight?: number | null;
-  weight_unit?: string | null;
-  journey_number?: number | null;
-  status?: string | null;
+  remark: string | null;
+  category: string | null;
+  category_root: string | null;
+  category_sub: string | null;
+  category_child: string | null;
+  category_tree: string | null;
+  approval_status: string | null;
+  listing_status: string | null;
+  price: number | null;
+  monthly_sales: number | null;
+  bsr: number | null;
+  seller: string | null;
+  dimensions: string | null;
+  weight: number | null;
+  weight_unit: string | null;
+  sku: string | null;
+  source_id: string | null;
+  tag: string | null;
 }
 
+type TabKey = 'pending' | 'not_approved';
 
-type CategoryTab = 'high_demand' | 'low_demand' | 'dropshipping';
+const SELLER_ID = 1;
+const MARKETPLACE = 'flipkart';
+const SELLER_CODE = 'GR';
 
-const DEFAULT_WIDTHS: Record<string, number> = {
-  asin: 140,
-  product_name: 350,
-  brand: 160,
-  funnel: 110,
-  monthly_unit: 120,
-  link: 100,           // ✅ FIXED
-  amz_link: 100,
-  remark: 200,
+const getFunnelBadgeStyle = (funnel: string) => {
+  const f = (funnel || '').toUpperCase();
+  if (f === 'HD' || f === 'RS') return { display: f, color: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white' };
+  if (f === 'DP') return { display: 'DP', color: 'bg-gradient-to-br from-amber-400 to-amber-600 text-black' };
+  if (f === 'LD') return { display: 'LD', color: 'bg-gradient-to-br from-slate-500 to-slate-700 text-white' };
+  return { display: '-', color: '' };
+};
+
+const formatUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  return `https://${trimmed}`;
 };
 
 export default function GoldenAuraPage() {
-  const [activeTab, setActiveTab] = useState<CategoryTab>(() => {
-    if (typeof window === 'undefined') return 'high_demand';
-    return (localStorage.getItem(`scrappy_tab_${window.location.pathname}`) as CategoryTab) || 'high_demand';
-  });
-  useEffect(() => { localStorage.setItem(`scrappy_tab_${window.location.pathname}`, activeTab); }, [activeTab]);
+  const { user, loading: authLoading } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<TabKey>('pending');
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [notApprovedCount, setNotApprovedCount] = useState(0);
+  const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
-
-  // Column visibility
-  const [visibleColumns, setVisibleColumns] = useState({
-    asin: true,
-    product_name: true,
-    brand: true,
-    funnel: true,
-    monthly_unit: true,
-    link: true,          // ✅ FIXED
-    amz_link: true,
-    remark: true,
-  });
-  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
-
-  // Toast state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'warning' | 'info';
   } | null>(null);
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const rowsPerPage = 100;
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flipkart_goldenaura_column_widths');
-      return saved ? JSON.parse(saved) : DEFAULT_WIDTHS;
-    }
-    return DEFAULT_WIDTHS;
-  });
-
-  const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
-
-  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flipkart_goldenaura_column_order');
-      return saved ? JSON.parse(saved) : Object.keys(DEFAULT_WIDTHS);
-    }
-    return Object.keys(DEFAULT_WIDTHS);
-  });
-  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-
-  // Roll back state
-  const [movementHistory, setMovementHistory] = useState<{
-    [key: string]: {
-      product: ProductRow;
-      fromTable: string;
-      toTable: string;
-    } | null;
-  }>({});
-
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
-  const SELLER_ID = 1;
-  const MARKETPLACE = 'flipkart';
 
-  const SELLER_CODE_MAP: Record<number, string> = {
-    1: 'GA',
-    2: 'RR',
-    3: 'UB',
-    4: 'VV',
-    5: "DE",
-    6: "CV",
-  };
-
-  const startResize = (key: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizeRef.current = { key, startX: e.pageX, startWidth: columnWidths[key] || 100 };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!resizeRef.current) return;
-    const { key, startX, startWidth } = resizeRef.current;
-    const newWidth = Math.max(80, startWidth + (e.pageX - startX));
-    setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
-  };
-
-  const handleMouseUp = () => {
-    if (resizeRef.current) localStorage.setItem('flipkart_goldenaura_column_widths', JSON.stringify(columnWidths));
-    resizeRef.current = null;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
-
-  const sanitizeSearchTerm = (term: string): string => {
-    return term.replace(/'/g, "''").trim();
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.ctrlKey &&
-        e.key === 'z' &&
-        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
-      ) {
-        e.preventDefault();
-        handleRollBack();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [movementHistory, activeTab]);
-
-  useEffect(() => {
-    fetchLastMovementHistory();
-  }, []);
-
-  useEffect(() => {
-    fetchProducts(false);
-    fetchLastMovementHistory();
-  }, [activeTab, currentPage, debouncedSearch]);
-
-  const fetchProducts = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
     try {
-      const start = (currentPage - 1) * rowsPerPage;
-      const end = start + rowsPerPage - 1;
-
-      let query = supabase
-        .from('brand_checking')
-        .select('*', { count: 'exact' })
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID);
-
-      // ✅ ALWAYS filter by funnel based on active tab
-      const funnelMap: Record<string, string> = { high_demand: 'HD', low_demand: 'LD', dropshipping: 'DP' }
-      query = query.in('funnel', [funnelMap[activeTab], activeTab])
-
-      // ✅ THEN apply search if present
-      if (debouncedSearch.trim()) {
-        const searchTerm = sanitizeSearchTerm(debouncedSearch).substring(0, 100);
-
-        if (debouncedSearch.length > 100) {
-          setToast({
-            message: 'Search query too long - truncated to 100 characters',
-            type: 'warning',
-          });
-        }
-
-        query = query.or(
-          `asin.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`
-        );
-      }
-
-      const { data, error, count } = await query
-        .range(start, end)
-        .order('id', { ascending: true });
-
-      if (error) {
-        console.error('Supabase error:', error);
-        setToast({
-          message: 'Search failed. Try using simpler keywords.',
-          type: 'error',
-        });
-        setProducts([]);
-        setTotalCount(0);
-        return;
-      }
-
-      setProducts(data || []);
-      setTotalCount(count || 0);
-    } catch (error: any) {
-      console.error('Error fetching products:', error);
-      setToast({
-        message: error?.message || 'Error loading products',
-        type: 'error',
-      });
-      setProducts([]);
-      setTotalCount(0);
-    } finally {
-      if (!isSilent) setLoading(false);
-    }
-  };
-
-  const fetchLastMovementHistory = async () => {
-    try {
-      const funnelMap: Record<CategoryTab, string> = {
-        'high_demand': 'hd',
-        'low_demand': 'ld',
-        'dropshipping': 'dp'
-      };
-
       const { data, error } = await supabase
-        .from('seller_products')
+        .from('brand_checking')
         .select('*')
         .eq('marketplace', MARKETPLACE)
         .eq('seller_id', SELLER_ID)
-        .eq('product_status', 'movement_history')
-        .eq('from_table', funnelMap[activeTab])
-        .order('moved_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('approval_status', activeTab)
+        .order('brand', { ascending: true });
 
       if (error) {
-        console.error('Error fetching movement history:', error);
-        return;
-      }
-
-      if (data) {
-        const product: ProductRow = {
-          id: '',
-          asin: data.asin,
-          product_name: data.product_name,
-          brand: data.brand,
-          funnel: data.funnel,
-          monthly_unit: data.monthly_unit,
-          link: data.product_link,
-          amz_link: data.amz_link,
-          remark: data.remark,
-        };
-
-        setMovementHistory((prev) => ({
-          ...prev,
-          [funnelMap[activeTab]]: {
-            product,
-            fromTable: data.from_table,
-            toTable: data.to_table,
-          },
-        }));
+        console.error(error);
+        setToast({ message: 'Failed to load products', type: 'error' });
+        setProducts([]);
       } else {
-        setMovementHistory((prev) => ({
-          ...prev,
-          [funnelMap[activeTab]]: null,
-        }));
+        setProducts(data || []);
       }
-    } catch (error) {
-      console.error('Exception fetching movement history:', error);
-    }
-  };
-
-  const saveToHistory = async (product: ProductRow, fromTable: string, toTable: string) => {
-    try {
-      const funnelSuffix = product.funnel?.toLowerCase() || 'unknown';
-
-      const { error } = await supabase
-        .from('seller_products')
-        .insert({
-          marketplace: MARKETPLACE,
-          seller_id: SELLER_ID,
-          product_status: 'movement_history',
-          asin: product.asin,
-          product_name: product.product_name,
-          brand: product.brand,
-          funnel: product.funnel,
-          monthly_unit: product.monthly_unit,
-          product_link: product.link,
-          amz_link: product.amz_link,
-          remark: product.remark,
-          from_table: funnelSuffix,
-          to_table: toTable,
-          moved_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-
-      setMovementHistory((prev) => ({
-        ...prev,
-        [funnelSuffix]: { product, fromTable: funnelSuffix, toTable },
-      }));
-    } catch (error) {
-      console.error('Error saving history:', error);
-    }
-  };
-
-  // ✅ NEW FUNCTION - Handle List/Not List Actions
-  const handleListingAction = async (product: ProductRow, action: 'listed' | 'not_listed') => {
-    setProcessingId(product.id);
-
-    // ✅ OPTIMISTIC UI — remove row instantly, don't wait for DB
-    setProducts(prev => prev.filter(p => p.id !== product.id));
-    setTotalCount(prev => prev - 1);
-
-    try {
-      const targetTable = `flipkart_brand_checking_${action}_seller_${SELLER_ID}`;
-
-      // 1. Check if already exists in target (this one must go first)
-      const { data: existingRow, error: checkError } = await supabase
-        .from(targetTable)
-        .select('asin')
-        .eq('asin', product.asin)
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
-      if (existingRow) {
-        // ⚠️ ROLLBACK optimistic update — put row back
-        setProducts(prev => [...prev, product].sort((a, b) => a.id.localeCompare(b.id)));
-        setTotalCount(prev => prev + 1);
-        setToast({ message: `Product already in ${action === 'listed' ? 'Listed' : 'Not Listed'}`, type: 'warning' });
-        setProcessingId(null);
-        return;
-      }
-
-      // 2. Insert into target table (don't await yet — fire it)
-      const insertPromise = supabase
-        .from(targetTable)
-        .insert({
-          source_id: product.source_id,
-          tag: product.tag || (SELLER_CODE_MAP[SELLER_ID] || 'GA'),
-          asin: product.asin,
-          link: product.link,
-          product_name: product.product_name,
-          brand: product.brand,
-          price: product.price,
-          monthly_unit: product.monthly_unit,
-          monthly_sales: product.monthly_sales,
-          bsr: product.bsr,
-          seller: product.seller,
-          category: product.funnel,
-          dimensions: product.dimensions,
-          weight: product.weight,
-          weight_unit: product.weight_unit,
-          remark: product.remark,
-          amz_link: product.amz_link,
-          funnel: product.funnel,
-          journey_number: product.journey_number || 1,
-          status: product.status,
-          listing_status: action,
-        });
-
-      // 3. Save to history (fire it, don't await yet)
-      const historyPromise = saveToHistory(product, 'brand_checking', targetTable);
-
-      // 4. Delete from brand_checking unified table (fire it)
-      const deleteMainPromise = supabase
-        .from('brand_checking')
-        .delete()
-        .eq('id', product.id);
-
-      // 5. Delete the funnel-mirror row from seller_products (fire it)
-      const funnelTableSuffix: Record<string, string> = {
-        'hd': 'high_demand', 'highdemand': 'high_demand', 'high_demand': 'high_demand',
-        'dp': 'dropshipping', 'dropshipping': 'dropshipping',
-        'ld': 'low_demand', 'low_demand': 'low_demand', 'lowdemand': 'low_demand',
-      };
-      const suffix = funnelTableSuffix[product.funnel?.toLowerCase() || ''] || 'low_demand';
-      const deleteFunnelPromise = supabase
-        .from('seller_products')
-        .delete()
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('product_status', suffix)
-        .eq('asin', product.asin);
-
-      // ✅ Run ALL 4 operations in PARALLEL
-      const [insertResult, , deleteMainResult, deleteFunnelResult] = await Promise.all([
-        insertPromise,
-        historyPromise,
-        deleteMainPromise,
-        deleteFunnelPromise,
-      ]);
-
-      // Check for errors from parallel operations
-      if (insertResult.error) throw insertResult.error;
-      if (deleteMainResult.error) throw deleteMainResult.error;
-      if (deleteFunnelResult.error) console.warn('Funnel delete warning:', deleteFunnelResult.error);
-
-      setToast({
-        message: `Moved to ${action === 'listed' ? 'Listed' : 'Not Listed'}!`,
-        type: 'success'
-      });
-
-      // ✅ NO fetchProducts() call — optimistic UI already handled it
-
-    } catch (error: any) {
-      console.error('Error:', error);
-      // ⚠️ ROLLBACK — re-add product on failure
-      setProducts(prev => [...prev, product].sort((a, b) => a.id.localeCompare(b.id)));
-      setTotalCount(prev => prev + 1);
-      setToast({ message: `Error: ${error.message}`, type: 'error' });
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleRollBack = async () => {
-    const funnelMap: Record<CategoryTab, string> = {
-      'high_demand': 'hd',
-      'low_demand': 'ld',
-      'dropshipping': 'dp'
-    };
-    const key = funnelMap[activeTab];
-    const lastMovement = movementHistory[key];
-
-    if (!lastMovement) {
-      setToast({ message: 'No recent movement to roll back from this tab', type: 'error' });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { product, fromTable, toTable } = lastMovement;
-
-      // Check if product already exists in brand_checking for this seller
-      const { data: existingProduct, error: checkError } = await supabase
-        .from('brand_checking')
-        .select('asin')
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('asin', product.asin)
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
-      if (existingProduct) {
-        setToast({
-          message: `Cannot undo: Product "${product.product_name}" already exists in brand checking`,
-          type: 'warning',
-        });
-
-        setMovementHistory((prev) => ({ ...prev, [key]: null }));
-
-        await supabase
-          .from('seller_products')
-          .delete()
-          .eq('marketplace', MARKETPLACE)
-          .eq('seller_id', SELLER_ID)
-          .eq('product_status', 'movement_history')
-          .eq('asin', product.asin)
-          .eq('from_table', fromTable)
-          .eq('to_table', toTable);
-
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Re-insert into brand_checking unified table
-      const { error: insertError } = await supabase.from('brand_checking').insert({
-        marketplace: MARKETPLACE,
-        seller_id: SELLER_ID,
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        link: product.link,
-        amz_link: product.amz_link,
-        remark: product.remark,
-      });
-
-      if (insertError) throw insertError;
-
-      // ✅ Re-insert the funnel-mirror row into seller_products
-      const funnelStatusMap: Record<string, string> = {
-        'hd': 'high_demand', 'ld': 'low_demand', 'dp': 'dropshipping',
-        'high_demand': 'high_demand', 'low_demand': 'low_demand', 'dropshipping': 'dropshipping',
-      };
-      const suffix = funnelStatusMap[(product.funnel || '').toLowerCase()] || 'low_demand';
-      await supabase.from('seller_products').insert({
-        marketplace: MARKETPLACE,
-        seller_id: SELLER_ID,
-        product_status: suffix,
-        asin: product.asin,
-        product_name: product.product_name,
-        brand: product.brand,
-        funnel: product.funnel,
-        monthly_unit: product.monthly_unit,
-        product_link: product.link,
-        amz_link: product.amz_link,
-        remark: product.remark,
-      });
-
-      // ✅ Delete from Listed/Not Listed (toTable)
-      const { error: deleteError } = await supabase
-        .from(toTable)
-        .delete()
-        .eq('asin', product.asin);
-
-      if (deleteError) throw deleteError;
-
-      // Delete history row
-      await supabase
-        .from('seller_products')
-        .delete()
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('product_status', 'movement_history')
-        .eq('asin', product.asin)
-        .eq('from_table', fromTable)
-        .eq('to_table', toTable);
-
-      setToast({ message: `✅ Rolled back: ${product.product_name}`, type: 'success' });
-      setMovementHistory((prev) => ({ ...prev, [key]: null }));
-      fetchProducts(true);
-    } catch (error: any) {
-      console.error('❌ Error rolling back:', error);
-      setToast({
-        message: error?.message || 'Rollback failed',
-        type: 'error'
-      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const PaginationControls = () => {
-    const totalPages = Math.ceil(totalCount / rowsPerPage);
-    return (
-      <div className="sticky bottom-0 z-40 bg-[#111111] border-t border-white/[0.1] p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-300">
-            Showing <span className="text-gray-100 font-medium">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
-            <span className="text-gray-100 font-medium">{Math.min(currentPage * rowsPerPage, totalCount)}</span> of{' '}
-            <span className="text-white font-bold">{totalCount}</span> products
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              <ChevronLeft className="w-4 h-4" /> Previous
-            </button>
-            <span className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg font-mono flex items-center">
-              Page {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-[#111111] border border-white/[0.1] text-gray-500 rounded-lg hover:bg-[#1a1a1a] hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const fetchCounts = useCallback(async () => {
+    const [pendingRes, notApprovedRes] = await Promise.all([
+      supabase
+        .from('brand_checking')
+        .select('id', { count: 'exact', head: true })
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('approval_status', 'pending'),
+      supabase
+        .from('brand_checking')
+        .select('id', { count: 'exact', head: true })
+        .eq('marketplace', MARKETPLACE)
+        .eq('seller_id', SELLER_ID)
+        .eq('approval_status', 'not_approved'),
+    ]);
+    setPendingCount(pendingRes.count || 0);
+    setNotApprovedCount(notApprovedRes.count || 0);
+  }, []);
 
-  const handleDragStart = (columnName: string) => setDraggedColumn(columnName);
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-  const handleDrop = (targetColumn: string) => {
-    if (!draggedColumn || draggedColumn === targetColumn) {
-      setDraggedColumn(null); return;
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchProducts();
+      fetchCounts();
     }
-    const newOrder = [...columnOrder];
-    const draggedIndex = newOrder.indexOf(draggedColumn);
-    const targetIndex = newOrder.indexOf(targetColumn);
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedColumn);
-    setColumnOrder(newOrder);
-    localStorage.setItem('flipkart_goldenaura_column_order', JSON.stringify(newOrder));
-    setDraggedColumn(null);
+  }, [authLoading, user, fetchProducts, fetchCounts]);
+
+  useEffect(() => {
+    setExpandedBrands(new Set());
+    setSelectedIds(new Set());
+  }, [activeTab]);
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      if (p.category_root) set.add(p.category_root);
+    });
+    return Array.from(set).sort();
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return products.filter((p) => {
+      if (categoryFilter !== 'all' && p.category_root !== categoryFilter) return false;
+      if (!q) return true;
+      return (
+        (p.asin || '').toLowerCase().includes(q) ||
+        (p.product_name || '').toLowerCase().includes(q)
+      );
+    });
+  }, [products, searchQuery, categoryFilter]);
+
+  const groupedByBrand = useMemo(() => {
+    const map = new Map<string, ProductRow[]>();
+    filteredProducts.forEach((p) => {
+      const key = p.brand || '(No Brand)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    });
+    const groups = Array.from(map.entries()).map(([brand, items]) => {
+      const rootCounts = new Map<string, number>();
+      items.forEach((it) => {
+        if (it.category_root) {
+          rootCounts.set(it.category_root, (rootCounts.get(it.category_root) || 0) + 1);
+        }
+      });
+      let topRoot = '';
+      let topRootCount = 0;
+      rootCounts.forEach((cnt, root) => {
+        if (cnt > topRootCount) {
+          topRootCount = cnt;
+          topRoot = root;
+        }
+      });
+      return { brand, items, count: items.length, topRoot };
+    });
+    groups.sort((a, b) => b.count - a.count);
+    return groups;
+  }, [filteredProducts]);
+
+  const toggleBrand = (brand: string) => {
+    setExpandedBrands((prev) => {
+      const next = new Set(prev);
+      if (next.has(brand)) next.delete(brand);
+      else next.add(brand);
+      return next;
+    });
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    checked ? setSelectedIds(new Set(products.map((p) => p.id))) : setSelectedIds(new Set());
+  const handleCategoryEdit = async (id: string, field: string, value: string) => {
+    const { error } = await supabase.from('brand_checking').update({ [field]: value }).eq('id', id);
+    if (error) {
+      setToast({ message: 'Failed to update category', type: 'error' });
+      return;
+    }
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
   };
 
-  const handleSelectRow = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedIds);
-    checked ? newSelected.add(id) : newSelected.delete(id);
-    setSelectedIds(newSelected);
+  const removeProductLocal = (id: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
-  const toggleColumn = (column: keyof typeof visibleColumns) => {
-    setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
+  const handleApprove = async (product: ProductRow) => {
+    setProcessingIds((prev) => new Set(prev).add(product.id));
+    const { error } = await supabase
+      .from('brand_checking')
+      .update({ approval_status: 'approved', listing_status: 'pending' })
+      .eq('id', product.id);
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(product.id);
+      return next;
+    });
+    if (error) {
+      setToast({ message: 'Failed to approve', type: 'error' });
+      return;
+    }
+    removeProductLocal(product.id);
+    setPendingCount((c) => Math.max(0, c - 1));
+    setToast({ message: `${product.asin} approved`, type: 'success' });
   };
 
-  const renderColumnHeader = (columnKey: string, displayName: string) => {
-    if (!visibleColumns[columnKey as keyof typeof visibleColumns]) return null;
-    return (
-      <th
-        key={columnKey}
-        draggable
-        onDragStart={() => handleDragStart(columnKey)}
-        onDragOver={handleDragOver}
-        onDrop={() => handleDrop(columnKey)}
-        className="relative px-4 py-4 text-center text-xs font-bold uppercase tracking-wider bg-[#111111] text-gray-400 border-r border-white/[0.1] cursor-move hover:bg-[#111111] transition-colors select-none group"
-        style={{ width: columnWidths[columnKey], minWidth: 80 }}
-      >
-        <div className="flex items-center justify-center gap-2">
-          {displayName}
-        </div>
-        <div
-          onMouseDown={(e) => startResize(columnKey, e)}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-white/[0.08] z-10"
-          onClick={(e) => e.stopPropagation()}
-        />
-      </th>
-    );
+  const handleNotApprove = async (product: ProductRow) => {
+    setProcessingIds((prev) => new Set(prev).add(product.id));
+    const { error } = await supabase
+      .from('brand_checking')
+      .update({ approval_status: 'not_approved' })
+      .eq('id', product.id);
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(product.id);
+      return next;
+    });
+    if (error) {
+      setToast({ message: 'Failed', type: 'error' });
+      return;
+    }
+    removeProductLocal(product.id);
+    setPendingCount((c) => Math.max(0, c - 1));
+    setNotApprovedCount((c) => c + 1);
+    setToast({ message: `${product.asin} moved to Not Approved`, type: 'success' });
   };
 
-  const funnelMap: Record<CategoryTab, string> = {
-    'high_demand': 'hd',
-    'low_demand': 'ld',
-    'dropshipping': 'dp'
+  const handleRestoreToPending = async (product: ProductRow) => {
+    setProcessingIds((prev) => new Set(prev).add(product.id));
+    const { error } = await supabase
+      .from('brand_checking')
+      .update({ approval_status: 'pending' })
+      .eq('id', product.id);
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(product.id);
+      return next;
+    });
+    if (error) {
+      setToast({ message: 'Failed', type: 'error' });
+      return;
+    }
+    removeProductLocal(product.id);
+    setNotApprovedCount((c) => Math.max(0, c - 1));
+    setPendingCount((c) => c + 1);
+    setToast({ message: `${product.asin} restored to Pending`, type: 'success' });
   };
-  const hasRollback = !!movementHistory[funnelMap[activeTab]];
 
-  const tabStyles = (tabName: CategoryTab, colorClass: string, label: string) => (
-    <button
-      onClick={() => setActiveTab(tabName)}
-      className={`px-6 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative overflow-hidden group ${activeTab === tabName
-        ? `bg-orange-500 text-white font-semibold shadow-sm`
-        : 'bg-transparent text-gray-400 hover:text-gray-200 hover:bg-[#1a1a1a]'
-        }`}
-    >
-      <span className="relative z-10 flex items-center gap-2">
-        {label}
-      </span>
-      {false && (
-        <div className={`absolute inset-0 opacity-10 ${colorClass.replace('text-', 'bg-')}`} />
-      )}
-    </button>
-  );
+  const handleApproveBrand = async (items: ProductRow[]) => {
+    for (const p of items) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleApprove(p);
+    }
+  };
+
+  const handleNotApproveBrand = async (items: ProductRow[]) => {
+    for (const p of items) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleNotApprove(p);
+    }
+  };
+
+  const handleApproveSelected = async () => {
+    const targets = products.filter((p) => selectedIds.has(p.id));
+    for (const p of targets) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleApprove(p);
+    }
+  };
+
+  const handleNotApproveSelected = async () => {
+    const targets = products.filter((p) => selectedIds.has(p.id));
+    for (const p of targets) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleNotApprove(p);
+    }
+  };
+
+  const handleRestoreSelected = async () => {
+    const targets = products.filter((p) => selectedIds.has(p.id));
+    for (const p of targets) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleRestoreToPending(p);
+    }
+  };
+
+  const toggleRowSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleBrandSelect = (items: ProductRow[]) => {
+    const allSelected = items.every((p) => selectedIds.has(p.id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) items.forEach((p) => next.delete(p.id));
+      else items.forEach((p) => next.add(p.id));
+      return next;
+    });
+  };
+
+  if (authLoading) return <div className="min-h-screen bg-[#0a0a0f]" />;
+  if (!user) return null;
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30">
+      <div className="min-h-screen bg-[#0a0a0f] text-white">
         {/* HEADER */}
-        <div className="sticky top-0 z-20 bg-[#1a1a1a] border-b border-white/[0.1] pb-4 pt-6 px-6">
-          <div className="max-w-[1920px] mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                    <LayoutList className="w-6 h-6 text-orange-500" />
-                  </div>
-                  <h1 className="text-2xl font-bold tracking-tight text-white">Golden Aura - Brand Checking</h1>
-                </div>
-                <p className="text-gray-400 pl-[3.25rem] text-sm">
-                  Decide which products to list or not list
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-[#111111] px-3 py-1.5 rounded-lg border border-white/[0.1]">
-                <span>TOTAL: <span className="text-white font-bold">{totalCount}</span></span>
-                <span className="w-px h-3 bg-[#1a1a1a] mx-2" />
-                <span>SELECTED: <span className="text-orange-500 font-bold">{selectedIds.size}</span></span>
-              </div>
+        <div className="sticky top-0 z-20 bg-[#0a0a0f]/95 backdrop-blur border-b border-white/10 px-6 py-5">
+          <div className="max-w-[1920px] mx-auto space-y-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Flipkart Brand Checking — Golden Aura ({SELLER_CODE})
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">Brand-grouped approval view</p>
             </div>
 
             {/* TABS */}
-            <div className="flex flex-wrap gap-2 mb-6 p-1 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-fit">
-              {tabStyles('high_demand', 'text-emerald-400', 'High Demand')}
-              {tabStyles('low_demand', 'text-blue-400', 'Low Demand')}
-              {tabStyles('dropshipping', 'text-amber-400', 'Dropshipping')}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'pending'
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                onClick={() => setActiveTab('not_approved')}
+                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'not_approved'
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                Not Approved ({notApprovedCount})
+              </button>
             </div>
 
             {/* CONTROLS */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#1a1a1a] p-3 rounded-xl border border-white/[0.1] mb-2">
-              <div className="flex gap-3 w-full md:w-auto">
-                <div className="relative">
-                  <button
-                    onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                    className="px-4 py-2.5 bg-[#111111] text-gray-500 rounded-lg hover:bg-[#1a1a1a] border border-white/[0.1] flex items-center gap-2 text-sm font-medium transition-colors"
-                  >
-                    <Columns className="w-4 h-4" /> Columns
-                  </button>
-                  {isColumnDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setIsColumnDropdownOpen(false)} />
-                      <div className="absolute top-full left-0 mt-2 bg-[#111111] border border-white/[0.1] rounded-xl shadow-xl p-3 z-20 w-56 animate-in fade-in zoom-in-95 duration-200">
-                        {Object.keys(visibleColumns).map((col) => (
-                          <label key={col} className="flex items-center gap-3 p-2 hover:bg-[#111111] rounded-lg cursor-pointer transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={visibleColumns[col as keyof typeof visibleColumns]}
-                              onChange={() => toggleColumn(col as keyof typeof visibleColumns)}
-                              className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
-                            />
-                            <span className="text-sm text-gray-300 capitalize">{col.replace('_', ' ')}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[260px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search by ASIN or product name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                />
               </div>
 
-              <div className="flex gap-3 items-center w-full md:w-auto">
-                <div className="relative w-full md:w-72 group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
-                  <input
-                    type="text"
-                    placeholder="Search by ASIN, Name, Brand..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value.length > 100) {
-                        setToast({
-                          message: 'Search query too long. Please use shorter keywords.',
-                          type: 'warning',
-                        });
-                        return;
-                      }
-                      setSearchQuery(value);
-                    }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-gray-100 placeholder:text-gray-500 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
-                  />
-                </div>
-
-                <button
-                  onClick={handleRollBack}
-                  disabled={!hasRollback}
-                  className={`px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${hasRollback
-                    ? 'bg-orange-500 text-white hover:bg-orange-400 shadow-lg shadow-orange-500/10'
-                    : 'bg-[#111111] text-gray-500 cursor-not-allowed border border-white/[0.1]'
-                    }`}
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="pl-10 pr-8 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-orange-500 outline-none transition-all appearance-none cursor-pointer"
                 >
-                  <RotateCcw className="w-4 h-4" /> Undo
-                </button>
+                  <option value="all">All Categories</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {selectedIds.size > 0 && activeTab === 'pending' && (
+                <>
+                  <button
+                    onClick={handleApproveSelected}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Check className="w-4 h-4" /> Approve Selected ({selectedIds.size})
+                  </button>
+                  <button
+                    onClick={handleNotApproveSelected}
+                    className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <X className="w-4 h-4" /> Not Approve Selected ({selectedIds.size})
+                  </button>
+                </>
+              )}
+
+              {selectedIds.size > 0 && activeTab === 'not_approved' && (
+                <button
+                  onClick={handleRestoreSelected}
+                  className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" /> Restore Selected ({selectedIds.size})
+                </button>
+              )}
             </div>
           </div>
         </div>
 
         {/* TABLE */}
-        <div className="max-w-[1920px] mx-auto px-6 pb-6">
-          <div className="bg-[#111111] rounded-2xl border border-white/[0.1] overflow-hidden shadow-xl shadow-black/20">
+        <div className="max-w-[1920px] mx-auto px-6 py-5">
+          <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden">
             {loading ? (
-              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
-                <div className="w-10 h-10 border-4 border-orange-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-                <span className="text-sm font-medium tracking-wide animate-pulse">LOADING DATA...</span>
+              <div className="h-96 flex items-center justify-center text-gray-400">
+                <div className="w-8 h-8 border-3 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
               </div>
-            ) : products.length === 0 ? (
-              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-3">
-                <Filter className="w-12 h-12 text-gray-500" />
-                <p className="text-lg font-medium text-gray-400">No items found in {activeTab.replace('_', ' ')}</p>
-                <p className="text-sm text-gray-300">Try adjusting your search or filters</p>
+            ) : groupedByBrand.length === 0 ? (
+              <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-2">
+                <Filter className="w-12 h-12" />
+                <p className="text-base font-medium">No products in {activeTab.replace('_', ' ')}</p>
               </div>
             ) : (
-              <div className="relative h-[calc(100vh-320px)] overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                <table className="w-full border-collapse text-left table-auto" ref={tableRef}>
-                  <thead className="sticky top-0 z-30 bg-[#111111] border-b border-white/[0.1] shadow-md">
-                    <tr>
-                      <th className="p-4 bg-[#111111] border-r border-white/[0.1] text-center sticky left-0 z-20" style={{ width: '60px' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.size === products.length && products.length > 0}
-                          onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
-                        />
-                      </th>
-                      {columnOrder.map((col) => {
-                        const columnNames: Record<string, string> = {
-                          asin: 'ASIN',
-                          product_name: 'Product Name',
-                          brand: 'Brand',
-                          funnel: 'Funnel',
-                          monthly_unit: 'Monthly Unit',
-                          link: 'Product Link',        // ✅ CHANGED: key is 'link', display is 'Product Link'
-                          amz_link: 'AMZ Link',
-                          reason: 'Reason',
-                          remark: 'Remark',
-                        };
-                        return renderColumnHeader(col, columnNames[col]);
-                      })}
-                      <th className="p-4 text-center font-bold text-xs uppercase tracking-wider text-gray-400 bg-[#111111]" style={{ width: '200px' }}>Actions</th>
+              <div className="overflow-auto max-h-[calc(100vh-260px)]">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 z-10 bg-[#0a0a0f] border-b border-white/10">
+                    <tr className="text-left text-xs font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-4 py-3 w-12"></th>
+                      <th className="px-4 py-3">Brand / Product</th>
+                      <th className="px-4 py-3 w-40">Root Category</th>
+                      <th className="px-4 py-3 w-40">Sub Category</th>
+                      <th className="px-4 py-3 w-40">Child Category</th>
+                      <th className="px-4 py-3 w-20 text-center">Funnel</th>
+                      <th className="px-4 py-3 w-24 text-right">Monthly</th>
+                      <th className="px-4 py-3 w-20 text-center">Links</th>
+                      <th className="px-4 py-3 w-24 text-center">Remark</th>
+                      <th className="px-4 py-3 w-56 text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/[0.06]">
-                    {products.map((product) => (
-                      <tr key={product.id} className={`group hover:bg-white/[0.05] transition-colors ${selectedIds.has(product.id) ? 'bg-orange-500/10' : ''}`}>
-                        <td className="p-3 text-center bg-[#1a1a1a] sticky left-0 z-10 border-r border-white/[0.1] group-hover:bg-[#111111] transition-colors" style={{ width: '60px' }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(product.id)}
-                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 w-4 h-4 cursor-pointer"
-                          />
-                        </td>
-                        {columnOrder.map((col) => {
-                          if (!visibleColumns[col as keyof typeof visibleColumns]) return null;
-
-                          return (
-                            <td key={col}
-                              className={`px-4 py-3 text-sm border-r border-white/[0.1] truncate ${col === 'product_name' ? 'text-left' : 'text-center'}`}
-                              style={{ width: columnWidths[col], maxWidth: columnWidths[col] }}
-                              title={String(product[col as keyof ProductRow] || '-')}
-                            >
-                              {col === 'funnel' ? (
-                                (() => {
-                                  if (!product.funnel) return <span className="text-gray-500">-</span>;
-
-                                  const funnelDisplay: Record<string, { tag: string; bgColor: string }> = {
-                                    'high_demand': { tag: 'HD', bgColor: 'bg-emerald-500' },
-                                    'hd': { tag: 'HD', bgColor: 'bg-emerald-500' },
-                                    'dropshipping': { tag: 'DP', bgColor: 'bg-amber-500' },
-                                    'dp': { tag: 'DP', bgColor: 'bg-amber-500' },
-                                    'low_demand': { tag: 'LD', bgColor: 'bg-blue-500' },
-                                    'ld': { tag: 'LD', bgColor: 'bg-blue-500' },
-                                  };
-
-                                  const config = funnelDisplay[product.funnel.toLowerCase()] || {
-                                    tag: product.funnel.substring(0, 2).toUpperCase(),
-                                    bgColor: 'bg-slate-600'
-                                  };
-
-                                  return (
-                                    <span className={`inline-flex items-center justify-center w-12 h-12 rounded-full text-sm font-bold text-white shadow-lg ${config.bgColor}`}>
-                                      {config.tag}
-                                    </span>
-                                  );
-                                })()
-                              ) : col === 'remark' ? (
-
-                                product.remark ? (
-                                  <button
-                                    onClick={() => setSelectedRemark(product.remark || '')}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                  >
-                                    View
-                                  </button>
-                                ) : (
-                                  <span className="text-gray-500">-</span>
-                                )
-                              ) : col === 'link' ? (  // ✅ FIXED - added `) :`
-                                product.link ? (
-                                  <a
-                                    href={formatUrl(product.link) || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-medium border border-blue-500/20"
-                                  >
-                                    Product
-                                  </a>
-                                ) : <span className="text-gray-500">-</span>
-
-                              ) : col === 'amz_link' ? (
-                                product.amz_link ? (
-                                  <a
-                                    href={formatUrl(product.amz_link) || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-medium border border-emerald-500/20"
-                                  >
-                                    Seller
-                                  </a>
-                                ) : <span className="text-gray-500">-</span>
-
-                                // ) : col === 'funnel' ? (
-                                //   <FunnelBadge funnel={product.funnel} />
-
-                              ) : col === 'remark' ? (
-                                product.remark ? (
-                                  <button
-                                    onClick={() => setSelectedRemark(product.remark || '')}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors"
-                                  >
-                                    View
-                                  </button>
-                                ) : <span className="text-gray-500">-</span>
-
-                              ) : col === 'product_name' ? (
-                                <span className="text-gray-100 font-medium">{product.product_name}</span>
-
-                              ) : (
-                                <span className="text-gray-400">{String(product[col as keyof ProductRow] || '-')}</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td className="p-4 text-center">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              onClick={() => handleListingAction(product, 'listed')}
-                              disabled={processingId === product.id}
-                              className="px-3 py-1.5 bg-green-600 border border-green-700 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all text-xs font-bold"
-                            >
-                              {processingId === product.id ? '...' : '✓ List'}
-                            </button>
-                            <button
-                              onClick={() => handleListingAction(product, 'not_listed')}
-                              disabled={processingId === product.id}
-                              className="px-3 py-1.5 bg-amber-500 border border-amber-600 text-black rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-all text-xs font-bold"
-                            >
-                              {processingId === product.id ? '...' : '✗ Not List'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody>
+                    {groupedByBrand.map(({ brand, items, count, topRoot }) => {
+                      const isExpanded = expandedBrands.has(brand);
+                      const allSelected = items.every((p) => selectedIds.has(p.id));
+                      const someSelected = !allSelected && items.some((p) => selectedIds.has(p.id));
+                      return (
+                        <BrandRows
+                          key={brand}
+                          brand={brand}
+                          items={items}
+                          count={count}
+                          topRoot={topRoot}
+                          isExpanded={isExpanded}
+                          allSelected={allSelected}
+                          someSelected={someSelected}
+                          activeTab={activeTab}
+                          processingIds={processingIds}
+                          selectedIds={selectedIds}
+                          onToggle={() => toggleBrand(brand)}
+                          onToggleBrandSelect={() => toggleBrandSelect(items)}
+                          onToggleRowSelect={toggleRowSelect}
+                          onApproveBrand={() => handleApproveBrand(items)}
+                          onNotApproveBrand={() => handleNotApproveBrand(items)}
+                          onApprove={handleApprove}
+                          onNotApprove={handleNotApprove}
+                          onRestore={handleRestoreToPending}
+                          onCategoryEdit={handleCategoryEdit}
+                          onShowRemark={(r) => setSelectedRemark(r)}
+                        />
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
-          {!loading && products.length > 0 && <PaginationControls />}
         </div>
 
-        {toast && (
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        )}
-        {selectedRemark && (
-          <div className="fixed inset-0 bg-[#111111] z-50 flex items-center justify-center p-4">
-            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl w-full max-w-2xl p-6">
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+        {selectedRemark !== null && (
+          <div
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedRemark(null)}
+          >
+            <div
+              className="bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl w-full max-w-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-white">Remark Details</h3>
+                <h3 className="text-lg font-bold text-white">Remark</h3>
                 <button
                   onClick={() => setSelectedRemark(null)}
-                  className="text-gray-400 hover:text-white text-2xl transition-colors p-2 hover:bg-[#111111] rounded-lg"
+                  className="text-gray-400 hover:text-white p-1 rounded transition-colors"
                 >
-                  ×
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="whitespace-pre-wrap text-gray-100 bg-[#111111] p-4 rounded-lg border border-white/[0.1] max-h-96 overflow-y-auto">
-                {selectedRemark}
+              <div className="whitespace-pre-wrap text-gray-200 bg-[#0a0a0f] p-4 rounded-lg border border-white/10 max-h-96 overflow-y-auto text-sm">
+                {selectedRemark || '(empty)'}
               </div>
             </div>
           </div>
         )}
       </div>
     </PageTransition>
+  );
+}
+
+interface BrandRowsProps {
+  brand: string;
+  items: ProductRow[];
+  count: number;
+  topRoot: string;
+  isExpanded: boolean;
+  allSelected: boolean;
+  someSelected: boolean;
+  activeTab: TabKey;
+  processingIds: Set<string>;
+  selectedIds: Set<string>;
+  onToggle: () => void;
+  onToggleBrandSelect: () => void;
+  onToggleRowSelect: (id: string) => void;
+  onApproveBrand: () => void;
+  onNotApproveBrand: () => void;
+  onApprove: (p: ProductRow) => void;
+  onNotApprove: (p: ProductRow) => void;
+  onRestore: (p: ProductRow) => void;
+  onCategoryEdit: (id: string, field: string, value: string) => void;
+  onShowRemark: (r: string) => void;
+}
+
+function BrandRows({
+  brand,
+  items,
+  count,
+  topRoot,
+  isExpanded,
+  allSelected,
+  someSelected,
+  activeTab,
+  processingIds,
+  selectedIds,
+  onToggle,
+  onToggleBrandSelect,
+  onToggleRowSelect,
+  onApproveBrand,
+  onNotApproveBrand,
+  onApprove,
+  onNotApprove,
+  onRestore,
+  onCategoryEdit,
+  onShowRemark,
+}: BrandRowsProps) {
+  return (
+    <>
+      <tr className="border-b border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition-colors">
+        <td className="px-4 py-3">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = someSelected;
+            }}
+            onChange={onToggleBrandSelect}
+            className="w-4 h-4 rounded border-white/20 bg-white/5 text-orange-500 focus:ring-orange-500/30 cursor-pointer"
+          />
+        </td>
+        <td className="px-4 py-3 cursor-pointer" onClick={onToggle}>
+          <div className="flex items-center gap-2">
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            )}
+            <span className="font-semibold text-white">{brand}</span>
+            <span className="text-xs text-gray-500 font-mono">({count} products)</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-gray-400 text-xs">{topRoot || '-'}</td>
+        <td className="px-4 py-3 text-gray-500 text-xs">—</td>
+        <td className="px-4 py-3 text-gray-500 text-xs">—</td>
+        <td className="px-4 py-3"></td>
+        <td className="px-4 py-3"></td>
+        <td className="px-4 py-3"></td>
+        <td className="px-4 py-3"></td>
+        <td className="px-4 py-3 text-center">
+          {activeTab === 'pending' ? (
+            <div className="flex justify-center gap-1.5">
+              <button
+                onClick={onApproveBrand}
+                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded transition-colors"
+                title="Approve all in brand"
+              >
+                ✓ All
+              </button>
+              <button
+                onClick={onNotApproveBrand}
+                className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded transition-colors"
+                title="Not approve all in brand"
+              >
+                ✗ All
+              </button>
+            </div>
+          ) : null}
+        </td>
+      </tr>
+
+      {isExpanded &&
+        items.map((p) => {
+          const badge = getFunnelBadgeStyle(p.funnel || '');
+          const isProcessing = processingIds.has(p.id);
+          return (
+            <tr
+              key={p.id}
+              className={`border-b border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors ${
+                selectedIds.has(p.id) ? 'bg-orange-500/5' : ''
+              }`}
+            >
+              <td className="px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(p.id)}
+                  onChange={() => onToggleRowSelect(p.id)}
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-orange-500 focus:ring-orange-500/30 cursor-pointer"
+                />
+              </td>
+              <td className="px-4 py-3 pl-10">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-mono text-xs text-orange-400">{p.asin}</span>
+                  <span className="text-gray-200 text-sm line-clamp-2" title={p.product_name || ''}>
+                    {p.product_name || '-'}
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-3">
+                <CategoryInput
+                  initial={p.category_root || ''}
+                  onSave={(v) => onCategoryEdit(p.id, 'category_root', v)}
+                />
+              </td>
+              <td className="px-4 py-3">
+                <CategoryInput
+                  initial={p.category_sub || ''}
+                  onSave={(v) => onCategoryEdit(p.id, 'category_sub', v)}
+                />
+              </td>
+              <td className="px-4 py-3">
+                <CategoryInput
+                  initial={p.category_child || ''}
+                  onSave={(v) => onCategoryEdit(p.id, 'category_child', v)}
+                />
+              </td>
+              <td className="px-4 py-3 text-center">
+                {badge.display !== '-' ? (
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-bold ${badge.color}`}
+                  >
+                    {badge.display}
+                  </span>
+                ) : (
+                  <span className="text-gray-600 text-xs">-</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-right text-gray-300 font-mono text-xs">
+                {p.monthly_unit ?? '-'}
+              </td>
+              <td className="px-4 py-3 text-center">
+                <div className="flex justify-center gap-1">
+                  {p.link && (
+                    <a
+                      href={formatUrl(p.link) || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white text-[10px] font-medium border border-blue-500/20 transition-colors"
+                      title="Product link"
+                    >
+                      P
+                    </a>
+                  )}
+                  {p.amz_link && (
+                    <a
+                      href={formatUrl(p.amz_link) || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white text-[10px] font-medium border border-emerald-500/20 transition-colors"
+                      title="Amazon link"
+                    >
+                      A
+                    </a>
+                  )}
+                </div>
+              </td>
+              <td className="px-4 py-3 text-center">
+                {p.remark ? (
+                  <button
+                    onClick={() => onShowRemark(p.remark || '')}
+                    className="px-2 py-0.5 bg-orange-500/10 text-orange-400 hover:bg-orange-500 hover:text-white border border-orange-500/20 rounded text-xs font-medium transition-colors"
+                  >
+                    View
+                  </button>
+                ) : (
+                  <span className="text-gray-600 text-xs">-</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-center">
+                {activeTab === 'pending' ? (
+                  <div className="flex justify-center gap-1.5">
+                    <button
+                      onClick={() => onApprove(p)}
+                      disabled={isProcessing}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded transition-colors flex items-center gap-1"
+                    >
+                      <Check className="w-3 h-3" /> Approve
+                    </button>
+                    <button
+                      onClick={() => onNotApprove(p)}
+                      disabled={isProcessing}
+                      className="px-2.5 py-1 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-bold rounded transition-colors flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Not
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onRestore(p)}
+                    disabled={isProcessing}
+                    className="px-2.5 py-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-bold rounded transition-colors inline-flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Restore
+                  </button>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+    </>
+  );
+}
+
+interface CategoryInputProps {
+  initial: string;
+  onSave: (value: string) => void;
+}
+
+function CategoryInput({ initial, onSave }: CategoryInputProps) {
+  const [value, setValue] = useState(initial);
+
+  useEffect(() => {
+    setValue(initial);
+  }, [initial]);
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => {
+        if (value !== initial) onSave(value);
+      }}
+      placeholder="-"
+      className="w-full px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-gray-200 placeholder:text-gray-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30 outline-none transition-all"
+    />
   );
 }
