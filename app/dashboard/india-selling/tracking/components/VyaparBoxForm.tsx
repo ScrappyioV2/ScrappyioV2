@@ -356,6 +356,7 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                         total_box_weight: weightNum,
                         inbound_tracking_id: item.id,
                         sns_active: item.sns_active ?? false,
+                        journey_number: item.journey_number ?? null,
                     });
 
                     // Update inbound tracking

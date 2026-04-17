@@ -367,6 +367,7 @@ type BoxProduct = {
     total_box_weight?: number | null;
     inbound_tracking_id?: string | null;
     sns_active?: boolean;
+    journey_number?: number | null;
 };
 
 type GroupedBox = {
@@ -817,6 +818,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                         check_small_size: false,
                         check_multi_seller: false,
                         sns_active: (p as any).sns_active ?? false,
+                        journey_number: (p as any).journey_number ?? null,
                         moved_from_boxes_at: new Date().toISOString(),
                     }));
 
@@ -857,6 +859,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                             seller_link: r.seller_link ?? null,
                             journey_id: r.journey_id ?? null,
                             sns_active: r.sns_active ?? false,
+                            journey_number: r.journey_number ?? null,
                             action: 'moved_to_checking',
                             reason: null,
                             original_created_at: r.created_at ?? null,

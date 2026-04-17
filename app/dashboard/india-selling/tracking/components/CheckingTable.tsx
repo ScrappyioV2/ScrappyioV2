@@ -390,6 +390,7 @@ export default function CheckingTable({
           status: 'pending',
           sns_active: item.sns_active ?? false,
           journey_id: item.journey_id ?? null,
+          journey_number: item.journey_number ?? null,
         };
 
         const { error: insertError } = await supabase
@@ -412,6 +413,7 @@ export default function CheckingTable({
           seller_link: (item as any).seller_link ?? null,
           sns_active: item.sns_active ?? false,
           journey_id: item.journey_id ?? null,
+          journey_number: item.journey_number ?? null,
         };
 
         // Insert pending row
@@ -908,6 +910,7 @@ export default function CheckingTable({
         delivery_date: item.delivery_date,
         journey_id: item.journey_id ?? null,
         sns_active: item.sns_active ?? false,
+        journey_number: item.journey_number ?? null,
       }));
       const { error: insertError } = await supabase.from('india_box_checking').insert(checkingRows);
       if (insertError) throw insertError;
