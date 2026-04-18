@@ -36,13 +36,13 @@ const newId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 export default function SkuGeneratorPage() {
   const { loading: authLoading } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(cachedProducts || []);
   const [view, setView] = useState<'grouped' | 'flat'>('grouped');
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleGroups, setVisibleGroups] = useState(50);
   const [visibleRows, setVisibleRows] = useState(100);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(!cachedProducts);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
