@@ -195,6 +195,17 @@ export default function PurchasesPage() {
 
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
+  const [activeRowId, setActiveRowId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('flipkartPurchasesActiveRowId');
+  });
+  const markRowActive = (id: string) => {
+    setActiveRowId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('flipkartPurchasesActiveRowId', id);
+    }
+  };
+
   // History Sidebar State
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
   const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
@@ -3783,7 +3794,15 @@ export default function PurchasesPage() {
                 </tr>
               ) : (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className={`hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] group ${activeTab === 'order_confirmed' && product.sns_active ? 'border-l-4 border-l-teal-500 bg-teal-900/10' : ''}`}>
+                  <tr
+                    key={product.id}
+                    onClick={() => markRowActive(product.id)}
+                    className={`border-b border-white/[0.1] group transition-colors ${
+                      product.id === activeRowId
+                        ? 'bg-emerald-500/10 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)]'
+                        : `hover:bg-[#111111]/60 ${activeTab === 'order_confirmed' && product.sns_active ? 'border-l-4 border-l-teal-500 bg-teal-900/10' : ''}`
+                    }`}
+                  >
                     {/* Checkbox */}
                     {visibleColumns.checkbox && (
                       <td className="px-6 py-4 text-center" style={{ width: columnWidths.checkbox }}>
