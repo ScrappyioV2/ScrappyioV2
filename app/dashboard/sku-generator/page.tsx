@@ -23,22 +23,8 @@ type Product = {
   sku: string;
 };
 
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-
-const ML_COLORS: Record<string, string> = {
-  A: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  B: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  C: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  D: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
-  E: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
-  F: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-  G: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-  H: 'bg-lime-500/20 text-lime-300 border-lime-500/30',
-};
-const defaultMlColor = 'bg-slate-500/20 text-slate-300 border-slate-500/30';
-
-const generateSku = (productNumber: number, asin: string, multiListing: string, packOf: number): string => {
-  const base = `${productNumber}- ${asin}-${multiListing}`;
+const generateSku = (productNumber: number, asin: string, packOf: number): string => {
+  const base = `${productNumber}- ${asin}`;
   return packOf > 1 ? `${base}-${packOf}` : base;
 };
 
@@ -105,23 +91,19 @@ export default function SkuGeneratorPage() {
     const trimmed = value.trim();
     setForm(prev => ({ ...prev, barcode_1: value }));
     if (!trimmed) {
-      setForm(prev => ({ ...prev, barcode_1: value, product_number: 0, multi_listing: 'A' }));
+      setForm(prev => ({ ...prev, barcode_1: value, product_number: 0 }));
       return;
     }
     const matchingProduct = products.find(p =>
       p.barcode_1.trim() === trimmed || p.barcode_2.trim() === trimmed
     );
     if (matchingProduct) {
-      const groupItems = products.filter(p => p.product_number === matchingProduct.product_number);
-      const usedLetters = new Set(groupItems.map(p => p.multi_listing));
-      const nextLetter = ALPHABET.find(l => !usedLetters.has(l)) || 'A';
       setForm(prev => ({
         ...prev,
         barcode_1: value,
         barcode_2: prev.barcode_2 || matchingProduct.barcode_2,
         brand: prev.brand || matchingProduct.brand,
         product_number: matchingProduct.product_number,
-        multi_listing: nextLetter,
       }));
     } else {
       const maxProductNumber = products.reduce((max, p) => Math.max(max, p.product_number), 0);
@@ -129,14 +111,13 @@ export default function SkuGeneratorPage() {
         ...prev,
         barcode_1: value,
         product_number: maxProductNumber + 1,
-        multi_listing: 'A',
       }));
     }
   };
 
   const previewSku = useMemo(() => {
     if (!form.asin || !form.product_number) return '';
-    return generateSku(form.product_number, form.asin, form.multi_listing, form.pack_of);
+    return generateSku(form.product_number, form.asin, form.pack_of);
   }, [form]);
 
   const handleAddProduct = async () => {
@@ -144,7 +125,7 @@ export default function SkuGeneratorPage() {
     if (!form.barcode_1.trim()) return showToast('Barcode 1 is required', 'error');
     if (!form.product_number) return showToast('Product Number missing', 'error');
 
-    const sku = generateSku(form.product_number, form.asin.trim(), form.multi_listing, form.pack_of);
+    const sku = generateSku(form.product_number, form.asin.trim(), form.pack_of);
     setAdding(true);
     const { data: inserted, error } = await supabase
       .from('sku_catalog')
@@ -201,7 +182,7 @@ export default function SkuGeneratorPage() {
     if (!product) return;
     const safePack = Math.max(1, newPackOf || 1);
     if (safePack === product.pack_of) return;
-    const newSku = generateSku(product.product_number, product.asin, product.multi_listing, safePack);
+    const newSku = generateSku(product.product_number, product.asin, safePack);
     const { error } = await supabase
       .from('sku_catalog')
       .update({ pack_of: safePack, sku: newSku })
@@ -230,16 +211,15 @@ export default function SkuGeneratorPage() {
           const asin = (row['ASIN'] || row['asin'] || '').trim();
           const brand = (row['Brand Name'] || row['brand'] || '').trim();
           const name = (row['Name'] || row['name'] || '').trim();
-          const multiListing = (row['Multi Listing'] || row['multi_listing'] || 'A').trim().toUpperCase() || 'A';
           const barcode1 = (row['Barcode 1'] || row['barcode_1'] || '').trim();
           const barcode2 = (row['Barcode 2'] || row['barcode_2'] || '').trim();
           const packOf = parseInt(row['Pack of'] || row['pack_of'] || '1', 10) || 1;
           const productNumber = parseInt(row['Product Number'] || row['product_number'] || row['No'] || '0', 10) || 0;
-          const sku = (row['SKU'] || row['sku'] || '').trim() || generateSku(productNumber, asin, multiListing, packOf);
+          const sku = (row['SKU'] || row['sku'] || '').trim() || generateSku(productNumber, asin, packOf);
           return {
             id: newId(),
             asin, brand, name,
-            multi_listing: multiListing,
+            multi_listing: 'A',
             barcode_1: barcode1, barcode_2: barcode2,
             pack_of: packOf, product_number: productNumber, sku,
           };
@@ -342,13 +322,6 @@ export default function SkuGeneratorPage() {
 
   return (
     <PageTransition>
-      <style jsx global>{`
-        .sku-gen-select option {
-          background: #111111;
-          color: #fff;
-          padding: 8px;
-        }
-      `}</style>
       <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
         {/* Header */}
         <div className="flex-none px-4 sm:px-6 pt-4 sm:pt-6 pb-5 border-b border-white/[0.1]">
@@ -359,7 +332,7 @@ export default function SkuGeneratorPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">SKU Generator</h1>
           </div>
           <p className="text-gray-400 text-xs sm:text-sm pl-1">
-            Format: <span className="font-mono text-orange-400">{'{ProductNumber}- {ASIN}-{MultiListing}[-{PackOf}]'}</span>
+            Format: <span className="font-mono text-orange-400">{'{ProductNumber}- {ASIN}[-{PackOf}]'}</span>
           </p>
 
           {/* Stats */}
@@ -443,7 +416,7 @@ export default function SkuGeneratorPage() {
 
         {/* Add form */}
         <div className="flex-none px-4 sm:px-6 py-4 border-b border-white/[0.1] bg-[#0d0d0d]">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             <FormInput label="Barcode 1*" value={form.barcode_1} onChange={handleBarcodeChange} placeholder="Scan/type" mono />
             <FormInput label="ASIN*" value={form.asin} onChange={v => setForm(p => ({ ...p, asin: v.toUpperCase() }))} placeholder="B0..." mono />
             <FormInput label="Brand" value={form.brand} onChange={v => setForm(p => ({ ...p, brand: v }))} placeholder="Brand" />
@@ -468,24 +441,6 @@ export default function SkuGeneratorPage() {
                 className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
                 placeholder="auto"
               />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">ML</label>
-              <select
-                value={form.multi_listing}
-                onChange={e => setForm(p => ({ ...p, multi_listing: e.target.value }))}
-                className="sku-gen-select w-full font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                style={{
-                  background: '#0a0a0a',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 6,
-                  padding: '8px 10px',
-                  fontSize: 13,
-                }}
-              >
-                {ALPHABET.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
             </div>
             <button
               onClick={handleAddProduct}
@@ -519,8 +474,7 @@ export default function SkuGeneratorPage() {
             <div className="space-y-3">
               {groups.map(([num, items]) => {
                 const isExpanded = expandedGroups.has(num);
-                const aListing = items.find(i => i.multi_listing === 'A') || items[0];
-                const sortedLetters = items.map(i => i.multi_listing).sort();
+                const aListing = items[0];
                 return (
                   <div key={num} className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
                     <button
@@ -542,14 +496,7 @@ export default function SkuGeneratorPage() {
                       <span className="text-gray-400">•</span>
                       <span className="text-gray-300 text-sm truncate max-w-md">{aListing.name || '—'}</span>
                       <span className="text-gray-400">•</span>
-                      <span className="text-gray-500 text-xs">{items.length} listing{items.length > 1 ? 's' : ''}</span>
-                      <div className="flex items-center gap-1 ml-auto">
-                        {sortedLetters.map((l, i) => (
-                          <span key={i} className={`inline-flex items-center justify-center w-6 h-6 rounded font-mono font-bold text-[10px] border ${ML_COLORS[l] || defaultMlColor}`}>
-                            {l}
-                          </span>
-                        ))}
-                      </div>
+                      <span className="text-gray-500 text-xs ml-auto">{items.length} listing{items.length > 1 ? 's' : ''}</span>
                     </button>
                     {isExpanded && (
                       <ProductTable items={items} onCopy={handleCopySku} onDelete={handleDelete} onPackChange={handlePackChange} showProductNumber={false} />
@@ -610,7 +557,6 @@ function ProductTable({ items, onCopy, onDelete, onPackChange, showProductNumber
             <th className="px-3 py-2 text-left font-medium">ASIN</th>
             <th className="px-3 py-2 text-left font-medium">Brand</th>
             <th className="px-3 py-2 text-left font-medium">Product Name</th>
-            <th className="px-3 py-2 text-center font-medium">ML</th>
             <th className="px-3 py-2 text-center font-medium">Pack</th>
             <th className="px-3 py-2 text-left font-medium">Barcode</th>
             <th className="px-3 py-2 text-left font-medium">SKU</th>
@@ -619,18 +565,12 @@ function ProductTable({ items, onCopy, onDelete, onPackChange, showProductNumber
         </thead>
         <tbody>
           {items.map(p => {
-            const mlColor = ML_COLORS[p.multi_listing] || defaultMlColor;
             return (
               <tr key={p.id} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
                 {showProductNumber && <td className="px-3 py-2 font-mono text-orange-400 font-bold">#{p.product_number}</td>}
                 <td className="px-3 py-2 font-mono text-gray-100">{p.asin}</td>
                 <td className="px-3 py-2 text-gray-200">{p.brand || '—'}</td>
                 <td className="px-3 py-2 text-gray-300 max-w-xs truncate" title={p.name}>{p.name || '—'}</td>
-                <td className="px-3 py-2 text-center">
-                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg font-mono font-bold text-xs border ${mlColor}`}>
-                    {p.multi_listing}
-                  </span>
-                </td>
                 <td className="px-3 py-2 text-center">
                   <PackEdit value={p.pack_of} onSave={(n) => onPackChange(p.id, n)} />
                 </td>
