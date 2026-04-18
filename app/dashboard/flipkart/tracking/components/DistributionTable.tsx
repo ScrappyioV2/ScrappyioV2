@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { useState, useEffect } from 'react';
 import { getFunnelBadgeStyle } from '@/lib/utils';
-import { FLIPKART_FLIPKART_SELLER_TAG_MAPPING, FlipkartSellerTag } from '@/lib/utils';
+import { FLIPKART_SELLER_TAG_MAPPING, FlipkartSellerTag } from '@/lib/utils';
 import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
 
 // ============================================

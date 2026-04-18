@@ -445,7 +445,7 @@ export const APP_ROUTES: AppRoute[] = [
         label: 'Restock',
         permission: 'view-restock',
         icon: Package,
-        children: [
+        subRoutes: [
           { path: '/dashboard/flipkart/restock/golden-aura', label: 'Golden Aura', permission: 'view-restock' },
           { path: '/dashboard/flipkart/restock/rudra-retail', label: 'Rudra Retail', permission: 'view-restock' },
           { path: '/dashboard/flipkart/restock/ubeauty', label: 'UBeauty', permission: 'view-restock' },
