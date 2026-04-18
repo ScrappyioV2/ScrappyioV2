@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, ChangeEvent } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, ChangeEvent } from 'react';
 import Papa from 'papaparse';
 import {
   Upload, Download, Plus, Trash2, Copy, Search, X,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { supabase } from '@/lib/supabaseClient';
 
 type Product = {
   id: string;
@@ -49,6 +50,9 @@ export default function SkuGeneratorPage() {
   const [view, setView] = useState<'grouped' | 'flat'>('grouped');
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -66,6 +70,35 @@ export default function SkuGeneratorPage() {
     setToast({ message, type });
     setTimeout(() => setToast(null), 2500);
   };
+
+  const loadProducts = useCallback(async () => {
+    setDataLoading(true);
+    const { data, error } = await supabase
+      .from('sku_catalog')
+      .select('*')
+      .order('product_number', { ascending: true });
+    if (error) {
+      showToast(`Load failed: ${error.message}`, 'error');
+    } else if (data) {
+      setProducts(data.map((row: any) => ({
+        id: row.id,
+        asin: row.asin,
+        brand: row.brand || '',
+        name: row.product_name || '',
+        multi_listing: row.multi_listing,
+        barcode_1: row.barcode_1 || '',
+        barcode_2: row.barcode_2 || '',
+        pack_of: row.pack_of || 1,
+        product_number: row.product_number,
+        sku: row.sku,
+      })));
+    }
+    setDataLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const handleBarcodeChange = (value: string) => {
     const trimmed = value.trim();
@@ -102,25 +135,47 @@ export default function SkuGeneratorPage() {
     return generateSku(form.product_number, form.asin, form.multi_listing, form.pack_of);
   }, [form]);
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!form.asin.trim()) return showToast('ASIN is required', 'error');
     if (!form.barcode_1.trim()) return showToast('Barcode 1 is required', 'error');
     if (!form.product_number) return showToast('Product Number missing', 'error');
 
     const sku = generateSku(form.product_number, form.asin.trim(), form.multi_listing, form.pack_of);
-    const product: Product = {
-      id: newId(),
-      asin: form.asin.trim(),
-      brand: form.brand.trim(),
-      name: form.name.trim(),
-      multi_listing: form.multi_listing,
-      barcode_1: form.barcode_1.trim(),
-      barcode_2: form.barcode_2.trim(),
-      pack_of: form.pack_of,
-      product_number: form.product_number,
-      sku,
-    };
-    setProducts(prev => [...prev, product]);
+    setAdding(true);
+    const { data: inserted, error } = await supabase
+      .from('sku_catalog')
+      .insert({
+        asin: form.asin.trim(),
+        brand: form.brand.trim() || null,
+        product_name: form.name.trim() || null,
+        multi_listing: form.multi_listing,
+        barcode_1: form.barcode_1.trim() || null,
+        barcode_2: form.barcode_2.trim() || null,
+        pack_of: form.pack_of || null,
+        product_number: form.product_number,
+        sku,
+      })
+      .select()
+      .single();
+    setAdding(false);
+
+    if (error || !inserted) {
+      showToast(`Error: ${error?.message || 'insert failed'}`, 'error');
+      return;
+    }
+
+    setProducts(prev => [...prev, {
+      id: inserted.id,
+      asin: inserted.asin,
+      brand: inserted.brand || '',
+      name: inserted.product_name || '',
+      multi_listing: inserted.multi_listing,
+      barcode_1: inserted.barcode_1 || '',
+      barcode_2: inserted.barcode_2 || '',
+      pack_of: inserted.pack_of || 1,
+      product_number: inserted.product_number,
+      sku: inserted.sku,
+    }]);
     setForm({
       asin: '', brand: '', name: '', barcode_1: '', barcode_2: '',
       pack_of: 1, product_number: 0, multi_listing: 'A',
@@ -128,7 +183,14 @@ export default function SkuGeneratorPage() {
     showToast(`Added ${sku}`);
   };
 
-  const handleDelete = (id: string) => setProducts(prev => prev.filter(p => p.id !== id));
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('sku_catalog').delete().eq('id', id);
+    if (error) {
+      showToast(`Delete failed: ${error.message}`, 'error');
+      return;
+    }
+    setProducts(prev => prev.filter(p => p.id !== id));
+  };
 
   const handleCopySku = (sku: string) => {
     navigator.clipboard.writeText(sku).then(() => showToast(`Copied: ${sku}`)).catch(() => showToast('Copy failed', 'error'));
@@ -137,11 +199,12 @@ export default function SkuGeneratorPage() {
   const handleCsvUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploading(true);
     Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (result) => {
-        const imported: Product[] = result.data.map((row) => {
+      complete: async (result) => {
+        const parsed: Product[] = result.data.map((row) => {
           const asin = (row['ASIN'] || row['asin'] || '').trim();
           const brand = (row['Brand Name'] || row['brand'] || '').trim();
           const name = (row['Name'] || row['name'] || '').trim();
@@ -159,11 +222,39 @@ export default function SkuGeneratorPage() {
             pack_of: packOf, product_number: productNumber, sku,
           };
         }).filter(p => p.asin && p.product_number);
-        setProducts(prev => [...prev, ...imported]);
-        showToast(`Imported ${imported.length} products`);
+
+        const rows = parsed.map(p => ({
+          asin: p.asin,
+          brand: p.brand || null,
+          product_name: p.name || null,
+          multi_listing: p.multi_listing,
+          barcode_1: p.barcode_1 || null,
+          barcode_2: p.barcode_2 || null,
+          pack_of: p.pack_of || null,
+          product_number: p.product_number,
+          sku: p.sku,
+        }));
+
+        let failed = 0;
+        for (let i = 0; i < rows.length; i += 500) {
+          const batch = rows.slice(i, i + 500);
+          const { error } = await supabase.from('sku_catalog').upsert(batch, { onConflict: 'sku' });
+          if (error) {
+            console.error('Batch error:', error);
+            failed += batch.length;
+          }
+        }
+
+        await loadProducts();
+        setUploading(false);
+        if (failed > 0) {
+          showToast(`Imported ${rows.length - failed}/${rows.length} (${failed} failed)`, 'error');
+        } else {
+          showToast(`Imported ${rows.length} products`);
+        }
         if (fileInputRef.current) fileInputRef.current.value = '';
       },
-      error: () => showToast('CSV parse failed', 'error'),
+      error: () => { setUploading(false); showToast('CSV parse failed', 'error'); },
     });
   };
 
@@ -287,9 +378,10 @@ export default function SkuGeneratorPage() {
           <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 bg-cyan-600 text-white hover:bg-cyan-500 border border-cyan-500/50 shadow-lg shadow-cyan-900/20"
+            disabled={uploading}
+            className={`px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border shadow-lg ${uploading ? 'bg-cyan-800 text-cyan-200 border-cyan-700 cursor-wait' : 'bg-cyan-600 text-white hover:bg-cyan-500 border-cyan-500/50 shadow-cyan-900/20'}`}
           >
-            <Upload className="w-4 h-4" /> Upload CSV
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} {uploading ? 'Uploading...' : 'Upload CSV'}
           </button>
 
           <button
@@ -341,9 +433,10 @@ export default function SkuGeneratorPage() {
             </div>
             <button
               onClick={handleAddProduct}
-              className="self-end px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 bg-orange-500 text-white hover:bg-orange-400 border border-orange-400/50 shadow-lg shadow-orange-900/20"
+              disabled={adding}
+              className={`self-end px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 border shadow-lg ${adding ? 'bg-orange-700 text-orange-200 border-orange-600 cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-400 border-orange-400/50 shadow-orange-900/20'}`}
             >
-              <Plus className="w-3.5 h-3.5" /> Add
+              {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {adding ? 'Adding...' : 'Add'}
             </button>
           </div>
           {previewSku && (
@@ -356,7 +449,12 @@ export default function SkuGeneratorPage() {
 
         {/* Table */}
         <div className="flex-1 overflow-auto px-4 sm:px-6 py-4">
-          {products.length === 0 ? (
+          {dataLoading ? (
+            <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              <p className="text-sm">Loading SKU catalog...</p>
+            </div>
+          ) : products.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3">
               <Cog className="w-12 h-12 opacity-30" />
               <p className="text-sm">Upload a CSV or add a product to get started</p>
