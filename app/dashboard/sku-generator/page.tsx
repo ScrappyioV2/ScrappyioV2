@@ -347,17 +347,6 @@ export default function SkuGeneratorPage() {
     packs: products.filter(p => p.pack_of > 1).length,
   }), [products]);
 
-  if (authLoading || dataLoading) {
-    return (
-      <div className="min-h-screen bg-[#111111] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
-          <span className="text-sm text-gray-500">Loading SKU catalog...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <PageTransition>
       <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
@@ -528,7 +517,12 @@ export default function SkuGeneratorPage() {
 
         {/* Table */}
         <div className="flex-1 overflow-auto px-4 sm:px-6 py-4">
-          {products.length === 0 ? (
+          {dataLoading || authLoading ? (
+            <div className="flex flex-col items-center justify-center p-16">
+              <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
+              <p className="mt-4 text-gray-500 text-sm">Loading SKU catalog...</p>
+            </div>
+          ) : products.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-3">
               <Cog className="w-12 h-12 opacity-30" />
               <p className="text-sm">Upload a CSV or add a product to get started</p>
