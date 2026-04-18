@@ -38,6 +38,8 @@ type InvoiceItem = {
   damaged_quantity?: number | null;
   offline_sell_qty?: number | null;
   sns_active?: boolean | null;
+  journey_id?: string | null;
+  journey_number?: number | null;
 };
 
 type GroupedInvoice = {
@@ -464,6 +466,9 @@ export default function CheckingTable({
         seller_tag: representative.seller_tag,
         tracking_details: representative.tracking_details,
         delivery_date: representative.delivery_date,
+        journey_id: representative.journey_id,
+        journey_number: representative.journey_number,
+        sns_active: representative.sns_active,
       };
 
       const keepRows: any[] = [];
@@ -530,6 +535,7 @@ export default function CheckingTable({
           .from('india_box_checking')
           .select('*')
           .eq('asin', asin)
+          .eq('journey_id', recheckedItem.journey_id)
           .is('action_status', null);
 
         // Also check for pending_restock rows
@@ -537,6 +543,7 @@ export default function CheckingTable({
           .from('india_box_checking')
           .select('*')
           .eq('asin', asin)
+          .eq('journey_id', recheckedItem.journey_id)
           .eq('action_status', 'pending_restock');
 
         if (existingRows && existingRows.length > 0) {
