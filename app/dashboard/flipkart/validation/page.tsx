@@ -924,7 +924,7 @@ export default function ValidationPage() {
         } else if (activeTab === 'reworking') {
             result = products.filter(p => p.judgement === 'REWORKING');
         } else if (activeTab === 'flipkart_link_nf') {
-            result = products.filter(p => p.judgement === 'INDIA_LINK_NF');
+            result = products.filter(p => p.judgement === 'FLIPKART_LINK_NF');
         } else if (activeTab === 'pending' || activeTab === 'main_file') {
             result = products.filter(p => !p.judgement || p.judgement === 'PENDING');
         }
@@ -1353,12 +1353,12 @@ export default function ValidationPage() {
                         }
                     }
 
-                    setToast({ message: 'INDIA prices updated via CSV', type: 'success' })
+                    setToast({ message: 'Flipkart prices updated via CSV', type: 'success' })
                     fetchProducts()
                     debouncedStats()
                 } catch (err) {
                     console.error(err)
-                    setToast({ message: 'INDIA price CSV update failed', type: 'error' })
+                    setToast({ message: 'Flipkart price CSV update failed', type: 'error' })
                 } finally {
                     e.target.value = ''
                 }
@@ -1953,7 +1953,7 @@ export default function ValidationPage() {
                 try {
                     const { error } = await supabase
                         .from('flipkart_validation_main_file')
-                        .update({ judgement: 'INDIA_LINK_NF' })
+                        .update({ judgement: 'FLIPKART_LINK_NF' })
                         .in('id', idsArray);
 
                     if (error) {
@@ -1963,7 +1963,7 @@ export default function ValidationPage() {
 
                     setProducts(prev =>
                         prev.map(p => selectedIds.has(p.id)
-                            ? { ...p, judgement: 'INDIA_LINK_NF' }
+                            ? { ...p, judgement: 'FLIPKART_LINK_NF' }
                             : p
                         )
                     );
@@ -3037,7 +3037,7 @@ export default function ValidationPage() {
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
-                            <h1 className="text-xl sm:text-3xl font-bold text-white">INDIA Selling - Validation</h1>
+                            <h1 className="text-xl sm:text-3xl font-bold text-white">Flipkart - Validation</h1>
                             <p className="text-xs sm:text-sm text-gray-300 mt-1">Manage validation files and product status</p>
                         </div>
 
@@ -3415,7 +3415,7 @@ export default function ValidationPage() {
                                 onClick={() => indiaPriceCSVInputRef.current?.click()}
                                 className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
                             >
-                                Bulk INDIA Price Update
+                                Bulk Flipkart Price Update
                             </button>
                             <input type="file" accept=".csv" ref={indiaPriceCSVInputRef} onChange={handleindiaPriceCSVUpload} className="hidden" />
 
