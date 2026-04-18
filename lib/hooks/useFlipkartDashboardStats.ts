@@ -24,15 +24,12 @@ export function useFlipkartDashboardStats(options = { enabled: true }) {
             };
 
             const promises = SELLERS.map(async (seller) => {
-                // 1. BRAND CHECKING - Count from High Demand, Low Demand, Dropshipping
-                const tabs = ['high_demand', 'low_demand', 'dropshipping'];
-                let bcPending = 0;
-                for (const tab of tabs) {
-                    const { count } = await supabase
-                        .from(`flipkart_seller_${seller.id}_${tab}`)
-                        .select('*', { count: 'exact', head: true });
-                    bcPending += count || 0;
-                }
+                // 1. BRAND CHECKING - Count from unified seller_products table
+                const { count: bcPending } = await supabase
+                    .from('seller_products')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('marketplace', 'flipkart')
+                    .eq('seller_id', seller.id);
 
                 // 2. VALIDATION - Uses seller_tag and judgement (not validation_status)
                 const { count: valPending } = await supabase

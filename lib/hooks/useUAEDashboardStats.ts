@@ -24,15 +24,12 @@ export function useUAEDashboardStats(options = { enabled: true }) {
       };
 
       const promises = SELLERS.map(async (seller) => {
-        // 1. BRAND CHECKING
-        const tabs = ['high_demand', 'low_demand', 'dropshipping'];
-        let bcPending = 0;
-        for (const tab of tabs) {
-          const { count } = await supabase
-            .from(`uae_seller_${seller.id}_${tab}`)
-            .select('*', { count: 'exact', head: true });
-          bcPending += count || 0;
-        }
+        // 1. BRAND CHECKING - Count from unified seller_products table
+        const { count: bcPending } = await supabase
+          .from('seller_products')
+          .select('*', { count: 'exact', head: true })
+          .eq('marketplace', 'uae')
+          .eq('seller_id', seller.id);
 
         // 2. VALIDATION
         const { count: valPending } = await supabase
