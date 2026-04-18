@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, ChangeEvent } from '
 import Papa from 'papaparse';
 import {
   Upload, Download, Plus, Trash2, Copy, Search, X,
-  LayoutGrid, List, Cog, Loader2,
+  LayoutGrid, List, Cog, Loader2, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -53,6 +53,7 @@ export default function SkuGeneratorPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -100,71 +101,9 @@ export default function SkuGeneratorPage() {
     loadProducts();
   }, [loadProducts]);
 
-  type GroupOption = {
-    productNumber: number;
-    brand: string;
-    aListingName: string;
-    barcode_1: string;
-    barcode_2: string;
-    count: number;
-    nextLetter: string;
-  };
-
-  const groupOptions: GroupOption[] = useMemo(() => {
-    const map = new Map<number, Product[]>();
-    for (const p of products) {
-      const arr = map.get(p.product_number) || [];
-      arr.push(p);
-      map.set(p.product_number, arr);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([productNumber, items]) => {
-        const aListing = items.find(i => i.multi_listing === 'A') || items[0];
-        const usedLetters = new Set(items.map(i => i.multi_listing));
-        const nextLetter = ALPHABET.find(l => !usedLetters.has(l)) || 'A';
-        return {
-          productNumber,
-          brand: aListing.brand,
-          aListingName: aListing.name,
-          barcode_1: aListing.barcode_1,
-          barcode_2: aListing.barcode_2,
-          count: items.length,
-          nextLetter,
-        };
-      });
-  }, [products]);
-
-  const nextNewProductNumber = useMemo(() => {
-    return products.reduce((max, p) => Math.max(max, p.product_number), 0) + 1;
-  }, [products]);
-
-  const selectGroup = (productNumber: number) => {
-    if (productNumber === 0) {
-      setForm(prev => ({
-        ...prev,
-        product_number: nextNewProductNumber,
-        multi_listing: 'A',
-        brand: '',
-        barcode_1: '',
-        barcode_2: '',
-      }));
-      return;
-    }
-    const group = groupOptions.find(g => g.productNumber === productNumber);
-    if (!group) return;
-    setForm(prev => ({
-      ...prev,
-      product_number: group.productNumber,
-      multi_listing: group.nextLetter,
-      brand: group.brand,
-      barcode_1: group.barcode_1,
-      barcode_2: group.barcode_2,
-    }));
-  };
-
   const handleBarcodeChange = (value: string) => {
     const trimmed = value.trim();
+    setForm(prev => ({ ...prev, barcode_1: value }));
     if (!trimmed) {
       setForm(prev => ({ ...prev, barcode_1: value, product_number: 0, multi_listing: 'A' }));
       return;
@@ -173,25 +112,26 @@ export default function SkuGeneratorPage() {
       p.barcode_1.trim() === trimmed || p.barcode_2.trim() === trimmed
     );
     if (matchingProduct) {
-      const group = groupOptions.find(g => g.productNumber === matchingProduct.product_number);
-      if (group) {
-        setForm(prev => ({
-          ...prev,
-          barcode_1: group.barcode_1 || value,
-          barcode_2: group.barcode_2,
-          brand: prev.brand || group.brand,
-          product_number: group.productNumber,
-          multi_listing: group.nextLetter,
-        }));
-        return;
-      }
+      const groupItems = products.filter(p => p.product_number === matchingProduct.product_number);
+      const usedLetters = new Set(groupItems.map(p => p.multi_listing));
+      const nextLetter = ALPHABET.find(l => !usedLetters.has(l)) || 'A';
+      setForm(prev => ({
+        ...prev,
+        barcode_1: value,
+        barcode_2: prev.barcode_2 || matchingProduct.barcode_2,
+        brand: prev.brand || matchingProduct.brand,
+        product_number: matchingProduct.product_number,
+        multi_listing: nextLetter,
+      }));
+    } else {
+      const maxProductNumber = products.reduce((max, p) => Math.max(max, p.product_number), 0);
+      setForm(prev => ({
+        ...prev,
+        barcode_1: value,
+        product_number: maxProductNumber + 1,
+        multi_listing: 'A',
+      }));
     }
-    setForm(prev => ({
-      ...prev,
-      barcode_1: value,
-      product_number: nextNewProductNumber,
-      multi_listing: 'A',
-    }));
   };
 
   const previewSku = useMemo(() => {
@@ -457,6 +397,25 @@ export default function SkuGeneratorPage() {
             </button>
           </div>
 
+          {view === 'grouped' && (
+            <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl border border-white/[0.1] p-1">
+              <button
+                onClick={() => setExpandedGroups(new Set(groups.map(([num]) => num)))}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-100 transition"
+                title="Expand all groups"
+              >
+                Expand All
+              </button>
+              <button
+                onClick={() => setExpandedGroups(new Set())}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-100 transition"
+                title="Collapse all groups"
+              >
+                Collapse All
+              </button>
+            </div>
+          )}
+
           <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -477,27 +436,12 @@ export default function SkuGeneratorPage() {
 
         {/* Add form */}
         <div className="flex-none px-4 sm:px-6 py-4 border-b border-white/[0.1] bg-[#0d0d0d]">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-            <div className="lg:col-span-2">
-              <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Group</label>
-              <select
-                value={form.product_number === nextNewProductNumber && !groupOptions.find(g => g.productNumber === form.product_number) ? 0 : form.product_number}
-                onChange={e => selectGroup(parseInt(e.target.value, 10))}
-                className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100"
-              >
-                <option value={0}>+ New Product (#{nextNewProductNumber})</option>
-                {groupOptions.map(g => (
-                  <option key={g.productNumber} value={g.productNumber}>
-                    #{g.productNumber} • {g.brand || '—'} • {g.aListingName || '—'} ({g.count} listing{g.count > 1 ? 's' : ''})
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
             <FormInput label="Barcode 1*" value={form.barcode_1} onChange={handleBarcodeChange} placeholder="Scan/type" mono />
-            <FormInput label="Barcode 2" value={form.barcode_2} onChange={v => setForm(p => ({ ...p, barcode_2: v }))} placeholder="Optional" mono />
             <FormInput label="ASIN*" value={form.asin} onChange={v => setForm(p => ({ ...p, asin: v.toUpperCase() }))} placeholder="B0..." mono />
             <FormInput label="Brand" value={form.brand} onChange={v => setForm(p => ({ ...p, brand: v }))} placeholder="Brand" />
             <FormInput label="Name" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Product name" />
+            <FormInput label="Barcode 2" value={form.barcode_2} onChange={v => setForm(p => ({ ...p, barcode_2: v }))} placeholder="Optional" mono />
             <div>
               <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Pack Of</label>
               <input
@@ -508,6 +452,26 @@ export default function SkuGeneratorPage() {
                 className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
               />
             </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Product #</label>
+              <input
+                type="number"
+                value={form.product_number || ''}
+                onChange={e => setForm(p => ({ ...p, product_number: parseInt(e.target.value, 10) || 0 }))}
+                className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
+                placeholder="auto"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">ML</label>
+              <select
+                value={form.multi_listing}
+                onChange={e => setForm(p => ({ ...p, multi_listing: e.target.value }))}
+                className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
+              >
+                {ALPHABET.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
             <button
               onClick={handleAddProduct}
               disabled={adding}
@@ -516,19 +480,12 @@ export default function SkuGeneratorPage() {
               {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {adding ? 'Adding...' : 'Add'}
             </button>
           </div>
-          <div className="mt-3 flex items-center gap-3 text-xs flex-wrap">
-            <span className="text-gray-500 uppercase tracking-wider">Multi Listing:</span>
-            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg font-mono font-bold text-xs border ${ML_COLORS[form.multi_listing] || defaultMlColor}`}>
-              {form.multi_listing}
-            </span>
-            <span className="text-gray-500 text-[10px]">(auto)</span>
-            {previewSku && (
-              <>
-                <span className="text-gray-500 uppercase tracking-wider ml-3">Preview:</span>
-                <span className="font-mono text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded">{previewSku}</span>
-              </>
-            )}
-          </div>
+          {previewSku && (
+            <div className="mt-3 flex items-center gap-2 text-xs">
+              <span className="text-gray-500 uppercase tracking-wider">Preview:</span>
+              <span className="font-mono text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded">{previewSku}</span>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -544,19 +501,47 @@ export default function SkuGeneratorPage() {
               <p className="text-sm">Upload a CSV or add a product to get started</p>
             </div>
           ) : view === 'grouped' ? (
-            <div className="space-y-4">
-              {groups.map(([num, items]) => (
-                <div key={num} className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
-                  <div className="px-4 py-2.5 bg-[#111111] border-b border-white/[0.1] flex items-center gap-3">
-                    <span className="font-mono text-orange-400 font-bold text-sm">GROUP #{num}</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-300 text-sm">{items[0].brand || '—'}</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-500 text-xs">{items.length} listing{items.length > 1 ? 's' : ''}</span>
+            <div className="space-y-3">
+              {groups.map(([num, items]) => {
+                const isExpanded = expandedGroups.has(num);
+                const aListing = items.find(i => i.multi_listing === 'A') || items[0];
+                const sortedLetters = items.map(i => i.multi_listing).sort();
+                return (
+                  <div key={num} className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
+                    <button
+                      onClick={() => {
+                        setExpandedGroups(prev => {
+                          const next = new Set(prev);
+                          if (next.has(num)) next.delete(num); else next.add(num);
+                          return next;
+                        });
+                      }}
+                      className="w-full px-4 py-2.5 bg-[#111111] border-b border-white/[0.1] flex items-center gap-3 hover:bg-[#181818] transition text-left"
+                    >
+                      {isExpanded
+                        ? <ChevronDown className="w-4 h-4 text-orange-400 shrink-0" />
+                        : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
+                      <span className="font-mono text-orange-400 font-bold text-sm">GROUP #{num}</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-gray-300 text-sm">{aListing.brand || '—'}</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-gray-300 text-sm truncate max-w-md">{aListing.name || '—'}</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-gray-500 text-xs">{items.length} listing{items.length > 1 ? 's' : ''}</span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        {sortedLetters.map((l, i) => (
+                          <span key={i} className={`inline-flex items-center justify-center w-6 h-6 rounded font-mono font-bold text-[10px] border ${ML_COLORS[l] || defaultMlColor}`}>
+                            {l}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <ProductTable items={items} onCopy={handleCopySku} onDelete={handleDelete} onPackChange={handlePackChange} showProductNumber={false} />
+                    )}
                   </div>
-                  <ProductTable items={items} onCopy={handleCopySku} onDelete={handleDelete} onPackChange={handlePackChange} showProductNumber={false} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
