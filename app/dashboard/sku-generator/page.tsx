@@ -6,7 +6,6 @@ import {
   Upload, Download, Plus, Trash2, Copy, Search, X,
   LayoutGrid, List, Cog, Loader2, ChevronRight, ChevronDown, Pencil, RefreshCw,
 } from 'lucide-react';
-import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -488,8 +487,7 @@ export default function SkuGeneratorPage() {
   }), [products]);
 
   return (
-    <PageTransition>
-      <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
+    <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
         {/* Header */}
         <div className="flex-none px-4 sm:px-6 pt-4 sm:pt-6 pb-5 border-b border-white/[0.1]">
           <div className="flex items-center gap-2.5 mb-1">
@@ -774,8 +772,7 @@ export default function SkuGeneratorPage() {
             {toast.message}
           </div>
         )}
-      </div>
-    </PageTransition>
+    </div>
   );
 }
 
