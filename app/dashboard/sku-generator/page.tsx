@@ -24,6 +24,9 @@ type Product = {
   sku: string;
 };
 
+// Module-level cache so navigating away/back doesn't show a spinner.
+let cachedProducts: Product[] | null = null;
+
 const generateSku = (productNumber: number, asin: string, packOf: number): string => {
   const base = `${productNumber}- ${asin}`;
   return packOf > 1 ? `${base}-${packOf}` : base;
@@ -36,6 +39,8 @@ export default function SkuGeneratorPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [view, setView] = useState<'grouped' | 'flat'>('grouped');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleGroups, setVisibleGroups] = useState(50);
+  const [visibleRows, setVisibleRows] = useState(100);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -59,16 +64,23 @@ export default function SkuGeneratorPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const loadProducts = useCallback(async () => {
-    setDataLoading(true);
+  const loadProducts = useCallback(async (silent = false) => {
+    if (!silent) {
+      if (cachedProducts) {
+        setProducts(cachedProducts);
+        setDataLoading(false);
+        return;
+      }
+      setDataLoading(true);
+    }
     const { data, error } = await supabase
       .from('sku_catalog')
       .select('*')
       .order('product_number', { ascending: true });
     if (error) {
-      showToast(`Load failed: ${error.message}`, 'error');
+      if (!silent) showToast(`Load failed: ${error.message}`, 'error');
     } else if (data) {
-      setProducts(data.map((row: any) => {
+      const mapped = data.map((row: any) => {
         let parsedBarcodes: string[] = [];
         if (Array.isArray(row.barcodes)) {
           parsedBarcodes = row.barcodes.filter((b: any) => typeof b === 'string' && b.trim());
@@ -94,14 +106,35 @@ export default function SkuGeneratorPage() {
           product_number: row.product_number,
           sku: row.sku,
         };
-      }));
+      });
+      cachedProducts = mapped;
+      setProducts(mapped);
     }
-    setDataLoading(false);
+    if (!silent) setDataLoading(false);
   }, []);
 
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    if (cachedProducts) {
+      setProducts(cachedProducts);
+      setDataLoading(false);
+      // Refresh in background silently
+      loadProducts(true);
+    } else {
+      loadProducts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mirror products → cache for any in-place mutations (add/delete/pack edit)
+  useEffect(() => {
+    if (!dataLoading) cachedProducts = products;
+  }, [products, dataLoading]);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setVisibleGroups(50);
+    setVisibleRows(100);
+  }, [searchQuery]);
 
   const handleBarcodeChange = (index: number, value: string) => {
     setFormBarcodes(prev => prev.map((b, i) => i === index ? value : b));
@@ -679,7 +712,7 @@ export default function SkuGeneratorPage() {
             </div>
           ) : view === 'grouped' ? (
             <div className="space-y-3">
-              {groups.map(([num, items]) => {
+              {groups.slice(0, visibleGroups).map(([num, items]) => {
                 const isExpanded = expandedGroups.has(num);
                 const aListing = items[0];
                 return (
@@ -711,10 +744,26 @@ export default function SkuGeneratorPage() {
                   </div>
                 );
               })}
+              {visibleGroups < groups.length && (
+                <button
+                  onClick={() => setVisibleGroups(prev => prev + 50)}
+                  className="w-full py-3 text-sm text-gray-500 hover:text-orange-500 hover:bg-white/[0.02] border border-white/[0.05] rounded-lg mt-2 transition"
+                >
+                  Load more ({groups.length - visibleGroups} groups remaining)
+                </button>
+              )}
             </div>
           ) : (
             <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
-              <ProductTable items={filteredProducts} onCopy={handleCopySku} onDelete={handleDelete} onPackChange={handlePackChange} showProductNumber={true} />
+              <ProductTable items={filteredProducts.slice(0, visibleRows)} onCopy={handleCopySku} onDelete={handleDelete} onPackChange={handlePackChange} showProductNumber={true} />
+              {visibleRows < filteredProducts.length && (
+                <button
+                  onClick={() => setVisibleRows(prev => prev + 100)}
+                  className="w-full py-3 text-sm text-gray-500 hover:text-orange-500 hover:bg-white/[0.02] border-t border-white/[0.05] transition"
+                >
+                  Load more ({filteredProducts.length - visibleRows} rows remaining)
+                </button>
+              )}
             </div>
           )}
         </div>
