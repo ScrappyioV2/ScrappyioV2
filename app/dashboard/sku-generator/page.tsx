@@ -167,7 +167,7 @@ export default function SkuGeneratorPage() {
         barcode_1: cleanedBarcodes[0] || null,
         barcode_2: cleanedBarcodes[1] || null,
         barcodes: cleanedBarcodes,
-        pack_of: form.pack_of || null,
+        pack_of: form.pack_of > 1 ? form.pack_of : null,
         product_number: form.product_number,
         sku,
       })
@@ -256,7 +256,11 @@ export default function SkuGeneratorPage() {
 
       // 3. Filter new ASINs (not already in sku_catalog)
       const newAsins = masterRows.filter((r: any) =>
-        r.asin && r.asin.trim() && !existingAsins.has(r.asin.trim())
+        r.asin &&
+        r.asin.trim() &&
+        r.asin.trim() !== '-' &&
+        r.asin.trim() !== 'Blank' &&
+        !existingAsins.has(r.asin.trim())
       );
 
       // Deduplicate by ASIN (master may have duplicates)
@@ -354,7 +358,13 @@ export default function SkuGeneratorPage() {
             barcodes,
             pack_of: packOf, product_number: productNumber, sku,
           };
-        }).filter(p => p.asin && p.product_number);
+        }).filter(p =>
+          p.asin &&
+          p.asin.trim() &&
+          p.asin.trim() !== '-' &&
+          p.asin.trim() !== 'Blank' &&
+          p.product_number
+        );
 
         const rows = parsed.map(p => ({
           asin: p.asin,
