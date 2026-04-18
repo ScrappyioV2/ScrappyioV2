@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { bulkUpdateIndiaSkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Toast from '@/components/Toast';
 import { History, X, Loader2, Upload, Download } from 'lucide-react';
 import Papa from 'papaparse';
@@ -98,6 +98,9 @@ export default function AdminValidationPage() {
     return 'https://' + trimmed;
   };
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [profitSort, setProfitSort] = useState<'none' | 'asc' | 'desc'>('none');
+
+  useEffect(() => { setProfitSort('none'); }, [activeTab]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -952,6 +955,15 @@ export default function AdminValidationPage() {
         return product.admin_status !== 'confirmed' && product.admin_status !== 'rejected' && product.admin_status !== 'price_wait';
     }
   });
+
+  const sortedProducts = useMemo(() => {
+    if (profitSort === 'none') return filteredProducts;
+    return [...filteredProducts].sort((a, b) => {
+      const aProfit = a.profit ?? -Infinity;
+      const bProfit = b.profit ?? -Infinity;
+      return profitSort === 'asc' ? aProfit - bProfit : bProfit - aProfit;
+    });
+  }, [filteredProducts, profitSort]);
 
 
   const handleSendBackToPurchases = async () => {
@@ -3001,7 +3013,17 @@ export default function AdminValidationPage() {
                         style={{ width: columnWidths[cfg.widthKey], minWidth: cfg.minWidth }}
                       >
                         <div className="flex items-center justify-between">
-                          <span>{cfg.label}</span>
+                          <span
+                            className={col_key === 'profit' ? 'cursor-pointer select-none' : ''}
+                            onClick={col_key === 'profit' ? (e) => {
+                              e.stopPropagation();
+                              setProfitSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none');
+                            } : undefined}
+                          >
+                            {cfg.label}
+                            {col_key === 'profit' && profitSort === 'asc' && ' ↑'}
+                            {col_key === 'profit' && profitSort === 'desc' && ' ↓'}
+                          </span>
                         </div>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400"
@@ -3030,7 +3052,7 @@ export default function AdminValidationPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((product) => (
+                  sortedProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
                       <td className="px-6 py-4 border-r border-white/[0.1]">
                         <input
