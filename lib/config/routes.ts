@@ -381,6 +381,12 @@ export const APP_ROUTES: AppRoute[] = [
     permission: 'flipkart',
     subRoutes: [
       {
+        path: '/dashboard/flipkart/admin-validation',
+        label: 'Admin Approvals',
+        permission: 'admin-access',
+        icon: ShieldCheck
+      },
+      {
         path: '/dashboard/flipkart/brand-checking',
         label: 'Brand Checking',
         permission: 'view-brand-checking',
@@ -415,6 +421,18 @@ export const APP_ROUTES: AppRoute[] = [
         icon: CheckCircle2
       },
       {
+        path: '/dashboard/flipkart/purchases',
+        label: 'Purchases',
+        permission: 'view-purchases',
+        icon: ShoppingBag
+      },
+      {
+        path: '/dashboard/flipkart/tracking',
+        label: 'Tracking',
+        permission: 'view-tracking',
+        icon: Truck
+      },
+      {
         path: '/dashboard/flipkart/listing-error',
         label: 'Listing Errors',
         permission: 'view-listing-errors',
@@ -427,18 +445,6 @@ export const APP_ROUTES: AppRoute[] = [
           { path: '/dashboard/flipkart/listing-error/dropy-ecom', label: 'Dropy Ecom', permission: 'view-listing-errors' },
           { path: '/dashboard/flipkart/listing-error/costech-ventures', label: 'Costech Ventures', permission: 'view-listing-errors' }
         ]
-      },
-      {
-        path: '/dashboard/flipkart/purchases',
-        label: 'Purchases',
-        permission: 'view-purchases',
-        icon: ShoppingBag
-      },
-      {
-        path: '/dashboard/flipkart/tracking',
-        label: 'Tracking',
-        permission: 'view-tracking',
-        icon: Truck
       },
       {
         path: '/dashboard/flipkart/restock',
@@ -459,12 +465,6 @@ export const APP_ROUTES: AppRoute[] = [
         label: 'Reorder',
         permission: 'view-reorder',
         icon: RotateCcw
-      },
-      {
-        path: '/dashboard/flipkart/admin-validation',
-        label: 'Admin Approvals',
-        permission: 'admin-access',
-        icon: ShieldCheck
       },
     ]
   },
