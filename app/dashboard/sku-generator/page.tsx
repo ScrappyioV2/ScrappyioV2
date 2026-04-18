@@ -289,7 +289,7 @@ export default function SkuGeneratorPage() {
       // 5. Build insert rows — include pack_of in SKU generation
       const insertRows: any[] = [];
       for (const [asin, row] of uniqueNew) {
-        const packOf = row.pack_of && row.pack_of > 0 ? row.pack_of : null;
+        const packOf = row.pack_of && row.pack_of > 1 ? row.pack_of : null;
         const sku = packOf ? `${nextPn}- ${asin}-${packOf}` : `${nextPn}- ${asin}`;
         insertRows.push({
           asin,
@@ -374,7 +374,7 @@ export default function SkuGeneratorPage() {
           barcode_1: p.barcode_1 || null,
           barcode_2: p.barcode_2 || null,
           barcodes: p.barcodes,
-          pack_of: p.pack_of || null,
+          pack_of: p.pack_of > 1 ? p.pack_of : null,
           product_number: p.product_number,
           sku: p.sku,
         }));
