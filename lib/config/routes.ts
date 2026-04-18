@@ -13,7 +13,8 @@ import {
   Users,
   Home,
   Truck,
-  Package
+  Package,
+  Cog
 } from 'lucide-react';
 import { AppRoute } from '@/lib/types';
 
@@ -478,5 +479,13 @@ export const APP_ROUTES: AppRoute[] = [
     icon: ShoppingBag,
     permission: 'jio-mart',
     subRoutes: []
+  },
+
+  // --- 8. SKU Generator ---
+  {
+    path: '/dashboard/sku-generator',
+    label: 'SKU Generator',
+    icon: Cog,
+    permission: 'view-validation',
   }
 ];
