@@ -18,6 +18,7 @@ type Product = {
   multi_listing: string;
   barcode_1: string;
   barcode_2: string;
+  barcodes: string[];
   pack_of: number;
   product_number: number;
   sku: string;
@@ -46,12 +47,11 @@ export default function SkuGeneratorPage() {
     asin: '',
     brand: '',
     name: '',
-    barcode_1: '',
-    barcode_2: '',
     pack_of: 1,
     product_number: 0,
     multi_listing: 'A',
   });
+  const [formBarcodes, setFormBarcodes] = useState<string[]>(['']);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -67,18 +67,33 @@ export default function SkuGeneratorPage() {
     if (error) {
       showToast(`Load failed: ${error.message}`, 'error');
     } else if (data) {
-      setProducts(data.map((row: any) => ({
-        id: row.id,
-        asin: row.asin,
-        brand: row.brand || '',
-        name: row.product_name || '',
-        multi_listing: row.multi_listing,
-        barcode_1: row.barcode_1 || '',
-        barcode_2: row.barcode_2 || '',
-        pack_of: row.pack_of || 1,
-        product_number: row.product_number,
-        sku: row.sku,
-      })));
+      setProducts(data.map((row: any) => {
+        let parsedBarcodes: string[] = [];
+        if (Array.isArray(row.barcodes)) {
+          parsedBarcodes = row.barcodes.filter((b: any) => typeof b === 'string' && b.trim());
+        } else if (typeof row.barcodes === 'string') {
+          try {
+            const arr = JSON.parse(row.barcodes);
+            if (Array.isArray(arr)) parsedBarcodes = arr.filter((b: any) => typeof b === 'string' && b.trim());
+          } catch { /* ignore */ }
+        }
+        if (parsedBarcodes.length === 0) {
+          parsedBarcodes = [row.barcode_1, row.barcode_2].filter(Boolean);
+        }
+        return {
+          id: row.id,
+          asin: row.asin,
+          brand: row.brand || '',
+          name: row.product_name || '',
+          multi_listing: row.multi_listing,
+          barcode_1: row.barcode_1 || '',
+          barcode_2: row.barcode_2 || '',
+          barcodes: parsedBarcodes,
+          pack_of: row.pack_of || 1,
+          product_number: row.product_number,
+          sku: row.sku,
+        };
+      }));
     }
     setDataLoading(false);
   }, []);
@@ -87,21 +102,32 @@ export default function SkuGeneratorPage() {
     loadProducts();
   }, [loadProducts]);
 
-  const handleBarcodeChange = (value: string) => {
+  const handleBarcodeChange = (index: number, value: string) => {
+    setFormBarcodes(prev => prev.map((b, i) => i === index ? value : b));
     const trimmed = value.trim();
-    setForm(prev => ({ ...prev, barcode_1: value }));
     if (!trimmed) {
-      setForm(prev => ({ ...prev, barcode_1: value, product_number: 0 }));
+      // Only clear product_number if no other barcode matches
+      const otherFilled = formBarcodes.some((b, i) => i !== index && b.trim());
+      if (!otherFilled) {
+        setForm(prev => ({ ...prev, product_number: 0 }));
+      }
       return;
     }
     const matchingProduct = products.find(p =>
-      p.barcode_1.trim() === trimmed || p.barcode_2.trim() === trimmed
+      p.barcodes.some(b => b.trim() === trimmed)
     );
     if (matchingProduct) {
+      setFormBarcodes(prev => {
+        // Replace at index with this value, then merge any missing barcodes from the matched product
+        const updated = prev.map((b, i) => i === index ? value : b);
+        const existing = new Set(updated.map(b => b.trim()).filter(Boolean));
+        for (const b of matchingProduct.barcodes) {
+          if (b.trim() && !existing.has(b.trim())) updated.push(b);
+        }
+        return updated;
+      });
       setForm(prev => ({
         ...prev,
-        barcode_1: value,
-        barcode_2: prev.barcode_2 || matchingProduct.barcode_2,
         brand: prev.brand || matchingProduct.brand,
         product_number: matchingProduct.product_number,
       }));
@@ -109,11 +135,13 @@ export default function SkuGeneratorPage() {
       const maxProductNumber = products.reduce((max, p) => Math.max(max, p.product_number), 0);
       setForm(prev => ({
         ...prev,
-        barcode_1: value,
         product_number: maxProductNumber + 1,
       }));
     }
   };
+
+  const addBarcodeInput = () => setFormBarcodes(prev => [...prev, '']);
+  const removeBarcodeInput = (index: number) => setFormBarcodes(prev => prev.length <= 1 ? [''] : prev.filter((_, i) => i !== index));
 
   const previewSku = useMemo(() => {
     if (!form.asin || !form.product_number) return '';
@@ -122,7 +150,8 @@ export default function SkuGeneratorPage() {
 
   const handleAddProduct = async () => {
     if (!form.asin.trim()) return showToast('ASIN is required', 'error');
-    if (!form.barcode_1.trim()) return showToast('Barcode 1 is required', 'error');
+    const cleanedBarcodes = formBarcodes.map(b => b.trim()).filter(Boolean);
+    if (cleanedBarcodes.length === 0) return showToast('At least one barcode is required', 'error');
     if (!form.product_number) return showToast('Product Number missing', 'error');
 
     const sku = generateSku(form.product_number, form.asin.trim(), form.pack_of);
@@ -134,8 +163,9 @@ export default function SkuGeneratorPage() {
         brand: form.brand.trim() || null,
         product_name: form.name.trim() || null,
         multi_listing: form.multi_listing,
-        barcode_1: form.barcode_1.trim() || null,
-        barcode_2: form.barcode_2.trim() || null,
+        barcode_1: cleanedBarcodes[0] || null,
+        barcode_2: cleanedBarcodes[1] || null,
+        barcodes: cleanedBarcodes,
         pack_of: form.pack_of || null,
         product_number: form.product_number,
         sku,
@@ -157,14 +187,16 @@ export default function SkuGeneratorPage() {
       multi_listing: inserted.multi_listing,
       barcode_1: inserted.barcode_1 || '',
       barcode_2: inserted.barcode_2 || '',
+      barcodes: Array.isArray(inserted.barcodes) ? inserted.barcodes : cleanedBarcodes,
       pack_of: inserted.pack_of || 1,
       product_number: inserted.product_number,
       sku: inserted.sku,
     }]);
     setForm({
-      asin: '', brand: '', name: '', barcode_1: '', barcode_2: '',
+      asin: '', brand: '', name: '',
       pack_of: 1, product_number: 0, multi_listing: 'A',
     });
+    setFormBarcodes(['']);
     showToast(`Added ${sku}`);
   };
 
@@ -216,11 +248,13 @@ export default function SkuGeneratorPage() {
           const packOf = parseInt(row['Pack of'] || row['pack_of'] || '1', 10) || 1;
           const productNumber = parseInt(row['Product Number'] || row['product_number'] || row['No'] || '0', 10) || 0;
           const sku = (row['SKU'] || row['sku'] || '').trim() || generateSku(productNumber, asin, packOf);
+          const barcodes = [barcode1, barcode2].filter(Boolean);
           return {
             id: newId(),
             asin, brand, name,
             multi_listing: 'A',
             barcode_1: barcode1, barcode_2: barcode2,
+            barcodes,
             pack_of: packOf, product_number: productNumber, sku,
           };
         }).filter(p => p.asin && p.product_number);
@@ -232,6 +266,7 @@ export default function SkuGeneratorPage() {
           multi_listing: p.multi_listing,
           barcode_1: p.barcode_1 || null,
           barcode_2: p.barcode_2 || null,
+          barcodes: p.barcodes,
           pack_of: p.pack_of || null,
           product_number: p.product_number,
           sku: p.sku,
@@ -416,12 +451,10 @@ export default function SkuGeneratorPage() {
 
         {/* Add form */}
         <div className="flex-none px-4 sm:px-6 py-4 border-b border-white/[0.1] bg-[#0d0d0d]">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-            <FormInput label="Barcode 1*" value={form.barcode_1} onChange={handleBarcodeChange} placeholder="Scan/type" mono />
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
             <FormInput label="ASIN*" value={form.asin} onChange={v => setForm(p => ({ ...p, asin: v.toUpperCase() }))} placeholder="B0..." mono />
             <FormInput label="Brand" value={form.brand} onChange={v => setForm(p => ({ ...p, brand: v }))} placeholder="Brand" />
             <FormInput label="Name" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Product name" />
-            <FormInput label="Barcode 2" value={form.barcode_2} onChange={v => setForm(p => ({ ...p, barcode_2: v }))} placeholder="Optional" mono />
             <div>
               <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Pack Of</label>
               <input
@@ -450,6 +483,38 @@ export default function SkuGeneratorPage() {
               {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {adding ? 'Adding...' : 'Add'}
             </button>
           </div>
+
+          <div className="mt-3">
+            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Barcodes*</label>
+            <div className="flex flex-wrap items-center gap-2">
+              {formBarcodes.map((b, i) => (
+                <div key={i} className="inline-flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={b}
+                    onChange={e => handleBarcodeChange(i, e.target.value)}
+                    placeholder={i === 0 ? 'Scan/type primary barcode' : 'Additional barcode'}
+                    className="w-44 px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder-slate-600 font-mono"
+                  />
+                  <button
+                    onClick={() => removeBarcodeInput(i)}
+                    disabled={formBarcodes.length === 1 && !b}
+                    className="p-1 text-gray-500 hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Remove barcode"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={addBarcodeInput}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30 border-dashed rounded-lg transition"
+              >
+                <Plus className="w-3 h-3" /> Add Barcode
+              </button>
+            </div>
+          </div>
+
           {previewSku && (
             <div className="mt-3 flex items-center gap-2 text-xs">
               <span className="text-gray-500 uppercase tracking-wider">Preview:</span>
@@ -575,8 +640,21 @@ function ProductTable({ items, onCopy, onDelete, onPackChange, showProductNumber
                   <PackEdit value={p.pack_of} onSave={(n) => onPackChange(p.id, n)} />
                 </td>
                 <td className="px-3 py-2 font-mono text-gray-400 text-xs">
-                  <div>{p.barcode_1 || '—'}</div>
-                  {p.barcode_2 && <div className="text-[10px] text-gray-500 mt-0.5">{p.barcode_2}</div>}
+                  {p.barcodes.length === 0 ? (
+                    <span>—</span>
+                  ) : p.barcodes.length <= 3 ? (
+                    p.barcodes.map((b, i) => (
+                      <div key={i} className={i === 0 ? 'text-xs text-gray-400' : 'text-[10px] text-gray-500 mt-0.5'}>{b}</div>
+                    ))
+                  ) : (
+                    <>
+                      <div className="text-xs text-gray-400">{p.barcodes[0]}</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">{p.barcodes[1]}</div>
+                      <div className="text-[10px] text-orange-400 mt-0.5 cursor-help" title={p.barcodes.slice(2).join('\n')}>
+                        +{p.barcodes.length - 2} more
+                      </div>
+                    </>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <div className="inline-flex items-center gap-2">
