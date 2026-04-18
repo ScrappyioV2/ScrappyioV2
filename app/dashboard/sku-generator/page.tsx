@@ -443,68 +443,105 @@ export default function SkuGeneratorPage() {
 
         {/* Add form */}
         <div className="flex-none px-4 sm:px-6 py-4 border-b border-white/[0.1] bg-[#0d0d0d]">
-          <div className="flex flex-nowrap items-end gap-2 overflow-x-auto pb-1">
-            {formBarcodes.map((b, i) => (
-              <div key={i} className="shrink-0">
-                {i === 0 && <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Barcode*</label>}
-                {i !== 0 && <div className="h-[14px] mb-1" />}
-                <div className="inline-flex items-center gap-0.5">
-                  <input
-                    type="text"
-                    value={b}
-                    onChange={e => handleBarcodeChange(i, e.target.value)}
-                    placeholder="Barcode"
-                    className="w-36 px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder-slate-600 font-mono"
-                  />
-                  <button
-                    onClick={() => removeBarcodeInput(i)}
-                    disabled={formBarcodes.length === 1 && !b}
-                    className="p-0.5 text-gray-500 hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                    title="Remove barcode"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            <button
-              onClick={addBarcodeInput}
-              className="self-end p-1.5 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30 border-dashed rounded-lg transition shrink-0"
-              title="Add barcode"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+          <div className="space-y-3 p-5 bg-[#0a0a0a] rounded-xl border border-white/[0.05]">
 
-            <div className="shrink-0 w-32"><FormInput label="ASIN*" value={form.asin} onChange={v => setForm(p => ({ ...p, asin: v.toUpperCase() }))} placeholder="B0..." mono /></div>
-            <div className="shrink-0 w-28"><FormInput label="Brand" value={form.brand} onChange={v => setForm(p => ({ ...p, brand: v }))} placeholder="Brand" /></div>
-            <div className="shrink-0 w-48"><FormInput label="Name" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Product name" /></div>
-            <div className="shrink-0 w-20">
-              <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Pack Of</label>
-              <input
-                type="number"
-                min={1}
-                value={form.pack_of}
-                onChange={e => setForm(p => ({ ...p, pack_of: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
-                className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
-              />
+            {/* Row 1: Main fields */}
+            <div className="grid grid-cols-[180px_160px_1fr_100px_100px] gap-3 items-end">
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">ASIN *</label>
+                <input
+                  type="text"
+                  value={form.asin}
+                  onChange={e => setForm(p => ({ ...p, asin: e.target.value.toUpperCase() }))}
+                  placeholder="B0..."
+                  className="w-full bg-[#111111] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-slate-600 font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Brand</label>
+                <input
+                  type="text"
+                  value={form.brand}
+                  onChange={e => setForm(p => ({ ...p, brand: e.target.value }))}
+                  placeholder="Brand"
+                  className="w-full bg-[#111111] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-slate-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Product name"
+                  className="w-full bg-[#111111] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-slate-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Pack Of</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.pack_of}
+                  onChange={e => setForm(p => ({ ...p, pack_of: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                  className="w-full bg-[#111111] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-gray-100 font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Product #</label>
+                <input
+                  type="number"
+                  value={form.product_number || ''}
+                  onChange={e => setForm(p => ({ ...p, product_number: parseInt(e.target.value, 10) || 0 }))}
+                  placeholder="auto"
+                  className="w-full bg-[#111111] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-gray-100 font-mono placeholder-slate-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                />
+              </div>
             </div>
-            <div className="shrink-0 w-20">
-              <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Product #</label>
-              <input
-                type="number"
-                value={form.product_number || ''}
-                onChange={e => setForm(p => ({ ...p, product_number: parseInt(e.target.value, 10) || 0 }))}
-                className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
-                placeholder="auto"
-              />
+
+            {/* Row 2: Barcodes + Add button */}
+            <div className="flex items-end gap-3 flex-wrap">
+              {formBarcodes.map((b, i) => (
+                <div key={i}>
+                  {i === 0
+                    ? <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Barcodes</label>
+                    : <div className="h-[14px] mb-1" />}
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={b}
+                      onChange={e => handleBarcodeChange(i, e.target.value)}
+                      placeholder="Barcode"
+                      className="w-44 bg-[#111111] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-slate-600 font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    />
+                    {formBarcodes.length > 1 && (
+                      <button
+                        onClick={() => removeBarcodeInput(i)}
+                        className="p-1 text-gray-500 hover:text-rose-400 transition"
+                        title="Remove barcode"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={addBarcodeInput}
+                className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30 border-dashed rounded-lg transition"
+              >
+                <Plus className="w-3 h-3" /> Barcode
+              </button>
+              <div className="ml-auto">
+                <button
+                  onClick={handleAddProduct}
+                  disabled={adding}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 border shadow-lg ${adding ? 'bg-orange-700 text-orange-200 border-orange-600 cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-400 border-orange-400/50 shadow-orange-900/20'}`}
+                >
+                  {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {adding ? 'Adding...' : 'Add Product'}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleAddProduct}
-              disabled={adding}
-              className={`self-end shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 border shadow-lg ${adding ? 'bg-orange-700 text-orange-200 border-orange-600 cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-400 border-orange-400/50 shadow-orange-900/20'}`}
-            >
-              {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {adding ? 'Adding...' : 'Add'}
-            </button>
           </div>
 
           {previewSku && (
