@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { bulkUpdateFlipkartSkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Toast from '@/components/Toast';
-import { History, X, Loader2, Upload, Download } from 'lucide-react';
+import { History, X, Loader2, Upload, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import Papa from 'papaparse';
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateProductValues, type CalculationConstants, type CalculationResult, type IndiaProductInput } from '@/lib/blackboxCalculations'
@@ -3011,17 +3011,22 @@ export default function AdminValidationPage() {
                         style={{ width: columnWidths[cfg.widthKey], minWidth: cfg.minWidth }}
                       >
                         <div className="flex items-center justify-between">
-                          <span
-                            className={col_key === 'profit' ? 'cursor-pointer select-none' : ''}
-                            onClick={col_key === 'profit' ? (e) => {
-                              e.stopPropagation();
-                              setProfitSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none');
-                            } : undefined}
-                          >
-                            {cfg.label}
-                            {col_key === 'profit' && profitSort === 'asc' && ' ↑'}
-                            {col_key === 'profit' && profitSort === 'desc' && ' ↓'}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span>{cfg.label}</span>
+                            {col_key === 'profit' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setProfitSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none');
+                                }}
+                                className="p-0.5 rounded hover:bg-white/10 transition-colors"
+                              >
+                                {profitSort === 'none' && <ArrowUpDown className="w-3 h-3 text-gray-500" />}
+                                {profitSort === 'asc' && <ArrowUp className="w-3 h-3 text-orange-500" />}
+                                {profitSort === 'desc' && <ArrowDown className="w-3 h-3 text-orange-500" />}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-orange-400"
