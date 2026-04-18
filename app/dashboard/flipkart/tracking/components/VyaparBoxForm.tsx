@@ -734,8 +734,9 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                                                             type="number"
                                                             min={0}
                                                             max={se.maxQty}
-                                                            value={se.qty}
+                                                            value={se.qty || ''}
                                                             onChange={e => handleSellerQtyChange(row.rowId, si, Number(e.target.value) || 0)}
+                                                            onBlur={e => { if (e.target.value === '') handleSellerQtyChange(row.rowId, si, 0); }}
                                                             onKeyDown={e => handleCellKeyDown(e, idx, `qty-${si}`)}
                                                             data-col={`qty-${si}`}
                                                             className="vyapar-input vyapar-cell w-16 px-2 py-1 bg-[#111111] border border-white/[0.1] rounded text-xs text-white text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none"
