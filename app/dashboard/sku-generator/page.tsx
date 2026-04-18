@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, ChangeEvent } from '
 import Papa from 'papaparse';
 import {
   Upload, Download, Plus, Trash2, Copy, Search, X,
-  LayoutGrid, List, Cog, Loader2, ChevronRight, ChevronDown, Pencil,
+  LayoutGrid, List, Cog, Loader2, ChevronRight, ChevronDown, Pencil, RefreshCw,
 } from 'lucide-react';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -40,6 +40,7 @@ export default function SkuGeneratorPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -229,6 +230,102 @@ export default function SkuGeneratorPage() {
 
   const handleCopySku = (sku: string) => {
     navigator.clipboard.writeText(sku).then(() => showToast(`Copied: ${sku}`)).catch(() => showToast('Copy failed', 'error'));
+  };
+
+  const handleSyncMaster = async () => {
+    setSyncing(true);
+    try {
+      // 1. Fetch all ASINs from master (INCLUDING pack_of)
+      const { data: masterRows, error: masterErr } = await supabase
+        .from('india_master_sellers')
+        .select('asin, brand, product_name, pack_of');
+
+      if (masterErr) throw masterErr;
+      if (!masterRows) {
+        showToast('Master returned no data', 'error');
+        setSyncing(false);
+        return;
+      }
+
+      // 2. Get existing ASINs from sku_catalog
+      const { data: existingRows } = await supabase
+        .from('sku_catalog')
+        .select('asin');
+
+      const existingAsins = new Set((existingRows || []).map((r: any) => r.asin));
+
+      // 3. Filter new ASINs (not already in sku_catalog)
+      const newAsins = masterRows.filter((r: any) =>
+        r.asin && r.asin.trim() && !existingAsins.has(r.asin.trim())
+      );
+
+      // Deduplicate by ASIN (master may have duplicates)
+      const uniqueNew = new Map<string, any>();
+      for (const row of newAsins) {
+        const asin = row.asin.trim();
+        if (!uniqueNew.has(asin)) uniqueNew.set(asin, row);
+      }
+
+      if (uniqueNew.size === 0) {
+        showToast('Already in sync — no new ASINs found');
+        setSyncing(false);
+        return;
+      }
+
+      // 4. Get current max product_number
+      const { data: maxRow } = await supabase
+        .from('sku_catalog')
+        .select('product_number')
+        .order('product_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let nextPn = ((maxRow as any)?.product_number || 0) + 1;
+
+      // 5. Build insert rows — include pack_of in SKU generation
+      const insertRows: any[] = [];
+      for (const [asin, row] of uniqueNew) {
+        const packOf = row.pack_of && row.pack_of > 0 ? row.pack_of : null;
+        const sku = packOf ? `${nextPn}- ${asin}-${packOf}` : `${nextPn}- ${asin}`;
+        insertRows.push({
+          asin,
+          brand: row.brand || null,
+          product_name: row.product_name || null,
+          multi_listing: 'A',
+          barcode_1: null,
+          barcode_2: null,
+          barcodes: [],
+          pack_of: packOf,
+          product_number: nextPn,
+          sku,
+        });
+        nextPn++;
+      }
+
+      // 6. Batch insert (500 at a time)
+      let failed = 0;
+      for (let i = 0; i < insertRows.length; i += 500) {
+        const batch = insertRows.slice(i, i + 500);
+        const { error } = await supabase
+          .from('sku_catalog')
+          .upsert(batch, { onConflict: 'sku' });
+        if (error) {
+          console.error('Sync batch error:', error);
+          failed += batch.length;
+        }
+      }
+
+      // 7. Reload products
+      await loadProducts();
+      if (failed > 0) {
+        showToast(`Synced ${insertRows.length - failed}/${insertRows.length} (${failed} failed)`, 'error');
+      } else {
+        showToast(`Synced ${insertRows.length} new products from master`);
+      }
+    } catch (err: any) {
+      showToast('Sync failed: ' + (err?.message || 'Unknown error'), 'error');
+    }
+    setSyncing(false);
   };
 
   const handleCsvUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -438,6 +535,14 @@ export default function SkuGeneratorPage() {
             className={`px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border shadow-lg ${products.length === 0 ? 'bg-[#1a1a1a] text-gray-600 border-white/[0.05] cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-500 border-purple-500/50 shadow-purple-900/20'}`}
           >
             <Download className="w-4 h-4" /> Export CSV
+          </button>
+
+          <button
+            onClick={handleSyncMaster}
+            disabled={syncing}
+            className={`px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border shadow-lg ${syncing ? 'bg-emerald-800 text-emerald-200 border-emerald-700 cursor-wait' : 'bg-emerald-600 text-white hover:bg-emerald-500 border-emerald-500/50 shadow-emerald-900/20'}`}
+          >
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} {syncing ? 'Syncing...' : 'Sync Master'}
           </button>
         </div>
 
