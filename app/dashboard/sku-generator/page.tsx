@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, ChangeEvent } from '
 import Papa from 'papaparse';
 import {
   Upload, Download, Plus, Trash2, Copy, Search, X,
-  LayoutGrid, List, Cog, Loader2, ChevronRight, ChevronDown,
+  LayoutGrid, List, Cog, Loader2, ChevronRight, ChevronDown, Pencil,
 } from 'lucide-react';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -342,6 +342,13 @@ export default function SkuGeneratorPage() {
 
   return (
     <PageTransition>
+      <style jsx global>{`
+        .sku-gen-select option {
+          background: #111111;
+          color: #fff;
+          padding: 8px;
+        }
+      `}</style>
       <div className="h-screen flex flex-col bg-[#111111] text-gray-100">
         {/* Header */}
         <div className="flex-none px-4 sm:px-6 pt-4 sm:pt-6 pb-5 border-b border-white/[0.1]">
@@ -467,7 +474,15 @@ export default function SkuGeneratorPage() {
               <select
                 value={form.multi_listing}
                 onChange={e => setForm(p => ({ ...p, multi_listing: e.target.value }))}
-                className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
+                className="sku-gen-select w-full font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                style={{
+                  background: '#0a0a0a',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 6,
+                  padding: '8px 10px',
+                  fontSize: 13,
+                }}
               >
                 {ALPHABET.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
@@ -685,10 +700,11 @@ function PackEdit({ value, onSave }: { value: number; onSave: (n: number) => voi
   return (
     <button
       onClick={() => { setDraft(String(value)); setEditing(true); }}
-      className="font-mono text-gray-300 hover:text-orange-400 hover:bg-white/[0.05] px-2 py-1 rounded transition"
+      className="group/pack font-mono text-gray-300 hover:text-orange-400 hover:bg-white/[0.05] px-2 py-1 rounded transition inline-flex items-center gap-1.5 cursor-pointer"
       title="Click to edit pack size"
     >
-      {value > 1 ? `×${value}` : '—'}
+      <span>{value > 1 ? `×${value}` : '—'}</span>
+      <Pencil className="w-3 h-3 opacity-30 group-hover/pack:opacity-80 transition-opacity" />
     </button>
   );
 }
