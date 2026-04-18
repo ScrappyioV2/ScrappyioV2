@@ -443,11 +443,42 @@ export default function SkuGeneratorPage() {
 
         {/* Add form */}
         <div className="flex-none px-4 sm:px-6 py-4 border-b border-white/[0.1] bg-[#0d0d0d]">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-            <FormInput label="ASIN*" value={form.asin} onChange={v => setForm(p => ({ ...p, asin: v.toUpperCase() }))} placeholder="B0..." mono />
-            <FormInput label="Brand" value={form.brand} onChange={v => setForm(p => ({ ...p, brand: v }))} placeholder="Brand" />
-            <FormInput label="Name" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Product name" />
-            <div>
+          <div className="flex flex-nowrap items-end gap-2 overflow-x-auto pb-1">
+            {formBarcodes.map((b, i) => (
+              <div key={i} className="shrink-0">
+                {i === 0 && <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Barcode*</label>}
+                {i !== 0 && <div className="h-[14px] mb-1" />}
+                <div className="inline-flex items-center gap-0.5">
+                  <input
+                    type="text"
+                    value={b}
+                    onChange={e => handleBarcodeChange(i, e.target.value)}
+                    placeholder="Barcode"
+                    className="w-36 px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder-slate-600 font-mono"
+                  />
+                  <button
+                    onClick={() => removeBarcodeInput(i)}
+                    disabled={formBarcodes.length === 1 && !b}
+                    className="p-0.5 text-gray-500 hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    title="Remove barcode"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={addBarcodeInput}
+              className="self-end p-1.5 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30 border-dashed rounded-lg transition shrink-0"
+              title="Add barcode"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="shrink-0 w-32"><FormInput label="ASIN*" value={form.asin} onChange={v => setForm(p => ({ ...p, asin: v.toUpperCase() }))} placeholder="B0..." mono /></div>
+            <div className="shrink-0 w-28"><FormInput label="Brand" value={form.brand} onChange={v => setForm(p => ({ ...p, brand: v }))} placeholder="Brand" /></div>
+            <div className="shrink-0 w-48"><FormInput label="Name" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Product name" /></div>
+            <div className="shrink-0 w-20">
               <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Pack Of</label>
               <input
                 type="number"
@@ -457,7 +488,7 @@ export default function SkuGeneratorPage() {
                 className="w-full px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 font-mono"
               />
             </div>
-            <div>
+            <div className="shrink-0 w-20">
               <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1">Product #</label>
               <input
                 type="number"
@@ -470,41 +501,10 @@ export default function SkuGeneratorPage() {
             <button
               onClick={handleAddProduct}
               disabled={adding}
-              className={`self-end px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 border shadow-lg ${adding ? 'bg-orange-700 text-orange-200 border-orange-600 cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-400 border-orange-400/50 shadow-orange-900/20'}`}
+              className={`self-end shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 border shadow-lg ${adding ? 'bg-orange-700 text-orange-200 border-orange-600 cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-400 border-orange-400/50 shadow-orange-900/20'}`}
             >
               {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {adding ? 'Adding...' : 'Add'}
             </button>
-          </div>
-
-          <div className="mt-3">
-            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Barcodes*</label>
-            <div className="flex flex-wrap items-center gap-2">
-              {formBarcodes.map((b, i) => (
-                <div key={i} className="inline-flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={b}
-                    onChange={e => handleBarcodeChange(i, e.target.value)}
-                    placeholder={i === 0 ? 'Scan/type primary barcode' : 'Additional barcode'}
-                    className="w-44 px-2 py-1.5 text-sm bg-[#1a1a1a] border border-white/[0.1] rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-100 placeholder-slate-600 font-mono"
-                  />
-                  <button
-                    onClick={() => removeBarcodeInput(i)}
-                    disabled={formBarcodes.length === 1 && !b}
-                    className="p-1 text-gray-500 hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                    title="Remove barcode"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={addBarcodeInput}
-                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30 border-dashed rounded-lg transition"
-              >
-                <Plus className="w-3 h-3" /> Add Barcode
-              </button>
-            </div>
           </div>
 
           {previewSku && (
