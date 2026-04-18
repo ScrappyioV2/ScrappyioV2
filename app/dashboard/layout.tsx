@@ -7,9 +7,9 @@ import { Loader2, Menu, Rocket, ShieldCheck } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { APP_ROUTES } from "@/lib/config/routes";
 import { AppRoute } from "@/lib/types";
-import FloatingChat from '@/components/chat/FloatingChat'
-import { usePresence } from '@/lib/hooks/usePresence'
 import { supabase } from '@/lib/supabaseClient'
+import dynamic from 'next/dynamic'
+const FloatingChat = dynamic(() => import('@/components/chat/FloatingChat'), { ssr: false })
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { user, userRole, loading, hasPageAccess } = useAuth();
@@ -20,7 +20,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   // ✅ NEW: Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  usePresence()
 
   useEffect(() => {
     const segments = pathname.split('/').filter(Boolean);

@@ -5,7 +5,6 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
 import { ensureAbsoluteUrl } from '@/lib/utils'
-import * as XLSX from 'xlsx'
 import {
   Loader2,
   RefreshCw,
@@ -317,6 +316,7 @@ export default function ReorderPage() {
 
       reader.onload = async (evt) => {
         try {
+          const XLSX = await import('xlsx');
           const data = evt.target?.result
           const workbook = XLSX.read(data, { type: 'binary' })
 

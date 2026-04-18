@@ -5,7 +5,6 @@ import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import * as XLSX from 'xlsx';
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 
 type PassFileProduct = {
@@ -2979,7 +2978,8 @@ export default function PurchasesPage() {
   };
 
 
-  const downloadExcel = (mode: 'selected' | 'page' | 'all') => {
+  const downloadExcel = async (mode: 'selected' | 'page' | 'all') => {
+    const XLSX = await import('xlsx');
     let dataToDownload: PassFileProduct[];
 
     if (mode === 'selected') {

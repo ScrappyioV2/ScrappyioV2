@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
@@ -1078,6 +1077,7 @@ export default function ValidationPage() {
     }
 
     const processCSVFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const XLSX = await import('xlsx');
         const file = event.target.files?.[0];
         if (!file) return;
 

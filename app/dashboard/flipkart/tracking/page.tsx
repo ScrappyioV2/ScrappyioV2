@@ -37,19 +37,15 @@ export default function TrackingPage() {
 
     const fetchTabCounts = async () => {
         try {
-            const [inboundRes, boxesRes, checkingRes] = await Promise.all([
-                supabase.from("flipkart_inbound_tracking").select("asin").gt("pending_quantity", 0),
-                supabase.from("flipkart_inbound_boxes").select("box_number"),
-                supabase.from("flipkart_box_checking").select("asin").is('action_status', null),
-            ]);
-
+            const { data, error } = await supabase.rpc('get_flipkart_tracking_tab_counts');
+            if (error) { console.error('Error fetching tab counts:', error); return; }
             setCounts({
-                inbound: new Set((inboundRes.data || []).map((r: any) => r.asin)).size,
-                boxes: new Set((boxesRes.data || []).map((r: any) => r.box_number)).size,
-                checking: new Set((checkingRes.data || []).map((r: any) => r.asin)).size,
+                inbound: data?.inbound || 0,
+                boxes: data?.boxes || 0,
+                checking: data?.checking || 0,
             });
         } catch (error) {
-            console.error("Error fetching tab counts:", error);
+            console.error('Error fetching tab counts:', error);
         }
     };
 

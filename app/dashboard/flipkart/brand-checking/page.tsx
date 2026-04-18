@@ -137,25 +137,16 @@ export default function BrandCheckingPage() {
   }, [user]);
 
   const fetchApprovedBreakdown = async () => {
+    const { data, error } = await supabase.rpc('get_approved_breakdown', { p_marketplace: MARKETPLACE });
+    if (error) { console.error('Breakdown fetch error:', error); return; }
     const result: Record<number, SellerApprovalBreakdown> = {};
-
-    for (const seller of ALL_SELLERS) {
-      const [high, low, drop] = await Promise.all([
-        supabase.from('seller_products').select('*', { count: 'exact', head: true })
-          .eq('marketplace', MARKETPLACE).eq('seller_id', seller.id).eq('product_status', 'high_demand'),
-        supabase.from('seller_products').select('*', { count: 'exact', head: true })
-          .eq('marketplace', MARKETPLACE).eq('seller_id', seller.id).eq('product_status', 'low_demand'),
-        supabase.from('seller_products').select('*', { count: 'exact', head: true })
-          .eq('marketplace', MARKETPLACE).eq('seller_id', seller.id).eq('product_status', 'dropshipping'),
-      ]);
-
-      result[seller.id] = {
-        high: high.count || 0,
-        low: low.count || 0,
-        drop: drop.count || 0,
+    for (const row of (data || [])) {
+      result[row.seller_id] = {
+        high: row.high || 0,
+        low: row.low || 0,
+        drop: row.drop || 0,
       };
     }
-
     setApprovalBreakdown(result);
   };
 
