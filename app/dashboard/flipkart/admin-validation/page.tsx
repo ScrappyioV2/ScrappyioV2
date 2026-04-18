@@ -65,7 +65,7 @@ type HistorySnapshot = {
   status?: string
 }
 
-type TabType = 'overview' | 'india' | 'china' | 'us' | 'pending' | 'confirm' | 'reject';
+type TabType = 'overview' | 'india' | 'china' | 'us' | 'pending' | 'confirm' | 'reject' | 'price_wait';
 
 const getDefaultConstants = (): CalculationConstants => ({
   dollar_rate: 96,
@@ -934,23 +934,22 @@ export default function AdminValidationPage() {
     // Tab filter
     switch (activeTab) {
       case 'india':
-        // ✅ Hide Confirmed/Rejected items (work like Overview)
-        return product.origin_india === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        return product.origin_india === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected' && product.admin_status !== 'price_wait';
       case 'china':
-        // ✅ Hide Confirmed/Rejected items (work like Overview)
-        return product.origin_china === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        return product.origin_china === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected' && product.admin_status !== 'price_wait';
       case 'us':
-        return product.origin_us === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        return product.origin_us === true && product.admin_status !== 'confirmed' && product.admin_status !== 'rejected' && product.admin_status !== 'price_wait';
       case 'pending':
         return product.admin_status === 'pending' || !product.admin_status;
       case 'confirm':
         return product.admin_status === 'confirmed';
       case 'reject':
         return product.admin_status === 'rejected';
+      case 'price_wait':
+        return product.admin_status === 'price_wait';
       case 'overview':
       default:
-        // ✅ FIX: Overview shows only pending products (not confirmed/rejected)
-        return product.admin_status !== 'confirmed' && product.admin_status !== 'rejected';
+        return product.admin_status !== 'confirmed' && product.admin_status !== 'rejected' && product.admin_status !== 'price_wait';
     }
   });
 
@@ -1576,6 +1575,51 @@ export default function AdminValidationPage() {
     }
   };
 
+  const handlePriceWaitProduct = async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const previousProducts = [...products];
+    try {
+      setProducts(prev => prev.map(p =>
+        p.id === productId ? { ...p, admin_status: 'price_wait' } : p
+      ));
+
+      const { error } = await supabase
+        .from('flipkart_admin_validation')
+        .update({ admin_status: 'price_wait' })
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      setToast({ message: 'Moved to Price Wait', type: 'success' });
+    } catch (err: any) {
+      setProducts(previousProducts);
+      setToast({ message: 'Failed: ' + err.message, type: 'error' });
+    }
+  };
+
+  const handleMoveToPending = async (productId: string) => {
+    const previousProducts = [...products];
+    try {
+      setProducts(prev => prev.map(p =>
+        p.id === productId ? { ...p, admin_status: 'pending' } : p
+      ));
+
+      const { error } = await supabase
+        .from('flipkart_admin_validation')
+        .update({ admin_status: 'pending' })
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      setToast({ message: 'Moved back to Pending', type: 'success' });
+    } catch (err: any) {
+      setProducts(previousProducts);
+      setToast({ message: 'Failed: ' + err.message, type: 'error' });
+    }
+  };
+
   // ✅ ADD: Roll Back last movement
   const handleRollBack = async () => {
     // Always use activeTab as the key where movements are saved
@@ -1846,9 +1890,10 @@ export default function AdminValidationPage() {
   const pendingCount = products.filter((p) => p.admin_status === 'pending' || !p.admin_status).length;
   const rejectedCount = products.filter((p) => p.admin_status === 'rejected').length;
   const confirmedCount = products.filter(p => p.admin_status === 'confirmed').length; // ✅ ADD THIS
-  const indiaCount = products.filter((p) => p.origin_india && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
-  const chinaCount = products.filter((p) => p.origin_china && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
-  const usCount = products.filter(p => p.origin_us && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length;
+  const priceWaitCount = products.filter((p) => p.admin_status === 'price_wait').length;
+  const indiaCount = products.filter((p) => p.origin_india && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected' && p.admin_status !== 'price_wait').length;
+  const chinaCount = products.filter((p) => p.origin_china && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected' && p.admin_status !== 'price_wait').length;
+  const usCount = products.filter(p => p.origin_us && p.admin_status !== 'confirmed' && p.admin_status !== 'rejected' && p.admin_status !== 'price_wait').length;
 
   const renderAdminCell = (col_key: string, product: AdminProduct) => {
     switch (col_key) {
@@ -2455,6 +2500,19 @@ export default function AdminValidationPage() {
 
       case 'actions':
         if (activeTab === 'confirm' || activeTab === 'reject') return null;
+        if (activeTab === 'price_wait') {
+          return (
+            <td key={col_key} className="px-6 py-4">
+              <button
+                onClick={() => handleMoveToPending(product.id)}
+                className="px-3 py-2 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/20 transition-all text-xs font-medium"
+                title="Move back to Pending"
+              >
+                ← Pending
+              </button>
+            </td>
+          );
+        }
         return (
           <td key={col_key} className="px-6 py-4">
             <div className="flex items-center gap-2">
@@ -2467,6 +2525,16 @@ export default function AdminValidationPage() {
                 title="Confirm"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              </button>
+              <button
+                onClick={() => handlePriceWaitProduct(product.id)}
+                disabled={product.admin_status === 'price_wait'}
+                className={`p-2 rounded-lg transition-all ${product.admin_status === 'price_wait'
+                  ? 'bg-amber-500/20 text-amber-600 cursor-not-allowed border border-amber-500/30'
+                  : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/20'}`}
+                title="Price Wait"
+              >
+                <span className="text-xs font-bold">PW</span>
               </button>
               <button
                 onClick={() => handleRejectProduct(product.id)}
@@ -2505,6 +2573,7 @@ export default function AdminValidationPage() {
             { id: 'china', label: 'China', count: chinaCount, color: 'text-rose-400', activeBg: 'bg-rose-500/20' },
             { id: 'us', label: 'US', count: usCount, color: 'text-sky-400', activeBg: 'bg-sky-500/20' },
             { id: 'pending', label: 'Pending', count: pendingCount, color: 'text-amber-400', activeBg: 'bg-amber-500/20' },
+            { id: 'price_wait', label: 'Price Wait', count: priceWaitCount, color: 'text-amber-400', activeBg: 'bg-amber-500/20' },
             { id: 'confirm', label: 'Confirmed', count: confirmedCount, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20' },
             { id: 'reject', label: 'Rejected', count: rejectedCount, color: 'text-rose-400', activeBg: 'bg-rose-500/20' }
           ].map((tab) => (
@@ -2823,7 +2892,7 @@ export default function AdminValidationPage() {
                     <div>
                       <div className="font-medium">All Data (This Tab)</div>
                       <div className="text-xs text-gray-400">
-                        {activeTab === 'confirm' ? confirmedCount : activeTab === 'reject' ? rejectedCount : activeTab === 'pending' ? pendingCount : products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected').length} rows
+                        {activeTab === 'confirm' ? confirmedCount : activeTab === 'reject' ? rejectedCount : activeTab === 'pending' ? pendingCount : activeTab === 'price_wait' ? priceWaitCount : products.filter(p => p.admin_status !== 'confirmed' && p.admin_status !== 'rejected' && p.admin_status !== 'price_wait').length} rows
                       </div>
                     </div>
                   </button>
