@@ -457,7 +457,9 @@ export default function DropyEcomPage() {
                 .order('journey_number', { ascending: false })
                 .limit(1);
               const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
-              const newJID = crypto.randomUUID();
+              const newJID = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
               await supabase.from('india_purchases').insert({
                 asin: product.asin,
