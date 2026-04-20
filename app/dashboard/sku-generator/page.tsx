@@ -844,6 +844,11 @@ export default function SkuGeneratorPage() {
           products={selectedProducts}
           onClose={() => setShowCreateGroup(false)}
           onSave={handleCreateGroup}
+          onUnselect={(id) => setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          })}
         />
       )}
       {addProductsToGroup !== null && (
@@ -1239,11 +1244,12 @@ function EditableNumber({ value, onSave }: { value: number; onSave: (n: number) 
 }
 
 function CreateGroupModal({
-  products, onClose, onSave,
+  products, onClose, onSave, onUnselect,
 }: {
   products: Product[];
   onClose: () => void;
   onSave: (name: string, items: { id: string; sku: string; barcodes: string[]; pack_of: number }[]) => Promise<void>;
+  onUnselect: (id: string) => void;
 }) {
   const [name, setName] = useState('');
   const [rows, setRows] = useState(() =>
@@ -1262,6 +1268,61 @@ function CreateGroupModal({
     })
   );
   const [saving, setSaving] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{
+    id: string;
+    asin: string;
+    product_name: string | null;
+    barcode_1: string | null;
+    barcode_2: string | null;
+    barcodes: string[] | null;
+    pack_of: number | null;
+    sku: string | null;
+  }>>([]);
+
+  useEffect(() => {
+    const q = addSearch.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const rowIds = new Set(rows.map(r => r.id));
+    const handle = setTimeout(async () => {
+      const { data } = await supabase
+        .from('sku_catalog')
+        .select('id, asin, product_name, barcode_1, barcode_2, barcodes, pack_of, sku')
+        .is('group_id', null)
+        .or(`asin.ilike.%${q}%,product_name.ilike.%${q}%`)
+        .limit(5);
+      if (data) {
+        setSearchResults(data.filter((r: any) => !rowIds.has(r.id)));
+      }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [addSearch, rows]);
+
+  const removeProductFromModal = (id: string) => {
+    if (rows.length <= 1) return;
+    setRows(prev => prev.filter(r => r.id !== id));
+    onUnselect(id);
+  };
+
+  const addProductToModal = (p: typeof searchResults[number]) => {
+    if (rows.some(r => r.id === p.id)) return;
+    const existing = Array.isArray(p.barcodes) && p.barcodes.length > 0
+      ? p.barcodes
+      : [p.barcode_1, p.barcode_2].filter(Boolean) as string[];
+    setRows(prev => [...prev, {
+      id: p.id,
+      asin: p.asin,
+      product_name: p.product_name || '',
+      sku: p.sku || '',
+      barcodes: existing.length > 0 ? [...existing] : [''],
+      pack_of: p.pack_of || 1,
+    }]);
+    setAddSearch('');
+    setSearchResults([]);
+  };
 
   const updateRow = (id: string, patch: Partial<{ sku: string; barcodes: string[]; pack_of: number }>) => {
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
@@ -1329,6 +1390,7 @@ function CreateGroupModal({
                 <th className="px-3 py-2 text-left font-medium">SKU</th>
                 <th className="px-3 py-2 text-left font-medium">Barcode</th>
                 <th className="px-3 py-2 text-center font-medium w-24">Pack Of</th>
+                <th className="px-2 py-2 w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -1384,8 +1446,48 @@ function CreateGroupModal({
                       className="w-16 px-2 py-1 text-xs bg-[#0a0a0a] border border-white/[0.1] rounded text-gray-100 font-mono text-center focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                     />
                   </td>
+                  <td className="px-2 py-2 text-center">
+                    <button
+                      onClick={() => removeProductFromModal(r.id)}
+                      disabled={rows.length <= 1}
+                      className="text-red-400 hover:text-red-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                      title="Remove from group"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
+              <tr className="border-t border-white/5">
+                <td colSpan={6} className="px-3 py-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={addSearch}
+                      onChange={e => setAddSearch(e.target.value)}
+                      placeholder="Search ASIN or product name to add..."
+                      className="w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:border-orange-500 outline-none"
+                    />
+                    {addSearch.trim().length >= 2 && searchResults.length > 0 && (
+                      <div className="mt-1 w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded shadow-lg overflow-hidden">
+                        {searchResults.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => addProductToModal(p)}
+                            className="w-full text-left px-3 py-2 hover:bg-orange-500/10 text-xs border-b border-white/5 last:border-0 transition"
+                          >
+                            <div className="font-mono text-gray-100">{p.asin}</div>
+                            <div className="text-gray-400 truncate">{p.product_name || '—'}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {addSearch.trim().length >= 2 && searchResults.length === 0 && (
+                      <div className="mt-1 text-[11px] text-gray-500">No ungrouped products match.</div>
+                    )}
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
