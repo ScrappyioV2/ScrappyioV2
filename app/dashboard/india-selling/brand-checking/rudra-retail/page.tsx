@@ -431,6 +431,7 @@ export default function RudraRetailPage() {
                   const mergeUpdate: Record<string, any> = {
                     seller_tag: newTag,
                     buying_quantities: newBuyingQty,
+                    sent_to_admin: false,
                   };
                   // Fill blank fields if the existing row is missing them
                   if (!existingPurchase.product_link && product.product_link) mergeUpdate.product_link = product.product_link;
