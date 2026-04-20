@@ -271,6 +271,7 @@ export default function IndiaSellersPage() {
 
     try {
       let allNewProducts: any[] = [];
+      let allParsedProducts: any[] = [];
       let totalDuplicates = 0;
       let totalUpdated = 0;
       let hasPartialUpdate = false;
@@ -316,6 +317,8 @@ export default function IndiaSellersPage() {
             return product;
           })
           .filter(Boolean);
+
+        allParsedProducts.push(...normalizedData);
 
         // ✅ Check if this is a partial update file
         // ✅ Check if this is a partial update file
@@ -394,12 +397,24 @@ export default function IndiaSellersPage() {
         return;
       }
 
-      // Case 2: No updates and no new products (all duplicates)
+      // Case 2: All duplicates — still backfill barcodes if available
       if (!hasPartialUpdate && allNewProducts.length === 0) {
-        toast.error(
-          `All ${totalDuplicates} products are duplicates. No new data uploaded.`,
-          { id: toastId, duration: 5000 }
-        );
+        // Collect barcode data from ALL parsed files
+        const barcodeData = allParsedProducts
+          .filter((p: any) => p.asin && (p.upc || p.ean))
+          .map((p: any) => ({ asin: p.asin, upc: p.upc || null, ean: p.ean || null }));
+
+        if (barcodeData.length > 0) {
+          toast.loading(`Updating barcodes for ${barcodeData.length} products...`, { id: toastId });
+          for (let i = 0; i < barcodeData.length; i += 500) {
+            const batch = barcodeData.slice(i, i + 500);
+            await supabase.rpc('backfill_barcodes', { batch_data: batch });
+          }
+          toast.success(`Updated barcodes for ${barcodeData.length} products`, { id: toastId, duration: 5000 });
+        } else {
+          toast.error(`All ${totalDuplicates} products are duplicates. No new data uploaded.`, { id: toastId, duration: 5000 });
+        }
+        setRefreshTrigger(prev => prev + 1);
         setIsUploading(false);
         return;
       }
