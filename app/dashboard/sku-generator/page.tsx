@@ -832,12 +832,12 @@ function ProductTable({ items, onCopy, onDelete, onPackChange, showProductNumber
                     <span>—</span>
                   ) : p.barcodes.length <= 3 ? (
                     p.barcodes.map((b, i) => (
-                      <div key={i} className={i === 0 ? 'text-xs text-gray-400' : 'text-[10px] text-gray-500 mt-0.5'}>{b}</div>
+                      <div key={i} className={i === 0 ? 'text-xs text-gray-200' : 'text-[10px] text-gray-400 mt-0.5'}>{b}</div>
                     ))
                   ) : (
                     <>
-                      <div className="text-xs text-gray-400">{p.barcodes[0]}</div>
-                      <div className="text-[10px] text-gray-500 mt-0.5">{p.barcodes[1]}</div>
+                      <div className="text-xs text-gray-200">{p.barcodes[0]}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">{p.barcodes[1]}</div>
                       <div className="text-[10px] text-orange-400 mt-0.5 cursor-help" title={p.barcodes.slice(2).join('\n')}>
                         +{p.barcodes.length - 2} more
                       </div>
