@@ -800,7 +800,6 @@ export default function ReorderPage() {
           setProcessing(true)
 
           // --- Copy check: skip validation if copy exists ---
-          let copyFound = false;
           try {
             const { data: copyData } = await supabase
               .from('flipkart_purchase_copies')
@@ -809,8 +808,6 @@ export default function ReorderPage() {
               .maybeSingle();
 
             if (copyData) {
-              copyFound = true;
-
               // ALWAYS create new independent row — never merge with existing
               // Rule 10: check BOTH flipkart_asin_history AND flipkart_purchases for true max
               const [{ data: maxHistJ }, { data: maxPurchJ }] = await Promise.all([
@@ -832,7 +829,7 @@ export default function ReorderPage() {
               const nextJN = Math.max(maxHistNum, maxPurchNum) + 1;
               const newJID = generateUUID();
 
-              await supabase.from('flipkart_purchases').insert({
+              const { error: insertErr } = await supabase.from('flipkart_purchases').insert({
                 asin: product.asin,
                 product_name: copyData.product_name || product.product_name,
                 brand: copyData.brand || (product as any).brand || null,
@@ -860,6 +857,7 @@ export default function ReorderPage() {
                 source: 'reorder',
                 sns_active: product.sns_active ?? false,
               });
+              if (insertErr) throw new Error(`Failed to create purchase from copy: ${insertErr.message}`);
 
               // Delete from reorder
               await supabase.from('tracking_ops').delete().eq('id', product.id);
