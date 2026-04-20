@@ -412,40 +412,74 @@ export default function UBeautyPage() {
             .maybeSingle();
 
           if (copyData) {
-            copyFound = true;
-
             const { data: existingPurchase } = await supabase
               .from('india_purchases')
-              .select('id, seller_tag, buying_quantities, product_link, origin, inr_purchase_link')
+              .select('id, seller_tag, buying_quantities, product_link, origin, inr_purchase_link, admin_confirmed')
               .eq('asin', product.asin)
               .is('move_to', null)
-              .eq('admin_confirmed', false)
-              .or('sent_to_admin.is.null,sent_to_admin.eq.false')
               .maybeSingle();
 
             const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
             if (existingPurchase) {
-              const existingTags = existingPurchase.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];
-              if (!existingTags.includes(SELLER_CODE)) {
-                const newTag = [...existingTags, SELLER_CODE].join(',');
-                const newBuyingQty = { ...(existingPurchase.buying_quantities || {}), [SELLER_CODE]: 0 };
-                const mergeUpdate: Record<string, any> = {
-                  seller_tag: newTag,
-                  buying_quantities: newBuyingQty,
-                };
-                // Fill blank fields if the existing row is missing them
-                if (!existingPurchase.product_link && product.product_link) mergeUpdate.product_link = product.product_link;
-                if (!existingPurchase.inr_purchase_link && product.amz_link) mergeUpdate.inr_purchase_link = product.amz_link;
-                if (!existingPurchase.origin) {
-                  mergeUpdate.origin = 'India';
-                  mergeUpdate.origin_india = true;
-                  mergeUpdate.origin_china = false;
-                  mergeUpdate.origin_us = false;
+              if (!existingPurchase.admin_confirmed) {
+                const existingTags = existingPurchase.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];
+                if (!existingTags.includes(SELLER_CODE)) {
+                  const newTag = [...existingTags, SELLER_CODE].join(',');
+                  const newBuyingQty = { ...(existingPurchase.buying_quantities || {}), [SELLER_CODE]: 0 };
+                  const mergeUpdate: Record<string, any> = {
+                    seller_tag: newTag,
+                    buying_quantities: newBuyingQty,
+                  };
+                  // Fill blank fields if the existing row is missing them
+                  if (!existingPurchase.product_link && product.product_link) mergeUpdate.product_link = product.product_link;
+                  if (!existingPurchase.inr_purchase_link && product.amz_link) mergeUpdate.inr_purchase_link = product.amz_link;
+                  if (!existingPurchase.origin) {
+                    mergeUpdate.origin = 'India';
+                    mergeUpdate.origin_india = true;
+                    mergeUpdate.origin_china = false;
+                    mergeUpdate.origin_us = false;
+                  }
+                  await supabase.from('india_purchases')
+                    .update(mergeUpdate)
+                    .eq('id', existingPurchase.id);
                 }
-                await supabase.from('india_purchases')
-                  .update(mergeUpdate)
-                  .eq('id', existingPurchase.id);
+              } else {
+                // Confirmed purchase exists — create new journey
+                const { data: maxJ } = await supabase
+                  .from('india_asin_history')
+                  .select('journey_number')
+                  .eq('asin', product.asin)
+                  .order('journey_number', { ascending: false })
+                  .limit(1);
+                const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
+                const newJID = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+                  ? crypto.randomUUID()
+                  : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
+                const { error: insertErr } = await supabase.from('india_purchases').insert({
+                  asin: product.asin,
+                  product_name: product.product_name,
+                  brand: product.brand,
+                  seller_tag: SELLER_CODE,
+                  funnel: product.funnel,
+                  sku: product.sku,
+                  remark: product.remark,
+                  buying_quantities: { [SELLER_CODE]: 0 },
+                  buying_quantity: 0,
+                  journey_id: newJID,
+                  journey_number: nextJN,
+                  product_link: product.product_link || null,
+                  inr_purchase_link: product.amz_link || null,
+                  origin: 'India',
+                  origin_india: true,
+                  origin_china: false,
+                  origin_us: false,
+                  buying_price: 0,
+                  admin_confirmed: false,
+                  sent_to_admin: false,
+                });
+                if (insertErr) throw new Error(`Failed to create new purchase journey: ${insertErr.message}`);
               }
             } else {
               // Fetch next journey number
@@ -460,7 +494,7 @@ export default function UBeautyPage() {
                 ? crypto.randomUUID()
                 : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
-              await supabase.from('india_purchases').insert({
+              const { error: insertErr } = await supabase.from('india_purchases').insert({
                 asin: product.asin,
                 product_name: product.product_name,
                 brand: product.brand,
@@ -479,7 +513,10 @@ export default function UBeautyPage() {
                 origin_china: false,
                 origin_us: false,
                 buying_price: 0,
+                admin_confirmed: false,
+                sent_to_admin: false,
               });
+              if (insertErr) throw new Error(`Failed to create purchase: ${insertErr.message}`);
             }
 
             await Promise.all([
@@ -503,6 +540,8 @@ export default function UBeautyPage() {
               asin: product.asin,
               details: { funnel: product.funnel, seller_id: SELLER_ID, target: 'india_purchases_direct' }
             });
+
+            copyFound = true;
           }
         } catch (copyErr) {
           console.error('Copy check failed, falling back to normal flow:', copyErr);
