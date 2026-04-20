@@ -371,7 +371,7 @@ export default function SkuGeneratorPage() {
 
   const handleCreateGroup = async (
     name: string,
-    items: { id: string; sku: string; barcode: string; pack_of: number }[]
+    items: { id: string; sku: string; barcodes: string[]; pack_of: number }[]
   ) => {
     if (!name.trim()) return showToast('Group name is required', 'error');
     if (items.length === 0) return showToast('No products selected', 'error');
@@ -390,12 +390,15 @@ export default function SkuGeneratorPage() {
     let failed = 0;
     for (const it of items) {
       const safePack = it.pack_of > 1 ? it.pack_of : null;
+      const cleanBarcodes = it.barcodes.map(b => b.trim()).filter(Boolean);
       const { error } = await supabase
         .from('sku_catalog')
         .update({
           group_id: newGroup.id,
           sku: it.sku.trim() || null,
-          barcode_1: it.barcode.trim() || null,
+          barcode_1: cleanBarcodes[0] || null,
+          barcode_2: cleanBarcodes[1] || null,
+          barcodes: cleanBarcodes,
           pack_of: safePack,
         })
         .eq('id', it.id);
@@ -406,16 +409,14 @@ export default function SkuGeneratorPage() {
     setProducts(prev => prev.map(p => {
       const it = items.find(x => x.id === p.id);
       if (!it) return p;
-      const newBarcode1 = it.barcode.trim();
-      const newBarcodes = newBarcode1
-        ? [newBarcode1, ...p.barcodes.filter(b => b !== p.barcode_1)]
-        : p.barcodes;
+      const cleanBarcodes = it.barcodes.map(b => b.trim()).filter(Boolean);
       return {
         ...p,
         group_id: newGroup.id,
         sku: it.sku.trim() || null,
-        barcode_1: newBarcode1,
-        barcodes: newBarcodes,
+        barcode_1: cleanBarcodes[0] || '',
+        barcode_2: cleanBarcodes[1] || '',
+        barcodes: cleanBarcodes,
         pack_of: it.pack_of > 0 ? it.pack_of : 1,
       };
     }));
@@ -1242,35 +1243,61 @@ function CreateGroupModal({
 }: {
   products: Product[];
   onClose: () => void;
-  onSave: (name: string, items: { id: string; sku: string; barcode: string; pack_of: number }[]) => Promise<void>;
+  onSave: (name: string, items: { id: string; sku: string; barcodes: string[]; pack_of: number }[]) => Promise<void>;
 }) {
   const [name, setName] = useState('');
   const [rows, setRows] = useState(() =>
-    products.map(p => ({
-      id: p.id,
-      asin: p.asin,
-      product_name: p.name,
-      sku: p.sku || '',
-      barcode: p.barcode_1 || '',
-      pack_of: p.pack_of || 1,
-    }))
+    products.map(p => {
+      const existing = (p.barcodes && p.barcodes.length > 0)
+        ? p.barcodes
+        : [p.barcode_1, p.barcode_2].filter(Boolean);
+      return {
+        id: p.id,
+        asin: p.asin,
+        product_name: p.name,
+        sku: p.sku || '',
+        barcodes: existing.length > 0 ? [...existing] : [''],
+        pack_of: p.pack_of || 1,
+      };
+    })
   );
   const [saving, setSaving] = useState(false);
 
-  const updateRow = (id: string, patch: Partial<{ sku: string; barcode: string; pack_of: number }>) => {
+  const updateRow = (id: string, patch: Partial<{ sku: string; barcodes: string[]; pack_of: number }>) => {
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+
+  const updateBarcode = (id: string, idx: number, value: string) => {
+    setRows(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = [...r.barcodes];
+      updated[idx] = value;
+      return { ...r, barcodes: updated };
+    }));
+  };
+
+  const addBarcode = (id: string) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, barcodes: [...r.barcodes, ''] } : r));
+  };
+
+  const removeBarcode = (id: string, idx: number) => {
+    setRows(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = r.barcodes.filter((_, i) => i !== idx);
+      return { ...r, barcodes: updated.length === 0 ? [''] : updated };
+    }));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(name, rows.map(r => ({ id: r.id, sku: r.sku, barcode: r.barcode, pack_of: r.pack_of })));
+    await onSave(name, rows.map(r => ({ id: r.id, sku: r.sku, barcodes: r.barcodes, pack_of: r.pack_of })));
     setSaving(false);
   };
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
-        className="bg-[#111111] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+        className="bg-[#111111] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-white/[0.1] flex items-center gap-3">
@@ -1293,12 +1320,12 @@ function CreateGroupModal({
           />
         </div>
 
-        <div className="flex-1 overflow-auto px-6 py-4">
+        <div className="flex-1 max-h-[85vh] overflow-y-auto px-6 py-4">
           <table className="w-full text-sm">
             <thead className="bg-[#0a0a0a] text-gray-500 text-[11px] uppercase tracking-wider sticky top-0">
               <tr>
-                <th className="px-3 py-2 text-left font-medium">ASIN</th>
-                <th className="px-3 py-2 text-left font-medium">Product Name</th>
+                <th className="px-3 py-2 text-left font-medium min-w-[120px]">ASIN</th>
+                <th className="px-3 py-2 text-left font-medium min-w-[250px]">Product Name</th>
                 <th className="px-3 py-2 text-left font-medium">SKU</th>
                 <th className="px-3 py-2 text-left font-medium">Barcode</th>
                 <th className="px-3 py-2 text-center font-medium w-24">Pack Of</th>
@@ -1307,8 +1334,8 @@ function CreateGroupModal({
             <tbody>
               {rows.map(r => (
                 <tr key={r.id} className="border-t border-white/[0.05]">
-                  <td className="px-3 py-2 font-mono text-gray-400 bg-[#0a0a0a]/50">{r.asin}</td>
-                  <td className="px-3 py-2 text-gray-400 max-w-xs truncate bg-[#0a0a0a]/50" title={r.product_name}>{r.product_name || '—'}</td>
+                  <td className="px-3 py-2 font-mono text-gray-400 bg-[#0a0a0a]/50 min-w-[120px]">{r.asin}</td>
+                  <td className="px-3 py-2 text-gray-400 min-w-[250px] bg-[#0a0a0a]/50" title={r.product_name}>{r.product_name || '—'}</td>
                   <td className="px-3 py-2">
                     <input
                       type="text"
@@ -1319,13 +1346,34 @@ function CreateGroupModal({
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <input
-                      type="text"
-                      value={r.barcode}
-                      onChange={e => updateRow(r.id, { barcode: e.target.value })}
-                      placeholder="Barcode"
-                      className="w-full px-2 py-1 text-xs bg-[#0a0a0a] border border-white/[0.1] rounded text-gray-100 font-mono focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    />
+                    <div className="flex flex-col gap-1">
+                      {r.barcodes.map((bc, bcIdx) => (
+                        <div key={bcIdx} className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={bc}
+                            onChange={(e) => updateBarcode(r.id, bcIdx, e.target.value)}
+                            placeholder="Barcode"
+                            className="w-full bg-[#1a1a1a] border border-white/10 rounded px-2 py-1 text-xs text-gray-200 font-mono focus:border-orange-500 outline-none"
+                          />
+                          {r.barcodes.length > 1 && (
+                            <button
+                              onClick={() => removeBarcode(r.id, bcIdx)}
+                              className="text-red-400 hover:text-red-300 text-xs shrink-0"
+                              title="Remove barcode"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => addBarcode(r.id)}
+                        className="text-orange-400 hover:text-orange-300 text-[10px] font-medium flex items-center gap-0.5 mt-0.5"
+                      >
+                        <Plus className="w-3 h-3" /> Add barcode
+                      </button>
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-center">
                     <input
