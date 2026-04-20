@@ -26,6 +26,8 @@ const DB_COLUMNS = new Set([
   'category_sub',
   'category_child',
   'category_tree',
+  'upc',
+  'ean',
 ]);
 
 const BLOCKED_COLUMNS = new Set([
@@ -138,6 +140,11 @@ export const normalizeDataForDB = (rows: any[]) => {
         if (dbKey === 'categories_sub') dbKey = 'category_sub';
         // "Categories: Tree" → category_tree
         if (dbKey === 'categories_tree') dbKey = 'category_tree';
+
+        // ---- BARCODE ALIASES FROM KEEPA ----
+        if (dbKey === 'product_codes_upc') dbKey = 'upc';
+        if (dbKey === 'product_codes_ean') dbKey = 'ean';
+        if (dbKey === 'product_codes_gtin') dbKey = 'ean'; // GTIN maps to EAN
 
         // Amazon link – single source of truth
         if (

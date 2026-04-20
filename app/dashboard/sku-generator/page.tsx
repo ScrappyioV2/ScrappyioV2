@@ -270,7 +270,7 @@ export default function SkuGeneratorPage() {
       // 1. Fetch all ASINs from master (INCLUDING pack_of)
       const { data: masterRows, error: masterErr } = await supabase
         .from('india_master_sellers')
-        .select('asin, brand, product_name, pack_of');
+        .select('asin, brand, product_name, pack_of, upc, ean');
 
       if (masterErr) throw masterErr;
       if (!masterRows) {
@@ -328,9 +328,9 @@ export default function SkuGeneratorPage() {
           brand: row.brand || null,
           product_name: row.product_name || null,
           multi_listing: 'A',
-          barcode_1: null,
-          barcode_2: null,
-          barcodes: [],
+          barcode_1: row.upc || null,
+          barcode_2: row.ean || null,
+          barcodes: [row.upc, row.ean].filter(Boolean),
           pack_of: packOf,
           product_number: nextPn,
           sku,
