@@ -1261,7 +1261,7 @@ function CreateGroupModal({
         id: p.id,
         asin: p.asin,
         product_name: p.name,
-        sku: p.sku || '',
+        sku: '',
         barcodes: existing.length > 0 ? [...existing] : [''],
         pack_of: p.pack_of || 1,
       };
@@ -1316,7 +1316,7 @@ function CreateGroupModal({
       id: p.id,
       asin: p.asin,
       product_name: p.product_name || '',
-      sku: p.sku || '',
+      sku: '',
       barcodes: existing.length > 0 ? [...existing] : [''],
       pack_of: p.pack_of || 1,
     }]);
