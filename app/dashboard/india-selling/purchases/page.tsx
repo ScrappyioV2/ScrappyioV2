@@ -76,19 +76,6 @@ type PassFileProduct = {
   source?: string | null
 }
 
-// ADD THIS TYPE
-type HistorySnapshot = {
-  id: string
-  stage: string
-  createdat: string
-  snapshotdata: any
-  journeynumber: number
-  profit?: number
-  totalcost?: number
-  status?: string
-}
-
-
 type TabType = 'main_file' | 'price_wait' | 'order_confirmed' | 'copy' | 'sns' | 'china' | 'india' | 'us' | 'pending' | 'not_found' | 'reject';
 
 const calculateNextDue = (period: string): Date => {
@@ -206,7 +193,7 @@ export default function PurchasesPage() {
 
   // History Sidebar State
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
-  const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
+  const [historyData, setHistoryData] = useState<any>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
   // Remark Modal State
   const [selectedRemark, setSelectedRemark] = useState<{ id: string; remark: string } | null>(null);
@@ -1809,20 +1796,86 @@ export default function PurchasesPage() {
     }
   };
 
-  // Fetch History for Sidebar
   const fetchHistory = async (asin: string) => {
     setSelectedHistoryAsin(asin)
     setHistoryLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('india_asin_history')
-        .select('*')
+      // Fetch ALL purchase records for this ASIN (all journeys, all sellers)
+      const { data: purchases, error } = await supabase
+        .from('india_purchases')
+        .select('seller_tag, buying_price, buying_quantity, journey_number, inr_purchase_link, seller_link, journey_id, created_at')
         .eq('asin', asin)
+        .eq('admin_confirmed', true)
         .order('created_at', { ascending: false })
-        .limit(5)
 
       if (error) throw error
-      setHistoryData(data || [])
+
+      // Also fetch from india_asin_history for total journey count
+      const { data: historyRows } = await supabase
+        .from('india_asin_history')
+        .select('journey_number')
+        .eq('asin', asin)
+
+      const allJourneyNums = new Set([
+        ...(purchases || []).map(p => p.journey_number),
+        ...(historyRows || []).map(h => h.journey_number),
+      ].filter(Boolean))
+
+      // Group by seller_tag
+      const sellerMap: Record<string, {
+        count: number,
+        quantities: number[],
+        prices: number[],
+        links: string[],
+      }> = {}
+
+      for (const p of (purchases || [])) {
+        const tag = p.seller_tag || 'Unknown'
+        if (!sellerMap[tag]) sellerMap[tag] = { count: 0, quantities: [], prices: [], links: [] }
+        sellerMap[tag].count++
+        if (p.buying_quantity) sellerMap[tag].quantities.push(p.buying_quantity)
+        if (p.buying_price) sellerMap[tag].prices.push(p.buying_price)
+        const link = p.inr_purchase_link || p.seller_link
+        if (link) sellerMap[tag].links.push(link)
+      }
+
+      // Build seller rows sorted by purchase count (descending)
+      const sellerRows = Object.entries(sellerMap)
+        .map(([tag, data]) => {
+          const avgQty = data.quantities.length > 0
+            ? Math.round(data.quantities.reduce((a, b) => a + b, 0) / data.quantities.length)
+            : 0
+          const last3Highest = [...data.quantities].sort((a, b) => b - a).slice(0, 3)
+          const minPrice = data.prices.length > 0 ? Math.min(...data.prices) : null
+          const avgPrice = data.prices.length > 0
+            ? Math.round(data.prices.reduce((a, b) => a + b, 0) / data.prices.length)
+            : null
+          // Most used links — count frequency, pick top 3
+          const linkFreq: Record<string, number> = {}
+          data.links.forEach(l => { linkFreq[l] = (linkFreq[l] || 0) + 1 })
+          const topLinks = Object.entries(linkFreq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([link]) => link)
+
+          return { tag, count: data.count, avgQty, last3Highest, minPrice, avgPrice, topLinks }
+        })
+        .sort((a, b) => b.count - a.count)
+
+      // Compute header aggregates
+      const allPrices = (purchases || []).map(p => p.buying_price).filter(Boolean) as number[]
+      const headerMinPrice = allPrices.length > 0 ? Math.min(...allPrices) : null
+      const headerAvgPrice = allPrices.length > 0
+        ? Math.round(allPrices.reduce((a, b) => a + b, 0) / allPrices.length)
+        : null
+
+      setHistoryData({
+        totalJourneys: allJourneyNums.size,
+        totalPurchases: (purchases || []).length,
+        sellerRows,
+        headerMinPrice,
+        headerAvgPrice,
+      } as any)
     } catch (err) {
       console.error(err)
       showToast('Failed to load history', 'error')
@@ -3921,118 +3974,134 @@ export default function PurchasesPage() {
 
       </div>
       )}
-      {/* ✅ HISTORY SIDEBAR SLIDE-OVER */}
+      {/* Purchase History Dialog */}
       <AnimatePresence>
         {selectedHistoryAsin && (
           <>
             {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               onClick={() => setSelectedHistoryAsin(null)}
-              className="absolute inset-0 bg-[#111111]/60 z-40"
+              className="fixed inset-0 bg-black/60 z-50"
             />
-
-            {/* Sidebar */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-white">Journey History</h2>
-                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedHistoryAsin(null)}
-                  className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Timeline */}
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                {historyLoading ? (
-                  <div className="flex justify-center py-10">
-                    <Loader2 className="animate-spin w-8 h-8 text-orange-500" />
+            {/* Dialog */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-[#111111] border border-white/[0.1] rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.1]">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Purchase History</h2>
+                    <p className="text-sm text-gray-400 font-mono mt-0.5">{selectedHistoryAsin}</p>
                   </div>
-                ) : historyData.length === 0 ? (
-                  <div className="text-center text-gray-500 py-10">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-sm">No history found for this item.</p>
-                  </div>
-                ) : (
-                  historyData.map((snapshot, idx) => (
-                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6">
-                      {/* Timeline Dot */}
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
-
-                      {/* Card */}
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
-                        {/* Journey Info */}
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
-                            Journey #{snapshot.journeynumber}
-                          </span>
-                          <span className="text-xs text-gray-300">
-                            {new Date(snapshot.createdat).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </div>
-
-                        {/* Stage Name */}
-                        <h3 className="text-sm font-semibold text-white mb-3 capitalize">
-                          {snapshot.stage.replace(/_/g, ' → ')}
-                        </h3>
-
-                        {/* Snapshot Details */}
-                        <div className="space-y-1.5 text-xs">
-                          {snapshot.profit !== null && snapshot.profit !== undefined && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">Profit:</span>
-                              <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                                ₹{snapshot.profit.toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                          {snapshot.totalcost && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">Total Cost:</span>
-                              <span className="text-gray-100">₹{snapshot.totalcost.toFixed(2)}</span>
-                            </div>
-                          )}
-                          {snapshot.snapshotdata?.productweight && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">Weight:</span>
-                              <span className="text-gray-100">{snapshot.snapshotdata.productweight}g</span>
-                            </div>
-                          )}
-                          {snapshot.snapshotdata?.usdprice && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">USD Price:</span>
-                              <span className="text-gray-100">${snapshot.snapshotdata.usdprice}</span>
-                            </div>
-                          )}
-                          {snapshot.snapshotdata?.inrpurchase && (
-                            <div className="flex justify-between items-center py-1">
-                              <span className="text-gray-400">INR Purchase:</span>
-                              <span className="text-gray-100">₹{snapshot.snapshotdata.inrpurchase}</span>
-                            </div>
-                          )}
-                        </div>
+                  <div className="flex items-center gap-4">
+                    {!historyLoading && historyData && (
+                      <div className="flex gap-3 text-xs">
+                        <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2.5 py-1 rounded-full font-medium">
+                          {historyData.totalJourneys} Journey{historyData.totalJourneys !== 1 ? 's' : ''}
+                        </span>
+                        <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full font-medium">
+                          {historyData.totalPurchases} Purchase{historyData.totalPurchases !== 1 ? 's' : ''}
+                        </span>
                       </div>
+                    )}
+                    <button onClick={() => setSelectedHistoryAsin(null)} className="p-2 hover:bg-white/[0.05] rounded-lg text-gray-400 hover:text-white transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {historyLoading ? (
+                    <div className="flex justify-center py-16">
+                      <Loader2 className="animate-spin w-8 h-8 text-orange-500" />
                     </div>
-                  ))
-                )}
+                  ) : !historyData || historyData.sellerRows?.length === 0 ? (
+                    <div className="text-center text-gray-500 py-16">
+                      <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">No purchase history found.</p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-white/[0.1]">
+                          <th className="px-4 py-3 text-left font-medium">Seller</th>
+                          <th className="px-4 py-3 text-center font-medium">Times Bought</th>
+                          <th className="px-4 py-3 text-center font-medium">
+                            <div>Avg. Buying Qty</div>
+                            <div className="text-[10px] text-gray-500 normal-case mt-0.5">Last 3 highest</div>
+                          </th>
+                          <th className="px-4 py-3 text-center font-medium">
+                            <div>Min Price</div>
+                            <div className="text-[10px] text-orange-400 normal-case mt-0.5">
+                              All: {historyData.headerMinPrice ? `₹${historyData.headerMinPrice}` : '-'}
+                            </div>
+                          </th>
+                          <th className="px-4 py-3 text-center font-medium">
+                            <div>Avg. Price</div>
+                            <div className="text-[10px] text-orange-400 normal-case mt-0.5">
+                              All: {historyData.headerAvgPrice ? `₹${historyData.headerAvgPrice}` : '-'}
+                            </div>
+                          </th>
+                          <th className="px-4 py-3 text-left font-medium">Most Used Buying Links</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historyData.sellerRows.map((seller: any, idx: number) => (
+                          <tr key={seller.tag} className={`border-b border-white/[0.05] hover:bg-white/[0.02] ${idx === 0 ? 'bg-orange-500/5' : ''}`}>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold text-white ${
+                                seller.tag === 'GR' ? 'bg-yellow-500' :
+                                seller.tag === 'RR' ? 'bg-orange-400' :
+                                seller.tag === 'UB' ? 'bg-pink-500' :
+                                seller.tag === 'VV' ? 'bg-emerald-500' :
+                                seller.tag === 'DE' ? 'bg-orange-500' :
+                                seller.tag === 'CV' ? 'bg-green-600' :
+                                seller.tag === 'MV' ? 'bg-orange-600' :
+                                seller.tag === 'KL' ? 'bg-lime-500' : 'bg-gray-500'
+                              }`}>
+                                {seller.tag}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-white font-bold text-lg">{seller.count}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="text-white font-medium">{seller.avgQty}</div>
+                              {seller.last3Highest.length > 0 && (
+                                <div className="text-[10px] text-gray-500 mt-0.5">
+                                  Top: {seller.last3Highest.join(', ')}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-emerald-400 font-medium">{seller.minPrice ? `₹${seller.minPrice}` : '-'}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-blue-300 font-medium">{seller.avgPrice ? `₹${seller.avgPrice}` : '-'}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-1">
+                                {seller.topLinks.length === 0 ? (
+                                  <span className="text-gray-500 text-xs">-</span>
+                                ) : (
+                                  seller.topLinks.map((link: string, i: number) => (
+                                    <a key={i} href={link} target="_blank" rel="noopener noreferrer"
+                                      className="text-blue-400 hover:text-blue-300 text-xs truncate max-w-[250px] block"
+                                      title={link}>
+                                      {link.replace(/https?:\/\/(www\.)?/, '').slice(0, 40)}...
+                                    </a>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
               </div>
-            </motion.div>
+            </div>
           </>
         )}
         {selectedRemark && (
