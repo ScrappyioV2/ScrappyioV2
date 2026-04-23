@@ -189,7 +189,7 @@ export default function PurchaseHistoryDialog({ asin, marketplace, onClose }: Pr
                       <td className="px-4 py-3 text-center"><span className="text-white font-bold text-2xl">{seller.count}</span></td>
                       <td className="px-4 py-3 text-center">
                         <div className="text-white font-bold text-xl">{seller.avgQty}</div>
-                        {seller.last3Highest.length > 0 && <div className="text-xs text-gray-400 mt-1">Top: {seller.last3Highest.join(', ')}</div>}
+                        {seller.last3Highest.length > 0 && <div className="text-sm text-gray-300 mt-1">Top: {seller.last3Highest.join(', ')}</div>}
                       </td>
                       <td className="px-4 py-3 text-center"><span className="text-emerald-400 font-bold text-lg">{seller.minPrice ? `₹${seller.minPrice}` : '-'}</span></td>
                       <td className="px-4 py-3 text-center"><span className="text-blue-300 font-bold text-lg">{seller.avgPrice ? `₹${seller.avgPrice}` : '-'}</span></td>
