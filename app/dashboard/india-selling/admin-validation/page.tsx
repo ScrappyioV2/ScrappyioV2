@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { calculateProductValues, type CalculationConstants, type CalculationResult, type IndiaProductInput } from '@/lib/blackboxCalculations'
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
+import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
 
 type AdminProduct = {
   id: string;
@@ -50,18 +51,6 @@ type AdminProduct = {
   fulfillment_channel?: string | null;
   shipping_zone?: string | null;
 };
-
-// ADD THIS TYPE
-type HistorySnapshot = {
-  id: string
-  stage: string
-  createdat: string
-  snapshotdata: any
-  journeynumber: number
-  profit?: number
-  totalcost?: number
-  status?: string
-}
 
 type TabType = 'overview' | 'india' | 'china' | 'us' | 'pending' | 'confirm' | 'reject' | 'price_wait';
 
@@ -157,8 +146,6 @@ export default function AdminValidationPage() {
 
   // History Sidebar State
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
-  const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
 
   const [isConstantsModalOpen, setIsConstantsModalOpen] = useState(false);
@@ -518,29 +505,6 @@ export default function AdminValidationPage() {
       console.error('Error fetching admin constants:', err);
     }
   };
-
-  // Fetch History for Sidebar
-  const fetchHistory = async (asin: string) => {
-    setSelectedHistoryAsin(asin)
-    setHistoryLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('india_asin_history')
-        .select('*')
-        .eq('asin', asin)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      if (error) throw error
-      setHistoryData(data || [])
-    } catch (err) {
-      console.error(err)
-      setToast({ message: 'Failed to load history', type: 'error' })
-    } finally {
-      setHistoryLoading(false)
-    }
-  }
-
 
   const saveAdminConstants = async () => {
     setIsSavingConstants(true);
@@ -2064,7 +2028,7 @@ export default function AdminValidationPage() {
         return (
           <td key={col_key} className="px-6 py-4 text-center bg-amber-500/10">
             <button
-              onClick={() => fetchHistory(product.asin)}
+              onClick={() => setSelectedHistoryAsin(product.asin)}
               className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-white/[0.08] hover:text-orange-400 hover:border-indigo-400/50 transition-all cursor-pointer"
               title={`Journey ${product.journey_number || 1} — Click to view history`}
             >
@@ -3197,118 +3161,6 @@ export default function AdminValidationPage() {
       }
 
       <AnimatePresence>
-        {selectedHistoryAsin && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedHistoryAsin(null)}
-              className="absolute inset-0 bg-[#111111]/60 z-40"
-            />
-
-            {/* Sidebar */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-full sm:w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-4 sm:p-6 flex flex-col overflow-hidden"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-white">Journey History</h2>
-                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedHistoryAsin(null)}
-                  className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Timeline */}
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
-                {historyLoading ? (
-                  <div className="flex justify-center py-10">
-                    <Loader2 className="animate-spin w-8 h-8 text-orange-500" />
-                  </div>
-                ) : historyData.length === 0 ? (
-                  <div className="text-center text-gray-500 py-10">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-sm">No history found for this item.</p>
-                  </div>
-                ) : (
-                  historyData.map((snapshot, idx) => (
-                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6">
-                      {/* Timeline Dot */}
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
-
-                      {/* Card */}
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
-                        {/* Journey Info */}
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
-                            Journey #{snapshot.journeynumber}
-                          </span>
-                          <span className="text-xs text-gray-300">
-                            {new Date(snapshot.createdat).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </div>
-
-                        {/* Stage Name */}
-                        <h3 className="text-sm font-semibold text-white mb-3 capitalize">
-                          {snapshot.stage.replace(/_/g, ' → ')}
-                        </h3>
-
-                        {/* Snapshot Details */}
-                        <div className="space-y-1.5 text-xs">
-                          {snapshot.profit !== null && snapshot.profit !== undefined && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">Profit:</span>
-                              <span className={snapshot.profit > 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                                ₹{snapshot.profit.toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                          {snapshot.totalcost && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">Total Cost:</span>
-                              <span className="text-gray-100">₹{snapshot.totalcost.toFixed(2)}</span>
-                            </div>
-                          )}
-                          {snapshot.snapshotdata?.productweight && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">Weight:</span>
-                              <span className="text-gray-100">{snapshot.snapshotdata.productweight}g</span>
-                            </div>
-                          )}
-                          {snapshot.snapshotdata?.usdprice && (
-                            <div className="flex justify-between items-center py-1 border-b border-white/[0.1]">
-                              <span className="text-gray-400">USD Price:</span>
-                              <span className="text-gray-100">${snapshot.snapshotdata.usdprice}</span>
-                            </div>
-                          )}
-                          {snapshot.snapshotdata?.inrpurchase && (
-                            <div className="flex justify-between items-center py-1">
-                              <span className="text-gray-400">INR Purchase:</span>
-                              <span className="text-gray-100">₹{snapshot.snapshotdata.inrpurchase}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
         {selectedRemark && (
           <>
             <motion.div
@@ -3391,6 +3243,12 @@ export default function AdminValidationPage() {
           </>
         )}
       </AnimatePresence>
+
+      <PurchaseHistoryDialog
+        asin={selectedHistoryAsin}
+        marketplace="india"
+        onClose={() => setSelectedHistoryAsin(null)}
+      />
     </div >
   );
 }

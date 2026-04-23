@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
 import { ensureAbsoluteUrl } from '@/lib/utils'
@@ -55,15 +56,6 @@ type ReorderProduct = {
   remark: string | null;
 }
 
-type HistorySnapshot = {
-  id: string
-  stage: string
-  created_at: string
-  snapshot_data: any
-  journey_number: number
-  profit?: number
-}
-
 type Seller = {
   id: number
   name: string
@@ -95,8 +87,6 @@ export default function ReorderPage() {
 
   // History Sidebar State
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
-  const [historyData, setHistoryData] = useState<HistorySnapshot[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [remarkModalOpen, setRemarkModalOpen] = useState(false);  // ✅ ADD THIS
   const [selectedRemark, setSelectedRemark] = useState<{ id: string; asin: string; remark: string | null } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -730,29 +720,6 @@ export default function ReorderPage() {
       .eq('id', id)
   }
 
-  // --- 6. Fetch History (The Sidebar Logic) ---
-  const fetchHistory = async (asin: string) => {
-    setSelectedHistoryAsin(asin)
-    setHistoryLoading(true)
-    try {
-      // Fetch last 5 history entries
-      const { data, error } = await supabase
-        .from('uk_asin_history')
-        .select('*')
-        .eq('asin', asin)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      if (error) throw error
-      setHistoryData(data || [])
-    } catch (err) {
-      console.error(err)
-      setToast({ message: 'Failed to load history', type: 'error' })
-    } finally {
-      setHistoryLoading(false)
-    }
-  }
-
   // --- 7. Send Back to Validation (Restart Loop) ---
   const sendToValidation = (product: ReorderProduct) => {
     setConfirmDialog({
@@ -990,7 +957,7 @@ export default function ReorderPage() {
                         {/* ✅ HISTORY BUTTON */}
                         <td className="px-6 py-4 text-center border-r border-white/[0.1]">
                           <button
-                            onClick={() => fetchHistory(product.asin)}
+                            onClick={() => setSelectedHistoryAsin(product.asin)}
                             className="p-2 rounded-full hover:bg-white/[0.08] text-gray-400 hover:text-orange-500 transition-colors"
                             title="View Journey History"
                           >
@@ -1066,92 +1033,7 @@ export default function ReorderPage() {
         </div>
       </div>
 
-      {/* ✅ HISTORY SIDEBAR (SLIDE-OVER) */}
       <AnimatePresence>
-        {selectedHistoryAsin && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedHistoryAsin(null)}
-              className="absolute inset-0 bg-[#111111]/60 z-40"
-            />
-
-            {/* Sidebar */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 h-full w-[400px] bg-[#111111] border-l border-white/[0.1] shadow-2xl z-50 p-6 flex flex-col"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-xl font-bold text-white">Journey History</h2>
-                  <p className="text-sm text-gray-300 font-mono mt-1">{selectedHistoryAsin}</p>
-                </div>
-                <button onClick={() => setSelectedHistoryAsin(null)} className="p-2 hover:bg-[#111111] rounded-full text-gray-400 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-                {historyLoading ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin w-8 h-8 text-orange-500" /></div>
-                ) : historyData.length === 0 ? (
-                  <div className="text-center text-gray-500 py-10">No history found for this item.</div>
-                ) : (
-                  historyData.map((snapshot, idx) => (
-                    <div key={snapshot.id} className="relative pl-6 border-l-2 border-orange-500/30 last:border-0 pb-6">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#111111] border-2 border-orange-500" />
-
-                      <div className="bg-[#1a1a1a]/50 rounded-xl p-4 border border-white/[0.1] hover:border-orange-500/30 transition-colors">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
-                            Journey #{snapshot.journey_number}
-                          </span>
-                          <span className="text-xs text-gray-300">
-                            {new Date(snapshot.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-white mb-2 capitalize">
-                          {snapshot.stage.replace(/_/g, ' ')}
-                        </h3>
-
-                        {/* Snapshot Details */}
-                        <div className="space-y-1 text-xs text-gray-300">
-                          {snapshot.profit && (
-                            <div className="flex justify-between">
-                              <span>Profit:</span>
-                              <span className={snapshot.profit > 0 ? "text-emerald-400" : "text-rose-400"}>
-                                ₹{snapshot.profit}
-                              </span>
-                            </div>
-                          )}
-                          {snapshot.snapshot_data?.product_weight && (
-                            <div className="flex justify-between">
-                              <span>Weight:</span>
-                              <span>{snapshot.snapshot_data.product_weight}g</span>
-                            </div>
-                          )}
-                          {snapshot.snapshot_data?.usd_price && (
-                            <div className="flex justify-between">
-                              <span>USD Price:</span>
-                              <span>${snapshot.snapshot_data.usd_price}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
         {remarkModalOpen && selectedRemark && (
           <>
             {/* Backdrop */}
@@ -1262,6 +1144,12 @@ export default function ReorderPage() {
           </div>
         </div>
       )}
+
+      <PurchaseHistoryDialog
+        asin={selectedHistoryAsin}
+        marketplace="uk"
+        onClose={() => setSelectedHistoryAsin(null)}
+      />
     </div>
   )
 }
