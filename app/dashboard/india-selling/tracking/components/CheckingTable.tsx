@@ -363,6 +363,23 @@ export default function CheckingTable({
         leftover--;
       }
 
+      // Fetch total_cost from validation for listing error price calculation
+      let listingPrice = representative.buying_price ?? 0;
+      try {
+        const { data: valData } = await supabase
+          .from('india_validation_main_file')
+          .select('total_cost')
+          .eq('asin', representative.asin)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (valData?.total_cost) {
+          listingPrice = Math.round(valData.total_cost * 1.10 * 100) / 100;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch total_cost for listing price, using buying_price fallback');
+      }
+
       // Insert proportional pending rows to restock per seller
       for (const seller of sellerAllocations) {
         const resolvedSellerId = SELLER_TAG_MAPPING[seller.tag as SellerTag] || sellerId;
@@ -401,7 +418,7 @@ export default function CheckingTable({
         if (insertError) throw insertError;
 
         // Copy to unified listing_errors table — dual-write: pending + funnel-specific
-        const salesPrice = item.buying_price ?? 0;
+        const salesPrice = listingPrice;
         const funnelStr = String(item.funnel || '').toUpperCase();
         const listingPayload = {
           asin: item.asin,
