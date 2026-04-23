@@ -177,6 +177,17 @@ export async function moveProductWithHistory(
       .eq('asin', product.asin)
       .eq('error_status', toStatus)
       .neq('id', product.id);
+    // Also remove the companion 'pending' row when marking as listed/done
+    if (toStatus === 'done') {
+      await supabase
+        .from('listing_errors')
+        .delete()
+        .eq('marketplace', marketplace)
+        .eq('seller_id', sellerId)
+        .eq('asin', product.asin)
+        .eq('error_status', 'pending')
+        .neq('id', product.id);
+    }
   }
 
   // Move the product (just update the status)
