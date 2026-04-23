@@ -619,6 +619,7 @@ export default function ReorderPage() {
           .eq('marketplace', 'india')
           .eq('seller_id', activeSeller.id)
           .eq('ops_type', 'restock')
+          .eq('status', 'pending')
 
         if (error) console.warn('⚠️ Error querying tracking_ops restock:', error.message)
         else {
