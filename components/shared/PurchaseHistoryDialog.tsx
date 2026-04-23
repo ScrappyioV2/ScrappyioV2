@@ -170,13 +170,13 @@ export default function PurchaseHistoryDialog({ asin, marketplace, onClose }: Pr
                     <th className="px-4 py-3 text-left font-medium">Seller</th>
                     <th className="px-4 py-3 text-center font-medium">
                       <div>Times Bought</div>
-                      <div className="text-xs text-orange-400 normal-case mt-0.5">
+                      <div className="text-sm text-orange-400 normal-case mt-0.5">
                         Total: {data.totalPurchases}
                       </div>
                     </th>
                     <th className="px-4 py-3 text-center font-medium"><div>Avg. Buying Qty</div><div className="text-xs text-gray-500 normal-case mt-0.5">Last 3 highest</div></th>
-                    <th className="px-4 py-3 text-center font-medium"><div>Min Price</div><div className="text-xs text-orange-400 normal-case mt-0.5">All: {data.headerMinPrice ? `₹${data.headerMinPrice}` : '-'}</div></th>
-                    <th className="px-4 py-3 text-center font-medium"><div>Avg. Price</div><div className="text-xs text-orange-400 normal-case mt-0.5">All: {data.headerAvgPrice ? `₹${data.headerAvgPrice}` : '-'}</div></th>
+                    <th className="px-4 py-3 text-center font-medium"><div>Min Price</div><div className="text-sm text-orange-400 normal-case mt-0.5">All: {data.headerMinPrice ? `₹${data.headerMinPrice}` : '-'}</div></th>
+                    <th className="px-4 py-3 text-center font-medium"><div>Avg. Price</div><div className="text-sm text-orange-400 normal-case mt-0.5">All: {data.headerAvgPrice ? `₹${data.headerAvgPrice}` : '-'}</div></th>
                     <th className="px-4 py-3 text-left font-medium">Most Used Buying Links</th>
                   </tr>
                 </thead>
