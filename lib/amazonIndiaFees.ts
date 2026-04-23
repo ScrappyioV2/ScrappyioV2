@@ -257,7 +257,7 @@ export const REFERRAL_RATES: CategoryReferral[] = [
 ];
 
 // ─── Helper: Get all category names (for dropdown) ─────────────────
-export const CATEGORY_NAMES = REFERRAL_RATES.map(r => r.category);
+export const CATEGORY_NAMES = REFERRAL_RATES.map(r => r.category).sort();
 
 // ─── Calculate Referral Fee (tiered) ───────────────────────────────
 export function calculateReferralFee(category: string, sellingPrice: number): number {
