@@ -168,7 +168,12 @@ export default function PurchaseHistoryDialog({ asin, marketplace, onClose }: Pr
                 <thead>
                   <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-white/[0.1]">
                     <th className="px-4 py-3 text-left font-medium">Seller</th>
-                    <th className="px-4 py-3 text-center font-medium">Times Bought</th>
+                    <th className="px-4 py-3 text-center font-medium">
+                      <div>Times Bought</div>
+                      <div className="text-[10px] text-orange-400 normal-case mt-0.5">
+                        Total: {data.totalPurchases}
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-center font-medium"><div>Avg. Buying Qty</div><div className="text-[10px] text-gray-500 normal-case mt-0.5">Last 3 highest</div></th>
                     <th className="px-4 py-3 text-center font-medium"><div>Min Price</div><div className="text-[10px] text-orange-400 normal-case mt-0.5">All: {data.headerMinPrice ? `₹${data.headerMinPrice}` : '-'}</div></th>
                     <th className="px-4 py-3 text-center font-medium"><div>Avg. Price</div><div className="text-[10px] text-orange-400 normal-case mt-0.5">All: {data.headerAvgPrice ? `₹${data.headerAvgPrice}` : '-'}</div></th>
@@ -181,13 +186,13 @@ export default function PurchaseHistoryDialog({ asin, marketplace, onClose }: Pr
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold text-white ${SELLER_COLORS[seller.tag] || 'bg-gray-500'}`}>{seller.tag}</span>
                       </td>
-                      <td className="px-4 py-3 text-center"><span className="text-white font-bold text-lg">{seller.count}</span></td>
+                      <td className="px-4 py-3 text-center"><span className="text-white font-bold text-2xl">{seller.count}</span></td>
                       <td className="px-4 py-3 text-center">
-                        <div className="text-white font-medium">{seller.avgQty}</div>
-                        {seller.last3Highest.length > 0 && <div className="text-[10px] text-gray-500 mt-0.5">Top: {seller.last3Highest.join(', ')}</div>}
+                        <div className="text-white font-bold text-xl">{seller.avgQty}</div>
+                        {seller.last3Highest.length > 0 && <div className="text-xs text-gray-400 mt-1">Top: {seller.last3Highest.join(', ')}</div>}
                       </td>
-                      <td className="px-4 py-3 text-center"><span className="text-emerald-400 font-medium">{seller.minPrice ? `₹${seller.minPrice}` : '-'}</span></td>
-                      <td className="px-4 py-3 text-center"><span className="text-blue-300 font-medium">{seller.avgPrice ? `₹${seller.avgPrice}` : '-'}</span></td>
+                      <td className="px-4 py-3 text-center"><span className="text-emerald-400 font-bold text-lg">{seller.minPrice ? `₹${seller.minPrice}` : '-'}</span></td>
+                      <td className="px-4 py-3 text-center"><span className="text-blue-300 font-bold text-lg">{seller.avgPrice ? `₹${seller.avgPrice}` : '-'}</span></td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           {seller.topLinks.length === 0 ? <span className="text-gray-500 text-xs">-</span> : seller.topLinks.map((link, i) => (
