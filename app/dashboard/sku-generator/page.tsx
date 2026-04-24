@@ -621,9 +621,9 @@ export default function SkuGeneratorPage() {
 
       {/* Add form */}
       <div className="flex-none px-4 sm:px-6 py-4 border-b border-white/[0.1] bg-[#0d0d0d]">
-        <div className="flex items-end gap-2 p-4 bg-[#0a0a0a] rounded-xl border border-white/[0.05]">
+        <div className="flex flex-wrap items-end gap-2 p-4 bg-[#0a0a0a] rounded-xl border border-white/[0.05]">
           {formBarcodes.map((b, i) => (
-            <div key={i} className="flex-1 min-w-0">
+            <div key={i} className="flex-1 min-w-[120px]">
               <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
                 {i === 0 ? `Barcode${formBarcodes.length > 1 ? ' 1' : ''} *` : `Barcode ${i + 1}`}
               </label>
@@ -655,7 +655,7 @@ export default function SkuGeneratorPage() {
             <Plus className="w-4 h-4" />
           </button>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[120px]">
             <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">ASIN *</label>
             <input
               type="text"
@@ -666,7 +666,7 @@ export default function SkuGeneratorPage() {
             />
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[120px]">
             <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Brand</label>
             <input
               type="text"
@@ -677,7 +677,7 @@ export default function SkuGeneratorPage() {
             />
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[120px]">
             <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Name</label>
             <input
               type="text"
@@ -688,7 +688,7 @@ export default function SkuGeneratorPage() {
             />
           </div>
 
-          <div className="w-24">
+          <div className="min-w-[120px]">
             <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Pack Of</label>
             <input
               type="number"
@@ -699,7 +699,7 @@ export default function SkuGeneratorPage() {
             />
           </div>
 
-          <div className="w-24">
+          <div className="min-w-[120px]">
             <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Product #</label>
             <input
               type="number"
@@ -913,7 +913,7 @@ function InboxTable({
   return (
     <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[500px]">
           <thead className="bg-[#111111] text-gray-500 text-[11px] uppercase tracking-wider">
             <tr>
               <th className="px-3 py-2 w-10 text-center">
@@ -1090,7 +1090,7 @@ function GroupProductsTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm min-w-[600px]">
         <thead className="bg-[#111111] text-gray-500 text-[11px] uppercase tracking-wider">
           <tr>
             <th className="px-3 py-2 text-left font-medium">ASIN</th>
