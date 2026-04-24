@@ -287,9 +287,7 @@ export default function FloatingChat() {
 
   return (
     <>
-      {/* Floating trigger hidden — opened via sidebar */}
-      {false && (
-      /* ─── Edge Tab (peek from right side, draggable) ─── */
+      {/* ─── Edge Tab (peek from right side, draggable) ─── */}
       <div
         onMouseEnter={handleBtnMouseEnter}
         onMouseLeave={handleBtnMouseLeave}
@@ -311,7 +309,7 @@ export default function FloatingChat() {
           document.addEventListener('mousemove', onMove);
           document.addEventListener('mouseup', onUp);
         }}
-        className="fixed right-0 z-50 group cursor-grab active:cursor-grabbing select-none"
+        className={`fixed right-0 z-50 ${!isOpen ? 'hidden' : ''}`}
         style={{ top: tabY, transform: 'translateY(-50%)' }}
       >
         <div className={`flex items-center transition-all duration-300 ease-out ${
@@ -343,7 +341,6 @@ export default function FloatingChat() {
           </button>
         </div>
       </div>
-      )}
 
       {/* ─── Chat Window ─── */}
       <AnimatePresence>
