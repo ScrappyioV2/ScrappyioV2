@@ -200,7 +200,7 @@ export default function PriceTrackerDashboard() {
           {buySignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No buy opportunities today</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {buySignals.map(b => (
                 <div
                   key={b.asin}
@@ -231,7 +231,7 @@ export default function PriceTrackerDashboard() {
           {sellSignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No sell signals</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {sellSignals.map(a => (
                 <div
                   key={a.id}
@@ -257,7 +257,7 @@ export default function PriceTrackerDashboard() {
           {topLosers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {topLosers.map(s => (
                 <div
                   key={s.asin}
@@ -287,7 +287,7 @@ export default function PriceTrackerDashboard() {
           {topGainers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {topGainers.map(s => (
                 <div
                   key={s.asin}
@@ -317,7 +317,7 @@ export default function PriceTrackerDashboard() {
           {sellerChanges.length === 0 ? (
             <p className="text-gray-500 text-sm">No seller changes detected</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {sellerChanges.map(a => (
                 <div key={a.id} className="p-3 bg-[#111111] rounded-lg border border-white/[0.05]">
                   <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline">{a.asin}</a>
