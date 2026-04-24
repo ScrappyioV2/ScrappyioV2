@@ -14,7 +14,8 @@ import {
   Home,
   Truck,
   Package,
-  Cog
+  Cog,
+  TrendingDown
 } from 'lucide-react';
 import { AppRoute } from '@/lib/types';
 
@@ -487,5 +488,19 @@ export const APP_ROUTES: AppRoute[] = [
     label: 'SKU Generator',
     icon: Cog,
     permission: 'view-validation',
+  },
+
+  // --- 9. Price Tracker ---
+  {
+    path: '/dashboard/price-tracker',
+    label: 'Price Tracker',
+    icon: TrendingDown,
+    permission: 'view-price-tracker',
+    subRoutes: [
+      { path: '/dashboard/price-tracker/upload-orders', label: 'Upload Orders', permission: 'view-price-tracker' },
+      { path: '/dashboard/price-tracker/upload', label: 'Daily Upload', permission: 'view-price-tracker' },
+      { path: '/dashboard/price-tracker/alerts', label: 'Alerts', permission: 'view-price-tracker' },
+      { path: '/dashboard/price-tracker/missing', label: 'Missing Items', permission: 'view-price-tracker' },
+    ]
   }
 ];

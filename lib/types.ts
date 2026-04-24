@@ -51,6 +51,7 @@ export type PermissionKey =
   | 'view-reorder'
   | 'view-tracking'
   | 'view-restock'
+  | 'view-price-tracker'
 
   // System
   | 'admin-access'
