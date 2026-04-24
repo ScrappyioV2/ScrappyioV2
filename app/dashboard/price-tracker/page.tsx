@@ -23,6 +23,7 @@ export default function PriceTrackerDashboard() {
   const [topGainers, setTopGainers] = useState<Snapshot[]>([])
   const [sellerChanges, setSellerChanges] = useState<Alert[]>([])
   const [missingCount, setMissingCount] = useState({ blank: 0, notInReport: 0 })
+  const [skuMap, setSkuMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     fetchAll()
@@ -97,6 +98,12 @@ export default function PriceTrackerDashboard() {
       const blank = missing?.filter(m => m.missing_type === 'blank_price').length || 0
       const notIn = missing?.filter(m => m.missing_type === 'not_in_report').length || 0
       setMissingCount({ blank, notInReport: notIn })
+
+      // SKU map
+      const { data: skuRows } = await supabase.from('price_tracker_products').select('asin, sku')
+      const skuMap: Record<string, string> = {}
+      skuRows?.forEach(r => { if (r.sku) skuMap[r.asin] = r.sku })
+      setSkuMap(skuMap)
 
     } catch (err) {
       console.error(err)
@@ -198,6 +205,7 @@ export default function PriceTrackerDashboard() {
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${b.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{b.asin}</a>
+                    {skuMap[b.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[b.asin]}</span>}
                     <p className="text-sm text-gray-200 truncate">{b.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -228,6 +236,7 @@ export default function PriceTrackerDashboard() {
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{a.asin}</a>
+                    {skuMap[a.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[a.asin]}</span>}
                     <p className="text-sm text-gray-300">{a.message}</p>
                   </div>
                 </div>
@@ -253,6 +262,7 @@ export default function PriceTrackerDashboard() {
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
+                    {skuMap[s.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[s.asin]}</span>}
                     <p className="text-sm text-gray-200 truncate">{s.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -282,6 +292,7 @@ export default function PriceTrackerDashboard() {
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
+                    {skuMap[s.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[s.asin]}</span>}
                     <p className="text-sm text-gray-200 truncate">{s.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -305,7 +316,8 @@ export default function PriceTrackerDashboard() {
             <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
               {sellerChanges.map(a => (
                 <div key={a.id} className="p-3 bg-[#111111] rounded-lg border border-white/[0.05]">
-                  <span className="text-xs text-gray-500 font-mono">{a.asin}</span>
+                  <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline">{a.asin}</a>
+                  {skuMap[a.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[a.asin]}</span>}
                   <p className="text-sm text-gray-300 mt-0.5">{a.message}</p>
                 </div>
               ))}
