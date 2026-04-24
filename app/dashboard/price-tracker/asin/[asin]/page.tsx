@@ -162,7 +162,7 @@ export default function AsinDetailPage() {
         </div>
 
         {/* Price Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl p-4">
             <span className="text-gray-400 text-xs uppercase">Buy Box</span>
             <div className="text-2xl font-bold text-white mt-1">{latestSnap?.buybox_current ? `$${latestSnap.buybox_current.toFixed(2)}` : '-'}</div>
@@ -188,12 +188,12 @@ export default function AsinDetailPage() {
         </div>
 
         {/* Baseline Reset */}
-        <div className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl p-4 mb-6 flex items-center justify-between">
+        <div className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl p-4 mb-6 flex items-center justify-between flex-wrap gap-3">
           <div>
             <span className="text-sm text-gray-300 font-medium">Reset Baseline</span>
             <p className="text-xs text-gray-500 mt-0.5">Sets current price as new baseline. Clears milestone history.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {['buybox', 'amazon', 'both'].map(source => (
               <button
                 key={source}

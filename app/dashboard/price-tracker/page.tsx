@@ -151,7 +151,7 @@ export default function PriceTrackerDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
         {[
           { label: 'Tracked ASINs', value: stats.totalProducts, icon: Eye, color: 'text-blue-400' },
           { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-emerald-400' },
@@ -170,7 +170,7 @@ export default function PriceTrackerDashboard() {
       </div>
 
       {/* Quick Navigation */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         {[
           { label: 'Upload Orders', path: '/dashboard/price-tracker/upload-orders', icon: 'ShoppingCart' },
           { label: 'Daily Upload', path: '/dashboard/price-tracker/upload', icon: 'Upload' },

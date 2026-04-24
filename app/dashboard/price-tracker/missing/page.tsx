@@ -44,7 +44,7 @@ export default function MissingPage() {
         </h1>
 
         {/* Tabs */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <button
             onClick={() => setTab('blank_price')}
             className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors ${

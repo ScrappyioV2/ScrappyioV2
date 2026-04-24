@@ -171,7 +171,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-hidden bg-slate-50 transition-all duration-300">
+        <main className="flex-1 overflow-y-auto bg-slate-50 transition-all duration-300">
           {children}
         </main>
       </div>

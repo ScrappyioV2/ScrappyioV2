@@ -118,7 +118,7 @@ export default function AlertsPage() {
               className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-lg pl-9 pr-3 py-2 text-sm text-gray-200 focus:border-orange-500 outline-none"
             />
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto">
             {['all', 'unread', ...ALERT_TYPES].map(t => {
               const info = t === 'all' ? { label: 'All', color: 'text-gray-300' } : t === 'unread' ? { label: 'Unread', color: 'text-orange-400' } : alertLabel(t)
               return (
