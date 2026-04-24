@@ -197,7 +197,7 @@ export default function PriceTrackerDashboard() {
                   className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-emerald-500/5 border border-white/[0.05] transition-colors"
                 >
                   <div className="flex-1 min-w-0 mr-3">
-                    <span className="text-xs text-gray-500 font-mono">{b.asin}</span>
+                    <a href={`https://www.amazon.com/dp/${b.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{b.asin}</a>
                     <p className="text-sm text-gray-200 truncate">{b.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -227,7 +227,7 @@ export default function PriceTrackerDashboard() {
                   className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-orange-500/5 border border-white/[0.05] transition-colors"
                 >
                   <div className="flex-1 min-w-0 mr-3">
-                    <span className="text-xs text-gray-500 font-mono">{a.asin}</span>
+                    <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{a.asin}</a>
                     <p className="text-sm text-gray-300">{a.message}</p>
                   </div>
                 </div>
@@ -252,7 +252,7 @@ export default function PriceTrackerDashboard() {
                   className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-red-500/5 border border-white/[0.05] transition-colors"
                 >
                   <div className="flex-1 min-w-0 mr-3">
-                    <span className="text-xs text-gray-500 font-mono">{s.asin}</span>
+                    <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
                     <p className="text-sm text-gray-200 truncate">{s.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -281,7 +281,7 @@ export default function PriceTrackerDashboard() {
                   className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-blue-500/5 border border-white/[0.05] transition-colors"
                 >
                   <div className="flex-1 min-w-0 mr-3">
-                    <span className="text-xs text-gray-500 font-mono">{s.asin}</span>
+                    <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
                     <p className="text-sm text-gray-200 truncate">{s.title}</p>
                   </div>
                   <div className="text-right shrink-0">

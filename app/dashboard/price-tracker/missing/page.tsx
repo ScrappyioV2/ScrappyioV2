@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, Loader2, Search, XCircle, AlertCircle } from 'lucide-react'
+import { AlertTriangle, Loader2, Search, XCircle, AlertCircle, ArrowLeft } from 'lucide-react'
 
 type MissingItem = {
   asin: string; title: string; brand: string; missing_type: string;
@@ -36,6 +36,9 @@ export default function MissingPage() {
   return (
     <div className="min-h-full bg-[#111111] p-6">
       <div className="max-w-5xl mx-auto">
+        <button onClick={() => router.push('/dashboard/price-tracker')} className="text-gray-500 hover:text-gray-300 flex items-center gap-1 text-sm mb-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-6">
           <AlertTriangle className="w-6 h-6 text-yellow-500" /> Missing / Blank Items
         </h1>
@@ -98,7 +101,9 @@ export default function MissingPage() {
                     onClick={() => router.push(`/dashboard/price-tracker/asin/${item.asin}`)}
                     className="border-t border-white/[0.03] hover:bg-white/[0.02] cursor-pointer"
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-gray-300">{item.asin}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <a href={`https://www.amazon.com/dp/${item.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline" onClick={e => e.stopPropagation()}>{item.asin}</a>
+                    </td>
                     <td className="px-4 py-3 text-gray-200 truncate max-w-[250px]">{item.title}</td>
                     <td className="px-4 py-3 text-gray-400">{item.brand}</td>
                     <td className="px-4 py-3 text-right text-gray-300">{item.last_price ? `$${item.last_price.toFixed(2)}` : '-'}</td>

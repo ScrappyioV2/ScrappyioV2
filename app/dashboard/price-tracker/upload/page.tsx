@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, ChangeEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, Trash2, Bell } from 'lucide-react'
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, Trash2, Bell, ArrowLeft } from 'lucide-react'
 // XLSX loaded dynamically on file select
 
 type SnapshotRow = {
@@ -17,6 +18,7 @@ type SnapshotRow = {
 type AlertSummary = { type: string; count: number }
 
 export default function UploadKeepaPage() {
+  const router = useRouter()
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
   const [reportDate, setReportDate] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -176,6 +178,9 @@ export default function UploadKeepaPage() {
   return (
     <div className="min-h-full bg-[#111111] p-6">
       <div className="max-w-5xl mx-auto">
+        <button onClick={() => router.push('/dashboard/price-tracker')} className="text-gray-500 hover:text-gray-300 flex items-center gap-1 text-sm mb-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-white mb-1">Daily Keepa Upload</h1>
         <p className="text-gray-400 text-sm mb-6">Upload your daily Keepa Excel export to track prices and trigger alerts</p>
 
@@ -247,7 +252,9 @@ export default function UploadKeepaPage() {
                   <tbody>
                     {snapshots.slice(0, 100).map((s, i) => (
                       <tr key={i} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
-                        <td className="px-4 py-2 font-mono text-xs text-gray-300">{s.asin}</td>
+                        <td className="px-4 py-2 font-mono text-xs">
+                          <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline">{s.asin}</a>
+                        </td>
                         <td className="px-4 py-2 text-gray-200 truncate max-w-[250px]">{s.title}</td>
                         <td className="px-4 py-2 text-right text-emerald-400">{s.buybox_current !== null ? `$${s.buybox_current.toFixed(2)}` : '-'}</td>
                         <td className="px-4 py-2 text-right text-blue-300">{s.amazon_current !== null ? `$${s.amazon_current.toFixed(2)}` : '-'}</td>

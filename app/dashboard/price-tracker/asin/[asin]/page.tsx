@@ -131,12 +131,13 @@ export default function AsinDetailPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-300 flex items-center gap-1 text-sm mb-2">
-              <ArrowLeft className="w-4 h-4" /> Back
+            <button onClick={() => router.push('/dashboard/price-tracker')} className="text-gray-500 hover:text-gray-300 flex items-center gap-1 text-sm mb-2">
+              <ArrowLeft className="w-4 h-4" /> Back to Dashboard
             </button>
             <h1 className="text-xl font-bold text-white">{product.title}</h1>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-sm text-gray-500 font-mono">{asin}</span>
+              <a href={`https://www.amazon.com/dp/${asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 underline">View on Amazon</a>
               <span className="text-sm text-gray-400">{product.brand}</span>
               {product.category_root && <span className="text-xs text-gray-500 bg-white/[0.05] px-2 py-0.5 rounded">{product.category_root}</span>}
             </div>

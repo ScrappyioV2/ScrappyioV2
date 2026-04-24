@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, ChangeEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react'
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, Trash2, ArrowLeft } from 'lucide-react'
 import Papa from 'papaparse'
 
 type OrderRow = {
@@ -13,6 +14,7 @@ type OrderRow = {
 }
 
 export default function UploadOrdersPage() {
+  const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [filtered, setFiltered] = useState(0)
   const [uploading, setUploading] = useState(false)
@@ -116,6 +118,9 @@ export default function UploadOrdersPage() {
   return (
     <div className="min-h-full bg-[#111111] p-6">
       <div className="max-w-5xl mx-auto">
+        <button onClick={() => router.push('/dashboard/price-tracker')} className="text-gray-500 hover:text-gray-300 flex items-center gap-1 text-sm mb-2">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
         <h1 className="text-2xl font-bold text-white mb-1">Upload Purchase History</h1>
         <p className="text-gray-400 text-sm mb-6">One-time upload of your Amazon purchase orders CSV</p>
 
@@ -182,7 +187,9 @@ export default function UploadOrdersPage() {
                   <tbody>
                     {orders.slice(0, 100).map((o, i) => (
                       <tr key={i} className="border-t border-white/[0.03] hover:bg-white/[0.02]">
-                        <td className="px-4 py-2 font-mono text-xs text-gray-300">{o.asin}</td>
+                        <td className="px-4 py-2 font-mono text-xs">
+                          <a href={`https://www.amazon.com/dp/${o.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-400 hover:text-orange-300 underline">{o.asin}</a>
+                        </td>
                         <td className="px-4 py-2 text-gray-200 truncate max-w-[250px]">{o.title}</td>
                         <td className="px-4 py-2 text-gray-400">{o.brand}</td>
                         <td className="px-4 py-2 text-right text-emerald-400">${o.purchase_ppu.toFixed(2)}</td>
