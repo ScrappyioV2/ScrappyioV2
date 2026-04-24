@@ -114,7 +114,7 @@ export default function PriceTrackerDashboard() {
   }
 
   return (
-    <div className="min-h-full bg-[#111111] p-6">
+    <div className="h-full bg-[#111111] p-6 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -161,17 +161,35 @@ export default function PriceTrackerDashboard() {
         ))}
       </div>
 
+      {/* Quick Navigation */}
+      <div className="flex items-center gap-3 mb-6">
+        {[
+          { label: 'Upload Orders', path: '/dashboard/price-tracker/upload-orders', icon: 'ShoppingCart' },
+          { label: 'Daily Upload', path: '/dashboard/price-tracker/upload', icon: 'Upload' },
+          { label: 'Alerts', path: '/dashboard/price-tracker/alerts', icon: 'Bell' },
+          { label: 'Missing Items', path: '/dashboard/price-tracker/missing', icon: 'AlertTriangle' },
+        ].map(btn => (
+          <button
+            key={btn.path}
+            onClick={() => router.push(btn.path)}
+            className="px-4 py-2 bg-[#1a1a1a] border border-white/[0.08] rounded-xl text-sm text-gray-300 hover:text-orange-400 hover:border-orange-500/30 transition-colors flex items-center gap-2"
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 overflow-hidden auto-rows-fr">
         {/* Buy Signals */}
-        <div className="bg-[#1a1a1a] border border-emerald-500/20 rounded-xl p-5">
-          <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-4">
+        <div className="bg-[#1a1a1a] border border-emerald-500/20 rounded-xl p-5 flex flex-col overflow-hidden">
+          <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-4 shrink-0">
             <DollarSign className="w-5 h-5" /> BUY NOW
           </h2>
           {buySignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No buy opportunities today</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
               {buySignals.map(b => (
                 <div
                   key={b.asin}
@@ -194,14 +212,14 @@ export default function PriceTrackerDashboard() {
         </div>
 
         {/* Sell Signals */}
-        <div className="bg-[#1a1a1a] border border-orange-500/20 rounded-xl p-5">
-          <h2 className="text-lg font-bold text-orange-400 flex items-center gap-2 mb-4">
+        <div className="bg-[#1a1a1a] border border-orange-500/20 rounded-xl p-5 flex flex-col overflow-hidden">
+          <h2 className="text-lg font-bold text-orange-400 flex items-center gap-2 mb-4 shrink-0">
             <TrendingUp className="w-5 h-5" /> SELL SIGNALS
           </h2>
           {sellSignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No sell signals</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
               {sellSignals.map(a => (
                 <div
                   key={a.id}
@@ -219,14 +237,14 @@ export default function PriceTrackerDashboard() {
         </div>
 
         {/* Top Losers */}
-        <div className="bg-[#1a1a1a] border border-red-500/20 rounded-xl p-5">
-          <h2 className="text-lg font-bold text-red-400 flex items-center gap-2 mb-4">
+        <div className="bg-[#1a1a1a] border border-red-500/20 rounded-xl p-5 flex flex-col overflow-hidden">
+          <h2 className="text-lg font-bold text-red-400 flex items-center gap-2 mb-4 shrink-0">
             <ArrowDown className="w-5 h-5" /> Top Losers
           </h2>
           {topLosers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
               {topLosers.map(s => (
                 <div
                   key={s.asin}
@@ -248,14 +266,14 @@ export default function PriceTrackerDashboard() {
         </div>
 
         {/* Top Gainers */}
-        <div className="bg-[#1a1a1a] border border-blue-500/20 rounded-xl p-5">
-          <h2 className="text-lg font-bold text-blue-400 flex items-center gap-2 mb-4">
+        <div className="bg-[#1a1a1a] border border-blue-500/20 rounded-xl p-5 flex flex-col overflow-hidden">
+          <h2 className="text-lg font-bold text-blue-400 flex items-center gap-2 mb-4 shrink-0">
             <ArrowUp className="w-5 h-5" /> Top Gainers
           </h2>
           {topGainers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
               {topGainers.map(s => (
                 <div
                   key={s.asin}
@@ -277,14 +295,14 @@ export default function PriceTrackerDashboard() {
         </div>
 
         {/* Seller Changes */}
-        <div className="bg-[#1a1a1a] border border-purple-500/20 rounded-xl p-5">
-          <h2 className="text-lg font-bold text-purple-400 flex items-center gap-2 mb-4">
+        <div className="bg-[#1a1a1a] border border-purple-500/20 rounded-xl p-5 flex flex-col overflow-hidden">
+          <h2 className="text-lg font-bold text-purple-400 flex items-center gap-2 mb-4 shrink-0">
             <Users className="w-5 h-5" /> Seller Changes
           </h2>
           {sellerChanges.length === 0 ? (
             <p className="text-gray-500 text-sm">No seller changes detected</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
               {sellerChanges.map(a => (
                 <div key={a.id} className="p-3 bg-[#111111] rounded-lg border border-white/[0.05]">
                   <span className="text-xs text-gray-500 font-mono">{a.asin}</span>
@@ -298,12 +316,12 @@ export default function PriceTrackerDashboard() {
         {/* Missing / Blank */}
         <div
           onClick={() => router.push('/dashboard/price-tracker/missing')}
-          className="bg-[#1a1a1a] border border-yellow-500/20 rounded-xl p-5 cursor-pointer hover:border-yellow-500/40 transition-colors"
+          className="bg-[#1a1a1a] border border-yellow-500/20 rounded-xl p-5 cursor-pointer hover:border-yellow-500/40 transition-colors flex flex-col overflow-hidden"
         >
-          <h2 className="text-lg font-bold text-yellow-400 flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-bold text-yellow-400 flex items-center gap-2 mb-4 shrink-0">
             <AlertTriangle className="w-5 h-5" /> Missing / Blank
           </h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 flex-1 overflow-y-auto min-h-0">
             <div className="bg-[#111111] rounded-lg p-4 text-center border border-yellow-500/10">
               <div className="text-3xl font-bold text-yellow-400">{missingCount.blank}</div>
               <div className="text-xs text-gray-400 mt-1">Blank Price</div>
