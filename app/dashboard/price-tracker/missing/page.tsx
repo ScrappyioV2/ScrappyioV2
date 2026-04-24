@@ -82,7 +82,8 @@ export default function MissingPage() {
           </div>
         ) : (
           <div className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-[#0a0a0a]">
                 <tr className="text-gray-400 text-xs uppercase tracking-wider">
                   <th className="px-4 py-3 text-left">ASIN</th>
@@ -122,6 +123,7 @@ export default function MissingPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
