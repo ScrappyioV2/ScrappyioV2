@@ -12,7 +12,8 @@ import {
   Rocket,
   ShieldCheck,
   Circle,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react'
 import UniversalAsinSearch from './UniversalAsinSearch'
 
@@ -112,6 +113,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Logout */}
       <div className="p-3 border-t border-white/[0.1]">
         <button
+          onClick={() => window.dispatchEvent(new Event('toggle-scrappy-chat'))}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-orange-400 hover:bg-orange-500/5 rounded-lg transition-colors"
+        >
+          <MessageCircle className="w-4 h-4" />
+          {isHovered && <span>Chat</span>}
+        </button>
+        <button
           onClick={logout}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg transition-colors"
         >
@@ -182,6 +190,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Logout */}
           <div className="p-3 border-t border-white/[0.1]">
+            <button
+              onClick={() => window.dispatchEvent(new Event('toggle-scrappy-chat'))}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-orange-400 hover:bg-orange-500/5 rounded-lg transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+              {isHovered && <span>Chat</span>}
+            </button>
             <button
               onClick={logout}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg transition-colors ${!isHovered ? 'justify-center' : ''}`}

@@ -133,6 +133,17 @@ export default function FloatingChat() {
     hoverTimeoutRef.current = setTimeout(() => setIsOpen(false), 400)
   }
 
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsOpen(prev => {
+        if (!prev) fetchConversations()
+        return !prev
+      })
+    }
+    window.addEventListener('toggle-scrappy-chat', handleToggle)
+    return () => window.removeEventListener('toggle-scrappy-chat', handleToggle)
+  }, [])
+
   // ─── Compute chat window position (always fully on-screen) ───
   const getWindowStyle = () => {
     if (typeof window === 'undefined') return { top: 20, height: 560 };
@@ -276,7 +287,9 @@ export default function FloatingChat() {
 
   return (
     <>
-      {/* ─── Edge Tab (peek from right side, draggable) ─── */}
+      {/* Floating trigger hidden — opened via sidebar */}
+      {false && (
+      /* ─── Edge Tab (peek from right side, draggable) ─── */
       <div
         onMouseEnter={handleBtnMouseEnter}
         onMouseLeave={handleBtnMouseLeave}
@@ -330,6 +343,7 @@ export default function FloatingChat() {
           </button>
         </div>
       </div>
+      )}
 
       {/* ─── Chat Window ─── */}
       <AnimatePresence>
