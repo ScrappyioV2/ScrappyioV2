@@ -63,15 +63,19 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
+    // Delete chat references first (FK constraints)
+    await supabaseAdmin.from('chat_read_receipts').delete().eq('user_id', userId);
+    await supabaseAdmin.from('chat_user_presence').delete().eq('user_id', userId);
+    await supabaseAdmin.from('chat_messages').delete().eq('sender_id', userId);
+    await supabaseAdmin.from('chat_participants').delete().eq('user_id', userId);
+    await supabaseAdmin.from('chat_conversations').delete().eq('created_by', userId);
+
+    // Delete from user_roles
+    await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
+
+    // Delete from auth (now safe — no FK references)
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (authError) console.error('Auth delete error:', authError);
-
-    const { error: dbError } = await supabaseAdmin
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId);
-
-    if (dbError) throw dbError;
+    if (authError) throw authError;
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
