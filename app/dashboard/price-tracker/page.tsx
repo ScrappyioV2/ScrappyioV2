@@ -147,37 +147,6 @@ export default function PriceTrackerDashboard() {
           </h1>
           <p className="text-gray-400 text-sm mt-1">Daily Amazon price monitoring with buy/sell signals</p>
         </div>
-        <div className="relative flex-1 max-w-md mx-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            value={searchQuery}
-            onChange={e => handleSearch(e.target.value)}
-            onFocus={() => { if (searchResults.length > 0) setSearchOpen(true) }}
-            placeholder="Search ASIN, product, brand, SKU..."
-            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-200 focus:border-orange-500 outline-none"
-          />
-          {searchOpen && searchResults.length > 0 && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setSearchOpen(false)} />
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto">
-                {searchResults.map(r => (
-                  <div
-                    key={r.asin}
-                    onClick={() => { setSearchOpen(false); setSearchQuery(''); router.push(`/dashboard/price-tracker/asin/${r.asin}`) }}
-                    className="px-4 py-3 hover:bg-white/[0.05] cursor-pointer border-b border-white/[0.03] last:border-0"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-orange-400 font-mono">{r.asin}</span>
-                      {r.sku && <span className="text-xs text-gray-500">{r.sku}</span>}
-                      {r.brand && <span className="text-xs text-gray-500 ml-auto">{r.brand}</span>}
-                    </div>
-                    <p className="text-sm text-gray-300 truncate mt-0.5">{r.title}</p>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/dashboard/price-tracker/alerts')}
@@ -231,6 +200,37 @@ export default function PriceTrackerDashboard() {
             {btn.label}
           </button>
         ))}
+        <div className="relative flex-1 min-w-[200px] max-w-md ml-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            value={searchQuery}
+            onChange={e => handleSearch(e.target.value)}
+            onFocus={() => { if (searchResults.length > 0) setSearchOpen(true) }}
+            placeholder="Search ASIN, product, brand..."
+            className="w-full bg-[#1a1a1a] border border-white/[0.1] rounded-xl pl-10 pr-4 py-2 text-sm text-gray-200 focus:border-orange-500 outline-none"
+          />
+          {searchOpen && searchResults.length > 0 && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setSearchOpen(false)} />
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-white/[0.1] rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto">
+                {searchResults.map(r => (
+                  <div
+                    key={r.asin}
+                    onClick={() => { setSearchOpen(false); setSearchQuery(''); router.push(`/dashboard/price-tracker/asin/${r.asin}`) }}
+                    className="px-4 py-3 hover:bg-white/[0.05] cursor-pointer border-b border-white/[0.03] last:border-0"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-orange-400 font-mono">{r.asin}</span>
+                      {r.sku && <span className="text-xs text-gray-500">{r.sku}</span>}
+                      {r.brand && <span className="text-xs text-gray-500 ml-auto">{r.brand}</span>}
+                    </div>
+                    <p className="text-sm text-gray-300 truncate mt-0.5">{r.title}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       </div>
