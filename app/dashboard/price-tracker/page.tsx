@@ -121,7 +121,8 @@ export default function PriceTrackerDashboard() {
   }
 
   return (
-    <div className="min-h-full bg-[#111111] p-6">
+    <div className="h-full bg-[#111111] flex flex-col overflow-hidden">
+      <div className="shrink-0 p-6 pb-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -186,8 +187,11 @@ export default function PriceTrackerDashboard() {
         ))}
       </div>
 
+      </div>
+
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="flex-1 overflow-y-auto p-6 pt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Buy Signals */}
         <div className="bg-[#1a1a1a] border border-emerald-500/20 rounded-xl p-5">
           <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-4 shrink-0">
@@ -196,7 +200,7 @@ export default function PriceTrackerDashboard() {
           {buySignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No buy opportunities today</p>
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {buySignals.map(b => (
                 <div
                   key={b.asin}
@@ -227,7 +231,7 @@ export default function PriceTrackerDashboard() {
           {sellSignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No sell signals</p>
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {sellSignals.map(a => (
                 <div
                   key={a.id}
@@ -253,7 +257,7 @@ export default function PriceTrackerDashboard() {
           {topLosers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {topLosers.map(s => (
                 <div
                   key={s.asin}
@@ -283,7 +287,7 @@ export default function PriceTrackerDashboard() {
           {topGainers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {topGainers.map(s => (
                 <div
                   key={s.asin}
@@ -313,7 +317,7 @@ export default function PriceTrackerDashboard() {
           {sellerChanges.length === 0 ? (
             <p className="text-gray-500 text-sm">No seller changes detected</p>
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {sellerChanges.map(a => (
                 <div key={a.id} className="p-3 bg-[#111111] rounded-lg border border-white/[0.05]">
                   <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline">{a.asin}</a>
@@ -344,6 +348,7 @@ export default function PriceTrackerDashboard() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )
