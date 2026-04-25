@@ -191,7 +191,7 @@ export default function PriceTrackerDashboard() {
           <span className="text-white text-2xl font-bold">{stats.totalProducts}</span>
           <button
             onClick={downloadTrackedAsins}
-            className="absolute top-3 right-3 p-1.5 text-gray-500 hover:text-orange-400 transition-colors"
+            className="absolute top-3 right-3 p-2 bg-white/[0.05] border border-white/[0.1] rounded-lg text-gray-300 hover:text-orange-400 hover:border-orange-500/30 transition-colors"
             title="Download tracked ASINs CSV"
           >
             <Download className="w-4 h-4" />
