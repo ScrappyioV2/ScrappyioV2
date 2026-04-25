@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   TrendingDown, TrendingUp, DollarSign, ShoppingCart,
   AlertTriangle, Bell, Calendar, ArrowDown, ArrowUp,
-  RefreshCw, Eye, ExternalLink, Loader2, Users, Search
+  RefreshCw, Eye, ExternalLink, Loader2, Users, Search, Download
 } from 'lucide-react'
 
 type BuySignal = { asin: string; title: string; brand: string; buybox_current: number; last_purchase_price: number; diff_pct: number; report_date: string }
@@ -27,6 +27,22 @@ export default function PriceTrackerDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
+
+  const downloadTrackedAsins = async () => {
+    const { data } = await supabase.from('price_tracker_products').select('asin, title, brand, category_root, sku, created_at').order('asin')
+    if (!data || data.length === 0) return
+    const csv = [
+      ['ASIN', 'Title', 'Brand', 'Category', 'SKU', 'Added On'].join(','),
+      ...data.map(r => [r.asin, `"${(r.title || '').replace(/"/g, '""')}"`, `"${r.brand || ''}"`, `"${r.category_root || ''}"`, r.sku || '', r.created_at?.split('T')[0] || ''].join(','))
+    ].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tracked-asins-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query)
@@ -167,8 +183,21 @@ export default function PriceTrackerDashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
+        <div key="Tracked ASINs" className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl p-4 relative">
+          <div className="flex items-center gap-2 mb-2">
+            <Eye className="w-4 h-4 text-blue-400" />
+            <span className="text-gray-400 text-xs uppercase tracking-wider">Tracked ASINs</span>
+          </div>
+          <span className="text-white text-2xl font-bold">{stats.totalProducts}</span>
+          <button
+            onClick={downloadTrackedAsins}
+            className="absolute top-3 right-3 p-1.5 text-gray-500 hover:text-orange-400 transition-colors"
+            title="Download tracked ASINs CSV"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+        </div>
         {[
-          { label: 'Tracked ASINs', value: stats.totalProducts, icon: Eye, color: 'text-blue-400' },
           { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingCart, color: 'text-emerald-400' },
           { label: 'Total Alerts', value: stats.totalAlerts, icon: Bell, color: 'text-orange-400' },
           { label: 'Unread', value: stats.unreadAlerts, icon: AlertTriangle, color: 'text-red-400' },
