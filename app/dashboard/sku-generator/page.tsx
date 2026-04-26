@@ -376,15 +376,30 @@ export default function SkuGeneratorPage() {
     if (!name.trim()) return showToast('Group name is required', 'error');
     if (items.length === 0) return showToast('No products selected', 'error');
 
-    const { data: newGroup, error: groupErr } = await supabase
-      .from('sku_groups')
-      .insert({ name: name.trim() })
-      .select()
-      .single();
+    // Check if group with same name already exists → merge into it
+    const trimmedName = name.trim();
+    let targetGroup: { id: number; name: string };
 
-    if (groupErr || !newGroup) {
-      showToast(`Failed to create group: ${groupErr?.message || 'unknown'}`, 'error');
-      return;
+    const { data: existingGroup } = await supabase
+      .from('sku_groups')
+      .select('id, name')
+      .eq('name', trimmedName)
+      .maybeSingle();
+
+    if (existingGroup) {
+      targetGroup = existingGroup;
+    } else {
+      const { data: newGroup, error: groupErr } = await supabase
+        .from('sku_groups')
+        .insert({ name: trimmedName })
+        .select()
+        .single();
+
+      if (groupErr || !newGroup) {
+        showToast(`Failed to create group: ${groupErr?.message || 'unknown'}`, 'error');
+        return;
+      }
+      targetGroup = newGroup;
     }
 
     let failed = 0;
@@ -394,7 +409,7 @@ export default function SkuGeneratorPage() {
       const { error } = await supabase
         .from('sku_catalog')
         .update({
-          group_id: newGroup.id,
+          group_id: targetGroup.id,
           sku: it.sku.trim() || null,
           barcode_1: cleanBarcodes[0] || null,
           barcode_2: cleanBarcodes[1] || null,
@@ -405,14 +420,16 @@ export default function SkuGeneratorPage() {
       if (error) failed++;
     }
 
-    setGroups(prev => [...prev, { id: newGroup.id, name: newGroup.name }]);
+    if (!existingGroup) {
+      setGroups(prev => [...prev, { id: targetGroup.id, name: targetGroup.name }]);
+    }
     setProducts(prev => prev.map(p => {
       const it = items.find(x => x.id === p.id);
       if (!it) return p;
       const cleanBarcodes = it.barcodes.map(b => b.trim()).filter(Boolean);
       return {
         ...p,
-        group_id: newGroup.id,
+        group_id: targetGroup.id,
         sku: it.sku.trim() || null,
         barcode_1: cleanBarcodes[0] || '',
         barcode_2: cleanBarcodes[1] || '',
@@ -422,12 +439,15 @@ export default function SkuGeneratorPage() {
     }));
     setSelectedIds(new Set());
     setShowCreateGroup(false);
-    setExpandedGroups(prev => new Set([...prev, newGroup.id]));
+    setExpandedGroups(prev => new Set([...prev, targetGroup.id]));
 
     if (failed > 0) {
-      showToast(`Group created — ${failed} products failed to update`, 'error');
+      showToast(`${existingGroup ? 'Merge' : 'Group created'} — ${failed} products failed to update`, 'error');
     } else {
-      showToast(`Created group "${name}" with ${items.length} products`);
+      showToast(existingGroup
+        ? `Merged ${items.length} products into "${trimmedName}"`
+        : `Created group "${trimmedName}" with ${items.length} products`
+      );
     }
   };
 
