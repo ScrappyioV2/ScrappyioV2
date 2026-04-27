@@ -176,7 +176,7 @@ interface Stats {
     pending: number;
     rejected: number;
     reworking: number;
-    india_link_nf: number;
+    link_nf: number;
     usa_link_nf: number;
 }
 
@@ -186,7 +186,7 @@ interface Filters {
     funnel: string;
 }
 
-type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file' | 'india_link_nf' | 'usa_link_nf';
+type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file' | 'link_nf' | 'usa_link_nf';
 
 const SELLER_STYLES: Record<string, string> = {
     GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',    // Golden Aura - YELLOW
@@ -300,7 +300,7 @@ export default function ValidationPage() {
     const [loading, setLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
-    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0, reworking: 0, india_link_nf: 0, usa_link_nf: 0 });
+    const [stats, setStats] = useState<Stats>({ total: 0, passed: 0, failed: 0, pending: 0, rejected: 0, reworking: 0, link_nf: 0, usa_link_nf: 0 });
     const [isFilterOpen, setIsFilterOpen] = useState(false)
     const [filters, setFilters] = useState<Filters>({ seller_tag: '', brand: '', funnel: '' })
     const [searchQuery, setSearchQuery] = useState('');
@@ -332,7 +332,7 @@ export default function ValidationPage() {
     const [isTabSwitching, setIsTabSwitching] = useState(false);
     // ✅ Store page number for each tab separately
     const [tabPages, setTabPages] = useState<Record<FileTab, number>>({
-        main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reworking: 1, reject_file: 1, india_link_nf: 1, usa_link_nf: 1,
+        main_file: 1, pass_file: 1, fail_file: 1, pending: 1, reworking: 1, reject_file: 1, link_nf: 1, usa_link_nf: 1,
     });
     const [rowsPerPage] = useState(100);
     const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
@@ -711,7 +711,7 @@ export default function ValidationPage() {
                     pending: data.pending ?? 0,
                     rejected: data.rejected ?? 0,
                     reworking: data.reworking ?? 0,
-                    india_link_nf: data.india_link_nf ?? 0,
+                    link_nf: data.link_nf ?? 0,
                     usa_link_nf: data.usa_link_nf ?? 0,
                 });
             }
@@ -793,12 +793,12 @@ export default function ValidationPage() {
     };
 
     // ✅ Cache filtered products per tab
-    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [], india_link_nf: [], usa_link_nf: [] });
+    const tabProductsCache = useRef<Record<FileTab, ValidationProduct[]>>({ main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [], link_nf: [], usa_link_nf: [] });
 
     // ✅ Add this useEffect to clear cache when products change
     useEffect(() => {
         // Clear cache when products array updates
-        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [], india_link_nf: [], usa_link_nf: [] };
+        tabProductsCache.current = { main_file: [], pass_file: [], fail_file: [], pending: [], reworking: [], reject_file: [], link_nf: [], usa_link_nf: [] };
     }, [products]);
 
 
@@ -898,8 +898,8 @@ export default function ValidationPage() {
             result = products.filter(p => p.judgement === 'REJECT');
         } else if (activeTab === 'reworking') {
             result = products.filter(p => p.judgement === 'REWORKING');
-        } else if (activeTab === 'india_link_nf') {
-            result = products.filter(p => p.judgement === 'INDIA_LINK_NF');
+        } else if (activeTab === 'link_nf') {
+            result = products.filter(p => p.judgement === 'LINK_NF');
         } else if (activeTab === 'usa_link_nf') {
             result = products.filter(p => p.judgement === 'USA_LINK_NF');
         } else if (activeTab === 'pending' || activeTab === 'main_file') {
@@ -1916,9 +1916,9 @@ export default function ValidationPage() {
         }
 
         setConfirmDialog({
-            title: 'Move to India Link NF',
+            title: 'Move to Link NF',
             message: `Move ${selectedIds.size} items to India Link Not Found?`,
-            confirmText: 'Move to India Link NF',
+            confirmText: 'Move to Link NF',
             type: 'warning',
             onConfirm: async () => {
                 setConfirmDialog(null);
@@ -1929,7 +1929,7 @@ export default function ValidationPage() {
                 try {
                     const { error } = await supabase
                         .from('dropy_validation_main_file')
-                        .update({ judgement: 'INDIA_LINK_NF' })
+                        .update({ judgement: 'LINK_NF' })
                         .in('id', idsArray);
 
                     if (error) {
@@ -1939,24 +1939,24 @@ export default function ValidationPage() {
 
                     setProducts(prev =>
                         prev.map(p => selectedIds.has(p.id)
-                            ? { ...p, judgement: 'INDIA_LINK_NF' }
+                            ? { ...p, judgement: 'LINK_NF' }
                             : p
                         )
                     );
                     setSelectedIds(new Set());
-                    setToast({ message: `Moved ${idsArray.length} items to India Link NF`, type: 'success' });
+                    setToast({ message: `Moved ${idsArray.length} items to Link NF`, type: 'success' });
 
                     logBatchActivity(
                         products.filter(p => selectedIds.has(p.id)).map(p => ({
                             asin: p.asin,
-                            details: { seller_tag: p.seller_tag, from: 'main_file', to: 'india_link_nf' }
+                            details: { seller_tag: p.seller_tag, from: 'main_file', to: 'link_nf' }
                         })),
                         { action: 'move', marketplace: 'dropy', page: 'validation', table_name: 'dropy_validation_main_file' }
                     );
 
                     debouncedStats();
                 } catch (err) {
-                    console.error('Move to India Link NF error:', err);
+                    console.error('Move to Link NF error:', err);
                     setToast({ message: 'Failed to move items', type: 'error' });
                 } finally {
                     setTimeout(() => { localEditCountRef.current -= 1; }, 5000);
@@ -3219,8 +3219,8 @@ export default function ValidationPage() {
                                 <span className="text-sm sm:text-lg font-bold text-cyan-300">{stats.reworking}</span>
                             </div>
                             <div className="flex items-center gap-2.5 bg-amber-900/30 rounded-lg px-3.5 py-2 border border-amber-500/20">
-                                <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">India Link NF</span>
-                                <span className="text-sm sm:text-lg font-bold text-amber-300">{stats.india_link_nf}</span>
+                                <span className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">Link NF</span>
+                                <span className="text-sm sm:text-lg font-bold text-amber-300">{stats.link_nf}</span>
                             </div>
                             <div className="flex items-center gap-2.5 bg-blue-900/30 rounded-lg px-3.5 py-2 border border-blue-500/20">
                                 <span className="text-[11px] font-medium text-blue-400 uppercase tracking-wider">USA Link NF</span>
@@ -3235,7 +3235,7 @@ export default function ValidationPage() {
                                 { id: 'fail_file', label: 'Failed File' },
                                 { id: 'reworking', label: 'Reworking' },
                                 { id: 'reject_file', label: 'Rejected' },
-                                { id: 'india_link_nf', label: 'India Link NF' },
+                                { id: 'link_nf', label: 'Link NF' },
                                 { id: 'usa_link_nf', label: 'USA Link NF' },
                             ].map((tab) => (
                                 <button
@@ -3343,7 +3343,7 @@ export default function ValidationPage() {
                             </div>
 
                             {/* Move to Main */}
-                            {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file' || activeTab === 'india_link_nf' || activeTab === 'usa_link_nf') && (
+                            {(activeTab === 'pass_file' || activeTab === 'fail_file' || activeTab === 'reject_file' || activeTab === 'link_nf' || activeTab === 'usa_link_nf') && (
                                 <button
                                     onClick={handleMoveToMainClick}
                                     disabled={selectedIds.size === 0}
@@ -3388,7 +3388,7 @@ export default function ValidationPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.172 13.828a4 4 0 015.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
                                     </svg>
-                                    <span className="hidden sm:inline">India Link NF</span>
+                                    <span className="hidden sm:inline">Link NF</span>
                                 </button>
                             )}
 
