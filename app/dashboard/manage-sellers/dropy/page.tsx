@@ -253,62 +253,26 @@ export default function DropySellersPage() {
 
       for (let i = 0; i < finalBatch.length; i += batchSize) {
         const batch = finalBatch.slice(i, i + batchSize);
-        const batchAsins = batch.map(p => p.asin);
 
         toast.loading(
           `Syncing batch ${Math.floor(i / batchSize) + 1}/${totalBatches}...`,
           { id: toastId }
         );
 
-        // A. Fetch existing tags for these ASINs from DB
-        const { data: existingRows } = await supabase
-          .from(TABLE_NAME)
-          .select('asin, country_tag')
-          .in('asin', batchAsins);
-
-        const existingTagMap = new Map();
-        existingRows?.forEach(row => {
-          existingTagMap.set(row.asin, row.country_tag);
-        });
-
-        // B. Prepare Upsert Payload with Merged Tags
         const cleanBatch = batch.map((product) => {
           const cleaned: any = {};
-
-          // Copy fields
           Object.keys(product).forEach((key) => {
             if (product[key] !== undefined && product[key] !== null) {
               cleaned[key] = product[key];
             }
           });
-
-          // ✅ MERGE LOGIC
-          const newTag = product.country_tag || 'USA';
-          const oldTag = existingTagMap.get(product.asin);
-
-          if (oldTag) {
-            // If old tag exists and is different (e.g. "USA" vs "IN"), combine them
-            if (!oldTag.includes(newTag)) {
-              // Example: old="USA", new="IN" -> "USA, IN"
-              cleaned.country_tag = `${oldTag}, ${newTag}`;
-            } else {
-              // Keep existing (might be "USA, IN" already)
-              cleaned.country_tag = oldTag;
-            }
-          } else {
-            // New record
-            cleaned.country_tag = newTag;
-          }
-
           return cleaned;
         });
 
-        // C. Upsert
-        const { error } = await supabase
-          .from(TABLE_NAME)
-          .upsert(cleanBatch, {
-            onConflict: 'asin',
-            ignoreDuplicates: false // We want to update!
+        // C. Insert + distribute via RPC (same as India)
+        const { data, error } = await supabase
+          .rpc('bulk_insert_dropy_master_with_distribution', {
+            batch_data: cleanBatch
           });
 
         if (!error) {
