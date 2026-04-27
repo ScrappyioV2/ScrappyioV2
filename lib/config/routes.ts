@@ -277,7 +277,10 @@ export const APP_ROUTES: AppRoute[] = [
         path: '/dashboard/dropy/listing-error',
         label: 'Listing Errors',
         permission: 'view-listing-errors',
-        icon: XCircle
+        icon: XCircle,
+        subRoutes: [
+          { path: '/dashboard/dropy/listing-error/dropy', label: 'Dropy', permission: 'view-listing-errors' }
+        ]
       },
       {
         path: '/dashboard/dropy/restock',
