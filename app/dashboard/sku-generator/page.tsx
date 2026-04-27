@@ -305,9 +305,36 @@ export default function SkuGeneratorPage() {
           const barcode2 = (row['Barcode 2'] || row['barcode_2'] || '').trim();
           const packOf = parseInt(row['Pack of'] || row['pack_of'] || '1', 10) || 1;
           const sku = (row['SKU'] || row['sku'] || '').trim() || null;
+          const groupName = (row['Group'] || row['group'] || '').trim() || null;
           const barcodes = [barcode1, barcode2].filter(Boolean);
-          return { asin, brand, name, barcode1, barcode2, barcodes, packOf, sku };
+          return { asin, brand, name, barcode1, barcode2, barcodes, packOf, sku, groupName };
         }).filter(p => p.asin && p.asin !== '-' && p.asin !== 'Blank');
+
+        // Collect unique group names from CSV
+        const uniqueGroupNames = [...new Set(rows.map(p => p.groupName).filter(Boolean))] as string[];
+        const groupNameToId = new Map<string, number>();
+
+        // Look up or create groups
+        for (const gName of uniqueGroupNames) {
+          const { data: existing } = await supabase
+            .from('sku_groups')
+            .select('id, name')
+            .eq('name', gName)
+            .maybeSingle();
+
+          if (existing) {
+            groupNameToId.set(gName, existing.id);
+          } else {
+            const { data: created, error: createErr } = await supabase
+              .from('sku_groups')
+              .insert({ name: gName })
+              .select('id, name')
+              .single();
+            if (!createErr && created) {
+              groupNameToId.set(gName, created.id);
+            }
+          }
+        }
 
         const insertRows = rows.map(p => ({
           asin: p.asin,
@@ -319,15 +346,16 @@ export default function SkuGeneratorPage() {
           barcodes: p.barcodes,
           pack_of: p.packOf > 1 ? p.packOf : null,
           sku: p.sku,
-          group_id: null,
+          group_id: p.groupName ? (groupNameToId.get(p.groupName) ?? null) : null,
         }));
 
+        // Change ignoreDuplicates to false so existing rows get their group_id updated
         let failed = 0;
         for (let i = 0; i < insertRows.length; i += 500) {
           const batch = insertRows.slice(i, i + 500);
           const { error } = await supabase
             .from('sku_catalog')
-            .upsert(batch, { onConflict: 'asin', ignoreDuplicates: true });
+            .upsert(batch, { onConflict: 'asin' });
           if (error) {
             console.error('Batch error:', error);
             failed += batch.length;
@@ -335,6 +363,7 @@ export default function SkuGeneratorPage() {
         }
 
         await loadProducts();
+        await loadGroups();
         setUploading(false);
         if (failed > 0) {
           showToast(`Imported ${insertRows.length - failed}/${insertRows.length} (${failed} failed)`, 'error');
