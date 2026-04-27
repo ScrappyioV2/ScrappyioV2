@@ -189,14 +189,7 @@ interface Filters {
 type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file' | 'india_link_nf' | 'usa_link_nf';
 
 const SELLER_STYLES: Record<string, string> = {
-    GR: 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg border border-yellow-500/30',    // Golden Aura - YELLOW
-    RR: 'bg-gradient-to-br from-gray-400 to-gray-600 text-white shadow-lg border border-gray-500/30',          // Rudra Retail - GRAY
-    UB: 'bg-gradient-to-br from-pink-500 to-pink-700 text-white shadow-lg border border-pink-600/30',          // Ubeauty - PINK
-    VV: 'bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-lg border border-purple-700/30',    // Velvet Vista - PURPLE
-    DE: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',    // Dropy Ecom - ORANGE
-    CV: 'bg-gradient-to-br from-green-500 to-green-700 text-white shadow-lg border border-green-600/30',       // Costech Ventures - GREEN
-    MV: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',   // Maverick - ORANGE
-    KL: 'bg-gradient-to-br from-lime-400 to-lime-600 text-black shadow-lg border border-lime-500/30',         // Kalash - LIME
+    DROPY: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',
 };
 
 const renderSellerTags = (sellerTag: string | null) => {

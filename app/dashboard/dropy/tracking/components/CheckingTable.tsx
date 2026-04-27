@@ -334,7 +334,7 @@ export default function CheckingTable({
       // Group items by seller_tag
       const bySeller: Record<string, any[]> = {};
       itemsToMove.forEach((item: any) => {
-        const tag = (item.seller_tag as SellerTag) || 'GR';
+        const tag = (item.seller_tag as SellerTag) || 'DROPY';
         if (!bySeller[tag]) bySeller[tag] = [];
         bySeller[tag].push(item);
       });

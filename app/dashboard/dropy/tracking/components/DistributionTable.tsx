@@ -57,13 +57,11 @@ interface DistributionTableProps {
 
 // Reverse mapping: sellerId → seller tag
 const SELLER_ID_TO_TAG: Record<number, string> = {
-    1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV', 7: 'MV', 8: 'KL',
+    1: 'DROPY',
 };
 
 const SELLER_NAMES: Record<string, string> = {
-    GR: 'Golden Aura', RR: 'Rudra Retail', UB: 'UBeauty',
-    VV: 'Velvet Vista', DE: 'Dropy Ecom', CV: 'Costech Ventures',
-    MV: 'Maverick', KL: 'Kalash',
+    DROPY: 'Dropy',
 };
 
 const SELLER_COLORS: Record<string, string> = {
@@ -88,7 +86,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
     const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
     const [editValue, setEditValue] = useState('');
 
-    const sellerTag = SELLER_ID_TO_TAG[sellerId] || 'GR';
+    const sellerTag = SELLER_ID_TO_TAG[sellerId] || 'DROPY';
     const sellerName = SELLER_NAMES[sellerTag] || sellerTag;
 
     // ============================================

@@ -12,6 +12,7 @@ export const SELLER_STYLES: Record<string, string> = {
   CV: 'bg-teal-500 text-white border border-teal-600',
   MV: 'bg-orange-600 text-white border border-orange-700',
   KL: 'bg-lime-500 text-white border border-lime-600',
+  DROPY: 'bg-orange-500 text-white border border-orange-600',
 };
 
 // ─── Seller Tag Filter Styles (gradient for filter buttons) ────────────
@@ -24,6 +25,7 @@ export const SELLER_FILTER_STYLES: Record<string, string> = {
   CV: 'bg-gradient-to-br from-teal-400 to-teal-600 text-white shadow-lg',
   MV: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg',
   KL: 'bg-gradient-to-br from-lime-400 to-lime-600 text-white shadow-lg',
+  DROPY: 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-lg',
 };
 
 // ─── Funnel Styles ─────────────────────────────────────────────────────

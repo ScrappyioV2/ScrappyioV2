@@ -67,15 +67,8 @@ const getDefaultConstants = (): CalculationConstants => ({
 const getSellerNameFromTag = (tag: string | null) => {
   if (!tag) return null;
   switch (tag.toUpperCase()) {
-    case "GR": return "Golden Aura";
-    case "RR": return "Rudra Retail";
-    case "UB": return "Ubeauty";
-    case "VV": return "Velvet Vista";
-    case "DE": return "Dropy Ecom";      // ✅ ADD THIS
-    case "CV": return "Costech Ventures"; // ✅ ADD THIS
-    case "MV": return "Maverick";
-    case "KL": return "Kalash";
-    default: return null;
+    case "DROPY": return "Dropy";
+    default: return tag;
   }
 };
 
