@@ -157,7 +157,7 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden z-50"
+            className="fixed top-14 left-16 w-80 bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden z-[100]"
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/[0.1] flex items-center justify-between">
