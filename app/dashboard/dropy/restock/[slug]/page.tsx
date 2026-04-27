@@ -758,7 +758,7 @@ export default function RestockPage() {
                     </div>
 
                     {/* Seller Tabs */}
-                    <div className="flex gap-2 mb-4 w-full sm:w-fit overflow-x-auto scrollbar-none pb-2">
+                    <div className="flex gap-2 mb-4 w-full sm:w-fit">
                         {SELLERS.map(seller => (
                             <button
                                 key={seller.tag}
