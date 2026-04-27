@@ -2,5 +2,5 @@
 import { redirect } from 'next/navigation';
 
 export default function RestockRedirect() {
-  redirect('/dashboard/dropy/restock/golden-aura');
+  redirect('/dashboard/dropy/restock/dropy');
 }

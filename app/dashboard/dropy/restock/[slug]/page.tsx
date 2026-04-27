@@ -9,14 +9,7 @@ import { Package, RotateCcw, Trash2, RefreshCw, Search, ArrowUpDown, Download } 
 
 // ─── Seller Config ───
 const SELLERS = [
-    { tag: 'GR', name: 'Golden Aura', id: 1, slug: 'golden-aura', color: 'bg-yellow-500' },
-    { tag: 'RR', name: 'Rudra Retail', id: 2, slug: 'rudra-retail', color: 'bg-orange-400' },
-    { tag: 'UB', name: 'UBeauty', id: 3, slug: 'ubeauty', color: 'bg-pink-500' },
-    { tag: 'VV', name: 'Velvet Vista', id: 4, slug: 'velvet-vista', color: 'bg-emerald-500' },
-    { tag: 'DE', name: 'Dropy Ecom', id: 5, slug: 'dropy-ecom', color: 'bg-orange-500' },
-    { tag: 'CV', name: 'Costech Ventures', id: 6, slug: 'costech-ventures', color: 'bg-green-600' },
-    { tag: 'MV', name: 'Maverick', id: 7, slug: 'maverick', color: 'bg-orange-600' },
-    { tag: 'KL', name: 'Kalash', id: 8, slug: 'kalash', color: 'bg-lime-500' },
+    { tag: 'DROPY', name: 'Dropy', id: 1, slug: 'dropy', color: 'bg-orange-500' },
 ]
 
 type RestockItem = {
