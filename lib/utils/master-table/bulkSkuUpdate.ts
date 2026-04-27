@@ -67,22 +67,29 @@ export async function bulkUpdateIndiaSkuFromFile(
 
   onProgress?.(50);
 
-  // Step 3: Apply in 3 sequential calls (stays under Kong 60s timeout per call)
+  // Step 3: Apply to each table individually (stays under Kong 60s per call)
+  const tables = [
+    'brand_checking',
+    'seller_products',
+    'listing_errors',
+    'tracking_ops',
+    'india_admin_validation',
+    'india_validation_main_file',
+    'india_purchases',
+    'india_box_checking',
+    'india_inbound_tracking',
+  ];
+
   let updatedCount = 0;
+  for (let i = 0; i < tables.length; i++) {
+    const { data, error } = await supabase.rpc('apply_sku_staging_to', { target_table: tables[i] });
+    if (error) throw error;
+    updatedCount += (data as any)?.updated ?? 0;
+    onProgress?.(50 + Math.round(((i + 1) / tables.length) * 45));
+  }
 
-  const { data: d1, error: e1 } = await supabase.rpc('apply_sku_staging_india_unified');
-  if (e1) throw e1;
-  updatedCount += (d1 as any)?.updated_count ?? 0;
-  onProgress?.(70);
-
-  const { data: d2, error: e2 } = await supabase.rpc('apply_sku_staging_india_pipeline');
-  if (e2) throw e2;
-  updatedCount += (d2 as any)?.updated_count ?? 0;
-  onProgress?.(90);
-
-  const { data: d3, error: e3 } = await supabase.rpc('apply_sku_staging_india_tracking');
-  if (e3) throw e3;
-  updatedCount += (d3 as any)?.updated_count ?? 0;
+  // Cleanup staging
+  await supabase.rpc('apply_sku_staging_cleanup');
   onProgress?.(100);
 
   return {
