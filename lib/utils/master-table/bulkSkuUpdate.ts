@@ -209,7 +209,7 @@ export async function bulkUpdateFlipkartSkuFromFile(
   }
 
 
-  const BATCH_SIZE = 5000;
+  const BATCH_SIZE = 1000;
   let updatedCount = 0;
   let processed = 0;
 
