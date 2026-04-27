@@ -987,7 +987,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                     displayProducts.map((product, filteredIndex) => {
                                         const tagColors = SELLER_STYLES;
                                         const overdue = isRowOverdue(product.delivery_date);
-                                        const sellerTag = (product.seller_tag || 'DROPY').trim().toUpperCase();
+                                        const sellerTag = (product.seller_tag || 'DR').trim().toUpperCase();
                                         return (
                                             <Fragment key={product.id}>
                                                 <tr className={`group transition-colors ${overdue ? 'bg-red-950/60 hover:bg-red-900/50 border-l-2 border-l-red-500' : 'hover:bg-white/[0.05]'}`}>

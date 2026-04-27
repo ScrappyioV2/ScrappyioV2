@@ -334,7 +334,7 @@ export default function CheckingTable({
       // Group items by seller_tag
       const bySeller: Record<string, any[]> = {};
       itemsToMove.forEach((item: any) => {
-        const tag = (item.seller_tag as SellerTag) || 'DROPY';
+        const tag = (item.seller_tag as SellerTag) || 'DR';
         if (!bySeller[tag]) bySeller[tag] = [];
         bySeller[tag].push(item);
       });
@@ -882,7 +882,7 @@ export default function CheckingTable({
   }
 
   const SELLER_ID_TO_TAG: Record<number, string> = {
-    1: 'DROPY',
+    1: 'DR',
   };
 
   // ============================================

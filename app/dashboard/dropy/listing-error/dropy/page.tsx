@@ -113,7 +113,7 @@ export default function DropyEcomListingPage() {
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
 
-  const SELLER_TAG_MAP: Record<number, string> = { 1: 'DROPY' };
+  const SELLER_TAG_MAP: Record<number, string> = { 1: 'DR' };
   const SELLER_NAME_MAP: Record<number, string> = {
     1: 'Dropy',
   };

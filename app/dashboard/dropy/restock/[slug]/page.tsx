@@ -9,7 +9,7 @@ import { Package, RotateCcw, Trash2, RefreshCw, Search, ArrowUpDown, Download } 
 
 // ─── Seller Config ───
 const SELLERS = [
-    { tag: 'DROPY', name: 'Dropy', id: 1, slug: 'dropy', color: 'bg-orange-500' },
+    { tag: 'DR', name: 'Dropy', id: 1, slug: 'dropy', color: 'bg-orange-500' },
 ]
 
 type RestockItem = {

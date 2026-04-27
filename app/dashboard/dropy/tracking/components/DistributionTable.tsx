@@ -57,7 +57,7 @@ interface DistributionTableProps {
 
 // Reverse mapping: sellerId → seller tag
 const SELLER_ID_TO_TAG: Record<number, string> = {
-    1: 'DROPY',
+    1: 'DR',
 };
 
 const SELLER_NAMES: Record<string, string> = {
@@ -86,7 +86,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
     const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
     const [editValue, setEditValue] = useState('');
 
-    const sellerTag = SELLER_ID_TO_TAG[sellerId] || 'DROPY';
+    const sellerTag = SELLER_ID_TO_TAG[sellerId] || 'DR';
     const sellerName = SELLER_NAMES[sellerTag] || sellerTag;
 
     // ============================================

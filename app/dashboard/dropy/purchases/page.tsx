@@ -1239,7 +1239,7 @@ export default function PurchasesPage() {
         return;
       }
       const isSingleTag = !(product.seller_tag || '').includes(',');
-      const baseTag = (product.seller_tag || 'DROPY').split(',')[0].trim();
+      const baseTag = (product.seller_tag || 'DR').split(',')[0].trim();
       const { data: freshProduct } = await supabase
         .from('dropy_purchases')
         .select('*')
@@ -2104,7 +2104,7 @@ export default function PurchasesPage() {
         const rawSellerTag = product.seller_tag || '';
         const sellerTags = rawSellerTag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean);
         const sellerTagMapping: Record<string, number> = {
-          'DROPY': 1
+          'DR': 1
         };
 
         // Delete from each tracking table
@@ -2279,7 +2279,7 @@ export default function PurchasesPage() {
 
       // Fallback to GR if no tags
       if (sellerTags.length === 0) {
-        sellerTags = ['DROPY'];
+        sellerTags = ['DR'];
       }
 
 
@@ -2335,7 +2335,7 @@ export default function PurchasesPage() {
 
       // Map seller tag to seller ID
       const sellerTagMapping: Record<string, number> = {
-        'DROPY': 1
+        'DR': 1
       };
 
 
@@ -3274,7 +3274,7 @@ export default function PurchasesPage() {
                 const tags = (product.seller_tag || '').split(',').map(t => t.trim()).filter(Boolean);
                 const buyingQty = (product.buying_quantities || {}) as Record<string, number>;
                 if (tags.length <= 1) {
-                  const tag = tags[0] || 'DROPY';
+                  const tag = tags[0] || 'DR';
                   const totalQty = buyingQty[tag] || 0;
                   setSplitQuantities({ [`${tag}_1`]: Math.ceil(totalQty / 2), [`${tag}_2`]: Math.floor(totalQty / 2) });
                 } else {
@@ -3968,7 +3968,7 @@ export default function PurchasesPage() {
       {/* Split Order Modal */}
       {splitModalProduct && (() => {
         const isSingleTagSplit = !(splitModalProduct.seller_tag || '').includes(',');
-        const baseTag = (splitModalProduct.seller_tag || 'DROPY').split(',')[0].trim();
+        const baseTag = (splitModalProduct.seller_tag || 'DR').split(',')[0].trim();
         const buyingQty = (splitModalProduct.buying_quantities || {}) as Record<string, number>;
         const totalOriginal = isSingleTagSplit
           ? (buyingQty[baseTag] || 0)
