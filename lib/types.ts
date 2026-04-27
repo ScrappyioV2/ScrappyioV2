@@ -42,6 +42,7 @@ export type PermissionKey =
   | 'uae-selling'
   | 'flipkart'
   | 'jio-mart'
+  | 'dropy'
 
   // Specific Page Permissions (Granular)
   | 'view-brand-checking'

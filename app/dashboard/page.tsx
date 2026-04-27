@@ -22,6 +22,7 @@ const MARKETPLACE_PERMISSIONS = [
   { key: 'uae-selling', label: 'UAE Selling' },
   { key: 'flipkart', label: 'Flipkart' },
   { key: 'jio-mart', label: 'JioMart' },
+  { key: 'dropy', label: 'Dropy' },
   { key: 'manage-sellers', label: 'Manage Sellers' },
 ];
 
