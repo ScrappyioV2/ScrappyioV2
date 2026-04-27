@@ -93,7 +93,7 @@ export async function bulkUpdateIndiaSkuFromFile(
   }
 
 
-  const BATCH_SIZE = 1000;
+  const BATCH_SIZE = 10000;
   let updatedCount = 0;
   let processed = 0;
 
