@@ -3274,7 +3274,7 @@ export default function PurchasesPage() {
                 const tags = (product.seller_tag || '').split(',').map(t => t.trim()).filter(Boolean);
                 const buyingQty = (product.buying_quantities || {}) as Record<string, number>;
                 if (tags.length <= 1) {
-                  const tag = tags[0] || 'GR';
+                  const tag = tags[0] || 'DROPY';
                   const totalQty = buyingQty[tag] || 0;
                   setSplitQuantities({ [`${tag}_1`]: Math.ceil(totalQty / 2), [`${tag}_2`]: Math.floor(totalQty / 2) });
                 } else {
@@ -3968,7 +3968,7 @@ export default function PurchasesPage() {
       {/* Split Order Modal */}
       {splitModalProduct && (() => {
         const isSingleTagSplit = !(splitModalProduct.seller_tag || '').includes(',');
-        const baseTag = (splitModalProduct.seller_tag || 'GR').split(',')[0].trim();
+        const baseTag = (splitModalProduct.seller_tag || 'DROPY').split(',')[0].trim();
         const buyingQty = (splitModalProduct.buying_quantities || {}) as Record<string, number>;
         const totalOriginal = isSingleTagSplit
           ? (buyingQty[baseTag] || 0)
