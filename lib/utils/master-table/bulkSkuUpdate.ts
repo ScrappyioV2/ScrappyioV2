@@ -67,17 +67,29 @@ export async function bulkUpdateIndiaSkuFromFile(
 
   onProgress?.(50);
 
-  // Step 3: Single RPC call to apply updates from staging to all 9 tables
-  const { data: rpcData, error } = await supabase.rpc('apply_sku_staging_india');
-  if (error) throw error;
+  // Step 3: Apply in 3 sequential calls (stays under Kong 60s timeout per call)
+  let updatedCount = 0;
 
+  const { data: d1, error: e1 } = await supabase.rpc('apply_sku_staging_india_unified');
+  if (e1) throw e1;
+  updatedCount += (d1 as any)?.updated_count ?? 0;
+  onProgress?.(70);
+
+  const { data: d2, error: e2 } = await supabase.rpc('apply_sku_staging_india_pipeline');
+  if (e2) throw e2;
+  updatedCount += (d2 as any)?.updated_count ?? 0;
+  onProgress?.(90);
+
+  const { data: d3, error: e3 } = await supabase.rpc('apply_sku_staging_india_tracking');
+  if (e3) throw e3;
+  updatedCount += (d3 as any)?.updated_count ?? 0;
   onProgress?.(100);
 
   return {
     inputCount,
     effectiveAsinCount,
     duplicateAsinCount,
-    updatedCount: (rpcData as any)?.updated_count ?? 0,
+    updatedCount,
     emptySkuRowCount,
   };
 }
