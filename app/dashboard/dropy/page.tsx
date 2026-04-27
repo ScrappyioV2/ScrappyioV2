@@ -83,7 +83,7 @@ export default function DropyDashboard() {
           <p className="text-gray-500 text-sm mt-1">Pipeline overview — no brand checking, direct to validation</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-[#111111] border border-white/[0.06] rounded-xl px-4 py-2">
+          <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-xl px-4 py-2">
             <span className="text-gray-500 text-xs">Master Products</span>
             <span className="text-white font-bold text-lg ml-2">{masterCount.toLocaleString()}</span>
           </div>
@@ -91,7 +91,7 @@ export default function DropyDashboard() {
       </div>
 
       {/* Pipeline Flow */}
-      <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5">
+      <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-4 h-4 text-gray-500" />
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Pipeline Flow</h2>
@@ -124,7 +124,7 @@ export default function DropyDashboard() {
           <button
             key={item.label}
             onClick={() => router.push(item.href)}
-            className={`bg-gradient-to-br ${item.gradient} bg-[#111111] border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.15] transition-all text-left group relative overflow-hidden`}
+            className={`bg-gradient-to-br ${item.gradient} bg-[#1a1a1a] border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.15] transition-all text-left group relative overflow-hidden`}
           >
             <div className="flex items-center justify-between mb-3">
               <div className={`w-10 h-10 rounded-xl ${item.iconBg} flex items-center justify-center text-white shadow-lg`}>
@@ -142,7 +142,7 @@ export default function DropyDashboard() {
 
       {/* Funnel Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5">
+        <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Funnel Breakdown</h2>
           <div className="flex items-center gap-6 mb-4">
             <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ export default function DropyDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5">
+        <div className="bg-[#1a1a1a] border border-white/[0.06] rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Quick Actions</h2>
           <div className="space-y-2">
             {[
