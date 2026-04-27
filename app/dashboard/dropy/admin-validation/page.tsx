@@ -481,7 +481,7 @@ export default function AdminValidationPage() {
   const fetchAdminConstants = async () => {
     try {
       const { data, error } = await supabase
-        .from('dropy_admin_validation_constants')
+        .from('dropy_validation_constants')
         .select('*')
         .limit(1)
         .single();
@@ -529,7 +529,7 @@ export default function AdminValidationPage() {
       setAdminConstants(newConstants);
 
       const { data: existingData } = await supabase
-        .from('dropy_admin_validation_constants')
+        .from('dropy_validation_constants')
         .select('id')
         .limit(1)
         .single();
@@ -547,13 +547,13 @@ export default function AdminValidationPage() {
 
       if (existingData) {
         const { error } = await supabase
-          .from('dropy_admin_validation_constants')
+          .from('dropy_validation_constants')
           .update(payload)
           .eq('id', existingData.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('dropy_admin_validation_constants')
+          .from('dropy_validation_constants')
           .insert(payload);
         if (error) throw error;
       }
