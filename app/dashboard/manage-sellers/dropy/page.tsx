@@ -255,7 +255,7 @@ export default function DropySellersPage() {
         const batch = finalBatch.slice(i, i + batchSize);
 
         toast.loading(
-          `Syncing batch ${Math.floor(i / batchSize) + 1}/${totalBatches}...`,
+          `Uploading & distributing batch ${Math.floor(i / batchSize) + 1}/${totalBatches}...`,
           { id: toastId }
         );
 
@@ -290,7 +290,10 @@ export default function DropySellersPage() {
         });
       }
 
-      toast.success(`Processed ${successCount} products!`, { id: toastId });
+      toast.success(
+        `✅ ${successCount} products uploaded & distributed to validation!${failedBatches > 0 ? ` (${failedBatches} batches failed)` : ''}`,
+        { id: toastId, duration: 5000 }
+      );
       setRefreshTrigger(prev => prev + 1);
 
     } catch (error: any) {
