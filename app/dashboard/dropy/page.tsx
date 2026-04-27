@@ -1,289 +1,88 @@
 "use client";
 
-
 export const dynamic = "force-dynamic";
 
-
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useIndiaDashboardStats } from "@/lib/hooks/useIndiaDashboardStats";
+import { supabase } from "@/lib/supabaseClient";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
-} from 'recharts';
-import {
-  ShieldCheck, FileCheck, LayoutList, TrendingUp,
-  Loader2, ShoppingBag
+  FileCheck, LayoutList, ShoppingBag, Truck, Package, RotateCcw, AlertTriangle, Loader2
 } from 'lucide-react';
 
-
-/* ================= CONFIGURATION ================= */
-const SELLER_CONFIG: Record<number, { name: string; color: string; bg: string; border: string }> = {
-  1: { name: "Golden Aura", color: "#f59e0b", bg: "bg-amber-500/20", border: "border-amber-500/20" },
-  2: { name: "Rudra Retail", color: "#6366f1", bg: "bg-orange-500/10", border: "border-orange-500/20" },
-  3: { name: "UBeauty", color: "#ec4899", bg: "bg-pink-500/10", border: "border-pink-500/20" },
-  4: { name: "Velvet Vista", color: "#10b981", bg: "bg-emerald-500/20", border: "border-emerald-500/20" }
+type PipelineCount = {
+  label: string;
+  count: number;
+  icon: React.ReactNode;
+  href: string;
+  color: string;
 };
 
+export default function DropyDashboard() {
+  const { userRole, hasPageAccess, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [counts, setCounts] = useState<PipelineCount[]>([]);
+  const [loading, setLoading] = useState(true);
 
-// Custom Tooltip to handle the dual axis context
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
+  useEffect(() => {
+    if (authLoading) return;
+    const pages = hasPageAccess ? Object.keys(Object.fromEntries(
+      Object.entries({ 'view-validation': true, 'view-purchases': true, 'view-tracking': true, 'view-listing-errors': true, 'view-restock': true, 'view-reorder': true }).filter(([k]) => hasPageAccess(k as any))
+    )) : [];
+
+    async function fetchCounts() {
+      setLoading(true);
+      const [validation, purchases, tracking, listingErrors] = await Promise.all([
+        supabase.from('dropy_validation_main_file').select('*', { count: 'exact', head: true }),
+        supabase.from('dropy_purchases').select('*', { count: 'exact', head: true }).is('move_to', null),
+        supabase.from('dropy_inbound_tracking').select('*', { count: 'exact', head: true }),
+        supabase.from('listing_errors').select('*', { count: 'exact', head: true }).eq('marketplace', 'dropy').eq('error_status', 'pending'),
+      ]);
+
+      setCounts([
+        { label: 'Validation', count: validation.count ?? 0, icon: <FileCheck className="w-5 h-5" />, href: '/dashboard/dropy/validation', color: 'from-blue-500 to-blue-700' },
+        { label: 'Purchases', count: purchases.count ?? 0, icon: <ShoppingBag className="w-5 h-5" />, href: '/dashboard/dropy/purchases', color: 'from-emerald-500 to-emerald-700' },
+        { label: 'Tracking', count: tracking.count ?? 0, icon: <Truck className="w-5 h-5" />, href: '/dashboard/dropy/tracking', color: 'from-purple-500 to-purple-700' },
+        { label: 'Listing Errors', count: listingErrors.count ?? 0, icon: <AlertTriangle className="w-5 h-5" />, href: '/dashboard/dropy/listing-error', color: 'from-red-500 to-red-700' },
+      ]);
+      setLoading(false);
+    }
+    fetchCounts();
+  }, [authLoading]);
+
+  if (authLoading || loading) {
     return (
-      <div className="bg-[#111111] border border-white/[0.1] p-3 sm:p-4 rounded-xl shadow-2xl">
-        <p className="text-gray-500 font-bold mb-2">{label}</p>
-        <div className="space-y-1">
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2 text-sm">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-gray-400 w-24">{entry.name}:</span>
-              <span className="font-mono font-bold text-white">
-                {entry.value.toLocaleString()}
-              </span>
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
       </div>
     );
   }
-  return null;
-};
-
-
-export default function IndiaSellingPage() {
-  const router = useRouter();
-  const { userRole, loading: authLoading } = useAuth();
-
-
-  // 1. Determine if user is restricted (needs redirect)
-  const redirectTarget = useMemo(() => {
-    if (authLoading || !userRole) return null;
-    const pages = userRole.allowed_pages || [];
-
-
-    if (pages.includes('validation')) return '/dashboard/dropy/validation';
-    if (pages.includes('brand-checking')) return '/dashboard/dropy/brand-checking';
-    if (pages.includes('purchase')) return '/dashboard/dropy/purchases';
-
-
-    return null; // Admin or Manager
-  }, [authLoading, userRole]);
-
-
-  // 2. Execute Redirect
-  useEffect(() => {
-    if (redirectTarget) {
-      router.replace(redirectTarget);
-    }
-  }, [redirectTarget, router]);
-
-
-  // 3. Only fetch stats if NOT redirecting
-  const { stats, loading: statsLoading } = useIndiaDashboardStats({ enabled: !redirectTarget });
-
-
-  // Calculate Header Totals
-  const pipelineData = useMemo(() => {
-    return [1, 2, 3, 4].map(id => {
-      const bc = stats?.brandChecking?.sellers?.find((s: any) => s.id === id)?.pending || 0;
-      const val = stats?.validation?.sellers?.find((s: any) => s.id === id)?.pending || 0;
-      const pur = stats?.purchasing?.sellers?.find((s: any) => s.id === id)?.pending || 0;
-      return {
-        name: SELLER_CONFIG[id].name,
-        "Brand Check": bc,
-        "Validation": val,
-        "Purchasing": pur,
-      };
-    });
-  }, [stats]);
-
-
-  const totalActive = pipelineData.reduce((acc, curr) => acc + curr["Brand Check"] + curr["Validation"] + curr["Purchasing"], 0);
-
 
   return (
-    <>
-      <div className="h-full bg-[#111111] text-gray-100 p-3 sm:p-4 lg:p-6 font-sans selection:bg-orange-400/30 flex flex-col overflow-y-auto xl:overflow-hidden">
-
-
-        {/* === HEADER — COMPACT === */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-0 mb-6 border-b border-white/[0.1] pb-3 shrink-0">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1">
-              <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                <TrendingUp className="w-5 h-5 text-orange-500" />
-              </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">INDIA Overview</h1>
-            </div>
-            <p className="text-gray-400 text-xs sm:text-sm pl-1">
-              Live pipeline metrics for <span className="text-orange-500 font-bold">4 Brands</span>
-            </p>
-          </div>
-
-
-          <div className="bg-[#111111] px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border border-white/[0.1] shadow-xl flex flex-col items-center min-w-0 sm:min-w-[140px] self-end sm:self-auto">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Total Active</span>
-            <span className="text-xl sm:text-2xl font-mono font-bold text-white">{totalActive.toLocaleString()}</span>
-          </div>
-        </div>
-
-
-        {/* === CONTENT === */}
-        {(!stats || statsLoading) ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 gap-4">
-            <div className="w-10 h-10 border-4 border-orange-500/30 border-t-indigo-500 rounded-full animate-spin" />
-            <span className="text-sm font-medium tracking-wide animate-pulse">SYNCING LIVE DATA...</span>
-          </div>
-        ) : (
-          <div className="xl:flex-1 grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4 xl:min-h-0 xl:overflow-hidden">
-
-
-            {/* === LEFT: PIPELINE CHART + STATS === */}
-            <div className="xl:col-span-2 flex flex-col gap-3 sm:gap-4 xl:min-h-0">
-              <div className="bg-[#1a1a1a] border border-white/[0.1] p-3 sm:p-4 rounded-2xl shadow-xl xl:flex-1 min-h-[250px] flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-orange-500" />
-                    Pipeline Volume
-                  </h2>
-                  <div className="text-[10px] text-gray-500 hidden sm:flex gap-3">
-                    <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> Right Scale</span>
-                    <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div> Left Scale</span>
-                  </div>
-                </div>
-
-
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={pipelineData} barGap={8}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={5} interval={0} />
-                      <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" fontSize={10} tickLine={false} axisLine={false} />
-                      <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" fontSize={10} tickLine={false} axisLine={false} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
-                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ paddingTop: '8px', fontSize: '11px' }} />
-                      <Bar yAxisId="right" dataKey="Brand Check" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={35} />
-                      <Bar yAxisId="left" dataKey="Validation" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={35} />
-                      <Bar yAxisId="left" dataKey="Purchasing" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={35} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-
-              {/* === STATS ROW === */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 shrink-0">
-                <StatCard title="Brand Checking" icon={<ShieldCheck className="w-4 h-4 text-blue-400" />} data={stats.brandChecking.sellers} type="pending" />
-                <StatCard title="Validation" icon={<FileCheck className="w-4 h-4 text-purple-400" />} data={stats.validation.sellers} type="mixed" />
-              </div>
-            </div>
-
-
-            {/* === RIGHT COLUMN === */}
-            <div className="flex flex-col gap-3 sm:gap-4 xl:min-h-0">
-
-
-              {/* LISTING ERRORS */}
-              <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-2xl overflow-hidden shadow-2xl shrink-0">
-                <div className="px-4 py-2.5 bg-rose-500/5 border-b border-rose-500/10 flex justify-between items-center">
-                  <h2 className="font-bold text-sm text-rose-200 flex items-center gap-2">
-                    <LayoutList className="w-4 h-4 text-rose-500" /> Listing Errors
-                  </h2>
-                  <span className="animate-pulse w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_10px_#f43f5e]"></span>
-                </div>
-                <div className="divide-y divide-white/[0.06] p-1.5">
-                  {stats.listing.sellers.map((seller: any) => (
-                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between hover:bg-white/[0.05] rounded-lg transition-colors">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SELLER_CONFIG[seller.id].color }}></div>
-                        <span className="text-xs text-gray-500 font-medium">{SELLER_CONFIG[seller.id].name}</span>
-                      </div>
-                      {seller.notApproved > 0 ? (
-                        <span className="text-xs font-bold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-md">
-                          {seller.notApproved} Errors
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-gray-500 font-medium">Clean</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-
-              {/* PURCHASING QUEUE */}
-              <div className="bg-[#111111]/60 border border-white/[0.1] rounded-2xl overflow-hidden shadow-xl xl:flex-1 min-h-0">
-                <div className="px-4 py-2.5 border-b border-white/[0.1] flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-emerald-400" />
-                  <h2 className="font-bold text-sm text-white">Ready to Buy</h2>
-                </div>
-                <div className="p-1.5 space-y-1">
-                  {stats.purchasing.sellers.map((seller: any) => (
-                    <div key={seller.id} className="px-3 py-2.5 flex items-center justify-between rounded-lg bg-[#1a1a1a] border border-white/[0.1]">
-                      <span className="text-xs text-gray-500 font-medium">{SELLER_CONFIG[seller.id].name}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="text-[10px] text-gray-500">Pending</div>
-                          <div className="text-xs font-bold text-emerald-400">{seller.pending}</div>
-                        </div>
-                        <div className="w-px h-6 bg-[#111111]"></div>
-                        <div className="text-right">
-                          <div className="text-[10px] text-gray-500">Done</div>
-                          <div className="text-xs font-bold text-white">{seller.approved}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-
-            </div>
-          </div>
-        )}
-
-
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white">Dropy</h1>
+        <p className="text-gray-500 text-sm mt-1">Pipeline overview — no brand checking, direct to validation</p>
       </div>
-    </>
-  );
-}
 
-
-// === HELPER COMPONENT ===
-function StatCard({ title, icon, data, type }: { title: string, icon: any, data: any[], type: 'pending' | 'mixed' }) {
-  return (
-    <div className="bg-[#1a1a1a] border border-white/[0.1] p-3 sm:p-3.5 rounded-2xl shadow-lg">
-      <div className="flex items-center gap-2 mb-2.5">
-        <div className="p-1.5 bg-[#111111] rounded-lg">{icon}</div>
-        <h3 className="font-bold text-sm text-gray-100">{title}</h3>
-      </div>
-      <div className="space-y-1.5">
-        {data.map((item: any) => {
-          const cfg = SELLER_CONFIG[item.id];
-          return (
-            <div key={item.id} className="flex items-center justify-between px-2 sm:px-2.5 py-2 bg-[#1a1a1a] border border-white/[0.1] rounded-lg gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                <span className="text-[11px] text-gray-400 font-medium truncate">{cfg.name}</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {counts.map((item) => (
+          <button
+            key={item.label}
+            onClick={() => router.push(item.href)}
+            className="bg-[#111111] border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.15] transition-all text-left group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white`}>
+                {item.icon}
               </div>
-              <div className="flex gap-2 sm:gap-3 text-[11px] shrink-0">
-                {type === 'pending' ? (
-                  <>
-                    <span className="font-bold text-blue-400">{item.pending?.toLocaleString()} Pending</span>
-                    <span className="text-gray-500">|</span>
-                    <span className="text-gray-400">{(item.pending + item.approved + item.notApproved).toLocaleString()} Total</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-emerald-400 font-bold">{item.approved?.toLocaleString()} Pass</span>
-                    <span className="text-gray-500">|</span>
-                    <span className="text-gray-500">{item.pending?.toLocaleString()} Wait</span>
-                  </>
-                )}
-              </div>
+              <span className="text-3xl font-bold text-white font-mono">
+                {item.count.toLocaleString()}
+              </span>
             </div>
-          );
-        })}
+            <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{item.label}</p>
+          </button>
+        ))}
       </div>
     </div>
   );
