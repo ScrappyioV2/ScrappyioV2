@@ -553,13 +553,14 @@ export default function ReorderPage() {
       {
         const { data, error } = await supabase
           .from('india_inbound_tracking')
-          .select('asin, buying_quantity, seller_tag')
+          .select('asin, pending_quantity, seller_tag')
           .like('seller_tag', `%${sellerTag}%`)
+          .gt('pending_quantity', 0)
 
         if (error) console.warn('⚠️ Error querying india_inbound_tracking:', error.message)
         else {
           data?.forEach(row => {
-            const share = getSellerShare(row.seller_tag || '', row.buying_quantity || 0)
+            const share = getSellerShare(row.seller_tag || '', row.pending_quantity || 0)
             addToMap(row.asin, share)
             addToSourceMap(row.asin, share, 'inbound')
           })
