@@ -80,11 +80,11 @@ export default function PriceTrackerDashboard() {
       })
 
       // Buy signals
-      const { data: buys } = await supabase.from('price_tracker_buy_signals').select('*').order('diff_pct', { ascending: true }).limit(10)
+      const { data: buys } = await supabase.from('price_tracker_buy_signals').select('*').order('diff_pct', { ascending: true })
       setBuySignals(buys || [])
 
       // Sell signals
-      const { data: sells } = await supabase.from('price_tracker_alerts').select('*').eq('alert_type', 'sell_signal').eq('is_read', false).order('created_at', { ascending: false }).limit(10)
+      const { data: sells } = await supabase.from('price_tracker_alerts').select('*').eq('alert_type', 'sell_signal').eq('is_read', false).order('created_at', { ascending: false })
       setSellSignals(sells || [])
 
       // Top losers/gainers (latest snapshot vs baseline)
@@ -116,12 +116,12 @@ export default function PriceTrackerDashboard() {
             pct_change: ((s.buybox_current - baselineMap[s.asin]) / baselineMap[s.asin]) * 100
           }))
 
-        setTopLosers(withChange.sort((a, b) => a.pct_change - b.pct_change).slice(0, 5))
-        setTopGainers(withChange.sort((a, b) => b.pct_change - a.pct_change).slice(0, 5))
+        setTopLosers(withChange.sort((a, b) => a.pct_change - b.pct_change))
+        setTopGainers(withChange.sort((a, b) => b.pct_change - a.pct_change))
       }
 
       // Seller changes
-      const { data: sellerAlerts } = await supabase.from('price_tracker_alerts').select('*').eq('alert_type', 'seller_change').eq('is_read', false).order('created_at', { ascending: false }).limit(5)
+      const { data: sellerAlerts } = await supabase.from('price_tracker_alerts').select('*').eq('alert_type', 'seller_change').eq('is_read', false).order('created_at', { ascending: false })
       setSellerChanges(sellerAlerts || [])
 
       // Missing count
