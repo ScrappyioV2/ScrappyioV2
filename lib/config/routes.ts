@@ -242,6 +242,58 @@ export const APP_ROUTES: AppRoute[] = [
     ]
   },
 
+  // --- Dropy Marketplace ---
+  {
+    path: '/dashboard/dropy',
+    label: 'Dropy',
+    icon: ShoppingCart,
+    permission: 'dropy',
+    subRoutes: [
+      {
+        path: '/dashboard/dropy/admin-validation',
+        label: 'Admin Approvals',
+        permission: 'admin-access',
+        icon: ShieldCheck
+      },
+      {
+        path: '/dashboard/dropy/validation',
+        label: 'Validation',
+        permission: 'view-validation',
+        icon: CheckCircle2
+      },
+      {
+        path: '/dashboard/dropy/purchases',
+        label: 'Purchases',
+        permission: 'view-purchases',
+        icon: ShoppingBag
+      },
+      {
+        path: '/dashboard/dropy/tracking',
+        label: 'Tracking',
+        permission: 'view-tracking',
+        icon: Truck
+      },
+      {
+        path: '/dashboard/dropy/listing-error',
+        label: 'Listing Errors',
+        permission: 'view-listing-errors',
+        icon: XCircle
+      },
+      {
+        path: '/dashboard/dropy/restock',
+        label: 'Restock',
+        permission: 'view-restock',
+        icon: Package
+      },
+      {
+        path: '/dashboard/dropy/reorder',
+        label: 'Reorder',
+        permission: 'view-reorder',
+        icon: RotateCcw
+      },
+    ]
+  },
+
 
 
   // --- 4. UK Marketplace ---
