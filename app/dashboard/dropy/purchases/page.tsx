@@ -1239,7 +1239,7 @@ export default function PurchasesPage() {
         return;
       }
       const isSingleTag = !(product.seller_tag || '').includes(',');
-      const baseTag = (product.seller_tag || 'GR').split(',')[0].trim();
+      const baseTag = (product.seller_tag || 'DROPY').split(',')[0].trim();
       const { data: freshProduct } = await supabase
         .from('dropy_purchases')
         .select('*')
@@ -2104,7 +2104,7 @@ export default function PurchasesPage() {
         const rawSellerTag = product.seller_tag || '';
         const sellerTags = rawSellerTag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean);
         const sellerTagMapping: Record<string, number> = {
-          'GR': 1, 'RR': 2, 'UB': 3, 'VV': 4, 'DE': 5, 'CV': 6, 'MV': 7, 'KL': 8
+          'DROPY': 1
         };
 
         // Delete from each tracking table
@@ -2279,7 +2279,7 @@ export default function PurchasesPage() {
 
       // Fallback to GR if no tags
       if (sellerTags.length === 0) {
-        sellerTags = ['GR'];
+        sellerTags = ['DROPY'];
       }
 
 
@@ -2335,14 +2335,7 @@ export default function PurchasesPage() {
 
       // Map seller tag to seller ID
       const sellerTagMapping: Record<string, number> = {
-        'GR': 1, // Golden Aura
-        'RR': 2, // Rudra Retail
-        'UB': 3, // UBeauty
-        'VV': 4, // Velvet Vista
-        'DE': 5, // Dropy Ecom ✅ NEW
-        'CV': 6, // Costech Ventures ✅ NEW
-        'MV': 7, // Maverick
-        'KL': 8  // Kalash
+        'DROPY': 1
       };
 
 
@@ -3151,43 +3144,6 @@ export default function PurchasesPage() {
             >
               DP
             </button>
-          </div>
-
-          {/* Seller Tag Filter */}
-          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-xl p-1 border border-white/[0.1]">
-            <button
-              onClick={() => setSellerTagFilter('ALL')}
-              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === 'ALL'
-                ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white hover:bg-[#111111]'
-                }`}
-            >
-              All
-            </button>
-            {['GR', 'RR', 'UB', 'VV', 'DE', 'CV', 'MV', 'KL'].map((tag) => {
-              const tagColors: Record<string, string> = {
-                GR: 'from-yellow-400 to-yellow-600 text-black',
-                RR: 'from-slate-400 to-slate-600 text-white',
-                UB: 'from-pink-400 to-pink-600 text-white',
-                VV: 'from-purple-400 to-purple-600 text-white',
-                DE: 'from-cyan-400 to-cyan-600 text-black',
-                CV: 'from-teal-400 to-teal-600 text-white',
-                MV: 'from-orange-500 to-orange-700 text-white',
-                KL: 'from-lime-400 to-lime-600 text-black',
-              };
-              return (
-                <button
-                  key={tag}
-                  onClick={() => setSellerTagFilter(sellerTagFilter === tag ? 'ALL' : tag)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sellerTagFilter === tag
-                    ? `bg-gradient-to-br ${tagColors[tag]} shadow-lg`
-                    : 'text-gray-400 hover:text-white hover:bg-[#111111]'
-                    }`}
-                >
-                  {tag}
-                </button>
-              );
-            })}
           </div>
 
           {/* Download Dropdown */}
