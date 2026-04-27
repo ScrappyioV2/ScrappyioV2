@@ -326,7 +326,30 @@ export default function DropySellersPage() {
         });
       }
 
-      toast.success(`Processed ${successCount} products!`, { id: toastId });
+      toast.success(`Processed ${successCount} products! Distributing to validation...`, { id: toastId });
+
+      // Auto-distribute to validation + seller_products
+      try {
+        const { data: masterData } = await supabase
+          .from('dropy_master_sellers')
+          .select('asin, product_name, brand, price, monthly_unit, monthly_sales, bsr, seller, category, dimensions, weight, weight_unit, link, amz_link, remark')
+          .in('asin', Array.from(uniqueProductsMap.keys()));
+
+        if (masterData && masterData.length > 0) {
+          const batchSize = 500;
+          for (let i = 0; i < masterData.length; i += batchSize) {
+            const chunk = masterData.slice(i, i + batchSize).map(r => ({
+              ...r, remark: r.remark || ''
+            }));
+            await supabase.rpc('bulk_insert_dropy_master_with_distribution', { batch_data: chunk });
+          }
+          toast.success(`${successCount} products uploaded & distributed to validation!`, { id: toastId });
+        }
+      } catch (distErr: any) {
+        console.error('Distribution error:', distErr);
+        toast.error(`Uploaded but distribution failed: ${distErr.message}`, { id: toastId });
+      }
+
       setRefreshTrigger(prev => prev + 1);
 
     } catch (error: any) {
