@@ -15,14 +15,7 @@ import {
 
 /* ================= STATIC SELLERS ================= */
 const ALL_SELLERS = [
-  { id: 1, slug: "golden-aura", name: "Golden Aura", color: "from-amber-400 to-orange-500" },
-  { id: 2, slug: "rudra-retail", name: "Rudra Retail", color: "from-blue-400 to-indigo-500" },
-  { id: 3, slug: "ubeauty", name: "Ubeauty", color: "from-pink-400 to-rose-500" },
-  { id: 4, slug: "velvet-vista", name: "Velvet Vista", color: "from-emerald-400 to-teal-500" },
-  { id: 5, slug: "dropy-ecom", name: "Dropy Ecom", color: "from-orange-400 to-red-500" },
-  { id: 6, slug: "costech-ventures", name: "Costech Ventures", color: "from-green-400 to-emerald-500" },
-  { id: 7, slug: "maverick", name: "Maverick", color: "from-orange-500 to-red-600" },
-  { id: 8, slug: "kalash", name: "Kalash", color: "from-lime-400 to-green-500" },
+  { id: 1, slug: "dropy", name: "Dropy", color: "from-orange-400 to-red-500" },
 ];
 
 /* ================= TYPES ================= */
