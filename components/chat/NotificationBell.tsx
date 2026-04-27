@@ -22,6 +22,14 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
   const [isOpen, setIsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const bellRef = useRef<HTMLButtonElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+
+  useEffect(() => {
+    if (isOpen && bellRef.current) {
+      const rect = bellRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 8, left: rect.left })
+    }
+  }, [isOpen])
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return
@@ -138,8 +146,9 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
   }
 
   return (
-    <div className="relative" ref={bellRef as any}>
+    <div className="relative">
       <button
+        ref={bellRef}
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 hover:bg-[#111111] rounded-lg transition-colors text-gray-400 hover:text-white"
       >
@@ -153,11 +162,14 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
 
       <AnimatePresence>
         {isOpen && (
+          <>
+          <div className="fixed inset-0 z-[99]" onClick={() => setIsOpen(false)} />
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="fixed top-14 left-[68px] w-80 bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden z-[100]"
+            style={{ top: dropdownPos.top, left: dropdownPos.left }}
+            className="fixed w-80 bg-[#1a1a1a] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden z-[100]"
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/[0.1] flex items-center justify-between">
@@ -221,6 +233,7 @@ export default function NotificationBell({ onOpenChat }: { onOpenChat?: (convoId
               )}
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
