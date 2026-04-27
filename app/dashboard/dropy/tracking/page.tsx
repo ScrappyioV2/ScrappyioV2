@@ -8,20 +8,13 @@ import { SELLER_TAG_MAPPING, SellerTag } from "@/lib/utils";
 import BoxesTab from "./components/BoxesTab";
 
 const SELLERS = [
-    { tag: "GR", name: "Golden Aura", id: 1, color: "bg-yellow-500" },
-    { tag: "RR", name: "Rudra Retail", id: 2, color: "bg-orange-400" },
-    { tag: "UB", name: "UBeauty", id: 3, color: "bg-pink-500" },
-    { tag: "VV", name: "Velvet Vista", id: 4, color: "bg-emerald-500" },
-    { tag: "DE", name: "Dropy Ecom", id: 5, color: "bg-orange-500" },
-    { tag: "CV", name: "Costech Ventures", id: 6, color: "bg-green-600" },
-    { tag: "MV", name: "Maverick", id: 7, color: "bg-orange-600" },
-    { tag: "KL", name: "Kalash", id: 8, color: "bg-lime-500" },
+    { tag: "DROPY", name: "Dropy", id: 1, color: "bg-orange-500" },
 ];
 
 type TabType = "inbound" | "boxes" | "checking";
 
 export default function TrackingPage() {
-    const [activeSeller, setActiveSeller] = useState<string>("GR");
+    const [activeSeller, setActiveSeller] = useState<string>("DROPY");
 
 
     const currentSellerId = useMemo(() => {

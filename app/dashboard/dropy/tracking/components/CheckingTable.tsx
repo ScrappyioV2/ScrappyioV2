@@ -882,14 +882,7 @@ export default function CheckingTable({
   }
 
   const SELLER_ID_TO_TAG: Record<number, string> = {
-    1: 'GR',
-    2: 'RR',
-    3: 'UB',
-    4: 'VV',
-    5: 'DE',
-    6: 'CV',
-    7: 'MV',
-    8: 'KL',
+    1: 'DROPY',
   };
 
   // ============================================

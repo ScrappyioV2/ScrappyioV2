@@ -113,11 +113,9 @@ export default function DropyEcomListingPage() {
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
 
-  const SELLER_TAG_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV', 7: 'MV', 8: 'KL' };
+  const SELLER_TAG_MAP: Record<number, string> = { 1: 'DROPY' };
   const SELLER_NAME_MAP: Record<number, string> = {
-    1: 'Golden Aura', 2: 'Rudra Retail', 3: 'UBeauty',
-    4: 'Velvet Vista', 5: 'Dropy Ecom', 6: 'Costech Ventures',
-    7: 'Maverick', 8: 'Kalash'
+    1: 'Dropy',
   };
 
   type CrossSellerInfo = { tag: string; sellerName: string; listedAt: string | null };
