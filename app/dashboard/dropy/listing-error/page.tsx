@@ -160,7 +160,7 @@ export default function ListingErrorDashboard() {
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div>
                     <h3 className="text-base font-bold text-white group-hover:text-white transition-colors">{seller.name}</h3>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mt-0.5">INDIA Marketplace</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mt-0.5">Dropy Marketplace</p>
                   </div>
                   <div className="flex flex-col items-end">
                     <div className="flex items-center gap-1.5 text-amber-400 bg-amber-400/10 px-2 py-1 rounded-lg border border-amber-400/20">

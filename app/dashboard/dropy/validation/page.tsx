@@ -3188,7 +3188,7 @@ export default function ValidationPage() {
                     <div className="flex-none">
                         {/* Header */}
                         <div className="mb-6">
-                            <h1 className="text-xl sm:text-3xl font-bold text-white">INDIA Selling - Validation</h1>
+                            <h1 className="text-xl sm:text-3xl font-bold text-white">Dropy - Validation</h1>
                             <p className="text-xs sm:text-sm text-gray-300 mt-1">Manage validation files and product status</p>
                         </div>
 
@@ -3588,7 +3588,7 @@ export default function ValidationPage() {
                                 onClick={() => dropyPriceCSVInputRef.current?.click()}
                                 className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-400 text-xs sm:text-sm font-medium whitespace-nowrap shadow-lg shadow-orange-500/10 transition-all border border-orange-500/50"
                             >
-                                Bulk INDIA Price Update
+                                Bulk Dropy Price Update
                             </button>
                             <input type="file" accept=".csv" ref={dropyPriceCSVInputRef} onChange={handledropyPriceCSVUpload} className="hidden" />
 
