@@ -24,7 +24,7 @@ type HistoryResult = {
 
 type Props = {
   asin: string | null
-  marketplace: 'india' | 'flipkart' | 'usa' | 'uae' | 'uk'
+  marketplace: 'india' | 'flipkart' | 'usa' | 'uae' | 'uk' | 'dropy'
   onClose: () => void
 }
 
@@ -34,6 +34,7 @@ const PURCHASE_TABLE: Record<string, string> = {
   usa: 'usa_purchases',
   uae: 'uae_purchases',
   uk: 'uk_purchases',
+  dropy: 'dropy_purchases',
 }
 
 const HISTORY_TABLE: Record<string, string> = {
@@ -42,12 +43,13 @@ const HISTORY_TABLE: Record<string, string> = {
   usa: 'usa_asin_history',
   uae: 'uae_asin_history',
   uk: 'uk_asin_history',
+  dropy: 'dropy_asin_history',
 }
 
 const SELLER_COLORS: Record<string, string> = {
   GR: 'bg-yellow-500', RR: 'bg-orange-400', UB: 'bg-pink-500',
   VV: 'bg-emerald-500', DE: 'bg-orange-500', CV: 'bg-green-600',
-  MV: 'bg-orange-600', KL: 'bg-lime-500',
+  MV: 'bg-orange-600', KL: 'bg-lime-500', DR: 'bg-orange-500',
 }
 
 export default function PurchaseHistoryDialog({ asin, marketplace, onClose }: Props) {
