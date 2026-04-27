@@ -3236,7 +3236,7 @@ export default function PurchasesPage() {
                     className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
                   >
                     <span>Download All</span>
-                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{products.length}</span>
+                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
                   </button>
 
                   <div className="border-t border-white/[0.1] my-1.5" />
@@ -3268,7 +3268,7 @@ export default function PurchasesPage() {
                     className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
                   >
                     <span>Download All</span>
-                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{products.length}</span>
+                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{allFilteredProducts.length}</span>
                   </button>
                 </div>
               </>
