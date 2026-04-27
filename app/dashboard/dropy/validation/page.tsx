@@ -189,7 +189,7 @@ interface Filters {
 type FileTab = 'main_file' | 'pass_file' | 'fail_file' | 'pending' | 'reworking' | 'reject_file' | 'india_link_nf' | 'usa_link_nf';
 
 const SELLER_STYLES: Record<string, string> = {
-    DROPY: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',
+    DR: 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-lg border border-orange-600/30',
 };
 
 const renderSellerTags = (sellerTag: string | null) => {
