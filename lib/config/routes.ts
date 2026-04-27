@@ -286,7 +286,10 @@ export const APP_ROUTES: AppRoute[] = [
         path: '/dashboard/dropy/restock',
         label: 'Restock',
         permission: 'view-restock',
-        icon: Package
+        icon: Package,
+        subRoutes: [
+          { path: '/dashboard/dropy/restock/dropy', label: 'Dropy', permission: 'view-restock' }
+        ]
       },
       {
         path: '/dashboard/dropy/reorder',
