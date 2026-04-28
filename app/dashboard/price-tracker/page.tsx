@@ -24,6 +24,7 @@ export default function PriceTrackerDashboard() {
   const [sellerChanges, setSellerChanges] = useState<Alert[]>([])
   const [missingCount, setMissingCount] = useState({ blank: 0, notInReport: 0 })
   const [skuMap, setSkuMap] = useState<Record<string, string>>({})
+  const [funnelMap, setFunnelMap] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
@@ -136,11 +137,50 @@ export default function PriceTrackerDashboard() {
       skuRows?.forEach(r => { if (r.sku) skuMap[r.asin] = r.sku })
       setSkuMap(skuMap)
 
+      // Funnel tags: copies first, then validation fallback
+      const allAsins = skuRows?.map(r => r.asin) || []
+      const fMap: Record<string, string> = {}
+      if (allAsins.length > 0) {
+        for (let i = 0; i < allAsins.length; i += 500) {
+          const chunk = allAsins.slice(i, i + 500)
+          const { data: copyFunnels } = await supabase
+            .from('india_purchase_copies')
+            .select('asin, funnel')
+            .in('asin', chunk)
+          copyFunnels?.forEach(r => { if (r.funnel) fMap[r.asin] = r.funnel })
+        }
+        const missingFunnel = allAsins.filter(a => !fMap[a])
+        for (let i = 0; i < missingFunnel.length; i += 500) {
+          const chunk = missingFunnel.slice(i, i + 500)
+          const { data: valFunnels } = await supabase
+            .from('india_validation_main_file')
+            .select('asin, funnel')
+            .in('asin', chunk)
+          valFunnels?.forEach(r => { if (r.funnel) fMap[r.asin] = r.funnel })
+        }
+      }
+      setFunnelMap(fMap)
+
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const renderFunnelTag = (asin: string) => {
+    const f = funnelMap[asin]
+    if (!f) return null
+    const tag = f.trim()
+    return (
+      <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+        tag === 'RS' ? 'bg-emerald-500/20 text-emerald-400' :
+        tag === 'DP' ? 'bg-blue-500/20 text-blue-400' :
+        'bg-gray-500/20 text-gray-400'
+      }`}>
+        {tag}
+      </span>
+    )
   }
 
   if (loading) {
@@ -251,6 +291,7 @@ export default function PriceTrackerDashboard() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-orange-400 font-mono">{r.asin}</span>
                       {r.sku && <span className="text-xs text-gray-500">{r.sku}</span>}
+                      {renderFunnelTag(r.asin)}
                       {r.brand && <span className="text-xs text-gray-500 ml-auto">{r.brand}</span>}
                     </div>
                     <p className="text-sm text-gray-300 truncate mt-0.5">{r.title}</p>
@@ -285,6 +326,7 @@ export default function PriceTrackerDashboard() {
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${b.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{b.asin}</a>
                     {skuMap[b.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[b.asin]}</span>}
+                    {renderFunnelTag(b.asin)}
                     <p className="text-sm text-gray-200 truncate">{b.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -316,6 +358,7 @@ export default function PriceTrackerDashboard() {
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{a.asin}</a>
                     {skuMap[a.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[a.asin]}</span>}
+                    {renderFunnelTag(a.asin)}
                     <p className="text-sm text-gray-300">{a.message}</p>
                   </div>
                 </div>
@@ -342,6 +385,7 @@ export default function PriceTrackerDashboard() {
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
                     {skuMap[s.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[s.asin]}</span>}
+                    {renderFunnelTag(s.asin)}
                     <p className="text-sm text-gray-200 truncate">{s.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -372,6 +416,7 @@ export default function PriceTrackerDashboard() {
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
                     {skuMap[s.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[s.asin]}</span>}
+                    {renderFunnelTag(s.asin)}
                     <p className="text-sm text-gray-200 truncate">{s.title}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -397,6 +442,7 @@ export default function PriceTrackerDashboard() {
                 <div key={a.id} className="p-3 bg-[#111111] rounded-lg border border-white/[0.05]">
                   <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline">{a.asin}</a>
                   {skuMap[a.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[a.asin]}</span>}
+                  {renderFunnelTag(a.asin)}
                   <p className="text-sm text-gray-300 mt-0.5">{a.message}</p>
                 </div>
               ))}
