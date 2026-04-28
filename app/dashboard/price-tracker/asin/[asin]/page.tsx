@@ -35,21 +35,12 @@ export default function AsinDetailPage() {
   const [togglingAlerts, setTogglingAlerts] = useState(false)
   const [funnelTag, setFunnelTag] = useState<string | null>(null)
   const [workStartTime] = useState(() => new Date())
-  const [elapsed, setElapsed] = useState(0)
   const [markingComplete, setMarkingComplete] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
   const [workHistory, setWorkHistory] = useState<any[]>([])
   const [currentReportDate, setCurrentReportDate] = useState<string>('')
 
   useEffect(() => { if (asin) fetchAll() }, [asin])
-
-  // Auto-timer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - workStartTime.getTime()) / 1000))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [workStartTime])
 
   // Fetch work history
   useEffect(() => {
@@ -290,11 +281,10 @@ export default function AsinDetailPage() {
           isCompleted ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-[#1a1a1a] border-white/[0.05]'
         }`}>
           <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-400">
-              ⏱ Time on page: <span className="text-white font-mono font-bold">{formatDuration(elapsed)}</span>
-            </div>
-            {isCompleted && (
+            {isCompleted ? (
               <span className="text-emerald-400 text-sm font-medium">✓ Marked complete for this report</span>
+            ) : (
+              <span className="text-gray-400 text-sm">Mark this ASIN as done when finished</span>
             )}
           </div>
           {!isCompleted ? (
