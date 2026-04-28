@@ -86,7 +86,7 @@ export async function bulkUpdateIndiaSkuFromFile(
 
   let updatedCount = 0;
   for (let i = 0; i < tables.length; i++) {
-    const { data, error } = await supabase.rpc('apply_sku_staging_to', { target_table: tables[i] });
+    const { data, error } = await supabase.rpc('apply_sku_staging_to', { target_table: tables[i], p_marketplace: 'india' });
     if (error) throw error;
     updatedCount += (data as any)?.updated ?? 0;
     onProgress?.(50 + Math.round(((i + 1) / tables.length) * 45));
