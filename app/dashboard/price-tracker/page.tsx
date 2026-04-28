@@ -351,7 +351,7 @@ export default function PriceTrackerDashboard() {
           <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-4 shrink-0">
             <DollarSign className="w-5 h-5" /> BUY NOW
             {buySignals.length > 0 && (
-              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+              <span className="ml-auto text-sm font-mono text-emerald-400/70">
                 {buySignals.filter(b => completedAsins.has(b.asin)).length}/{buySignals.length}
               </span>
             )}
@@ -388,7 +388,7 @@ export default function PriceTrackerDashboard() {
           <h2 className="text-lg font-bold text-orange-400 flex items-center gap-2 mb-4 shrink-0">
             <TrendingUp className="w-5 h-5" /> SELL SIGNALS
             {sellSignals.length > 0 && (
-              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+              <span className="ml-auto text-sm font-mono text-emerald-400/70">
                 {sellSignals.filter(a => completedAsins.has(a.asin)).length}/{sellSignals.length}
               </span>
             )}
@@ -420,7 +420,7 @@ export default function PriceTrackerDashboard() {
           <h2 className="text-lg font-bold text-red-400 flex items-center gap-2 mb-4 shrink-0">
             <ArrowDown className="w-5 h-5" /> Top Losers
             {topLosers.length > 0 && (
-              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+              <span className="ml-auto text-sm font-mono text-emerald-400/70">
                 {topLosers.filter(s => completedAsins.has(s.asin)).length}/{topLosers.length}
               </span>
             )}
@@ -456,7 +456,7 @@ export default function PriceTrackerDashboard() {
           <h2 className="text-lg font-bold text-blue-400 flex items-center gap-2 mb-4 shrink-0">
             <ArrowUp className="w-5 h-5" /> Top Gainers
             {topGainers.length > 0 && (
-              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+              <span className="ml-auto text-sm font-mono text-emerald-400/70">
                 {topGainers.filter(s => completedAsins.has(s.asin)).length}/{topGainers.length}
               </span>
             )}
@@ -492,7 +492,7 @@ export default function PriceTrackerDashboard() {
           <h2 className="text-lg font-bold text-purple-400 flex items-center gap-2 mb-4 shrink-0">
             <Users className="w-5 h-5" /> Seller Changes
             {sellerChanges.length > 0 && (
-              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+              <span className="ml-auto text-sm font-mono text-emerald-400/70">
                 {sellerChanges.filter(a => completedAsins.has(a.asin)).length}/{sellerChanges.length}
               </span>
             )}
