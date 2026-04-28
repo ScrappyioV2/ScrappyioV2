@@ -2862,13 +2862,13 @@ export default function PurchasesPage() {
   };
 
   const downloadCSV = (mode: 'selected' | 'page' | 'all') => {
-    if (activeTab === 'copies' || activeTab === 'sns') {
-      const data = activeTab === 'copies' ? filteredCopies : filteredSns;
+    if (activeTab === 'copy' || activeTab === 'sns') {
+      const data = activeTab === 'copy' ? filteredCopies : filteredSns;
       if (data.length === 0) { showToast('No data to download', 'info'); return; }
-      const headers = activeTab === 'copies'
+      const headers = activeTab === 'copy'
         ? ['ASIN', 'Product Name', 'Brand', 'Seller Tag', 'Funnel', 'SKU', 'Remark', 'Buying Price', 'Buying Quantity', 'Product Weight', 'USD Price', 'INR Purchase', 'INR Purchase Link', 'Target Price', 'Origin', 'Profit']
         : ['ASIN', 'Product Name', 'Brand', 'Seller Tag', 'Funnel', 'SKU', 'Remark', 'SNS Period', 'SNS Quantity', 'SNS Next Due', 'Buying Price'];
-      const rows = data.map((c: any) => activeTab === 'copies'
+      const rows = data.map((c: any) => activeTab === 'copy'
         ? [c.asin, c.product_name, c.brand, c.seller_tag, c.funnel, c.sku, c.remark, c.buying_price, c.buying_quantity, c.product_weight, c.usd_price, c.inr_purchase, c.inr_purchase_link, c.target_price, c.origin, c.profit]
         : [c.asin, c.product_name, c.brand, c.seller_tag, c.funnel, c.sku, c.remark, c.sns_period, c.sns_quantity, c.sns_next_due, c.buying_price]
       );
@@ -2965,10 +2965,10 @@ export default function PurchasesPage() {
   const downloadExcel = async (mode: 'selected' | 'page' | 'all') => {
     const XLSX = await import('xlsx');
 
-    if (activeTab === 'copies' || activeTab === 'sns') {
-      const data = activeTab === 'copies' ? filteredCopies : filteredSns;
+    if (activeTab === 'copy' || activeTab === 'sns') {
+      const data = activeTab === 'copy' ? filteredCopies : filteredSns;
       if (data.length === 0) { showToast('No data to download', 'info'); return; }
-      const sheetData = data.map((c: any) => activeTab === 'copies' ? {
+      const sheetData = data.map((c: any) => activeTab === 'copy' ? {
         ASIN: c.asin, 'Product Name': c.product_name, Brand: c.brand, 'Seller Tag': c.seller_tag, Funnel: c.funnel, SKU: c.sku, Remark: c.remark,
         'Buying Price': c.buying_price, 'Buying Quantity': c.buying_quantity, 'Product Weight': c.product_weight,
         'USD Price': c.usd_price, 'INR Purchase': c.inr_purchase, 'INR Purchase Link': c.inr_purchase_link,
@@ -3276,7 +3276,7 @@ export default function PurchasesPage() {
                     className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
                   >
                     <span>Download All</span>
-                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{activeTab === 'copies' ? filteredCopies.length : activeTab === 'sns' ? filteredSns.length : allFilteredProducts.length}</span>
+                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{activeTab === 'copy' ? filteredCopies.length : activeTab === 'sns' ? filteredSns.length : allFilteredProducts.length}</span>
                   </button>
 
                   <div className="border-t border-white/[0.1] my-1.5" />
@@ -3308,7 +3308,7 @@ export default function PurchasesPage() {
                     className="w-full px-4 py-2.5 text-left text-sm text-gray-100 hover:bg-purple-600/20 hover:text-purple-300 rounded-lg transition-colors flex items-center justify-between"
                   >
                     <span>Download All</span>
-                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{activeTab === 'copies' ? filteredCopies.length : activeTab === 'sns' ? filteredSns.length : allFilteredProducts.length}</span>
+                    <span className="text-xs text-gray-300 bg-[#111111] px-2 py-0.5 rounded-full">{activeTab === 'copy' ? filteredCopies.length : activeTab === 'sns' ? filteredSns.length : allFilteredProducts.length}</span>
                   </button>
                 </div>
               </>
