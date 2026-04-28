@@ -350,6 +350,11 @@ export default function PriceTrackerDashboard() {
         <div className="bg-[#1a1a1a] border border-emerald-500/20 rounded-xl p-5">
           <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-4 shrink-0">
             <DollarSign className="w-5 h-5" /> BUY NOW
+            {buySignals.length > 0 && (
+              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+                {buySignals.filter(b => completedAsins.has(b.asin)).length}/{buySignals.length}
+              </span>
+            )}
           </h2>
           {buySignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No buy opportunities today</p>
@@ -382,6 +387,11 @@ export default function PriceTrackerDashboard() {
         <div className="bg-[#1a1a1a] border border-orange-500/20 rounded-xl p-5">
           <h2 className="text-lg font-bold text-orange-400 flex items-center gap-2 mb-4 shrink-0">
             <TrendingUp className="w-5 h-5" /> SELL SIGNALS
+            {sellSignals.length > 0 && (
+              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+                {sellSignals.filter(a => completedAsins.has(a.asin)).length}/{sellSignals.length}
+              </span>
+            )}
           </h2>
           {sellSignals.length === 0 ? (
             <p className="text-gray-500 text-sm">No sell signals</p>
@@ -409,6 +419,11 @@ export default function PriceTrackerDashboard() {
         <div className="bg-[#1a1a1a] border border-red-500/20 rounded-xl p-5">
           <h2 className="text-lg font-bold text-red-400 flex items-center gap-2 mb-4 shrink-0">
             <ArrowDown className="w-5 h-5" /> Top Losers
+            {topLosers.length > 0 && (
+              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+                {topLosers.filter(s => completedAsins.has(s.asin)).length}/{topLosers.length}
+              </span>
+            )}
           </h2>
           {topLosers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
@@ -440,6 +455,11 @@ export default function PriceTrackerDashboard() {
         <div className="bg-[#1a1a1a] border border-blue-500/20 rounded-xl p-5">
           <h2 className="text-lg font-bold text-blue-400 flex items-center gap-2 mb-4 shrink-0">
             <ArrowUp className="w-5 h-5" /> Top Gainers
+            {topGainers.length > 0 && (
+              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+                {topGainers.filter(s => completedAsins.has(s.asin)).length}/{topGainers.length}
+              </span>
+            )}
           </h2>
           {topGainers.length === 0 ? (
             <p className="text-gray-500 text-sm">No data yet</p>
@@ -471,6 +491,11 @@ export default function PriceTrackerDashboard() {
         <div className="bg-[#1a1a1a] border border-purple-500/20 rounded-xl p-5">
           <h2 className="text-lg font-bold text-purple-400 flex items-center gap-2 mb-4 shrink-0">
             <Users className="w-5 h-5" /> Seller Changes
+            {sellerChanges.length > 0 && (
+              <span className="ml-auto text-xs font-mono text-emerald-400/70">
+                {sellerChanges.filter(a => completedAsins.has(a.asin)).length}/{sellerChanges.length}
+              </span>
+            )}
           </h2>
           {sellerChanges.length === 0 ? (
             <p className="text-gray-500 text-sm">No seller changes detected</p>
