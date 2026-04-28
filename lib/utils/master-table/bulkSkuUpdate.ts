@@ -69,6 +69,8 @@ export async function bulkUpdateIndiaSkuFromFile(
 
   // Step 3: Apply to each table individually (stays under Kong 60s per call)
   const tables = [
+    'sku_catalog',
+    'india_master_sellers',
     'brand_checking',
     'seller_products',
     'listing_errors',
