@@ -25,6 +25,7 @@ export default function PriceTrackerDashboard() {
   const [missingCount, setMissingCount] = useState({ blank: 0, notInReport: 0 })
   const [skuMap, setSkuMap] = useState<Record<string, string>>({})
   const [funnelMap, setFunnelMap] = useState<Record<string, string>>({})
+  const [completedAsins, setCompletedAsins] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
@@ -161,12 +162,25 @@ export default function PriceTrackerDashboard() {
       }
       setFunnelMap(fMap)
 
+      // Completed ASINs for current report
+      const currentReport = lastSnap.data?.[0]?.report_date
+      if (currentReport) {
+        const { data: completedRows } = await supabase
+          .from('price_tracker_work_history')
+          .select('asin')
+          .eq('report_date', currentReport)
+        setCompletedAsins(new Set(completedRows?.map(r => r.asin) || []))
+      }
+
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
   }
+
+  const completedClass = (asin: string) =>
+    completedAsins.has(asin) ? 'ring-1 ring-emerald-500/40 bg-emerald-500/5' : ''
 
   const renderFunnelTag = (asin: string) => {
     const f = funnelMap[asin]
@@ -321,7 +335,7 @@ export default function PriceTrackerDashboard() {
                 <div
                   key={b.asin}
                   onClick={() => router.push(`/dashboard/price-tracker/asin/${b.asin}`)}
-                  className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-emerald-500/5 border border-white/[0.05] transition-colors"
+                  className={`flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-emerald-500/5 border border-white/[0.05] transition-colors ${completedClass(b.asin)}`}
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${b.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{b.asin}</a>
@@ -353,7 +367,7 @@ export default function PriceTrackerDashboard() {
                 <div
                   key={a.id}
                   onClick={() => router.push(`/dashboard/price-tracker/asin/${a.asin}`)}
-                  className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-orange-500/5 border border-white/[0.05] transition-colors"
+                  className={`flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-orange-500/5 border border-white/[0.05] transition-colors ${completedClass(a.asin)}`}
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{a.asin}</a>
@@ -380,7 +394,7 @@ export default function PriceTrackerDashboard() {
                 <div
                   key={s.asin}
                   onClick={() => router.push(`/dashboard/price-tracker/asin/${s.asin}`)}
-                  className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-red-500/5 border border-white/[0.05] transition-colors"
+                  className={`flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-red-500/5 border border-white/[0.05] transition-colors ${completedClass(s.asin)}`}
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
@@ -411,7 +425,7 @@ export default function PriceTrackerDashboard() {
                 <div
                   key={s.asin}
                   onClick={() => router.push(`/dashboard/price-tracker/asin/${s.asin}`)}
-                  className="flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-blue-500/5 border border-white/[0.05] transition-colors"
+                  className={`flex items-center justify-between p-3 bg-[#111111] rounded-lg cursor-pointer hover:bg-blue-500/5 border border-white/[0.05] transition-colors ${completedClass(s.asin)}`}
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <a href={`https://www.amazon.com/dp/${s.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline" onClick={e => e.stopPropagation()}>{s.asin}</a>
@@ -439,7 +453,7 @@ export default function PriceTrackerDashboard() {
           ) : (
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {sellerChanges.map(a => (
-                <div key={a.id} className="p-3 bg-[#111111] rounded-lg border border-white/[0.05]">
+                <div key={a.id} className={`p-3 bg-[#111111] rounded-lg border border-white/[0.05] ${completedClass(a.asin)}`}>
                   <a href={`https://www.amazon.com/dp/${a.asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 font-mono underline">{a.asin}</a>
                   {skuMap[a.asin] && <span className="text-xs text-gray-500 ml-2">{skuMap[a.asin]}</span>}
                   {renderFunnelTag(a.asin)}

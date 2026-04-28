@@ -34,8 +34,48 @@ export default function AsinDetailPage() {
   const [resetting, setResetting] = useState(false)
   const [togglingAlerts, setTogglingAlerts] = useState(false)
   const [funnelTag, setFunnelTag] = useState<string | null>(null)
+  const [workStartTime] = useState(() => new Date())
+  const [elapsed, setElapsed] = useState(0)
+  const [markingComplete, setMarkingComplete] = useState(false)
+  const [isCompleted, setIsCompleted] = useState(false)
+  const [workHistory, setWorkHistory] = useState<any[]>([])
+  const [currentReportDate, setCurrentReportDate] = useState<string>('')
 
   useEffect(() => { if (asin) fetchAll() }, [asin])
+
+  // Auto-timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - workStartTime.getTime()) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [workStartTime])
+
+  // Fetch work history
+  useEffect(() => {
+    if (!asin) return
+    const fetchHistory = async () => {
+      const { data } = await supabase
+        .from('price_tracker_work_history')
+        .select('*')
+        .eq('asin', asin)
+        .order('completed_at', { ascending: false })
+      setWorkHistory(data || [])
+      const latestSnap = await supabase
+        .from('price_tracker_snapshots')
+        .select('report_date')
+        .order('report_date', { ascending: false })
+        .limit(1)
+      const currentReport = latestSnap.data?.[0]?.report_date
+      if (currentReport) {
+        setCurrentReportDate(currentReport)
+        if (data?.some(w => w.report_date === currentReport)) {
+          setIsCompleted(true)
+        }
+      }
+    }
+    fetchHistory()
+  }, [asin])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -78,6 +118,56 @@ export default function AsinDetailPage() {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const formatDuration = (secs: number) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return m > 0 ? `${m}m ${s}s` : `${s}s`
+  }
+
+  const handleMarkComplete = async () => {
+    setMarkingComplete(true)
+    try {
+      const latestSnap = await supabase
+        .from('price_tracker_snapshots')
+        .select('report_date')
+        .order('report_date', { ascending: false })
+        .limit(1)
+      const currentReport = latestSnap.data?.[0]?.report_date || 'unknown'
+
+      const now = new Date()
+      const durationSecs = Math.floor((now.getTime() - workStartTime.getTime()) / 1000)
+
+      await supabase.from('price_tracker_work_history').insert({
+        asin,
+        started_at: workStartTime.toISOString(),
+        completed_at: now.toISOString(),
+        duration_seconds: durationSecs,
+        report_date: currentReport,
+        snapshot_data: {
+          buybox_current: snapshots[snapshots.length - 1]?.buybox_current || null,
+          amazon_current: snapshots[snapshots.length - 1]?.amazon_current || null,
+          buybox_seller: snapshots[snapshots.length - 1]?.buybox_seller || null,
+          buybox_baseline: config?.buybox_baseline || null,
+          pct_change: bbChange,
+          last_purchase_price: purchaseStats?.last_price || null,
+          title: product?.title || null,
+        },
+      })
+
+      setIsCompleted(true)
+      const { data } = await supabase
+        .from('price_tracker_work_history')
+        .select('*')
+        .eq('asin', asin)
+        .order('completed_at', { ascending: false })
+      setWorkHistory(data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setMarkingComplete(false)
     }
   }
 
@@ -169,6 +259,11 @@ export default function AsinDetailPage() {
                   {funnelTag.trim()}
                 </span>
               )}
+              {isCompleted && (
+                <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  ✓ Completed
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -188,6 +283,36 @@ export default function AsinDetailPage() {
               <RefreshCw className="w-4 h-4 text-gray-400" />
             </button>
           </div>
+        </div>
+
+        {/* Work Timer Bar */}
+        <div className={`rounded-xl p-4 mb-6 flex items-center justify-between border ${
+          isCompleted ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-[#1a1a1a] border-white/[0.05]'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-400">
+              ⏱ Time on page: <span className="text-white font-mono font-bold">{formatDuration(elapsed)}</span>
+            </div>
+            {isCompleted && (
+              <span className="text-emerald-400 text-sm font-medium">✓ Marked complete for this report</span>
+            )}
+          </div>
+          {!isCompleted ? (
+            <button
+              onClick={handleMarkComplete}
+              disabled={markingComplete}
+              className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-sm text-emerald-400 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+            >
+              {markingComplete ? <Loader2 className="w-4 h-4 animate-spin" /> : '✓'} Mark Completed
+            </button>
+          ) : (
+            <button
+              onClick={handleMarkComplete}
+              className="px-4 py-2 bg-white/[0.05] border border-white/[0.1] rounded-xl text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              + Log Another Session
+            </button>
+          )}
         </div>
 
         {/* Price Cards */}
@@ -366,6 +491,51 @@ export default function AsinDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Work History */}
+        {workHistory.length > 0 && (
+          <div className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl p-5 mt-6">
+            <h2 className="text-lg font-bold text-white mb-4">📋 Work History</h2>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {workHistory.map(w => {
+                const snap = w.snapshot_data || {}
+                return (
+                  <div key={w.id} className={`p-3 rounded-lg border transition-colors ${
+                    w.report_date === currentReportDate
+                      ? 'bg-emerald-500/5 border-emerald-500/20'
+                      : 'bg-[#111111] border-white/[0.05]'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-500 font-mono">
+                          {new Date(w.completed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {' '}
+                          {new Date(w.completed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-xs font-bold text-orange-400">⏱ {formatDuration(w.duration_seconds)}</span>
+                        <span className="text-xs text-gray-500">Report: {w.report_date}</span>
+                      </div>
+                      {w.report_date === currentReportDate && (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">CURRENT</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-gray-400">
+                      {snap.buybox_current != null && <span>BuyBox: <span className="text-white">${snap.buybox_current.toFixed(2)}</span></span>}
+                      {snap.amazon_current != null && <span>Amazon: <span className="text-white">${snap.amazon_current.toFixed(2)}</span></span>}
+                      {snap.pct_change != null && (
+                        <span className={snap.pct_change < 0 ? 'text-red-400' : 'text-emerald-400'}>
+                          {snap.pct_change > 0 ? '+' : ''}{snap.pct_change.toFixed(1)}% vs baseline
+                        </span>
+                      )}
+                      {snap.last_purchase_price != null && <span>Last Buy: <span className="text-white">${snap.last_purchase_price.toFixed(2)}</span></span>}
+                      {snap.buybox_seller && <span>Seller: <span className="text-white">{snap.buybox_seller}</span></span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
