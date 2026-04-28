@@ -33,6 +33,7 @@ export default function AsinDetailPage() {
   const [purchaseStats, setPurchaseStats] = useState<PurchaseStat | null>(null)
   const [resetting, setResetting] = useState(false)
   const [togglingAlerts, setTogglingAlerts] = useState(false)
+  const [funnelTag, setFunnelTag] = useState<string | null>(null)
 
   useEffect(() => { if (asin) fetchAll() }, [asin])
 
@@ -54,6 +55,25 @@ export default function AsinDetailPage() {
       setConfig(configRes.data)
       setAlerts(alertRes.data || [])
       setPurchaseStats(statsRes.data)
+
+      // Funnel tag: copies first, then validation fallback
+      const { data: copyRow } = await supabase
+        .from('india_purchase_copies')
+        .select('funnel')
+        .eq('asin', asin)
+        .limit(1)
+        .maybeSingle()
+      if (copyRow?.funnel) {
+        setFunnelTag(copyRow.funnel)
+      } else {
+        const { data: valRow } = await supabase
+          .from('india_validation_main_file')
+          .select('funnel')
+          .eq('asin', asin)
+          .limit(1)
+          .maybeSingle()
+        setFunnelTag(valRow?.funnel || null)
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -140,6 +160,15 @@ export default function AsinDetailPage() {
               <a href={`https://www.amazon.com/dp/${asin}`} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-400 hover:text-orange-300 underline">View on Amazon</a>
               <span className="text-sm text-gray-400">{product.brand}</span>
               {product.category_root && <span className="text-xs text-gray-500 bg-white/[0.05] px-2 py-0.5 rounded">{product.category_root}</span>}
+              {funnelTag && (
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                  funnelTag.trim() === 'RS' ? 'bg-emerald-500/20 text-emerald-400' :
+                  funnelTag.trim() === 'DP' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {funnelTag.trim()}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
