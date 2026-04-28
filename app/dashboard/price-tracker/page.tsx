@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import {
   TrendingDown, TrendingUp, DollarSign, ShoppingCart,
   AlertTriangle, Bell, Calendar, ArrowDown, ArrowUp,
-  RefreshCw, Eye, ExternalLink, Loader2, Users, Search, Download
+  RefreshCw, Eye, ExternalLink, Loader2, Users, Search, Download, CheckCircle2
 } from 'lucide-react'
 
 type BuySignal = { asin: string; title: string; brand: string; buybox_current: number; last_purchase_price: number; diff_pct: number; report_date: string }
@@ -236,7 +236,7 @@ export default function PriceTrackerDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-6">
         <div key="Tracked ASINs" className="bg-[#1a1a1a] border border-white/[0.05] rounded-xl p-4 relative">
           <div className="flex items-center gap-2 mb-2">
             <Eye className="w-4 h-4 text-blue-400" />
@@ -265,6 +265,30 @@ export default function PriceTrackerDashboard() {
             <span className="text-white text-2xl font-bold">{s.value}</span>
           </div>
         ))}
+        {/* Completed counter */}
+        {(() => {
+          const allSignalAsins = new Set([
+            ...buySignals.map(b => b.asin),
+            ...sellSignals.map(s => s.asin),
+            ...topLosers.map(s => s.asin),
+            ...topGainers.map(s => s.asin),
+            ...sellerChanges.map(s => s.asin),
+          ])
+          return (
+            <div className={`border rounded-xl p-4 ${
+              completedAsins.size > 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-[#1a1a1a] border-white/[0.05]'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-gray-400 text-xs uppercase tracking-wider">Completed</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-emerald-400 text-2xl font-bold">{completedAsins.size}</span>
+                <span className="text-gray-500 text-sm">/ {allSignalAsins.size}</span>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Quick Navigation */}
