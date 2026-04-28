@@ -502,7 +502,6 @@ export default function AsinDetailPage() {
                           {' '}
                           {new Date(w.completed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        <span className="text-xs font-bold text-orange-400">⏱ {formatDuration(w.duration_seconds)}</span>
                         <span className="text-xs text-gray-500">Report: {w.report_date}</span>
                       </div>
                       {w.report_date === currentReportDate && (
