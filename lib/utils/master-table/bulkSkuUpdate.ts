@@ -78,6 +78,8 @@ export async function bulkUpdateIndiaSkuFromFile(
     'india_purchases',
     'india_box_checking',
     'india_inbound_tracking',
+    'india_purchase_copies',
+    'india_purchase_sns',
   ];
 
   let updatedCount = 0;
