@@ -1,7 +1,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import { bulkUpdateIndiaSkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
+import { bulkUpdateDropySkuFromFile } from '@/lib/utils/master-table/bulkSkuUpdate';
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Toast from '@/components/Toast';
 import { History, X, Loader2, Upload, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
@@ -1792,7 +1792,7 @@ export default function AdminValidationPage() {
     setSkuUploadProgress(0);
 
     try {
-      const result = await bulkUpdateIndiaSkuFromFile(file, (progress) => {
+      const result = await bulkUpdateDropySkuFromFile(file, (progress) => {
         setSkuUploadProgress(progress);
       });
 

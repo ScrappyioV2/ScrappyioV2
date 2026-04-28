@@ -198,3 +198,87 @@ export async function bulkUpdateFlipkartSkuFromFile(
     emptySkuRowCount,
   };
 }
+
+
+export async function bulkUpdateDropySkuFromFile(
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<SkuUploadResult> {
+  const text = await file.text();
+  const parsed = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  if (parsed.errors.length) {
+    console.error('CSV parse errors:', parsed.errors);
+    throw new Error('Failed to parse CSV – check format');
+  }
+
+  const rows = parsed.data;
+  const rawRows = rows.map((row) => {
+    const asin = (row.asin ?? row.ASIN ?? '').toString().replace(/\?/g, '').trim();
+    const rawSku = (row.sku ?? row.SKU ?? '').toString();
+    const sku = rawSku.replace(/\?/g, '').replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').trim();
+    return { asin, sku };
+  });
+
+  let filteredRows = rawRows.filter((r) => r.asin !== '');
+  const emptySkuRowCount = filteredRows.filter((r) => r.sku === '').length;
+  filteredRows = filteredRows.filter((r) => r.sku !== '');
+  const inputCount = filteredRows.length;
+
+  const asinCounts = new Map<string, number>();
+  for (const r of filteredRows) asinCounts.set(r.asin, (asinCounts.get(r.asin) || 0) + 1);
+  const duplicateAsins = new Set<string>();
+  asinCounts.forEach((count, asin) => { if (count > 1) duplicateAsins.add(asin); });
+  const duplicateAsinCount = duplicateAsins.size;
+  const effectiveRows = filteredRows.filter((r) => !duplicateAsins.has(r.asin));
+  const effectiveAsinCount = effectiveRows.length;
+
+  if (effectiveRows.length === 0) {
+    return { inputCount, effectiveAsinCount, duplicateAsinCount, updatedCount: 0, emptySkuRowCount };
+  }
+
+  onProgress?.(5);
+
+  await supabase.from('sku_staging').delete().neq('asin', '');
+
+  const BATCH_SIZE = 5000;
+  for (let i = 0; i < effectiveRows.length; i += BATCH_SIZE) {
+    const chunk = effectiveRows.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase.from('sku_staging').upsert(chunk, { onConflict: 'asin' });
+    if (error) throw error;
+    onProgress?.(5 + Math.round((i / effectiveRows.length) * 45));
+  }
+
+  onProgress?.(50);
+
+  const tables = [
+    'sku_catalog',
+    'dropy_master_sellers',
+    'seller_products',
+    'listing_errors',
+    'tracking_ops',
+    'dropy_admin_validation',
+    'dropy_validation_main_file',
+    'dropy_purchases',
+    'dropy_box_checking',
+    'dropy_inbound_tracking',
+    'dropy_purchase_copies',
+    'dropy_purchase_sns',
+  ];
+
+  let updatedCount = 0;
+  for (let i = 0; i < tables.length; i++) {
+    const { data, error } = await supabase.rpc('apply_sku_staging_to', { target_table: tables[i], p_marketplace: 'dropy' });
+    if (error) throw error;
+    updatedCount += (data as any)?.updated ?? 0;
+    onProgress?.(50 + Math.round(((i + 1) / tables.length) * 45));
+  }
+
+  await supabase.rpc('apply_sku_staging_cleanup');
+  onProgress?.(100);
+
+  return { inputCount, effectiveAsinCount, duplicateAsinCount, updatedCount, emptySkuRowCount };
+}
