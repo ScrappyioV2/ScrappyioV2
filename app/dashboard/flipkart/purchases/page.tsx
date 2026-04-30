@@ -1464,8 +1464,8 @@ export default function PurchasesPage() {
       // ─────────────────────────────────────────────
       // 🆕 STEP 0: SPLIT SELLER TAGS BY QUANTITY
       // ─────────────────────────────────────────────
-      const allSellerTags: string[] = (product.seller_tag || product.validation_seller_tag)
-        ? (product.seller_tag || product.validation_seller_tag)!.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean)
+      const allSellerTags: string[] = product.seller_tag
+        ? product.seller_tag.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean)
         : [];
       const buyingQuantities = (product.buying_quantities || {}) as Record<string, number>;
 
