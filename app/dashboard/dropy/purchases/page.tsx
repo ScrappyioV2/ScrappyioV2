@@ -1601,8 +1601,15 @@ export default function PurchasesPage() {
         if (insertError) throw insertError;
       }
 
-      // If ALL tags were skipped (already in admin), abort
+      // If ALL tags were skipped (already in admin), mark as sent and exit
       if (skippedTags.length === tagsToMove.length) {
+        await supabase
+          .from('dropy_purchases')
+          .update({ sent_to_admin: true, sent_to_admin_at: new Date().toISOString() })
+          .eq('id', product.id);
+        setProducts(prev => prev.map(p =>
+          p.id === product.id ? { ...p, sent_to_admin: true } : p
+        ));
         showToast(`All tags already in Admin Validation: ${skippedTags.join(', ')}`, 'info');
         return;
       }
