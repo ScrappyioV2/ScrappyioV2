@@ -589,8 +589,8 @@ export default function AdminValidationPage() {
       return;
     }
 
+    const previousProducts = [...products];
     try {
-      const previousProducts = [...products];
       const selectedArray = Array.from(selectedIds);
       setProducts(prev => prev.map(p => selectedArray.includes(p.id) ? { ...p, admin_status: 'confirmed', confirmed_at: new Date().toISOString() } : p));
 
@@ -722,8 +722,8 @@ export default function AdminValidationPage() {
   // ✅ ROBUST AUTO-DISTRIBUTE (Handles Typos & MULTIPLE TAGS)
   // =========================================================
   const handleConfirmProduct = async (productId: string) => {
+    const previousProducts = [...products];
     try {
-      const previousProducts = [...products];
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, admin_status: 'confirmed', confirmed_at: new Date().toISOString() } : p));
 
       const product = products.find((p) => p.id === productId);
