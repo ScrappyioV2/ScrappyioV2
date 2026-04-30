@@ -414,11 +414,18 @@ export default function MaverickPage() {
             .maybeSingle();
 
           if (copyData) {
+            const recentThreshold = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
             const { data: existingPurchase } = await supabase
               .from('india_purchases')
               .select('id, seller_tag, buying_quantities, product_link, origin, inr_purchase_link, admin_confirmed')
               .eq('asin', product.asin)
               .is('move_to', null)
+              .eq('sent_to_admin', false)
+              .eq('admin_confirmed', false)
+              .gte('created_at', recentThreshold)
+              .order('created_at', { ascending: false })
+              .limit(1)
               .maybeSingle();
 
             const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
