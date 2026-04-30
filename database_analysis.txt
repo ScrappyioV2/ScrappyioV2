@@ -1,0 +1,881 @@
+=== DATABASE TABLES AND USAGE ===
+
+
+### TABLE: *_movement_history
+Used in 24 files:
+  - app\dashboard\flipkart\listing-error\costech-ventures\page.tsx
+  - app\dashboard\flipkart\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\listing-error\golden-aura\page.tsx
+  - app\dashboard\flipkart\listing-error\rudra-retail\page.tsx
+  - app\dashboard\flipkart\listing-error\ubeauty\page.tsx
+  - app\dashboard\flipkart\listing-error\velvet-vista\page.tsx
+  - app\dashboard\india-selling\listing-error\costech-ventures\page.tsx
+  - app\dashboard\india-selling\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\india-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\india-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\india-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\india-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\uae-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uae-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\uae-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\uae-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\uk-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uk-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\uk-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\uk-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\usa-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\usa-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\usa-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\usa-selling\listing-error\velvet-vista\page.tsx
+
+### TABLE: *_pending
+Used in 24 files:
+  - app\dashboard\flipkart\listing-error\costech-ventures\page.tsx
+  - app\dashboard\flipkart\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\listing-error\golden-aura\page.tsx
+  - app\dashboard\flipkart\listing-error\rudra-retail\page.tsx
+  - app\dashboard\flipkart\listing-error\ubeauty\page.tsx
+  - app\dashboard\flipkart\listing-error\velvet-vista\page.tsx
+  - app\dashboard\india-selling\listing-error\costech-ventures\page.tsx
+  - app\dashboard\india-selling\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\india-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\india-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\india-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\india-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\uae-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uae-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\uae-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\uae-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\uk-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uk-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\uk-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\uk-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\usa-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\usa-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\usa-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\usa-selling\listing-error\velvet-vista\page.tsx
+
+### TABLE: brand_check_progress
+Used in 1 files:
+  - app\dashboard\usa-selling\brand-checking\page.tsx
+
+### TABLE: copy_progress_timestamps
+Used in 2 files:
+  - app\dashboard\manage-sellers\page.tsx
+
+### TABLE: dropy_master_sellers
+Used in 5 files:
+  - app\dashboard\manage-sellers\dropy\components\DropyMasterTable.tsx
+
+### TABLE: flipkart-company-invoices
+Used in 2 files:
+  - app\dashboard\flipkart\tracking\components\InvoiceModal.tsx
+
+### TABLE: flipkart_admin_validation
+Used in 10 files:
+  - app\dashboard\flipkart\admin-validation\page.tsx
+  - app\dashboard\flipkart\purchases\page.tsx
+
+### TABLE: flipkart_admin_validation_constants
+Used in 4 files:
+  - app\dashboard\flipkart\admin-validation\page.tsx
+
+### TABLE: flipkart_asin_history
+Used in 12 files:
+  - app\dashboard\flipkart\admin-validation\page.tsx
+  - app\dashboard\flipkart\listing-error\costech-ventures\page.tsx
+  - app\dashboard\flipkart\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\listing-error\golden-aura\page.tsx
+  - app\dashboard\flipkart\listing-error\rudra-retail\page.tsx
+  - app\dashboard\flipkart\listing-error\ubeauty\page.tsx
+  - app\dashboard\flipkart\listing-error\velvet-vista\page.tsx
+  - app\dashboard\flipkart\purchases\page.tsx
+  - app\dashboard\flipkart\reorder\page.tsx
+  - app\dashboard\flipkart\validation\page.tsx
+
+### TABLE: flipkart_brand_check_progress
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_*_movement_history
+Used in 12 files:
+  - app\dashboard\flipkart\listed-brand-checking\costech-ventures\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\golden-aura\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\rudra-retail\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\ubeauty\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\velvet-vista\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_1_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\listed-brand-checking\golden-aura\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_2_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\listed-brand-checking\rudra-retail\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_3_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\listed-brand-checking\ubeauty\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_4_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\listed-brand-checking\velvet-vista\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_5_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\listed-brand-checking\dropy-ecom\page.tsx
+
+### TABLE: flipkart_brand_checking_listed_seller_6_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\listed-brand-checking\costech-ventures\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_*_movement_history
+Used in 12 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\costech-ventures\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\golden-aura\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\rudra-retail\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\ubeauty\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\velvet-vista\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_1_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\golden-aura\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_2_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\rudra-retail\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_3_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\ubeauty\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_4_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\velvet-vista\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_5_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\dropy-ecom\page.tsx
+
+### TABLE: flipkart_brand_checking_not_listed_seller_6_movement_history
+Used in 2 files:
+  - app\dashboard\flipkart\not-listed-brand-checking\costech-ventures\page.tsx
+
+### TABLE: flipkart_checking_seller_*
+Used in 1 files:
+  - app\dashboard\flipkart\tracking\page.tsx
+
+### TABLE: flipkart_company_invoice
+Used in 1 files:
+  - app\dashboard\flipkart\tracking\components\InvoiceModal.tsx
+
+### TABLE: flipkart_invoice_seller_*
+Used in 1 files:
+  - app\dashboard\flipkart\tracking\page.tsx
+
+### TABLE: flipkart_master_sellers
+Used in 7 files:
+  - app\dashboard\manage-sellers\flipkart-sellers\components\FlipkartMasterTable.tsx
+
+### TABLE: flipkart_purchases
+Used in 15 files:
+  - app\dashboard\flipkart\admin-validation\page.tsx
+  - app\dashboard\flipkart\purchases\page.tsx
+  - app\dashboard\flipkart\tracking\page.tsx
+  - app\dashboard\flipkart\validation\page.tsx
+
+### TABLE: flipkart_reorder_*
+Used in 9 files:
+  - app\dashboard\flipkart\reorder\page.tsx
+
+### TABLE: flipkart_restock_seller_*
+Used in 1 files:
+  - app\dashboard\flipkart\tracking\page.tsx
+
+### TABLE: flipkart_seller_*_costech_ventures_movement_history
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\costech-ventures\page.tsx
+
+### TABLE: flipkart_seller_*_dropshipping
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\page.tsx
+
+### TABLE: flipkart_seller_*_dropy_ecom_movement_history
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\dropy-ecom\page.tsx
+
+### TABLE: flipkart_seller_*_golden_aura_movement_history
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\golden-aura\page.tsx
+
+### TABLE: flipkart_seller_*_high_demand
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\page.tsx
+
+### TABLE: flipkart_seller_*_low_demand
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\page.tsx
+
+### TABLE: flipkart_seller_*_rudra_retail_movement_history
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\rudra-retail\page.tsx
+
+### TABLE: flipkart_seller_*_ubeauty_movement_history
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\ubeauty\page.tsx
+
+### TABLE: flipkart_seller_*_velvet_vista_movement_history
+Used in 3 files:
+  - app\dashboard\flipkart\brand-checking\velvet-vista\page.tsx
+
+### TABLE: flipkart_seller_1_golden_aura_movement_history
+Used in 1 files:
+  - app\dashboard\flipkart\brand-checking\golden-aura\page.tsx
+
+### TABLE: flipkart_seller_2_rudra_retail_movement_history
+Used in 1 files:
+  - app\dashboard\flipkart\brand-checking\rudra-retail\page.tsx
+
+### TABLE: flipkart_seller_3_ubeauty_movement_history
+Used in 1 files:
+  - app\dashboard\flipkart\brand-checking\ubeauty\page.tsx
+
+### TABLE: flipkart_seller_4_velvet_vista_movement_history
+Used in 1 files:
+  - app\dashboard\flipkart\brand-checking\velvet-vista\page.tsx
+
+### TABLE: flipkart_seller_5_dropy_ecom_movement_history
+Used in 1 files:
+  - app\dashboard\flipkart\brand-checking\dropy-ecom\page.tsx
+
+### TABLE: flipkart_seller_6_costech_ventures_movement_history
+Used in 1 files:
+  - app\dashboard\flipkart\brand-checking\costech-ventures\page.tsx
+
+### TABLE: flipkart_shipment_seller_*
+Used in 1 files:
+  - app\dashboard\flipkart\tracking\page.tsx
+
+### TABLE: flipkart_tracking
+Used in 1 files:
+  - app\dashboard\flipkart\tracking\page.tsx
+
+### TABLE: flipkart_traking
+Used in 2 files:
+  - app\dashboard\flipkart\reorder\page.tsx
+
+### TABLE: flipkart_validation_constants
+Used in 4 files:
+  - app\dashboard\flipkart\validation\page.tsx
+
+### TABLE: flipkart_validation_main_file
+Used in 56 files:
+  - app\dashboard\flipkart\admin-validation\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\costech-ventures\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\golden-aura\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\rudra-retail\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\ubeauty\page.tsx
+  - app\dashboard\flipkart\listed-brand-checking\velvet-vista\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\costech-ventures\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\golden-aura\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\rudra-retail\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\ubeauty\page.tsx
+  - app\dashboard\flipkart\not-listed-brand-checking\velvet-vista\page.tsx
+  - app\dashboard\flipkart\purchases\page.tsx
+  - app\dashboard\flipkart\reorder\page.tsx
+  - app\dashboard\flipkart\tracking\page.tsx
+  - app\dashboard\flipkart\validation\page.tsx
+
+### TABLE: india-company-invoices
+Used in 2 files:
+  - app\dashboard\india-selling\tracking\components\InvoiceModal.tsx
+
+### TABLE: india_admin_validation
+Used in 10 files:
+  - app\dashboard\india-selling\admin-validation\page.tsx
+  - app\dashboard\india-selling\purchases\page.tsx
+
+### TABLE: india_admin_validation_constants
+Used in 4 files:
+  - app\dashboard\india-selling\admin-validation\page.tsx
+
+### TABLE: india_asin_history
+Used in 9 files:
+  - app\dashboard\india-selling\admin-validation\page.tsx
+  - app\dashboard\india-selling\listing-error\costech-ventures\page.tsx
+  - app\dashboard\india-selling\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\india-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\india-selling\purchases\page.tsx
+  - app\dashboard\india-selling\reorder\page.tsx
+  - app\dashboard\india-selling\validation\page.tsx
+
+### TABLE: india_brand_check_progress
+Used in 1 files:
+  - app\dashboard\india-selling\brand-checking\page.tsx
+
+### TABLE: india_checking_seller_*
+Used in 1 files:
+  - app\dashboard\india-selling\tracking\page.tsx
+
+### TABLE: india_company_invoice
+Used in 3 files:
+  - app\dashboard\flipkart\tracking\components\RollbackModal.tsx
+  - app\dashboard\india-selling\tracking\components\InvoiceModal.tsx
+  - app\dashboard\india-selling\tracking\components\RollbackModal.tsx
+
+### TABLE: india_invoice_seller_*
+Used in 1 files:
+  - app\dashboard\india-selling\tracking\page.tsx
+
+### TABLE: india_master_sellers
+Used in 5 files:
+  - app\dashboard\manage-sellers\india-sellers\components\IndiaMasterTable.tsx
+
+### TABLE: india_purchases
+Used in 15 files:
+  - app\dashboard\india-selling\admin-validation\page.tsx
+  - app\dashboard\india-selling\purchases\page.tsx
+  - app\dashboard\india-selling\tracking\page.tsx
+  - app\dashboard\india-selling\validation\page.tsx
+
+### TABLE: india_reorder_*
+Used in 9 files:
+  - app\dashboard\india-selling\reorder\page.tsx
+
+### TABLE: india_restock_seller_*
+Used in 1 files:
+  - app\dashboard\india-selling\tracking\page.tsx
+
+### TABLE: india_seller_*_dropshipping
+Used in 1 files:
+  - app\dashboard\india-selling\brand-checking\page.tsx
+
+### TABLE: india_seller_*_dropy_ecom_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\dropy-ecom\page.tsx
+
+### TABLE: india_seller_*_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: india_seller_*_high_demand
+Used in 1 files:
+  - app\dashboard\india-selling\brand-checking\page.tsx
+
+### TABLE: india_seller_*_low_demand
+Used in 1 files:
+  - app\dashboard\india-selling\brand-checking\page.tsx
+
+### TABLE: india_seller_*_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: india_seller_*_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: india_seller_*_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: india_seller_1_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: india_seller_2_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: india_seller_3_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: india_seller_4_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: india_seller_5_dropy_ecom_movement_history
+Used in 2 files:
+  - app\dashboard\india-selling\brand-checking\dropy-ecom\page.tsx
+
+### TABLE: india_seller_6_costech_ventures_movement_history
+Used in 4 files:
+  - app\dashboard\india-selling\brand-checking\costech-ventures\page.tsx
+
+### TABLE: india_shipment_seller_*
+Used in 1 files:
+  - app\dashboard\india-selling\tracking\page.tsx
+
+### TABLE: india_traking
+Used in 3 files:
+  - app\dashboard\india-selling\reorder\page.tsx
+  - app\dashboard\india-selling\tracking\page.tsx
+
+### TABLE: india_validation_constants
+Used in 4 files:
+  - app\dashboard\india-selling\validation\page.tsx
+
+### TABLE: india_validation_main_file
+Used in 37 files:
+  - app\dashboard\india-selling\admin-validation\page.tsx
+  - app\dashboard\india-selling\brand-checking\costech-ventures\page.tsx
+  - app\dashboard\india-selling\brand-checking\dropy-ecom\page.tsx
+  - app\dashboard\india-selling\brand-checking\golden-aura\page.tsx
+  - app\dashboard\india-selling\brand-checking\rudra-retail\page.tsx
+  - app\dashboard\india-selling\brand-checking\ubeauty\page.tsx
+  - app\dashboard\india-selling\brand-checking\velvet-vista\page.tsx
+  - app\dashboard\india-selling\purchases\page.tsx
+  - app\dashboard\india-selling\reorder\page.tsx
+  - app\dashboard\india-selling\tracking\page.tsx
+  - app\dashboard\india-selling\validation\page.tsx
+
+### TABLE: listing_error_progress
+Used in 154 files:
+  - app\dashboard\flipkart\admin-validation\page.tsx
+  - app\dashboard\flipkart\listing-error\costech-ventures\page.tsx
+  - app\dashboard\flipkart\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\flipkart\listing-error\golden-aura\page.tsx
+  - app\dashboard\flipkart\listing-error\rudra-retail\page.tsx
+  - app\dashboard\flipkart\listing-error\ubeauty\page.tsx
+  - app\dashboard\flipkart\listing-error\velvet-vista\page.tsx
+  - app\dashboard\india-selling\admin-validation\page.tsx
+  - app\dashboard\india-selling\listing-error\costech-ventures\page.tsx
+  - app\dashboard\india-selling\listing-error\dropy-ecom\page.tsx
+  - app\dashboard\india-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\india-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\india-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\india-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\uae-selling\admin-validation\page.tsx
+  - app\dashboard\uae-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uae-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\uae-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\uae-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\uk-selling\admin-validation\page.tsx
+  - app\dashboard\uk-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uk-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\uk-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\uk-selling\listing-error\velvet-vista\page.tsx
+  - app\dashboard\usa-selling\admin-validation\page.tsx
+  - app\dashboard\usa-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\usa-selling\listing-error\rudra-retail\page.tsx
+  - app\dashboard\usa-selling\listing-error\ubeauty\page.tsx
+  - app\dashboard\usa-selling\listing-error\velvet-vista\page.tsx
+
+### TABLE: sellers_upload
+Used in 5 files:
+  - app\dashboard\manage-sellers\add-seller\page.tsx
+
+### TABLE: tracking_invoice_rollback
+Used in 5 files:
+  - app\dashboard\flipkart\tracking\components\RollbackModal.tsx
+  - app\dashboard\india-selling\tracking\components\RollbackModal.tsx
+  - app\dashboard\uae-selling\tracking\components\RollbackModal.tsx
+  - app\dashboard\uk-selling\tracking\components\RollbackModal.tsx
+  - app\dashboard\usa-selling\tracking\components\RollbackModal.tsx
+
+### TABLE: uae_admin_validation
+Used in 10 files:
+  - app\dashboard\uae-selling\admin-validation\page.tsx
+  - app\dashboard\uae-selling\purchases\page.tsx
+
+### TABLE: uae_admin_validation_constants
+Used in 4 files:
+  - app\dashboard\uae-selling\admin-validation\page.tsx
+
+### TABLE: uae_asin_history
+Used in 7 files:
+  - app\dashboard\uae-selling\admin-validation\page.tsx
+  - app\dashboard\uae-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uae-selling\purchases\page.tsx
+  - app\dashboard\uae-selling\reorder\page.tsx
+  - app\dashboard\uae-selling\validation\page.tsx
+
+### TABLE: uae_brand_check_progress
+Used in 1 files:
+  - app\dashboard\uae-selling\brand-checking\page.tsx
+
+### TABLE: uae_checking_seller_*
+Used in 1 files:
+  - app\dashboard\uae-selling\tracking\page.tsx
+
+### TABLE: uae_company_invoice
+Used in 2 files:
+  - app\dashboard\uae-selling\tracking\components\InvoiceModal.tsx
+  - app\dashboard\uae-selling\tracking\components\RollbackModal.tsx
+
+### TABLE: uae_invoice_seller_*
+Used in 1 files:
+  - app\dashboard\uae-selling\tracking\page.tsx
+
+### TABLE: uae_master_sellers
+Used in 5 files:
+  - app\dashboard\manage-sellers\uae-sellers\components\UaeMasterTable.tsx
+
+### TABLE: uae_purchases
+Used in 15 files:
+  - app\dashboard\uae-selling\admin-validation\page.tsx
+  - app\dashboard\uae-selling\purchases\page.tsx
+  - app\dashboard\uae-selling\tracking\page.tsx
+  - app\dashboard\uae-selling\validation\page.tsx
+
+### TABLE: uae_reorder_*
+Used in 9 files:
+  - app\dashboard\uae-selling\reorder\page.tsx
+
+### TABLE: uae_restock_seller_*
+Used in 1 files:
+  - app\dashboard\uae-selling\tracking\page.tsx
+
+### TABLE: uae_seller_*_dropshipping
+Used in 1 files:
+  - app\dashboard\uae-selling\brand-checking\page.tsx
+
+### TABLE: uae_seller_*_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: uae_seller_*_high_demand
+Used in 1 files:
+  - app\dashboard\uae-selling\brand-checking\page.tsx
+
+### TABLE: uae_seller_*_low_demand
+Used in 1 files:
+  - app\dashboard\uae-selling\brand-checking\page.tsx
+
+### TABLE: uae_seller_*_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: uae_seller_*_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: uae_seller_*_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: uae_seller_1_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: uae_seller_2_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: uae_seller_3_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: uae_seller_4_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\uae-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: uae_shipment_seller_*
+Used in 1 files:
+  - app\dashboard\uae-selling\tracking\page.tsx
+
+### TABLE: uae_traking
+Used in 3 files:
+  - app\dashboard\uae-selling\reorder\page.tsx
+  - app\dashboard\uae-selling\tracking\page.tsx
+
+### TABLE: uae_validation_constants
+Used in 4 files:
+  - app\dashboard\uae-selling\validation\page.tsx
+
+### TABLE: uae_validation_main_file
+Used in 31 files:
+  - app\dashboard\uae-selling\admin-validation\page.tsx
+  - app\dashboard\uae-selling\brand-checking\golden-aura\page.tsx
+  - app\dashboard\uae-selling\brand-checking\rudra-retail\page.tsx
+  - app\dashboard\uae-selling\brand-checking\ubeauty\page.tsx
+  - app\dashboard\uae-selling\brand-checking\velvet-vista\page.tsx
+  - app\dashboard\uae-selling\purchases\page.tsx
+  - app\dashboard\uae-selling\reorder\page.tsx
+  - app\dashboard\uae-selling\tracking\page.tsx
+  - app\dashboard\uae-selling\validation\page.tsx
+
+### TABLE: uk-company-invoices
+Used in 4 files:
+  - app\dashboard\uae-selling\tracking\components\InvoiceModal.tsx
+  - app\dashboard\uk-selling\tracking\components\InvoiceModal.tsx
+
+### TABLE: uk_admin_validation
+Used in 10 files:
+  - app\dashboard\uk-selling\admin-validation\page.tsx
+  - app\dashboard\uk-selling\purchases\page.tsx
+
+### TABLE: uk_admin_validation_constants
+Used in 4 files:
+  - app\dashboard\uk-selling\admin-validation\page.tsx
+
+### TABLE: uk_asin_history
+Used in 7 files:
+  - app\dashboard\uk-selling\admin-validation\page.tsx
+  - app\dashboard\uk-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\uk-selling\purchases\page.tsx
+  - app\dashboard\uk-selling\reorder\page.tsx
+  - app\dashboard\uk-selling\validation\page.tsx
+
+### TABLE: uk_brand_check_progress
+Used in 1 files:
+  - app\dashboard\uk-selling\brand-checking\page.tsx
+
+### TABLE: uk_checking_seller_*
+Used in 1 files:
+  - app\dashboard\uk-selling\tracking\page.tsx
+
+### TABLE: uk_company_invoice
+Used in 2 files:
+  - app\dashboard\uk-selling\tracking\components\InvoiceModal.tsx
+  - app\dashboard\uk-selling\tracking\components\RollbackModal.tsx
+
+### TABLE: uk_invoice_seller_*
+Used in 1 files:
+  - app\dashboard\uk-selling\tracking\page.tsx
+
+### TABLE: uk_master_sellers
+Used in 5 files:
+  - app\dashboard\manage-sellers\uk-sellers\components\UkMasterTable.tsx
+
+### TABLE: uk_purchases
+Used in 15 files:
+  - app\dashboard\uk-selling\admin-validation\page.tsx
+  - app\dashboard\uk-selling\purchases\page.tsx
+  - app\dashboard\uk-selling\tracking\page.tsx
+  - app\dashboard\uk-selling\validation\page.tsx
+
+### TABLE: uk_reorder_*
+Used in 9 files:
+  - app\dashboard\uk-selling\reorder\page.tsx
+
+### TABLE: uk_restock_seller_*
+Used in 1 files:
+  - app\dashboard\uk-selling\tracking\page.tsx
+
+### TABLE: uk_seller_*_dropshipping
+Used in 1 files:
+  - app\dashboard\uk-selling\brand-checking\page.tsx
+
+### TABLE: uk_seller_*_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: uk_seller_*_high_demand
+Used in 1 files:
+  - app\dashboard\uk-selling\brand-checking\page.tsx
+
+### TABLE: uk_seller_*_low_demand
+Used in 1 files:
+  - app\dashboard\uk-selling\brand-checking\page.tsx
+
+### TABLE: uk_seller_*_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: uk_seller_*_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: uk_seller_*_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: uk_seller_1_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: uk_seller_2_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: uk_seller_3_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: uk_seller_4_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\uk-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: uk_shipment_seller_*
+Used in 1 files:
+  - app\dashboard\uk-selling\tracking\page.tsx
+
+### TABLE: uk_traking
+Used in 3 files:
+  - app\dashboard\uk-selling\reorder\page.tsx
+  - app\dashboard\uk-selling\tracking\page.tsx
+
+### TABLE: uk_validation_constants
+Used in 4 files:
+  - app\dashboard\uk-selling\validation\page.tsx
+
+### TABLE: uk_validation_main_file
+Used in 31 files:
+  - app\dashboard\uk-selling\admin-validation\page.tsx
+  - app\dashboard\uk-selling\brand-checking\golden-aura\page.tsx
+  - app\dashboard\uk-selling\brand-checking\rudra-retail\page.tsx
+  - app\dashboard\uk-selling\brand-checking\ubeauty\page.tsx
+  - app\dashboard\uk-selling\brand-checking\velvet-vista\page.tsx
+  - app\dashboard\uk-selling\purchases\page.tsx
+  - app\dashboard\uk-selling\reorder\page.tsx
+  - app\dashboard\uk-selling\tracking\page.tsx
+  - app\dashboard\uk-selling\validation\page.tsx
+
+### TABLE: usa-company-invoices
+Used in 2 files:
+  - app\dashboard\usa-selling\tracking\components\InvoiceModal.tsx
+
+### TABLE: usa_admin_validation
+Used in 11 files:
+  - app\api\usa-purchases\route.ts
+  - app\dashboard\usa-selling\admin-validation\page.tsx
+  - app\dashboard\usa-selling\purchases\page.tsx
+
+### TABLE: usa_admin_validation_constants
+Used in 4 files:
+  - app\dashboard\usa-selling\admin-validation\page.tsx
+
+### TABLE: usa_asin_history
+Used in 7 files:
+  - app\dashboard\usa-selling\admin-validation\page.tsx
+  - app\dashboard\usa-selling\listing-error\golden-aura\page.tsx
+  - app\dashboard\usa-selling\purchases\page.tsx
+  - app\dashboard\usa-selling\reorder\page.tsx
+  - app\dashboard\usa-selling\validation\page.tsx
+
+### TABLE: usa_brand_checking_seller_*
+Used in 2 files:
+  - app\api\distribute-products\route.ts
+
+### TABLE: usa_checking_seller_*
+Used in 1 files:
+  - app\dashboard\usa-selling\tracking\page.tsx
+
+### TABLE: usa_company_invoice
+Used in 2 files:
+  - app\dashboard\usa-selling\tracking\components\InvoiceModal.tsx
+  - app\dashboard\usa-selling\tracking\components\RollbackModal.tsx
+
+### TABLE: usa_invoice_seller_*
+Used in 1 files:
+  - app\dashboard\usa-selling\tracking\page.tsx
+
+### TABLE: usa_master_sellers
+Used in 5 files:
+  - app\dashboard\manage-sellers\usa-sellers\components\UsaMasterTable.tsx
+
+### TABLE: usa_purchases
+Used in 19 files:
+  - app\api\usa-purchases\route.ts
+  - app\dashboard\usa-selling\admin-validation\page.tsx
+  - app\dashboard\usa-selling\purchases\page.tsx
+  - app\dashboard\usa-selling\tracking\page.tsx
+  - app\dashboard\usa-selling\validation\page.tsx
+
+### TABLE: usa_reorder_*
+Used in 9 files:
+  - app\dashboard\usa-selling\reorder\page.tsx
+
+### TABLE: usa_restock_seller_*
+Used in 1 files:
+  - app\dashboard\usa-selling\tracking\page.tsx
+
+### TABLE: usa_seller_*_dropshipping
+Used in 1 files:
+  - app\dashboard\usa-selling\brand-checking\page.tsx
+
+### TABLE: usa_seller_*_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: usa_seller_*_high_demand
+Used in 1 files:
+  - app\dashboard\usa-selling\brand-checking\page.tsx
+
+### TABLE: usa_seller_*_low_demand
+Used in 1 files:
+  - app\dashboard\usa-selling\brand-checking\page.tsx
+
+### TABLE: usa_seller_*_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: usa_seller_*_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: usa_seller_*_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: usa_seller_1_golden_aura_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\golden-aura\page.tsx
+
+### TABLE: usa_seller_2_rudra_retail_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\rudra-retail\page.tsx
+
+### TABLE: usa_seller_3_ubeauty_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\ubeauty\page.tsx
+
+### TABLE: usa_seller_4_velvet_vista_movement_history
+Used in 2 files:
+  - app\dashboard\usa-selling\brand-checking\velvet-vista\page.tsx
+
+### TABLE: usa_shipment_seller_*
+Used in 1 files:
+  - app\dashboard\usa-selling\tracking\page.tsx
+
+### TABLE: usa_traking
+Used in 3 files:
+  - app\dashboard\usa-selling\reorder\page.tsx
+  - app\dashboard\usa-selling\tracking\page.tsx
+
+### TABLE: usa_validation_constants
+Used in 4 files:
+  - app\dashboard\usa-selling\validation\page.tsx
+
+### TABLE: usa_validation_main_file
+Used in 31 files:
+  - app\dashboard\usa-selling\admin-validation\page.tsx
+  - app\dashboard\usa-selling\brand-checking\golden-aura\page.tsx
+  - app\dashboard\usa-selling\brand-checking\rudra-retail\page.tsx
+  - app\dashboard\usa-selling\brand-checking\ubeauty\page.tsx
+  - app\dashboard\usa-selling\brand-checking\velvet-vista\page.tsx
+  - app\dashboard\usa-selling\purchases\page.tsx
+  - app\dashboard\usa-selling\reorder\page.tsx
+  - app\dashboard\usa-selling\tracking\page.tsx
+  - app\dashboard\usa-selling\validation\page.tsx
+
+### TABLE: usa_validation_pass_file
+Used in 1 files:
+  - app\api\usa-purchases\route.ts
+
+### TABLE: user_column_preferences
+Used in 12 files:
+  - app\dashboard\manage-sellers\dropy\page.tsx
+  - app\dashboard\manage-sellers\flipkart-sellers\page.tsx
+  - app\dashboard\manage-sellers\india-sellers\page.tsx
+  - app\dashboard\manage-sellers\uae-sellers\page.tsx
+  - app\dashboard\manage-sellers\uk-sellers\page.tsx
+  - app\dashboard\manage-sellers\usa-sellers\page.tsx
+
+### TABLE: user_roles
+Used in 3 files:
+  - app\login\page.tsx
+  - app\page.tsx
