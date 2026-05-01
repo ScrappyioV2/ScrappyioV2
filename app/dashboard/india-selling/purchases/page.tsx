@@ -1598,7 +1598,29 @@ export default function PurchasesPage() {
             admin_target_quantity: null,
             status: 'pending',
           });
-        if (insertError) throw insertError;
+        if (insertError) {
+          if (insertError.code === '23505') {
+            // Duplicate pending row exists — update it with fresh data instead
+            await supabase
+              .from('india_admin_validation')
+              .update({
+                buying_price: product.buying_price ?? null,
+                buying_quantity: tagQty,
+                buying_quantities: { [tag]: tagQty },
+                seller_link: null,
+                seller_phone: product.seller_phone || '',
+                payment_method: product.payment_method || '',
+                target_price: validationData?.inr_purchase || null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('asin', product.asin)
+              .eq('seller_tag', tag)
+              .eq('admin_status', 'pending')
+              .eq('journey_id', product.journey_id);
+          } else {
+            throw insertError;
+          }
+        }
       }
 
       // If ALL tags were skipped (already in admin), mark as sent and exit
