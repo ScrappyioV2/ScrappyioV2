@@ -11,7 +11,6 @@ import { calculateProductValues, type CalculationConstants, type CalculationResu
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
-import { useVirtualizer } from '@tanstack/react-virtual';
 
 async function batchedIn<T>(
   queryBuilder: () => any,
@@ -189,6 +188,14 @@ export default function AdminValidationPage() {
 
   // 🆕 NEW: Toggle to show all journey cycles or just latest
   const [showAllJourneys, setShowAllJourneys] = useState(false);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, originFilter, funnelFilter, remarkFilter, adminStatusFilter, showAllJourneys]);
 
   // Fetch products from india_admin_validation table
   const fetchProducts = async (showLoader: boolean = false) => {
@@ -703,7 +710,6 @@ export default function AdminValidationPage() {
 
   // Table ref for resizing
   const tableRef = useRef<HTMLTableElement>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   // Handle double-click to auto-fit column width
   const handleColumnDoubleClick = (columnKey: string) => {
@@ -945,18 +951,11 @@ export default function AdminValidationPage() {
     });
   }, [filteredProducts, profitSort]);
 
-  const rowVirtualizer = useVirtualizer({
-    count: sortedProducts.length,
-    getScrollElement: () => tableScrollRef.current,
-    estimateSize: () => 60,
-    overscan: 10,
-  });
-  const virtualItems = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
-  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
-  const paddingBottom = virtualItems.length > 0
-    ? totalSize - virtualItems[virtualItems.length - 1].end
-    : 0;
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
+  const paginatedProducts = sortedProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
 
   const handleSendBackToPurchases = async () => {
@@ -2950,7 +2949,7 @@ export default function AdminValidationPage() {
 
         {/* Table - SCROLLABLE ONLY */}
         <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
-          <div ref={tableScrollRef} className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+          <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
             <table className="w-full border-collapse" ref={tableRef}>
               <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
                 <tr>
@@ -3050,46 +3049,60 @@ export default function AdminValidationPage() {
                     </td>
                   </tr>
                 ) : (
-                  <>
-                    {paddingTop > 0 && (
-                      <tr><td colSpan={16} style={{ height: paddingTop, padding: 0, border: 0 }} /></tr>
-                    )}
-                    {virtualItems.map((virtualRow) => {
-                      const product = sortedProducts[virtualRow.index];
-                      return (
-                        <tr key={product.id} data-index={virtualRow.index} ref={rowVirtualizer.measureElement} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
-                          <td className="px-6 py-4 border-r border-white/[0.1]">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(product.id)}
-                              onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                              className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
-                            />
-                          </td>
-                          {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
-                        </tr>
-                      );
-                    })}
-                    {paddingBottom > 0 && (
-                      <tr><td colSpan={16} style={{ height: paddingBottom, padding: 0, border: 0 }} /></tr>
-                    )}
-                  </>
+                  paginatedProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
+                      <td className="px-6 py-4 border-r border-white/[0.1]">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(product.id)}
+                          onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                        />
+                      </td>
+                      {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Stats Footer - FIXED AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 text-sm text-gray-300">
-            Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
-            {filteredProducts.length > 0 && (
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+            <div>
+              Showing <span className="font-bold text-white">{sortedProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+              {' - '}
+              <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)}</span>
+              {' of '}
+              <span className="font-bold text-white">{sortedProducts.length}</span> products
+              {filteredProducts.length > 0 && (
+                <button
+                  onClick={() => downloadCSV(filteredProducts, `india-admin-${activeTab}-quick-${new Date().toISOString().split('T')[0]}.csv`)}
+                  className="ml-4 text-xs text-orange-500 hover:text-orange-400 underline cursor-pointer"
+                >
+                  Export visible rows
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => downloadCSV(filteredProducts, `india-admin-${activeTab}-quick-${new Date().toISOString().split('T')[0]}.csv`)}
-                className="ml-4 text-xs text-orange-500 hover:text-orange-400 underline cursor-pointer"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
               >
-                Export visible rows
+                Previous
               </button>
-            )}
+              <span className="text-xs text-gray-400 px-2">
+                Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
 

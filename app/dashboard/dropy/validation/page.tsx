@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
-import { useVirtualizer } from '@tanstack/react-virtual';
 
 const toSnakeCase = (obj: Record<string, any>): Record<string, any> => {
     const map: Record<string, string> = {
@@ -946,20 +945,6 @@ export default function ValidationPage() {
 
     // ✅ STEP 3: Calculate total pages
     const totalPages = Math.ceil(allFilteredProducts.length / rowsPerPage);
-
-    const tableScrollRef = useRef<HTMLDivElement>(null);
-    const rowVirtualizer = useVirtualizer({
-        count: filteredProducts.length,
-        getScrollElement: () => tableScrollRef.current,
-        estimateSize: () => 60,
-        overscan: 10,
-    });
-    const virtualItems = rowVirtualizer.getVirtualItems();
-    const totalSize = rowVirtualizer.getTotalSize();
-    const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
-    const paddingBottom = virtualItems.length > 0
-        ? totalSize - virtualItems[virtualItems.length - 1].end
-        : 0;
 
 
 
@@ -3643,7 +3628,7 @@ export default function ValidationPage() {
                             </div>
                         ) : (
                             <>
-                                <div ref={tableScrollRef} className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50" style={{ overflow: 'auto visible' }} onScroll={() => { setOpenFunnelId(null); setDropdownPos(null); setOpenChecklistId(null); setOpenOriginId(null); }}>
+                                <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50" style={{ overflow: 'auto visible' }} onScroll={() => { setOpenFunnelId(null); setDropdownPos(null); setOpenChecklistId(null); setOpenOriginId(null); }}>
                                     {/* ✅ ADD THIS LOADING OVERLAY */}
                                     {isTabSwitching && (
                                         <div className="absolute inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">
@@ -3741,44 +3726,32 @@ export default function ValidationPage() {
                                         </thead>
 
                                         <tbody className="divide-y divide-white/[0.06] overflow-visible">
-                                            {paddingTop > 0 && (
-                                                <tr><td colSpan={30} style={{ height: paddingTop, padding: 0, border: 0 }} /></tr>
-                                            )}
-                                            {virtualItems.map((virtualRow) => {
-                                                const product = filteredProducts[virtualRow.index];
-                                                const idx = virtualRow.index;
-                                                return (
-                                                    <tr
-                                                        key={product.id}
-                                                        data-index={virtualRow.index}
-                                                        ref={rowVirtualizer.measureElement}
-                                                        onClick={() => markRowActive(product.id)}
-                                                        className={
-                                                            product.id === activeRowId
-                                                                ? 'bg-emerald-500/10 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)] transition-colors'
-                                                                : 'hover:bg-[#1a1a1a]/50 transition-colors'
-                                                        }
-                                                    >
-                                                        <td className="p-3">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedIds.has(product.id)}
-                                                                onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                                                                className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
-                                                            />
-                                                        </td>
+                                            {filteredProducts.map((product, idx) => (
+                                                <tr
+                                                    key={product.id}
+                                                    onClick={() => markRowActive(product.id)}
+                                                    className={
+                                                        product.id === activeRowId
+                                                            ? 'bg-emerald-500/10 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)] transition-colors'
+                                                            : 'hover:bg-[#1a1a1a]/50 transition-colors'
+                                                    }
+                                                >
+                                                    <td className="p-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(product.id)}
+                                                            onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                                                            className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50"
+                                                        />
+                                                    </td>
 
-                                                        <td className="px-6 py-4 text-center text-xs font-mono text-gray-300">
-                                                            {(currentPage - 1) * rowsPerPage + idx + 1}
-                                                        </td>
+                                                    <td className="px-6 py-4 text-center text-xs font-mono text-gray-300">
+                                                        {(currentPage - 1) * rowsPerPage + idx + 1}
+                                                    </td>
 
-                                                        {columnOrder.map((col_key) => renderCell(col_key, product))}
-                                                    </tr>
-                                                );
-                                            })}
-                                            {paddingBottom > 0 && (
-                                                <tr><td colSpan={30} style={{ height: paddingBottom, padding: 0, border: 0 }} /></tr>
-                                            )}
+                                                    {columnOrder.map((col_key) => renderCell(col_key, product))}
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
