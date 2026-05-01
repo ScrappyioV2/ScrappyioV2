@@ -26,7 +26,9 @@
       "Bash(python refactor_listing_errors.py)",
       "Bash(grep -v \"^$\")",
       "Bash(wc -l app/dashboard/india-selling/brand-checking/*/page.tsx app/dashboard/usa-selling/brand-checking/*/page.tsx app/dashboard/uk-selling/brand-checking/*/page.tsx app/dashboard/uae-selling/brand-checking/*/page.tsx app/dashboard/flipkart/brand-checking/*/page.tsx)",
-      "Bash(python refactor_brand_checking.py)"
+      "Bash(python refactor_brand_checking.py)",
+      "Bash(git commit *)",
+      "Bash(docker exec *)"
     ]
   }
 }
