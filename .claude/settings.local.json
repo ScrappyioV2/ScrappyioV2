@@ -28,7 +28,8 @@
       "Bash(wc -l app/dashboard/india-selling/brand-checking/*/page.tsx app/dashboard/usa-selling/brand-checking/*/page.tsx app/dashboard/uk-selling/brand-checking/*/page.tsx app/dashboard/uae-selling/brand-checking/*/page.tsx app/dashboard/flipkart/brand-checking/*/page.tsx)",
       "Bash(python refactor_brand_checking.py)",
       "Bash(git commit *)",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(npm install *)"
     ]
   }
 }

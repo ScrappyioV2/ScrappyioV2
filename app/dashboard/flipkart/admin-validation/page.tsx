@@ -13,6 +13,23 @@ import { calculateProductValues, type CalculationConstants, type CalculationResu
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
+import { useVirtualizer } from '@tanstack/react-virtual';
+
+async function batchedIn<T>(
+  queryBuilder: () => any,
+  column: string,
+  values: string[],
+  batchSize = 100
+): Promise<T[]> {
+  const results: T[] = [];
+  for (let i = 0; i < values.length; i += batchSize) {
+    const chunk = values.slice(i, i + batchSize);
+    const { data, error } = await queryBuilder().in(column, chunk);
+    if (error) throw error;
+    if (data) results.push(...data);
+  }
+  return results;
+}
 
 type AdminProduct = {
   id: string;
@@ -234,14 +251,12 @@ export default function AdminValidationPage() {
       const asins = adminData.map(p => p.asin)
 
       // 3️⃣ Batch fetch from BOTH tables
-      const [purchaseResult, validationResult] = await Promise.all([
-        supabase.from('flipkart_purchases')
-          .select('asin, journey_id, journey_number, buying_price, buying_quantity, buying_quantities, seller_link, seller_phone, payment_method, target_price, product_weight, usd_price, inr_purchase, funnel, seller_tag')
-          .in('asin', asins),
+      const [purchaseData, validationData] = await Promise.all([
+        batchedIn<any>(() => supabase.from('flipkart_purchases')
+          .select('asin, journey_id, journey_number, buying_price, buying_quantity, buying_quantities, seller_link, seller_phone, payment_method, target_price, product_weight, usd_price, inr_purchase, funnel, seller_tag'), 'asin', asins),
 
-        supabase.from('flipkart_validation_main_file')
-          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku, amazon_category, fulfillment_channel, shipping_zone')
-          .in('asin', asins)
+        batchedIn<any>(() => supabase.from('flipkart_validation_main_file')
+          .select('asin, current_journey_id, journey_number, seller_tag, funnel, product_weight, usd_price, inr_purchase, sku, amazon_category, fulfillment_channel, shipping_zone'), 'asin', asins)
       ]);
 
 
@@ -249,7 +264,7 @@ export default function AdminValidationPage() {
       const purchaseMap = new Map();
       const purchaseFallbackMap = new Map(); // Fallback for legacy data without journey_id
 
-      purchaseResult.data?.forEach(p => {
+      purchaseData.forEach(p => {
         if (p.journey_id) {
           purchaseMap.set(`${p.asin}|${p.journey_id}`, p);
         }
@@ -262,7 +277,7 @@ export default function AdminValidationPage() {
       const validationMap = new Map();
       const validationFallbackMap = new Map();
 
-      validationResult.data?.forEach(v => {
+      validationData.forEach(v => {
         if (v.current_journey_id) {
           validationMap.set(`${v.asin}|${v.current_journey_id}`, v);
         }
@@ -688,6 +703,7 @@ export default function AdminValidationPage() {
 
   // Table ref for resizing
   const tableRef = useRef<HTMLTableElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   // Handle double-click to auto-fit column width
   const handleColumnDoubleClick = (columnKey: string) => {
@@ -928,6 +944,19 @@ export default function AdminValidationPage() {
       return profitSort === 'asc' ? aProfit - bProfit : bProfit - aProfit;
     });
   }, [filteredProducts, profitSort]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: sortedProducts.length,
+    getScrollElement: () => tableScrollRef.current,
+    estimateSize: () => 60,
+    overscan: 10,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom = virtualItems.length > 0
+    ? totalSize - virtualItems[virtualItems.length - 1].end
+    : 0;
 
 
   const handleSendBackToPurchases = async () => {
@@ -2919,7 +2948,7 @@ export default function AdminValidationPage() {
 
         {/* Table - SCROLLABLE ONLY */}
         <div className="bg-[#111111] rounded-2xl shadow-xl overflow-hidden flex flex-col flex-1 min-h-0 border border-white/[0.1]">
-          <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
+          <div ref={tableScrollRef} className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900/50">
             <table className="w-full border-collapse" ref={tableRef}>
               <thead className="bg-[#111111] border-b border-white/[0.1] sticky top-0 z-10 shadow-md">
                 <tr>
@@ -3019,19 +3048,30 @@ export default function AdminValidationPage() {
                     </td>
                   </tr>
                 ) : (
-                  sortedProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
-                      <td className="px-6 py-4 border-r border-white/[0.1]">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(product.id)}
-                          onChange={(e) => handleSelectRow(product.id, e.target.checked)}
-                          className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
-                        />
-                      </td>
-                      {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
-                    </tr>
-                  ))
+                  <>
+                    {paddingTop > 0 && (
+                      <tr><td colSpan={16} style={{ height: paddingTop, padding: 0, border: 0 }} /></tr>
+                    )}
+                    {virtualItems.map((virtualRow) => {
+                      const product = sortedProducts[virtualRow.index];
+                      return (
+                        <tr key={product.id} data-index={virtualRow.index} ref={rowVirtualizer.measureElement} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
+                          <td className="px-6 py-4 border-r border-white/[0.1]">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(product.id)}
+                              onChange={(e) => handleSelectRow(product.id, e.target.checked)}
+                              className="rounded border-white/[0.1] bg-[#111111] text-orange-500 focus:ring-orange-500/50 cursor-pointer"
+                            />
+                          </td>
+                          {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
+                        </tr>
+                      );
+                    })}
+                    {paddingBottom > 0 && (
+                      <tr><td colSpan={16} style={{ height: paddingBottom, padding: 0, border: 0 }} /></tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
