@@ -29,7 +29,9 @@
       "Bash(python refactor_brand_checking.py)",
       "Bash(git commit *)",
       "Bash(docker exec *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "PowerShell(git push origin main)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

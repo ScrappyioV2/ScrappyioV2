@@ -1253,7 +1253,7 @@ function AddSeller() {
   }
 
   const copyAllLinks = () => {
-    const allLinks = generatedLinks.map(link => link.profile_link).join('\n')
+    const allLinks = generatedLinks.map(link => link.profile_link).join('\n');
     (() => { try { navigator.clipboard?.writeText(allLinks); } catch { const t = document.createElement('textarea'); t.value = allLinks; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } })()
     showToast(`Copied ${generatedLinks.length} links to clipboard!`, 'success')
   }

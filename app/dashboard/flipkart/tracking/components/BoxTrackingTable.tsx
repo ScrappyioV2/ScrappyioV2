@@ -80,6 +80,7 @@ type BoxProduct = {
     inbound_tracking_id?: string | null;
     quantity_assigned?: number | null;
     created_at: string | null;
+    sns_active?: boolean | null;
 };
 
 type GroupedBox = {

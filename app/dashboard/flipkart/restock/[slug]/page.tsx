@@ -135,7 +135,7 @@ function RestockRollbackModal({
             onSuccess();
             onClose();
         } catch (err: any) {
-            setToast({ message: `Rollback failed: ${err.message}`, type: 'error' });
+            alert(`Rollback failed: ${err.message}`);
         } finally {
             setProcessing(false);
         }

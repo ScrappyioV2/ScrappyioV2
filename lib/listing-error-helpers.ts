@@ -7,7 +7,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 // Types
 export type TabType = 'high_demand' | 'low_demand' | 'dropshipping' | 'done' | 'pending' | 'error' | 'removed';
-export type Marketplace = 'india' | 'usa' | 'uk' | 'uae' | 'flipkart';
+export type Marketplace = 'india' | 'usa' | 'uk' | 'uae' | 'flipkart' | 'dropy';
 
 export interface ListingProduct {
   id: string;

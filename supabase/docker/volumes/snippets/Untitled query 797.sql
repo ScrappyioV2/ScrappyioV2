@@ -1,3 +1,5 @@
-SELECT COUNT(*), marketplace FROM brand_checking
-WHERE created_at >= '2026-05-01 06:47:00'
-GROUP BY marketplace;
+SELECT asin, journey_id, journey_number, seller_tag, admin_status, created_at
+FROM india_admin_validation
+WHERE asin = 'B0007XBNSI'
+ORDER BY created_at
+LIMIT 5;
