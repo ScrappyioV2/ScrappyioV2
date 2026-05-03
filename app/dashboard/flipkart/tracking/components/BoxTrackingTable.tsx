@@ -286,6 +286,14 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
     const [editBoxData, setEditBoxData] = useState<GroupedBox | null>(null);
     const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [viewMode, searchQuery]);
+
     const showToast = useCallback((message: string, type: ToastType) => {
         setToast({ message, type });
     }, []);
@@ -628,6 +636,20 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
         return result;
     }, [filteredProducts]);
 
+    // ============================================
+    // PAGINATION
+    // ============================================
+    const activeArray = viewMode === 'grouped' ? groupedBoxes : filteredProducts;
+    const totalPages = Math.max(1, Math.ceil(activeArray.length / ITEMS_PER_PAGE));
+    const paginatedProducts = filteredProducts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+    const paginatedGroups = groupedBoxes.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
     const toggleExpand = (boxNumber: string) => {
         setExpandedBoxes(prev => {
             const newSet = new Set(prev);
@@ -721,7 +743,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                         No items in boxes yet. Move delivered items from Inbound tab.
                                     </div>
                                 ) : (
-                                    groupedBoxes.map(group => {
+                                    paginatedGroups.map(group => {
                                         const isExpanded = expandedBoxes.has(group.box_number);
                                         const isUnassigned = group.box_number === 'UNASSIGNED';
 
@@ -905,7 +927,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredProducts.map(p => (
+                                        paginatedProducts.map(p => (
                                             <tr key={p.id} className="hover:bg-white/[0.05] transition-colors">
                                                 <td className="px-6 py-4 font-mono text-sm text-gray-300 border-r border-white/[0.1]">
                                                     <a href={p.product_link || `https://www.amazon.in/dp/${p.asin}`} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline font-semibold flex items-center gap-1 w-fit truncate max-w-[120px]">
@@ -948,15 +970,33 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                         )}
                     </div>
 
-                    {/* Footer */}
-                    <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs sm:text-sm text-gray-300">
-                            <span>
-                                {filteredProducts.length} items · {groupedBoxes.length} boxes
+                    {/* Footer with Pagination */}
+                    <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+                        <div>
+                            Showing <span className="font-bold text-white">{activeArray.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                            {' - '}
+                            <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, activeArray.length)}</span>
+                            {' of '}
+                            <span className="font-bold text-white">{activeArray.length}</span> {viewMode === 'grouped' ? 'box groups' : 'products'}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-xs text-gray-400 px-2">
+                                Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
                             </span>
-                            <div className="flex gap-4">
-                                <span className="text-blue-400 font-semibold">📦 {products.length} Assigned items</span>
-                            </div>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                            >
+                                Next
+                            </button>
                         </div>
                     </div>
                 </div>

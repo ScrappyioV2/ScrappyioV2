@@ -37,7 +37,8 @@
       "Read(//tmp/**)",
       "Bash(npx tsc *)",
       "Bash(echo \"exit=$?\")",
-      "Bash(echo \"EXIT CODE: $?\")"
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(echo \"EXIT_CODE=$?\")"
     ]
   }
 }
