@@ -366,7 +366,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
             })
             .subscribe();
 
-        return () => { channel.unsubscribe(); };
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
     // ============================================

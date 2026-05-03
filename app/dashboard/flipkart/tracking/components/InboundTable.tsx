@@ -452,7 +452,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             })
             .subscribe();
 
-        return () => { channel.unsubscribe(); };
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
     useEffect(() => {

@@ -292,7 +292,7 @@ export default function AdminValidationPage() {
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [showAllJourneys]);
 

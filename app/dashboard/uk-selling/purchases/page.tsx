@@ -306,7 +306,7 @@ export default function PurchasesPage() {
       .subscribe()
 
     return () => {
-      channel.unsubscribe()
+      supabase.removeChannel(channel)
     }
   }, [showAllJourneys]);
 

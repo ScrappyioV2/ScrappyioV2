@@ -491,7 +491,7 @@ export default function RestockPage() {
             })
             .subscribe()
 
-        return () => { channel.unsubscribe() }
+        return () => { supabase.removeChannel(channel) }
     }, [currentSeller.id])
 
     useEffect(() => {

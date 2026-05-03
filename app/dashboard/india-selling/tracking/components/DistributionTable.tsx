@@ -171,7 +171,7 @@ export default function DistributionTable({ sellerId, onCountsChange }: Distribu
             })
             .subscribe();
 
-        return () => { channel.unsubscribe(); };
+        return () => { supabase.removeChannel(channel); };
     }, [sellerTag]);
 
     // ============================================

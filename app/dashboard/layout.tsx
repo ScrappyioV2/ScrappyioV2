@@ -71,7 +71,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       })
       .subscribe()
 
-    return () => { channel.unsubscribe() }
+    return () => { supabase.removeChannel(channel) }
   }, [user])
 
   useEffect(() => {

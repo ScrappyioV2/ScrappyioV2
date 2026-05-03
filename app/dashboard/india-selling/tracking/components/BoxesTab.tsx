@@ -554,7 +554,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
             .subscribe();
 
         return () => {
-            channel.unsubscribe();
+            supabase.removeChannel(channel);
         };
     }, []);
 

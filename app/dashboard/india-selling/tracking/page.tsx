@@ -65,7 +65,7 @@ export default function TrackingPage() {
             .on("postgres_changes", { event: "*", schema: "public", table: "india_box_checking" }, () => fetchTabCounts())
             .subscribe();
         return () => {
-            channel.unsubscribe();
+            supabase.removeChannel(channel);
         };
     }, []);
 

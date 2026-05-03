@@ -383,7 +383,7 @@ export default function TrackingPage() {
             .subscribe();
 
         return () => {
-            channel.unsubscribe();
+            supabase.removeChannel(channel);
         };
     }, [currentSellerId]); // Re-run when seller changes
 
