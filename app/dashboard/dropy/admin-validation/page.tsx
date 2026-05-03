@@ -166,6 +166,14 @@ export default function AdminValidationPage() {
   // 🆕 NEW: Toggle to show all journey cycles or just latest
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, originFilter, funnelFilter, remarkFilter, adminStatusFilter, showAllJourneys]);
+
   // Fetch products from dropy_admin_validation table
   const fetchProducts = async (showLoader: boolean = false) => {
     try {
@@ -921,6 +929,12 @@ export default function AdminValidationPage() {
       return profitSort === 'asc' ? aProfit - bProfit : bProfit - aProfit;
     });
   }, [filteredProducts, profitSort]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
+  const paginatedProducts = sortedProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
 
   const handleSendBackToPurchases = async () => {
@@ -3014,7 +3028,7 @@ export default function AdminValidationPage() {
                     </td>
                   </tr>
                 ) : (
-                  sortedProducts.map((product) => (
+                  paginatedProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] [&>td]:border-r [&>td]:border-white/[0.1]">
                       <td className="px-6 py-4 border-r border-white/[0.1]">
                         <input
@@ -3033,16 +3047,41 @@ export default function AdminValidationPage() {
           </div>
 
           {/* Stats Footer - FIXED AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 text-sm text-gray-300">
-            Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
-            {filteredProducts.length > 0 && (
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+            <div>
+              Showing <span className="font-bold text-white">{sortedProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+              {' - '}
+              <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)}</span>
+              {' of '}
+              <span className="font-bold text-white">{sortedProducts.length}</span> products
+              {filteredProducts.length > 0 && (
+                <button
+                  onClick={() => downloadCSV(filteredProducts, `dropy-admin-${activeTab}-quick-${new Date().toISOString().split('T')[0]}.csv`)}
+                  className="ml-4 text-xs text-orange-500 hover:text-orange-400 underline cursor-pointer"
+                >
+                  Export visible rows
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => downloadCSV(filteredProducts, `dropy-admin-${activeTab}-quick-${new Date().toISOString().split('T')[0]}.csv`)}
-                className="ml-4 text-xs text-orange-500 hover:text-orange-400 underline cursor-pointer"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
               >
-                Export visible rows
+                Previous
               </button>
-            )}
+              <span className="text-xs text-gray-400 px-2">
+                Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
 

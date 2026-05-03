@@ -80,6 +80,14 @@ export default function PurchasesPage() {
 }>>>({})
   const [showAllJourneys, setShowAllJourneys] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, showAllJourneys]);
+
   // History Sidebar State
   const [selectedHistoryAsin, setSelectedHistoryAsin] = useState<string | null>(null)
   // Remark Modal State
@@ -814,6 +822,12 @@ useEffect(() => {
     }
   })
 
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
@@ -1174,7 +1188,7 @@ useEffect(() => {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((product) => {
+                paginatedProducts.map((product) => {
                   return (
                     <tr key={product.id} className="hover:bg-[#111111]/60 transition-colors border-b border-white/[0.1] group">
 
@@ -1361,10 +1375,33 @@ useEffect(() => {
           </table>
         </div>
         {/* Footer Stats */}
-        <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
-          <div className="text-sm text-gray-300">
-            Showing <span className="font-bold text-white">{filteredProducts.length}</span> of <span className="font-bold text-white">{products.length}</span> products
+        <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+          <div>
+            Showing <span className="font-bold text-white">{filteredProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+            {' - '}
+            <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)}</span>
+            {' of '}
+            <span className="font-bold text-white">{filteredProducts.length}</span> products
             {selectedIds.size > 0 && <span className="ml-2 text-orange-500 font-semibold">| {selectedIds.size} selected</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+            >
+              Previous
+            </button>
+            <span className="text-xs text-gray-400 px-2">
+              Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>

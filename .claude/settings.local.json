@@ -31,7 +31,10 @@
       "Bash(docker exec *)",
       "Bash(npm install *)",
       "PowerShell(git push origin main)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(awk 'NR>=551 && NR<=720 && /^  \\\\}\\\\\\)/ {print NR\": \"$0; exit}' c:/Project/scrappy-v2/app/dashboard/uae-selling/admin-validation/page.tsx)",
+      "Bash(tee /tmp/tsc-out.txt)",
+      "Read(//tmp/**)"
     ]
   }
 }
