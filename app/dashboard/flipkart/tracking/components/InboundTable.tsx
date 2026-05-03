@@ -150,6 +150,14 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
     // Persist
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(columnOrder)); }, [columnOrder]);
     useEffect(() => { localStorage.setItem(WIDTH_KEY, JSON.stringify(columnWidths)); }, [columnWidths]);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, originFilter, overdueDays]);
     // Drag state
     const [dragCol, setDragCol] = useState<string | null>(null);
     const [dragOverCol, setDragOverCol] = useState<string | null>(null);
@@ -689,6 +697,12 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
         return filteredProducts.filter(p => (p.pending_quantity ?? p.buying_quantity ?? 0) > 0);
     }, [filteredProducts]);
 
+    const totalPages = Math.max(1, Math.ceil(displayProducts.length / ITEMS_PER_PAGE));
+    const paginatedProducts = displayProducts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
     // ============================================
     // SELECT ALL / ROW
     // ============================================
@@ -988,7 +1002,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                         </td>
                                     </tr>
                                 ) : (
-                                    displayProducts.map((product, filteredIndex) => {
+                                    paginatedProducts.map((product, filteredIndex) => {
                                         const tagColors = SELLER_STYLES;
                                         const overdue = isRowOverdue(product.delivery_date);
                                         const sellerTag = (product.seller_tag || 'GR').trim().toUpperCase();
@@ -1120,17 +1134,32 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     </div>
 
                     {/* Footer */}
-                    <div className="flex-none borde-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-gray-300">
-                            <span>
-                                Showing {displayProducts.length} items ({products.length} total rows)
-                                {selectedIds.size > 0 && ` · ${selectedIds.size} selected`}
+                    <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+                        <div>
+                            Showing <span className="font-bold text-white">{displayProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                            {' - '}
+                            <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, displayProducts.length)}</span>
+                            {' of '}
+                            <span className="font-bold text-white">{displayProducts.length}</span> products
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-xs text-gray-400 px-2">
+                                Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
                             </span>
-                            <div className="flex gap-2 sm:gap-4 flex-wrap">
-                                <span className="text-yellow-400">⏳ {products.filter(p => p.status === 'pending').length} Pending</span>
-                                <span className="text-blue-400">🚚 {products.filter(p => p.status === 'in_transit').length} In Transit</span>
-                                <span className="text-green-400">✅ {products.filter(p => p.status === 'delivered').length} Delivered</span>
-                            </div>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage >= totalPages}
+                                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                            >
+                                Next
+                            </button>
                         </div>
                     </div>
                 </div>

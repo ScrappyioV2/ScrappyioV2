@@ -36,7 +36,8 @@
       "Bash(tee /tmp/tsc-out.txt)",
       "Read(//tmp/**)",
       "Bash(npx tsc *)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"EXIT CODE: $?\")"
     ]
   }
 }

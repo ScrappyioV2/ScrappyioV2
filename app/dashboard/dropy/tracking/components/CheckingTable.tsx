@@ -873,6 +873,20 @@ export default function CheckingTable({
     return filteredItems;
   }, [filteredItems]);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, checkingTab, partyFilter, offlineDateFilter, offlineDateStart, offlineDateEnd]);
+
+  const totalPages = Math.max(1, Math.ceil(displayItems.length / ITEMS_PER_PAGE));
+  const paginatedProducts = displayItems.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1267,7 +1281,7 @@ export default function CheckingTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
-                {displayItems.map((item, index) => {
+                {paginatedProducts.map((item, index) => {
                   const anyChecklist = hasAnyChecklist(item);
                   return (
                     <tr key={item.id} className="bg-[#1a1a1a] hover:bg-[#111111]/60">
@@ -1518,9 +1532,32 @@ export default function CheckingTable({
           </div>
 
           {/* Footer Count - STICKY AT BOTTOM */}
-          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
-            <div className="text-xs sm:text-sm text-gray-300">
-              Showing {displayItems.length} items
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+            <div>
+              Showing <span className="font-bold text-white">{displayItems.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+              {' - '}
+              <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, displayItems.length)}</span>
+              {' of '}
+              <span className="font-bold text-white">{displayItems.length}</span> products
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-400 px-2">
+                Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+              >
+                Next
+              </button>
             </div>
           </div>
         </div>
