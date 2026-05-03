@@ -96,6 +96,15 @@ export default function TrackingPage() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchQuery, activeSeller]);
+
     const [invoiceOpen, setInvoiceOpen] = useState(false)
     const [rollbackOpen, setRollbackOpen] = useState(false)
     const selectedItems = products
@@ -451,6 +460,12 @@ export default function TrackingPage() {
         // 3. Status Filter
         return !p.sent_to_admin && !p.move_to
     })
+
+    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+    const paginatedProducts = filteredProducts.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -935,7 +950,7 @@ export default function TrackingPage() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredProducts.map((product) => {
+                                            paginatedProducts.map((product) => {
                                                 return (
                                                     <tr key={product.id} className="hover:bg-white/[0.05] group transition-colors">
                                                         {visibleColumns.checkbox && (
@@ -1214,10 +1229,33 @@ export default function TrackingPage() {
 
                         {/* Footer Stats - STICKY AT BOTTOM */}
                         {activeTab === 'main_file' && (
-                            <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3">
-                                <div className="text-sm text-gray-300">
-                                    Showing {filteredProducts.length} of {products.length} products
+                            <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+                                <div>
+                                    Showing <span className="font-bold text-white">{filteredProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                                    {' - '}
+                                    <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)}</span>
+                                    {' of '}
+                                    <span className="font-bold text-white">{filteredProducts.length}</span> products
                                     {selectedIds.size > 0 && ` | ${selectedIds.size} selected`}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-xs text-gray-400 px-2">
+                                        Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage >= totalPages}
+                                        className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                                    >
+                                        Next
+                                    </button>
                                 </div>
                             </div>
                         )}

@@ -76,6 +76,14 @@ export default function CostechVenturesPage() {
   } | null>(null);
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, categoryFilter]);
+
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -177,6 +185,12 @@ export default function CostechVenturesPage() {
     groups.sort((a, b) => b.count - a.count);
     return groups;
   }, [filteredProducts]);
+
+  const totalPages = Math.max(1, Math.ceil(groupedByBrand.length / ITEMS_PER_PAGE));
+  const paginatedProducts = groupedByBrand.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const toggleBrand = (brand: string) => {
     setExpandedBrands((prev) => {
@@ -452,7 +466,7 @@ export default function CostechVenturesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groupedByBrand.map(({ brand, items, count, topRoot }) => {
+                    {paginatedProducts.map(({ brand, items, count, topRoot }) => {
                       const isExpanded = expandedBrands.has(brand);
                       const allSelected = items.every((p) => selectedIds.has(p.id));
                       const someSelected = !allSelected && items.some((p) => selectedIds.has(p.id));
@@ -486,6 +500,36 @@ export default function CostechVenturesPage() {
                 </table>
               </div>
             )}
+
+            {/* Stats Footer - FIXED AT BOTTOM */}
+            <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+              <div>
+                Showing <span className="font-bold text-white">{groupedByBrand.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                {' - '}
+                <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, groupedByBrand.length)}</span>
+                {' of '}
+                <span className="font-bold text-white">{groupedByBrand.length}</span> products
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-gray-400 px-2">
+                  Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

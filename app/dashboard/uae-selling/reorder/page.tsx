@@ -83,6 +83,15 @@ export default function ReorderPage() {
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, activeSeller]);
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // History Sidebar State
@@ -829,6 +838,12 @@ export default function ReorderPage() {
     }
   })
 
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="h-screen flex flex-col bg-[#111111] text-gray-100 relative overflow-hidden">
 
@@ -943,7 +958,7 @@ export default function ReorderPage() {
                 ) : filteredProducts.length === 0 ? (
                   <tr><td colSpan={9} className="p-12 text-center text-gray-300">No products found.</td></tr>
                 ) : (
-                  filteredProducts.map(product => {
+                  paginatedProducts.map(product => {
                     const deficit = product.admin_target_qty - product.current_qty
                     return (
                       <tr key={product.id} className="hover:bg-white/[0.05] transition-colors group">
@@ -1028,6 +1043,36 @@ export default function ReorderPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Stats Footer - FIXED AT BOTTOM */}
+          <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 py-3 flex items-center justify-between text-sm text-gray-300">
+            <div>
+              Showing <span className="font-bold text-white">{filteredProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+              {' - '}
+              <span className="font-bold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)}</span>
+              {' of '}
+              <span className="font-bold text-white">{filteredProducts.length}</span> products
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-400 px-2">
+                Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span>
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium border border-white/[0.1]"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>
