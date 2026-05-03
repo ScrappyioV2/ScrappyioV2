@@ -12,6 +12,7 @@ import {
 import { History, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ensureAbsoluteUrl } from '@/lib/utils'
+import { ITEMS_PER_PAGE } from '@/lib/constants'
 import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
 
 
@@ -95,7 +96,6 @@ export default function AdminValidationPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     setCurrentPage(1);

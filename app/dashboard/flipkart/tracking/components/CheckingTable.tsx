@@ -4,6 +4,7 @@ import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { FLIPKART_SELLER_TAG_MAPPING, FlipkartSellerTag } from '@/lib/utils';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import UploadedInvoiceModal from './UploadedInvoiceModal';
 
@@ -875,7 +876,6 @@ export default function CheckingTable({
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     setCurrentPage(1);

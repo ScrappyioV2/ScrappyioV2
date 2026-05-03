@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import Papa from 'papaparse'
 import { ensureAbsoluteUrl } from '@/lib/utils'
+import { ITEMS_PER_PAGE } from '@/lib/constants'
 import {
   Loader2,
   RefreshCw,
@@ -86,7 +87,6 @@ export default function ReorderPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     setCurrentPage(1);

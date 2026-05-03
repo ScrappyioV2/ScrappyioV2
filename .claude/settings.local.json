@@ -38,7 +38,8 @@
       "Bash(npx tsc *)",
       "Bash(echo \"exit=$?\")",
       "Bash(echo \"EXIT CODE: $?\")",
-      "Bash(echo \"EXIT_CODE=$?\")"
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "PowerShell(taskkill /f /im node.exe)"
     ]
   }
 }

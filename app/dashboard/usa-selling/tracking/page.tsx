@@ -7,6 +7,7 @@ import CompanyInvoiceTable from './components/CompanyInvoiceTable'
 import CheckingTable from './components/CheckingTable';
 import RollbackModal from './components/RollbackModal'
 import { SELLER_TAG_MAPPING, SellerTag , ensureAbsoluteUrl } from '@/lib/utils';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import ShipmentTable from './components/ShipmentTable';
 import RestockTable from './components/RestockTable';
 import VyaparTable from './components/VyaparTable';
@@ -99,7 +100,6 @@ export default function TrackingPage() {
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 50;
 
     useEffect(() => {
         setCurrentPage(1);

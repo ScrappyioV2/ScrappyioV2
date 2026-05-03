@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getFunnelBadgeStyle } from '@/lib/utils';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import GenericRollbackModal from '@/components/india-selling/GenericRollbackModal';
 
 // ============================================
@@ -288,7 +289,6 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 50;
 
     useEffect(() => {
         setCurrentPage(1);

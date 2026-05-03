@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { calculateProductValues, type CalculationConstants, type CalculationResult, type IndiaProductInput } from '@/lib/blackboxCalculations'
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
 
 async function batchedIn<T>(
@@ -191,7 +192,6 @@ export default function AdminValidationPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     setCurrentPage(1);

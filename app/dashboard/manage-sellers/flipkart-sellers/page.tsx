@@ -6,6 +6,7 @@ import {
   normalizeDataForDB,
   // filterDuplicateASINs,
 } from '@/lib/utils/master-table/dataHelpers'
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import { useState, useEffect, useCallback } from 'react';
 import { toast, Toaster } from 'react-hot-toast';
 import ColumnToggle from '@/components/shared/master-table/ColumnToggle';
@@ -122,7 +123,6 @@ export default function FlipkartSellersPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, batch: 0, totalBatches: 0 });
 
-  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     loadColumnPreferences();

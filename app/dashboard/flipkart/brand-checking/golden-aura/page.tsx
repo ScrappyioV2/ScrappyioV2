@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import Toast from '@/components/Toast';
 import { Search, ChevronDown, ChevronRight, Check, X, Filter, RotateCcw } from 'lucide-react';
 
@@ -78,7 +79,6 @@ export default function GoldenAuraPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     setCurrentPage(1);

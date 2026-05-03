@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';
 import { useState, useEffect, Fragment, useRef, useMemo } from "react";
 import { getFunnelBadgeStyle } from '@/lib/utils';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 import GenericRollbackModal from '@/components/dropy/GenericRollbackModal';
 import AddBoxDetailsModal from "./AddBoxDetailsModal";
 
@@ -153,7 +154,6 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 50;
 
     useEffect(() => {
         setCurrentPage(1);
