@@ -1072,15 +1072,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                                                             case 'order_id':
                                                                 return <td key={key} className={base} style={style}>{EditableCell(product.id, "order_id", product.order_id ?? null)}</td>;
                                                             case 'address':
-                                                                return (
-                                                                    <td key={key} className={`${base} text-center`} style={style}>
-                                                                        {product.address ? (
-                                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${product.address === 'A' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-                                                                                {product.address}
-                                                                            </span>
-                                                                        ) : <span className="text-gray-500">-</span>}
-                                                                    </td>
-                                                                );
+                                                                return <td key={key} className={base} style={style}>{EditableCell(product.id, "address", product.address ?? null)}</td>;
                                                             case 'status':
                                                                 return (
                                                                     <td key={key} className={base} style={style}>
