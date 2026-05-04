@@ -118,6 +118,23 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     setHasEverLoaded(true);
   }, [user, loading, pathname, router, hasPageAccess]);
 
+  // Global: Shift + Mouse Wheel = horizontal scroll on any scrollable table
+  useEffect(() => {
+    const handler = (e: WheelEvent) => {
+      if (!e.shiftKey) return;
+      let el = e.target as HTMLElement | null;
+      while (el) {
+        if (el.scrollWidth > el.clientWidth) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+          return;
+        }
+        el = el.parentElement;
+      }
+    };
+    document.addEventListener('wheel', handler, { passive: false });
+    return () => document.removeEventListener('wheel', handler);
+  }, []);
 
   // Loading State - Only on FIRST load
   if ((loading || isChecking) && !hasEverLoaded) {
