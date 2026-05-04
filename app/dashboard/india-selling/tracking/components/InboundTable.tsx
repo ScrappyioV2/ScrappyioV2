@@ -253,7 +253,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     product_weight,
                     created_at,
                     address,
-                    sns_active
+                    sns_active,
+                    order_id
                 `)
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
@@ -323,7 +324,8 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
                     product_weight,
                     created_at,
                     address,
-                    sns_active
+                    sns_active,
+                    order_id
                 `)
                     .order('created_at', { ascending: false })
                     .range(from, from + batchSize - 1);
