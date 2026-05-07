@@ -612,6 +612,55 @@ export default function MaverickPage() {
               .update({ seller_tag: newTag, buying_quantities: newBuyingQty })
               .eq('id', existingPurchaseRow.id);
           }
+        } else {
+          // No pending purchase row — check if sent rows exist (ASIN already in pipeline)
+          const { count: sentCount } = await supabase
+            .from('india_purchases')
+            .select('id', { count: 'exact', head: true })
+            .eq('asin', product.asin)
+            .eq('sent_to_admin', true);
+
+          if (sentCount && sentCount > 0) {
+            // All purchase rows already sent — create new row from master data
+            const { data: masterRow } = await supabase
+              .from('india_master_sellers')
+              .select('product_name, brand, funnel, product_link, amz_link')
+              .eq('asin', product.asin)
+              .limit(1)
+              .maybeSingle();
+
+            if (masterRow) {
+              const { data: maxJ } = await supabase
+                .from('india_asin_history')
+                .select('journey_number')
+                .eq('asin', product.asin)
+                .order('journey_number', { ascending: false })
+                .limit(1);
+              const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
+
+              await supabase.from('india_purchases').insert({
+                asin: product.asin,
+                product_name: masterRow.product_name,
+                brand: masterRow.brand,
+                seller_tag: SELLER_CODE,
+                funnel: masterRow.funnel,
+                buying_quantities: { [SELLER_CODE]: 0 },
+                buying_quantity: 0,
+                journey_id: crypto.randomUUID(),
+                journey_number: nextJN,
+                product_link: masterRow.product_link || null,
+                inr_purchase_link: masterRow.amz_link || null,
+                origin: 'India',
+                origin_india: true,
+                origin_china: false,
+                origin_us: false,
+                buying_price: 0,
+                admin_confirmed: false,
+                sent_to_admin: false,
+                status: 'pending',
+              });
+            }
+          }
         }
 
         // Only delete from seller_products AFTER confirmed success
