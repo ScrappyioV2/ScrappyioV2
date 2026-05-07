@@ -588,6 +588,31 @@ export default function DropyEcomPage() {
           throw new Error(`Validation insert verification failed for ${product.asin}`);
         }
 
+        // Also merge into existing pending purchase row if one exists
+        const recentThreshold = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: existingPurchaseRow } = await supabase
+          .from('india_purchases')
+          .select('id, seller_tag, buying_quantities, admin_confirmed')
+          .eq('asin', product.asin)
+          .is('move_to', null)
+          .eq('sent_to_admin', false)
+          .eq('admin_confirmed', false)
+          .gte('created_at', recentThreshold)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingPurchaseRow) {
+          const existingTags = existingPurchaseRow.seller_tag?.split(',').map((t: string) => t.trim().toUpperCase()).filter(Boolean) || [];
+          if (!existingTags.includes(SELLER_CODE)) {
+            const newTag = [...existingTags, SELLER_CODE].join(',');
+            const newBuyingQty = { ...(existingPurchaseRow.buying_quantities || {}), [SELLER_CODE]: 0 };
+            await supabase.from('india_purchases')
+              .update({ seller_tag: newTag, buying_quantities: newBuyingQty })
+              .eq('id', existingPurchaseRow.id);
+          }
+        }
+
         // Only delete from seller_products AFTER confirmed success
         await Promise.all([
           saveToHistory(product, activeTab, 'india_validation_main_file'),
