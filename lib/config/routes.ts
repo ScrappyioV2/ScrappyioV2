@@ -15,7 +15,8 @@ import {
   Truck,
   Package,
   Cog,
-  TrendingDown
+  TrendingDown,
+  Settings
 } from 'lucide-react';
 import { AppRoute } from '@/lib/types';
 
@@ -554,5 +555,13 @@ export const APP_ROUTES: AppRoute[] = [
       { path: '/dashboard/price-tracker/alerts', label: 'Alerts', permission: 'view-price-tracker' },
       { path: '/dashboard/price-tracker/missing', label: 'Missing Items', permission: 'view-price-tracker' },
     ]
+  },
+
+  // --- 10. Setup (admin-only) ---
+  {
+    path: '/dashboard/setup',
+    label: 'Setup',
+    icon: Settings,
+    permission: 'admin-access',
   }
 ];
