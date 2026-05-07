@@ -61,9 +61,12 @@ const formatUrl = (url: string | null | undefined): string | null => {
 export default function UbeautyPage() {
   const { user, loading: authLoading } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<TabKey>('pending');
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window === 'undefined') return 'pending';
+    return (localStorage.getItem(`scrappy_tab_${window.location.pathname}`) as TabKey) || 'pending';
+  });
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [notApprovedCount, setNotApprovedCount] = useState(0);
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
@@ -84,8 +87,8 @@ export default function UbeautyPage() {
     setCurrentPage(1);
   }, [activeTab, searchQuery, categoryFilter]);
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
+  const fetchProducts = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from('brand_checking')
@@ -102,7 +105,7 @@ export default function UbeautyPage() {
         setProducts(data || []);
       }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, []);
 
@@ -122,6 +125,7 @@ export default function UbeautyPage() {
   }, [fetchCounts]);
 
   useEffect(() => {
+    localStorage.setItem(`scrappy_tab_${window.location.pathname}`, activeTab);
     setExpandedBrands(new Set());
     setSelectedIds(new Set());
   }, [activeTab]);
@@ -211,6 +215,15 @@ export default function UbeautyPage() {
     });
   };
 
+  const updateProductStatusLocal = (id: string, newStatus: string) => {
+    setProducts((prev) => prev.map((p) => p.id === id ? { ...p, approval_status: newStatus } : p));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
   const handleApprove = async (product: ProductRow) => {
     setProcessingIds((prev) => new Set(prev).add(product.id));
     const { error } = await supabase
@@ -246,9 +259,7 @@ export default function UbeautyPage() {
       setToast({ message: 'Failed', type: 'error' });
       return;
     }
-    removeProductLocal(product.id);
-    setPendingCount((c) => Math.max(0, c - 1));
-    setNotApprovedCount((c) => c + 1);
+    updateProductStatusLocal(product.id, 'not_approved');
     setToast({ message: `${product.asin} moved to Not Approved`, type: 'success' });
   };
 
@@ -267,9 +278,7 @@ export default function UbeautyPage() {
       setToast({ message: 'Failed', type: 'error' });
       return;
     }
-    removeProductLocal(product.id);
-    setNotApprovedCount((c) => Math.max(0, c - 1));
-    setPendingCount((c) => c + 1);
+    updateProductStatusLocal(product.id, 'pending');
     setToast({ message: `${product.asin} restored to Pending`, type: 'success' });
   };
 
