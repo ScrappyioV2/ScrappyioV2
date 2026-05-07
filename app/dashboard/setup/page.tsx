@@ -88,6 +88,27 @@ export default function SetupPage() {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const downloadAuthScript = () => {
+    const authKey = config.tailscale_auth_key;
+    const serverIp = config.scrappy_server_ip;
+    const script = `@echo off
+echo Joining Scrappy network...
+tailscale up --auth-key=${authKey} --unattended
+echo.
+echo Done! You can now access Scrappy at:
+echo http://${serverIp}:3000
+echo.
+pause
+`;
+    const blob = new Blob([script], { type: 'application/x-bat' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'join-scrappy.bat';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleSaveKey = async () => {
     const trimmed = draftKey.trim();
     if (!trimmed || trimmed === config.tailscale_auth_key) {
@@ -164,6 +185,17 @@ export default function SetupPage() {
                 {/* Step 3 */}
                 <Step number={3} title="Join Network">
                   <div className="space-y-2">
+                    <div>
+                      <button
+                        onClick={downloadAuthScript}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Join Script
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1.5">Right-click → Run as Administrator</p>
+                    </div>
+
                     <div className="flex items-stretch gap-2">
                       <pre className="flex-1 min-w-0 px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs text-emerald-300 font-mono overflow-x-auto whitespace-nowrap">
                         {tailscaleCommand}
