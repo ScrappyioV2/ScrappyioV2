@@ -88,6 +88,84 @@ export default function SetupPage() {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const downloadFullSetup = () => {
+    const authKey = config.tailscale_auth_key;
+    const serverIp = config.scrappy_server_ip;
+    const script = `@echo off
+echo ============================================
+echo   Scrappy - Full PC Setup
+echo ============================================
+echo.
+
+:: Check admin privileges
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERROR: Right-click this file and select "Run as administrator"
+    pause
+    exit /b 1
+)
+
+:: Step 1 - Download Tailscale
+echo [1/5] Downloading Tailscale...
+powershell -Command "Invoke-WebRequest -Uri 'https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi' -OutFile '%TEMP%\\tailscale-setup.msi'"
+if %errorlevel% neq 0 (
+    echo ERROR: Download failed. Check internet connection.
+    pause
+    exit /b 1
+)
+echo       Done!
+
+:: Step 2 - Install Tailscale
+echo [2/5] Installing Tailscale (silent)...
+msiexec /i "%TEMP%\\tailscale-setup.msi" /quiet /norestart
+echo       Waiting for install to finish...
+timeout /t 10 /nobreak >nul
+echo       Done!
+
+:: Step 3 - Join Scrappy network
+echo [3/5] Joining Scrappy network...
+"C:\\Program Files\\Tailscale\\tailscale.exe" up --auth-key=${authKey} --unattended
+timeout /t 5 /nobreak >nul
+echo       Done!
+
+:: Step 4 - Download and extract Chrome extension
+echo [4/5] Setting up Chrome extension...
+mkdir "%USERPROFILE%\\Desktop\\Scrappy Extension" 2>nul
+powershell -Command "Invoke-WebRequest -Uri 'http://${serverIp}:3000/downloads/scrappy-extension.zip' -OutFile '%TEMP%\\scrappy-extension.zip'"
+powershell -Command "Expand-Archive -Path '%TEMP%\\scrappy-extension.zip' -DestinationPath '%USERPROFILE%\\Desktop\\Scrappy Extension' -Force"
+echo       Extension extracted to Desktop!
+
+:: Step 5 - Open Chrome extensions page
+echo [5/5] Opening Chrome extensions page...
+start chrome chrome://extensions
+timeout /t 3 /nobreak >nul
+
+echo.
+echo ============================================
+echo   Setup Complete!
+echo ============================================
+echo.
+echo Tailscale: Connected
+echo Extension: Extracted to Desktop\\Scrappy Extension
+echo.
+echo LAST STEP (manual - Chrome security):
+echo   1. Enable "Developer mode" (top right toggle)
+echo   2. Click "Load unpacked"
+echo   3. Select the "Scrappy Extension" folder on Desktop
+echo.
+echo Then open: http://${serverIp}:3000
+echo.
+pause
+`;
+    const blob = new Blob([script], { type: 'application/x-bat' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scrappy-full-setup.bat';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const downloadAuthScript = () => {
     const authKey = config.tailscale_auth_key;
     const serverIp = config.scrappy_server_ip;
@@ -148,7 +226,41 @@ pause
             <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+          <>
+            {/* ONE-CLICK FULL SETUP */}
+            <div className="mt-6 rounded-xl bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500 p-[1px] shadow-lg shadow-orange-500/20">
+              <div className="rounded-xl bg-gradient-to-br from-orange-600/95 to-amber-600/95 px-5 sm:px-7 py-5 sm:py-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
+                    <Download className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg sm:text-2xl font-extrabold tracking-tight text-white">
+                      One-Click Full Setup
+                    </h2>
+                    <p className="text-xs sm:text-sm text-white/85 mt-1 leading-snug">
+                      Downloads Tailscale, installs it, joins the network, extracts Chrome extension — Right-click → Run as Administrator
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={downloadFullSetup}
+                  className="shrink-0 inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 bg-white text-orange-600 hover:bg-orange-50 text-sm sm:text-base font-bold rounded-lg transition-colors shadow whitespace-nowrap"
+                >
+                  <Download className="w-5 h-5" />
+                  Download Full Setup Script
+                </button>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 mt-8 mb-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Or set up manually</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* SECTION A — TAILSCALE */}
             <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
               <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
@@ -331,6 +443,7 @@ pause
               </div>
             </div>
           </div>
+          </>
         )}
       </div>
     </div>
