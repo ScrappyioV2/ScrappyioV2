@@ -92,7 +92,6 @@ export default function RudraRetailPage() {
         .select('*')
         .eq('marketplace', MARKETPLACE)
         .eq('seller_id', SELLER_ID)
-        .eq('approval_status', activeTab)
         .order('brand', { ascending: true });
 
       if (error) {
@@ -105,42 +104,35 @@ export default function RudraRetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
-
-  const fetchCounts = useCallback(async () => {
-    const [pendingRes, notApprovedRes] = await Promise.all([
-      supabase
-        .from('brand_checking')
-        .select('id', { count: 'exact', head: true })
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('approval_status', 'pending'),
-      supabase
-        .from('brand_checking')
-        .select('id', { count: 'exact', head: true })
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('approval_status', 'not_approved'),
-    ]);
-    setPendingCount(pendingRes.count || 0);
-    setNotApprovedCount(notApprovedRes.count || 0);
   }, []);
+
+  const fetchCounts = useCallback(() => {
+    setPendingCount(products.filter(p => p.approval_status === 'pending').length);
+    setNotApprovedCount(products.filter(p => p.approval_status === 'not_approved').length);
+  }, [products]);
 
   useEffect(() => {
     if (!authLoading && user) {
       fetchProducts();
-      fetchCounts();
     }
-  }, [authLoading, user, fetchProducts, fetchCounts]);
+  }, [authLoading, user, fetchProducts]);
+
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
 
   useEffect(() => {
     setExpandedBrands(new Set());
     setSelectedIds(new Set());
   }, [activeTab]);
 
+  const filteredByTab = useMemo(() => {
+    return products.filter(p => p.approval_status === activeTab);
+  }, [products, activeTab]);
+
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();
-    products.forEach((p) => {
+    filteredByTab.forEach((p) => {
       if (p.category_root) set.add(p.category_root);
     });
     return Array.from(set).sort();
@@ -148,7 +140,7 @@ export default function RudraRetailPage() {
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return products.filter((p) => {
+    return filteredByTab.filter((p) => {
       if (categoryFilter !== 'all' && p.category_root !== categoryFilter) return false;
       if (!q) return true;
       return (
