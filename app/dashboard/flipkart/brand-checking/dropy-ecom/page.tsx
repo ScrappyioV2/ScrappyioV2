@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import { ITEMS_PER_PAGE } from '@/lib/constants';
 import Toast from '@/components/Toast';
@@ -339,11 +338,9 @@ export default function DropyEcomPage() {
     });
   };
 
-  if (authLoading) return <div className="min-h-screen bg-[#0a0a0f]" />;
-  if (!user) return null;
 
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-[#0a0a0f] text-white">
         {/* HEADER */}
         <div className="sticky top-0 z-20 bg-[#0a0a0f]/95 backdrop-blur border-b border-white/10 px-6 py-5">
@@ -561,7 +558,7 @@ export default function DropyEcomPage() {
           </div>
         )}
       </div>
-    </PageTransition>
+    </>
   );
 }
 
