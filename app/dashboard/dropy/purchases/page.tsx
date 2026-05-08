@@ -2336,7 +2336,7 @@ export default function PurchasesPage() {
       // Tags with qty > 0 → move to tracking
       // Tags with qty = 0 or missing → stay in purchases
       // ─────────────────────────────────────────────
-      const buyingQuantities = (freshProduct.buying_quantities || {}) as Record<string, number>;
+      const buyingQuantities = (product.buying_quantities || freshProduct.buying_quantities || {}) as Record<string, number>;
 
       let tagsToMove: string[] = [];
       let tagsToKeep: string[] = [];
@@ -2434,7 +2434,7 @@ export default function PurchasesPage() {
 
             // 7. BUYING DETAILS (USER EDITABLE)
             buying_price: freshProduct.buying_price,
-            buying_quantity: freshProduct.buying_quantities?.[tag] ?? freshProduct.buying_quantity,
+            buying_quantity: buyingQuantities[tag] ?? freshProduct.buying_quantity,
             seller_link: freshProduct.seller_link,
             seller_phone: freshProduct.seller_phone,
             payment_method: freshProduct.payment_method,
