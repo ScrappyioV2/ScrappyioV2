@@ -11,6 +11,13 @@ const CACHE_TTL = 30_000;
 const queryCache = new Map<string, { body: string; status: number; statusText: string; headers: [string, string][]; ts: number }>();
 const nativeFetch = globalThis.fetch.bind(globalThis);
 
+// Tables that should NOT trigger cache invalidation (background/polling)
+const IGNORE_TABLES = ['chat_user_presence', 'chat_participants', 'chat_messages', 'chat_conversations', 'user_activity_log'];
+
+const shouldInvalidateCache = (url: string): boolean => {
+  return !IGNORE_TABLES.some(table => url.includes(table));
+};
+
 globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
   const method = (init?.method || 'GET').toUpperCase();
@@ -39,7 +46,9 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
   }
 
   if ((method === 'POST' || method === 'PATCH' || method === 'DELETE') && isRestApi) {
-    queryCache.clear();
+    if (shouldInvalidateCache(url)) {
+      queryCache.clear();
+    }
   }
 
   return nativeFetch(input, init);
