@@ -7,21 +7,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables. Check your .env file.");
 }
 
-// ─── Query Cache ────────────────────────────────────────────
-// Caches GET/HEAD responses from PostgREST for 30 seconds.
-// ANY mutation (POST/PATCH/DELETE) clears the ENTIRE cache.
-// Only helps during read-only navigation (page/tab switching).
-
 const CACHE_TTL = 30_000;
 const queryCache = new Map<string, { body: string; status: number; statusText: string; headers: [string, string][]; ts: number }>();
 const nativeFetch = globalThis.fetch.bind(globalThis);
 
-const cachedFetch: typeof globalThis.fetch = async (input, init) => {
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
   const method = (init?.method || 'GET').toUpperCase();
   const isRestApi = url.includes('/rest/v1/');
 
-  // Only cache GET/HEAD to REST API
   if ((method === 'GET' || method === 'HEAD') && isRestApi) {
     const cacheKey = `${method}:${url}`;
     const cached = queryCache.get(cacheKey);
@@ -44,7 +38,6 @@ const cachedFetch: typeof globalThis.fetch = async (input, init) => {
     return response;
   }
 
-  // ANY mutation to REST API → clear ENTIRE cache
   if ((method === 'POST' || method === 'PATCH' || method === 'DELETE') && isRestApi) {
     queryCache.clear();
   }
@@ -52,8 +45,6 @@ const cachedFetch: typeof globalThis.fetch = async (input, init) => {
   return nativeFetch(input, init);
 };
 
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
-  global: { fetch: cachedFetch },
-});
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 export default supabase;
