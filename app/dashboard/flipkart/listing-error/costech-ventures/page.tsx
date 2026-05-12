@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -78,7 +79,19 @@ const TABS = [
   { id: 'removed', label: 'Removed', color: 'text-gray-500', glow: '' },
 ];
 
+const ROUTE_PREFIX = 'flipkart';
+const LISTING_SELLERS = [
+    { tag: 'GR', name: 'Golden Aura', slug: 'golden-aura', color: 'bg-yellow-500' },
+    { tag: 'RR', name: 'Rudra Retail', slug: 'rudra-retail', color: 'bg-orange-400' },
+    { tag: 'UB', name: 'UBeauty', slug: 'ubeauty', color: 'bg-pink-500' },
+    { tag: 'VV', name: 'Velvet Vista', slug: 'velvet-vista', color: 'bg-emerald-500' },
+    { tag: 'DE', name: 'Dropy Ecom', slug: 'dropy-ecom', color: 'bg-orange-500' },
+    { tag: 'CV', name: 'Costech Ventures', slug: 'costech-ventures', color: 'bg-green-600' },
+];
+
 export default function CostechVenturesListingPage() {
+  const router = useRouter();
+  const currentSlug = 'costech-ventures';
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (typeof window === 'undefined') return 'high_demand';
@@ -397,6 +410,23 @@ export default function CostechVenturesListingPage() {
                 </div>
               </div>
             </header>
+
+            {/* Seller Tabs */}
+            <div className="flex gap-2 mb-4 w-full overflow-x-auto scrollbar-none pb-2">
+                {LISTING_SELLERS.map(seller => (
+                    <button
+                        key={seller.slug}
+                        onClick={() => router.push(`/dashboard/${ROUTE_PREFIX}/listing-error/${seller.slug}`)}
+                        className={`px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 whitespace-nowrap ${currentSlug === seller.slug
+                            ? `${seller.color} text-white shadow-lg scale-105`
+                            : 'bg-[#111111] text-gray-400 hover:bg-[#1a1a1a] border border-white/[0.1]'
+                        }`}
+                    >
+                        <span className="hidden sm:inline">{seller.name}</span>
+                        <span className="sm:hidden">{seller.tag}</span>
+                    </button>
+                ))}
+            </div>
 
             <div className="space-y-6">
               <div className="flex flex-wrap gap-2 p-1.5 bg-[#1a1a1a] rounded-2xl border border-white/[0.1] shadow-lg shadow-black/20 w-full sm:w-fit overflow-x-auto scrollbar-none">

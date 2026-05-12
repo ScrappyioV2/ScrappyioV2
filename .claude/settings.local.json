@@ -40,7 +40,9 @@
       "Bash(echo \"EXIT CODE: $?\")",
       "Bash(echo \"EXIT_CODE=$?\")",
       "PowerShell(taskkill /f /im node.exe)",
-      "PowerShell(npm run start -- -H 0.0.0.0)"
+      "PowerShell(npm run start -- -H 0.0.0.0)",
+      "Bash(node tmp_edit_files.js)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }
