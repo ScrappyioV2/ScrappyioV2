@@ -1,3 +1,4 @@
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -50,7 +51,7 @@ const generateUUID = (): string => {
 const SELLER_ID = 4;
 const SELLER_NAME = "Velvet Vista";
 const MARKETPLACE: Marketplace = 'uk';
-const ITEMS_PER_PAGE = 100;
+
 
 interface ListingProduct {
   id: string;

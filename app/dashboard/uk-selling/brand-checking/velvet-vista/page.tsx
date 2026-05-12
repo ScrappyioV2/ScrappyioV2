@@ -1,3 +1,4 @@
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
 
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -86,7 +87,7 @@ export default function VelvetVistaPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const rowsPerPage = 100;
+  const rowsPerPage = ITEMS_PER_PAGE;
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');

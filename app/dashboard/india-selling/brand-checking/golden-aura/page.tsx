@@ -1,3 +1,4 @@
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
 
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
@@ -98,7 +99,7 @@ export default function GoldenAuraPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const rowsPerPage = 100;
+  const rowsPerPage = ITEMS_PER_PAGE;
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');

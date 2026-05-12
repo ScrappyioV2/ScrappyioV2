@@ -1,3 +1,4 @@
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -157,7 +158,7 @@ export default function PurchasesPage() {
   };
   const [isDownloadDropdownOpen, setIsDownloadDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 100;
+  const rowsPerPage = ITEMS_PER_PAGE;
 
   useEffect(() => {
     localStorage.setItem('flipkartPurchasesFunnelFilter', funnelFilter);

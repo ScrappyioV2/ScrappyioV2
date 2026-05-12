@@ -1,3 +1,4 @@
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -36,7 +37,7 @@ import {
 const SELLER_ID = 6;
 const SELLER_NAME = "Costech Ventures";
 const MARKETPLACE: Marketplace = 'flipkart';
-const ITEMS_PER_PAGE = 100;
+
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

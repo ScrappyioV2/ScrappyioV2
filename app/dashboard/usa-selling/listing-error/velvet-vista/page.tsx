@@ -1,3 +1,4 @@
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -35,7 +36,7 @@ import {
 const SELLER_ID = 4;
 const SELLER_NAME = "Velvet Vista";
 const MARKETPLACE: Marketplace = 'usa';
-const ITEMS_PER_PAGE = 100;
+
 
 // ✅ Safe UUID generator (works in all browsers)
 const generateUUID = (): string => {
