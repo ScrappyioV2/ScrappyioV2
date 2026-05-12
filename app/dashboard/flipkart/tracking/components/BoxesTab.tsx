@@ -415,6 +415,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historyData, setHistoryData] = useState<any[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [historySearch, setHistorySearch] = useState('');
 
     const fetchHistory = async () => {
         setHistoryLoading(true);
@@ -1245,7 +1246,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     <span className="hidden sm:inline">⏪ Rollback from Checking</span>
                 </button>
                 <button
-                    onClick={() => { setHistoryOpen(true); fetchHistory(); }}
+                    onClick={() => { setHistorySearch(''); setHistoryOpen(true); fetchHistory(); }}
                     className="px-4 sm:px-6 py-2 sm:py-2.5 bg-[#1a1a1a]/30 text-gray-500 border border-white/[0.1]/30 rounded-lg text-xs sm:text-sm font-semibold hover:bg-[#1a1a1a] hover:text-white transition-all flex items-center gap-2"
                 >
                     <span className="sm:hidden">📜 History</span>
@@ -1651,6 +1652,15 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                             </div>
                             <button onClick={() => setHistoryOpen(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
                         </div>
+                        <div className="px-5 pt-3">
+                            <input
+                                type="text"
+                                placeholder="Search by ASIN, Product Name, or Box Number..."
+                                value={historySearch}
+                                onChange={(e) => setHistorySearch(e.target.value)}
+                                className="w-full sm:w-96 px-4 py-2.5 rounded-xl bg-[#111111] border border-white/[0.1] text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500/50"
+                            />
+                        </div>
 
                         <div className="flex-1 overflow-auto px-5 py-4">
                             {historyLoading ? (
@@ -1659,7 +1669,14 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                 <div className="h-40 flex items-center justify-center text-gray-500">No box history yet.</div>
                             ) : (() => {
                                 const grouped: Record<string, { box_number: string; action: string; reason: string | null; archived_at: string; items: any[] }> = {};
-                                historyData.forEach(row => {
+                                const filteredHistory = historySearch
+                                    ? historyData.filter(row =>
+                                        row.asin?.toLowerCase().includes(historySearch.toLowerCase()) ||
+                                        row.product_name?.toLowerCase().includes(historySearch.toLowerCase()) ||
+                                        row.box_number?.toLowerCase().includes(historySearch.toLowerCase())
+                                    )
+                                    : historyData;
+                                filteredHistory.forEach(row => {
                                     const key = `${row.box_number}__${row.archived_at}`;
                                     if (!grouped[key]) {
                                         grouped[key] = {

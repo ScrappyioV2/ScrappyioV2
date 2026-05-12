@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import PageGuard from '@/components/PageGuard'
 import { Package, RotateCcw, Trash2, RefreshCw, Search, ArrowUpDown, Download } from 'lucide-react'
+import { ITEMS_PER_PAGE } from '@/lib/constants'
 
 // ─── Seller Config ───
 const SELLERS = [
@@ -345,6 +346,7 @@ export default function RestockPage() {
     // const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [rollbackSource, setRollbackSource] = useState<'relisted' | 'disposed' | null>(null);
     const [statusFilter, setStatusFilter] = useState<'pending' | 'relisted' | 'removed'>('pending');
+    const [currentPage, setCurrentPage] = useState(1);
     const [restockDateFilter, setRestockDateFilter] = useState<string>('');
     const [restockStartDate, setRestockStartDate] = useState<string>('');
     const [restockEndDate, setRestockEndDate] = useState<string>('');
@@ -566,6 +568,13 @@ export default function RestockPage() {
         })
         return Array.from(map.entries()) // [[asin, items[]], ...]
     }, [filteredItems])
+
+    const totalPages = Math.max(1, Math.ceil(groupedByAsin.length / ITEMS_PER_PAGE));
+    const paginatedGroups = groupedByAsin.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, searchQuery]);
 
     const toggleAsin = (asin: string) => {
         setExpandedAsins(prev => {
@@ -962,7 +971,7 @@ export default function RestockPage() {
                                             </td>
                                         </tr>
                                     ) : (
-                                        groupedByAsin.map(([asin, asinItems]) => {
+                                        paginatedGroups.map(([asin, asinItems]) => {
                                             const isExpanded = expandedAsins.has(asin)
                                             const first = asinItems[0]
                                             const count = asinItems.length
@@ -1121,9 +1130,14 @@ export default function RestockPage() {
                         </div>
 
                         {/* Footer */}
-                        <div className="flex-none border-t border-white/[0.1] bg-[#111111] px-4 sm:px-6 py-2 sm:py-3">
-                            <div className="text-xs sm:text-sm text-gray-300">
-                                Showing {groupedByAsin.length} ASINs ({filteredItems.length} items) of {items.length} total
+                        <div className="px-4 py-3 border-t border-white/[0.1] flex items-center justify-between text-sm text-gray-400">
+                            <span>
+                                Showing <span className="font-medium text-white">{groupedByAsin.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(currentPage * ITEMS_PER_PAGE, groupedByAsin.length)}</span> of <span className="font-medium text-white">{groupedByAsin.length}</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] disabled:opacity-30 hover:bg-[#1a1a1a]">Previous</button>
+                                <span className="text-white text-xs">Page {currentPage} of {totalPages}</span>
+                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] disabled:opacity-30 hover:bg-[#1a1a1a]">Next</button>
                             </div>
                         </div>
                     </div>
