@@ -755,7 +755,7 @@ export default function RestockPage() {
                     <div className="mb-4">
                         <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
                             <Package className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500 shrink-0" />
-                            Restock
+                            Inbound
                         </h1>
                         <p className="text-xs sm:text-sm text-gray-300 mt-1">
                             Inbound → Boxes → Checking → Distribution → <span className="text-amber-400 font-semibold">Restock</span>
@@ -826,7 +826,7 @@ export default function RestockPage() {
                                     className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white"
                                 >
                                     <RotateCcw className="w-4 h-4 shrink-0" />
-                                    <span className="hidden sm:inline">Rollback from Restocked</span>
+                                    <span className="hidden sm:inline">Rollback from Inbound</span>
                                     <span className="sm:hidden">Restocked</span>
                                 </button>
                             </>

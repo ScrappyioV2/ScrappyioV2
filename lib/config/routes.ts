@@ -220,7 +220,7 @@ export const APP_ROUTES: AppRoute[] = [
       // ✅ NEW — Restock (Inbound pipeline final stage, seller-wise)
       {
         path: '/dashboard/india-selling/restock',
-        label: 'Restock',
+        label: 'Inbound',
         permission: 'view-restock',    // ← CHANGED from 'view-tracking'
         icon: Package,
         subRoutes: [
@@ -282,7 +282,7 @@ export const APP_ROUTES: AppRoute[] = [
       },
       {
         path: '/dashboard/dropy/restock/dropy',
-        label: 'Restock',
+        label: 'Inbound',
         permission: 'view-restock',
         icon: Package
       },
@@ -503,7 +503,7 @@ export const APP_ROUTES: AppRoute[] = [
       },
       {
         path: '/dashboard/flipkart/restock',
-        label: 'Restock',
+        label: 'Inbound',
         permission: 'view-restock',
         icon: Package,
         subRoutes: [

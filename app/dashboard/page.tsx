@@ -33,7 +33,7 @@ const PAGE_PERMISSIONS = [
   { key: 'view-purchases', label: 'Purchases' },
   { key: 'view-tracking', label: 'Tracking' },
   { key: 'view-reorder', label: 'Reorder' },
-  { key: 'view-restock', label: 'Restock' },
+  { key: 'view-restock', label: 'Inbound' },
   { key: 'view-price-tracker', label: 'Price Tracker' },
   { key: 'admin-access', label: 'Admin Approvals' },
 ];

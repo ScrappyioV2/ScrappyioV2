@@ -640,7 +640,7 @@ export default function TrackingPage() {
                                 : 'text-gray-500 hover:text-gray-200'
                                 }`}
                         >
-                            Restock ({counts.restock})
+                            Inbound ({counts.restock})
                         </button>
 
                         {/* Vyapar Tab (New - Admin) */}
