@@ -1,5 +1,5 @@
-import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 
 import { supabase } from '@/lib/supabaseClient';
 import { SELLER_STYLES } from '@/components/shared/SellerTag';

@@ -1,5 +1,5 @@
-import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 
 import { useAuth } from '@/lib/hooks/useAuth'
 

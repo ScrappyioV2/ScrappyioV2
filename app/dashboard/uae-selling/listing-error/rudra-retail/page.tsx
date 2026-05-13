@@ -1,5 +1,5 @@
-import { ITEMS_PER_PAGE } from '@/lib/constants';
 'use client';
+import { ITEMS_PER_PAGE } from '@/lib/constants';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';

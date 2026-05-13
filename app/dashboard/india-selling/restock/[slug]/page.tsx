@@ -1,4 +1,3 @@
-// FILE: app/dashboard/india-selling/restock/[slug]/page.tsx
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
