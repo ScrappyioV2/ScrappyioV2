@@ -58,6 +58,7 @@ const formatUrl = (url: string | null | undefined): string | null => {
 };
 
 let cachedProducts: any[] | null = null;
+let cacheTimestamp = 0;
 
 export default function CostechVenturesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -114,6 +115,7 @@ export default function CostechVenturesPage() {
         setProducts([]);
       } else {
         cachedProducts = data || [];
+        cacheTimestamp = Date.now();
         setProducts(cachedProducts);
       }
     } finally {
@@ -128,7 +130,9 @@ export default function CostechVenturesPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      fetchProducts();
+      // Skip fetch if cache is fresh (< 30s old)
+      if (cachedProducts && Date.now() - cacheTimestamp < 30000) return;
+      fetchProducts(true);
     }
   }, [authLoading, user, fetchProducts]);
 
