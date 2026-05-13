@@ -1,2 +1,1 @@
-SELECT tablename FROM pg_tables 
-WHERE tablename LIKE '%validation_constants%';
+ALTER TABLE usa_validation_constants DISABLE ROW LEVEL SECURITY;
