@@ -1,1 +1,2 @@
-SELECT seller_id AS seller, total FROM flipkart_brand_check_progress ORDER BY seller_id;
+SELECT tablename FROM pg_tables 
+WHERE tablename LIKE '%validation_constants%';

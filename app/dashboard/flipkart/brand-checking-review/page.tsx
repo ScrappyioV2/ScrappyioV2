@@ -121,7 +121,7 @@ export default function BrandCheckingReviewPage() {
         {/* HEADER */}
         <div className="mb-8">
           <Link
-            href="/dashboard/flipkart-selling"
+            href="/dashboard/flipkart"
             className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 mb-6 transition-colors group font-medium text-sm"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
