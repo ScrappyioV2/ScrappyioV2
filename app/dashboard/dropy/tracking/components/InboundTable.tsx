@@ -1020,7 +1020,7 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
 
                                                         switch (key) {
                                                             case 'sr':
-                                                                return <td key={key} className={`${base} text-center text-gray-300`} style={style}>{filteredIndex + 1}</td>;
+                                                                return <td key={key} className={`${base} text-center text-gray-300`} style={style}>{(currentPage - 1) * ITEMS_PER_PAGE + filteredIndex + 1}</td>;
                                                             case 'asin':
                                                                 return <td key={key} className={`${base} font-mono text-gray-100`} style={style}><div className="truncate max-w-[120px]" title={product.asin}>{product.asin}</div></td>;
                                                             case 'sku':
