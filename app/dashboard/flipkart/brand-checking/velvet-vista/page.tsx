@@ -68,6 +68,16 @@ export default function VelvetVistaPage() {
   });
   const [products, setProducts] = useState<ProductRow[]>(cachedProducts || []);
   const [loading, setLoading] = useState(!cachedProducts);
+  const [activeRowId, setActiveRowId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`flipkartBcActiveRow_${window.location.pathname}`);
+  });
+  const markRowActive = (id: string) => {
+    setActiveRowId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`flipkartBcActiveRow_${window.location.pathname}`, id);
+    }
+  };
   const [pendingCount, setPendingCount] = useState(0);
   const [notApprovedCount, setNotApprovedCount] = useState(0);
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
@@ -164,6 +174,7 @@ export default function VelvetVistaPage() {
       map.get(key)!.push(p);
     });
     const groups = Array.from(map.entries()).map(([brand, items]) => {
+      items.sort((a: any, b: any) => (a.asin || '').localeCompare(b.asin || ''));
       const rootCounts = new Map<string, number>();
       items.forEach((it) => {
         if (it.category_root) {
@@ -180,7 +191,7 @@ export default function VelvetVistaPage() {
       });
       return { brand, items, count: items.length, topRoot };
     });
-    groups.sort((a, b) => b.count - a.count);
+    groups.sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
     return groups;
   }, [filteredProducts]);
 
@@ -484,6 +495,8 @@ export default function VelvetVistaPage() {
                           activeTab={activeTab}
                           processingIds={processingIds}
                           selectedIds={selectedIds}
+                          activeRowId={activeRowId}
+                          markRowActive={markRowActive}
                           onToggle={() => toggleBrand(brand)}
                           onToggleBrandSelect={() => toggleBrandSelect(items)}
                           onToggleRowSelect={toggleRowSelect}
@@ -576,6 +589,8 @@ interface BrandRowsProps {
   activeTab: TabKey;
   processingIds: Set<string>;
   selectedIds: Set<string>;
+  activeRowId: string | null;
+  markRowActive: (id: string) => void;
   onToggle: () => void;
   onToggleBrandSelect: () => void;
   onToggleRowSelect: (id: string) => void;
@@ -599,6 +614,8 @@ function BrandRows({
   activeTab,
   processingIds,
   selectedIds,
+  activeRowId,
+  markRowActive,
   onToggle,
   onToggleBrandSelect,
   onToggleRowSelect,
@@ -671,9 +688,13 @@ function BrandRows({
           return (
             <tr
               key={p.id}
-              className={`border-b border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors ${
-                selectedIds.has(p.id) ? 'bg-orange-500/5' : ''
-              }`}
+              onClick={() => markRowActive(p.id)}
+              className={p.id === activeRowId
+                ? 'bg-emerald-500/10 ring-2 ring-emerald-400 shadow-[0_0_0_1px_rgba(52,211,153,0.6)] transition-colors cursor-pointer'
+                : `border-b border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer ${
+                  selectedIds.has(p.id) ? 'bg-orange-500/5' : ''
+                }`
+              }
             >
               <td className="px-4 py-3">
                 <input
