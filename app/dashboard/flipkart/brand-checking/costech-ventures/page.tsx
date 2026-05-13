@@ -57,6 +57,8 @@ const formatUrl = (url: string | null | undefined): string | null => {
   return `https://${trimmed}`;
 };
 
+let cachedProducts: any[] | null = null;
+
 export default function CostechVenturesPage() {
   const { user, loading: authLoading } = useAuth();
 
@@ -64,8 +66,8 @@ export default function CostechVenturesPage() {
     if (typeof window === 'undefined') return 'pending';
     return (localStorage.getItem(`scrappy_tab_${window.location.pathname}`) as TabKey) || 'pending';
   });
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<ProductRow[]>(cachedProducts || []);
+  const [loading, setLoading] = useState(!cachedProducts);
   const [pendingCount, setPendingCount] = useState(0);
   const [notApprovedCount, setNotApprovedCount] = useState(0);
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
@@ -101,7 +103,8 @@ export default function CostechVenturesPage() {
         setToast({ message: 'Failed to load products', type: 'error' });
         setProducts([]);
       } else {
-        setProducts(data || []);
+        cachedProducts = data || [];
+        setProducts(cachedProducts);
       }
     } finally {
       if (!isSilent) setLoading(false);

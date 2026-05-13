@@ -1,3 +1,1 @@
-CREATE UNIQUE INDEX idx_to_restock_no_dup 
-ON tracking_ops (asin, seller_tag, marketplace, journey_id) 
-WHERE ops_type = 'restock' AND status = 'pending';
+SELECT seller_id AS seller, total FROM flipkart_brand_check_progress ORDER BY seller_id;
