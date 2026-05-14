@@ -1219,6 +1219,7 @@ export default function AdminValidationPage() {
           if (field === 'sellertag') updated.seller_tag = value;
           if (field === 'sellerlink') updated.seller_link = value;
           if (field === 'productlink') updated.product_link = value;
+          if (field === 'buyingquantity') updated.buying_quantity = value;
           if (calcResult.profit !== null) {
             updated.profit = calcResult.profit;
             updated.total_cost = calcResult.total_cost;
