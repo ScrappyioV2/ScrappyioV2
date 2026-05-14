@@ -42,12 +42,6 @@ const MARKETPLACE = 'flipkart';
 const SELLER_CODE_MAP: Record<number, string> = { 1: 'GR', 2: 'RR', 3: 'UB', 4: 'VV', 5: 'DE', 6: 'CV' };
 const SELLER_CODE = SELLER_CODE_MAP[SELLER_ID];
 
-const LISTING_STATUS_FOR_TAB: Record<TabKey, string> = {
-  main: 'pending',
-  listed: 'listed',
-  not_listed: 'not_listed',
-};
-
 const getFunnelBadgeStyle = (funnel: string) => {
   const f = (funnel || '').toUpperCase();
   if (f === 'HD' || f === 'RS') return { display: f, color: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white' };
@@ -64,12 +58,15 @@ const formatUrl = (url: string | null | undefined): string | null => {
 };
 
 
+let cachedProducts: any[] | null = null;
+let cacheTimestamp = 0;
+
 export default function CostechVenturesReviewPage() {
   const { user, loading: authLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('main');
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<any[]>(cachedProducts || []);
+  const [loading, setLoading] = useState(!cachedProducts);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`flipkartBcrActiveRow_${window.location.pathname}`);
@@ -78,9 +75,6 @@ export default function CostechVenturesReviewPage() {
     setActiveRowId(id);
     localStorage.setItem(`flipkartBcrActiveRow_${window.location.pathname}`, id);
   };
-  const [mainCount, setMainCount] = useState(0);
-  const [listedCount, setListedCount] = useState(0);
-  const [notListedCount, setNotListedCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
@@ -98,7 +92,6 @@ export default function CostechVenturesReviewPage() {
         .eq('marketplace', MARKETPLACE)
         .eq('seller_id', SELLER_ID)
         .eq('approval_status', 'approved')
-        .eq('listing_status', LISTING_STATUS_FOR_TAB[activeTab])
         .order('brand', { ascending: true });
 
       if (error) {
@@ -106,61 +99,56 @@ export default function CostechVenturesReviewPage() {
         setToast({ message: 'Failed to load products', type: 'error' });
         setProducts([]);
       } else {
-        setProducts((data || []) as ProductRow[]);
+        cachedProducts = data || [];
+        cacheTimestamp = Date.now();
+        setProducts(cachedProducts);
       }
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
-
-  const fetchCounts = useCallback(async () => {
-    const [mainRes, listedRes, notListedRes] = await Promise.all([
-      supabase
-        .from('brand_checking')
-        .select('*', { count: 'exact', head: true })
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('approval_status', 'approved')
-        .eq('listing_status', 'pending'),
-      supabase
-        .from('brand_checking')
-        .select('*', { count: 'exact', head: true })
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('approval_status', 'approved')
-        .eq('listing_status', 'listed'),
-      supabase
-        .from('brand_checking')
-        .select('*', { count: 'exact', head: true })
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .eq('approval_status', 'approved')
-        .eq('listing_status', 'not_listed'),
-    ]);
-    setMainCount(mainRes.count || 0);
-    setListedCount(listedRes.count || 0);
-    setNotListedCount(notListedRes.count || 0);
   }, []);
 
   useEffect(() => {
     if (!authLoading && user) {
+      if (cachedProducts && Date.now() - cacheTimestamp < 30000) return;
       fetchProducts();
-      fetchCounts();
     }
-  }, [authLoading, user, fetchProducts, fetchCounts]);
+  }, [authLoading, user, fetchProducts]);
+
+  const mainCount = products.filter((p) => p.listing_status === 'pending' || !p.listing_status).length;
+  const listedCount = products.filter((p) => p.listing_status === 'listed').length;
+  const notListedCount = products.filter((p) => p.listing_status === 'not_listed').length;
 
   const filteredProducts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        (p.asin || '').toLowerCase().includes(q) ||
-        (p.product_name || '').toLowerCase().includes(q),
-    );
-  }, [products, searchQuery]);
+    let filtered = products;
 
-  const removeProductLocal = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+    if (activeTab === 'main') {
+      filtered = filtered.filter((p) => p.listing_status === 'pending' || !p.listing_status);
+    } else if (activeTab === 'listed') {
+      filtered = filtered.filter((p) => p.listing_status === 'listed');
+    } else if (activeTab === 'not_listed') {
+      filtered = filtered.filter((p) => p.listing_status === 'not_listed');
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          (p.asin || '').toLowerCase().includes(q) ||
+          (p.product_name || '').toLowerCase().includes(q),
+      );
+    }
+
+    return filtered;
+  }, [products, activeTab, searchQuery]);
+
+  const updateProductStatusLocal = (id: string, status: string) => {
+    setProducts((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, listing_status: status } : p));
+      cachedProducts = next;
+      cacheTimestamp = Date.now();
+      return next;
+    });
   };
 
   const handleListAction = async (product: ProductRow, action: 'listed' | 'not_listed') => {
@@ -224,10 +212,7 @@ export default function CostechVenturesReviewPage() {
         }
       }
 
-      removeProductLocal(product.id);
-      setMainCount((c) => Math.max(0, c - 1));
-      if (action === 'listed') setListedCount((c) => c + 1);
-      else setNotListedCount((c) => c + 1);
+      updateProductStatusLocal(product.id, action);
       setToast({
         message: `${product.asin} marked as ${action === 'listed' ? 'Listed' : 'Not Listed'}`,
         type: 'success',
@@ -244,7 +229,6 @@ export default function CostechVenturesReviewPage() {
   const handleRollbackToMain = async (product: ProductRow) => {
     setProcessingIds((prev) => new Set(prev).add(product.id));
     try {
-      const previousStatus = product.listing_status;
       const { error } = await supabase
         .from('brand_checking')
         .update({ listing_status: 'pending' })
@@ -278,10 +262,7 @@ export default function CostechVenturesReviewPage() {
         }
       }
 
-      removeProductLocal(product.id);
-      setMainCount((c) => c + 1);
-      if (previousStatus === 'listed') setListedCount((c) => Math.max(0, c - 1));
-      else if (previousStatus === 'not_listed') setNotListedCount((c) => Math.max(0, c - 1));
+      updateProductStatusLocal(product.id, 'pending');
       setToast({ message: `${product.asin} moved back to Main`, type: 'success' });
     } finally {
       setProcessingIds((prev) => {
