@@ -104,7 +104,7 @@ export default function UbeautyPage() {
     try {
       const { data, error } = await supabase
         .from('brand_checking')
-        .select('*')
+        .select('id,asin,product_name,brand,approval_status,funnel,monthly_unit,category_root,category_sub,category_child,link,amz_link,remark,listing_status')
         .eq('marketplace', MARKETPLACE)
         .eq('seller_id', SELLER_ID)
         .order('brand', { ascending: true });
