@@ -1195,6 +1195,7 @@ export default function AdminValidationPage() {
           const updated = { ...p, [field]: value };
           if (field === 'admintargetprice') updated.admin_target_price = value;
           if (field === 'buyingprice') updated.buying_price = value;
+          if (field === 'buyingquantity') updated.buying_quantity = value;
           if (field === 'sellertag') updated.seller_tag = value;
           if (field === 'sellerlink') updated.seller_link = value;
           if (field === 'productlink') updated.product_link = value;
