@@ -5,7 +5,6 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
 import {
   ClipboardCheck,
@@ -116,7 +115,7 @@ export default function BrandCheckingReviewPage() {
   if (!user) return null;
 
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-blue-400/30">
         {/* HEADER */}
         <div className="mb-8">
@@ -244,6 +243,6 @@ export default function BrandCheckingReviewPage() {
           })}
         </div>
       </div>
-    </PageTransition>
+    </>
   );
 }

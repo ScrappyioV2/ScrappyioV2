@@ -4,7 +4,6 @@ import { ITEMS_PER_PAGE } from '@/lib/constants';
 import { useActivityLogger } from '@/lib/hooks/useActivityLogger';
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useState, useEffect, useRef, useCallback } from 'react';
-import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';

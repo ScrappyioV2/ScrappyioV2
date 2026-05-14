@@ -4,7 +4,6 @@ import { ITEMS_PER_PAGE } from '@/lib/constants';
 import { useAuth } from '@/lib/hooks/useAuth'
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import PageTransition from '@/components/layout/PageTransition';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
@@ -744,7 +743,7 @@ export default function RudraRetailPage() {
   // ✅ FIX: 2. Main Dashboard Return (Outside the loading check)
   // ------------------------------------------------------------------
   return (
-    <PageTransition>
+    <>
       {/* Ensure requiredPage matches your Sidebar/DB key exactly */}
       <div className="min-h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30">
 
@@ -1064,6 +1063,6 @@ export default function RudraRetailPage() {
         </div>
       )}
       </div>
-    </PageTransition>
+    </>
   );
 }

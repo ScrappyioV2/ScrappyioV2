@@ -6,7 +6,6 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import PageTransition from "@/components/layout/PageTransition";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -176,7 +175,7 @@ export default function BrandCheckingPage() {
   }, [user]); // 👈 Change [] to [user]
 
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-orange-400/30">
 
         {/* === HEADER === */}
@@ -304,6 +303,6 @@ export default function BrandCheckingPage() {
           })}
         </div>
       </div>
-    </PageTransition>
+    </>
   );
 }

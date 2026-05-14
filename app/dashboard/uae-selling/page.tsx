@@ -6,7 +6,6 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useUAEDashboardStats } from "@/lib/hooks/useUAEDashboardStats";
-import PageTransition from "@/components/layout/PageTransition";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
 } from 'recharts';
@@ -115,7 +114,7 @@ if (pages.includes('purchase')) return '/dashboard/uk-selling/purchases';
   const totalActive = pipelineData.reduce((acc, curr) => acc + curr["Brand Check"] + curr["Validation"] + curr["Purchasing"], 0);
 
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-[#111111] text-gray-100 p-6 lg:p-10 font-sans selection:bg-orange-400/30">
 
         {/* === HEADER === */}
@@ -282,7 +281,7 @@ if (pages.includes('purchase')) return '/dashboard/uk-selling/purchases';
           </div>
         </div>
       </div>
-    </PageTransition>
+    </>
   );
 }
 

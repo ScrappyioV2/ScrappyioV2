@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import PageTransition from "@/components/layout/PageTransition";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
@@ -117,7 +116,7 @@ export default function ListingErrorDashboard() {
   }, [fetchRealCounts]);
 
   return (
-    <PageTransition>
+    <>
       <div className="min-h-screen bg-[#111111] text-gray-100 p-8 font-sans selection:bg-orange-400/30">
 
         {/* === HEADER === */}
@@ -232,6 +231,6 @@ export default function ListingErrorDashboard() {
           </div>
         )}
       </div>
-    </PageTransition>
+    </>
   );
 }

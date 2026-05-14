@@ -1,11 +1,10 @@
 "use client";
 
 import StageNavigationBar from "@/components/marketplace/StageNavigationBar";
-import PageTransition from "@/components/layout/PageTransition";
 
 export default function CountryDashboardPage() {
   return (
-    <PageTransition>
+    <>
       <div className="p-6 space-y-6">
         <div className="bg-[#111111] p-6 rounded-lg shadow">
           <h1 className="text-3xl font-bold text-gray-100">
@@ -24,6 +23,6 @@ export default function CountryDashboardPage() {
           </p>
         </div>
       </div>
-    </PageTransition>
+    </>
   );
 }

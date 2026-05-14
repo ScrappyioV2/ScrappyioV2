@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
 import { useAuth } from '@/lib/hooks/useAuth';
-import PageTransition from '@/components/layout/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import Toast from '@/components/Toast'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -1558,7 +1557,7 @@ export default function ValidationPage() {
         fetchStats()
     }
     return (
-        <PageTransition>
+        <>
             <div className="h-screen flex flex-col overflow-hidden bg-[#111111] p-6 text-gray-100 font-sans selection:bg-orange-400/30">
                 <div className="w-full flex flex-col flex-1 overflow-hidden">
                     {/* Fixed Header Section */}
@@ -2413,6 +2412,6 @@ export default function ValidationPage() {
                 marketplace="uk"
                 onClose={() => setSelectedHistoryAsin(null)}
             />
-        </PageTransition>
+        </>
     )
 }

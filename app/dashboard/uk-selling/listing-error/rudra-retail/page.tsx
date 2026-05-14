@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import Toast from '@/components/Toast';
-import PageTransition from '@/components/layout/PageTransition';
 import {
   fetchTabProducts,
   moveProductWithHistory,
@@ -300,7 +299,7 @@ export default function RudraRetailListingPage() {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <PageTransition>
+    <>
       <div className="h-screen bg-[#111111] text-gray-100 font-sans selection:bg-orange-400/30 flex flex-col overflow-hidden">
         <div className="flex-1 flex flex-col w-full mx-auto p-3 overflow-hidden">
           {/* === HEADER & CONTROLS === */}
@@ -633,6 +632,6 @@ export default function RudraRetailListingPage() {
           )}
         </div>
       </div>
-    </PageTransition>
+    </>
   );
 }
