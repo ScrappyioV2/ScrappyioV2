@@ -72,6 +72,14 @@ export default function CostechVenturesReviewPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('main');
   const [products, setProducts] = useState<ProductRow[]>(cachedProducts || []);
   const [loading, setLoading] = useState(!cachedProducts);
+  const [activeRowId, setActiveRowId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(`flipkartBcrActiveRow_${window.location.pathname}`);
+  });
+  const markRowActive = (id: string) => {
+    setActiveRowId(id);
+    localStorage.setItem(`flipkartBcrActiveRow_${window.location.pathname}`, id);
+  };
   const [mainCount, setMainCount] = useState(0);
   const [listedCount, setListedCount] = useState(0);
   const [notListedCount, setNotListedCount] = useState(0);
@@ -382,7 +390,10 @@ export default function CostechVenturesReviewPage() {
                       return (
                         <tr
                           key={p.id}
-                          className="border-b border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+                          onClick={() => markRowActive(p.id)}
+                          className={p.id === activeRowId
+                            ? 'border-b border-white/[0.06] bg-emerald-500/10 ring-2 ring-emerald-400 transition-colors cursor-pointer'
+                            : 'border-b border-white/[0.06] hover:bg-white/[0.04] transition-colors cursor-pointer'}
                         >
                           <td className="px-4 py-3 font-mono text-xs text-blue-400">{p.asin}</td>
                           <td className="px-4 py-3">
