@@ -86,7 +86,7 @@ export default function UbeautyReviewPage() {
     try {
       const { data, error } = await supabase
         .from('brand_checking')
-        .select('*')
+        .select('id,asin,product_name,brand,approval_status,funnel,monthly_unit,bsr,category_root,category_child,link,amz_link,listing_status,remark')
         .eq('marketplace', MARKETPLACE)
         .eq('seller_id', SELLER_ID)
         .eq('approval_status', 'approved')
