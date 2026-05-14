@@ -64,12 +64,15 @@ const formatUrl = (url: string | null | undefined): string | null => {
   return `https://${trimmed}`;
 };
 
+let cachedProducts: any[] | null = null;
+let cacheTimestamp = 0;
+
 export default function DropyEcomReviewPage() {
   const { user, loading: authLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('main');
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<ProductRow[]>(cachedProducts || []);
+  const [loading, setLoading] = useState(!cachedProducts);
   const [mainCount, setMainCount] = useState(0);
   const [listedCount, setListedCount] = useState(0);
   const [notListedCount, setNotListedCount] = useState(0);
@@ -98,7 +101,9 @@ export default function DropyEcomReviewPage() {
         setToast({ message: 'Failed to load products', type: 'error' });
         setProducts([]);
       } else {
-        setProducts(data || []);
+        cachedProducts = data || [];
+        cacheTimestamp = Date.now();
+        setProducts(cachedProducts);
       }
     } finally {
       setLoading(false);
@@ -136,6 +141,10 @@ export default function DropyEcomReviewPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      if (cachedProducts && Date.now() - cacheTimestamp < 30000) {
+        fetchCounts();
+        return;
+      }
       fetchProducts();
       fetchCounts();
     }
