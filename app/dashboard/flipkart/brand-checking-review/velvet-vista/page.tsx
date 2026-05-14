@@ -63,15 +63,13 @@ const formatUrl = (url: string | null | undefined): string | null => {
   return `https://${trimmed}`;
 };
 
-let cachedProducts: any[] | null = null;
-let cacheTimestamp = 0;
 
 export default function VelvetVistaReviewPage() {
   const { user, loading: authLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('main');
-  const [products, setProducts] = useState<ProductRow[]>(cachedProducts || []);
-  const [loading, setLoading] = useState(!cachedProducts);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`flipkartBcrActiveRow_${window.location.pathname}`);
@@ -108,9 +106,7 @@ export default function VelvetVistaReviewPage() {
         setToast({ message: 'Failed to load products', type: 'error' });
         setProducts([]);
       } else {
-        cachedProducts = data || [];
-        cacheTimestamp = Date.now();
-        setProducts(cachedProducts);
+        setProducts((data || []) as ProductRow[]);
       }
     } finally {
       setLoading(false);
@@ -148,10 +144,6 @@ export default function VelvetVistaReviewPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      if (cachedProducts && Date.now() - cacheTimestamp < 30000) {
-        fetchCounts();
-        return;
-      }
       fetchProducts();
       fetchCounts();
     }
