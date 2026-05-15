@@ -2363,6 +2363,14 @@ export default function PurchasesPage() {
         }
       }
 
+      // Block move if any tag has 0 quantity
+      const zeroTags = tagsToMove.filter(tag => !buyingQuantities[tag] || buyingQuantities[tag] <= 0);
+      if (zeroTags.length > 0) {
+        showToast(`Quantity is 0 for ${zeroTags.join(', ')}. Please set quantity before moving.`, 'error');
+        setProducts(prev => [...prev, product]);
+        return;
+      }
+
 
       // STEP 2.9: Check for existing entries to prevent duplicates
       const { data: existingEntries } = await supabase
