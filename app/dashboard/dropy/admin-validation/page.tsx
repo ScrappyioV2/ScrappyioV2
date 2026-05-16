@@ -1173,6 +1173,16 @@ export default function AdminValidationPage() {
 
       const updatePayload: Record<string, any> = { [dbField]: value };
 
+      if (field === 'buyingquantity') {
+        const product = products.find(p => p.id === id);
+        if (product) {
+          const tags = (product.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+          if (tags.length === 1 && tags[0]) {
+            updatePayload.buying_quantities = { [tags[0]]: value };
+          }
+        }
+      }
+
       let calcResult: { total_cost: number | null; total_revenue: number | null; profit: number | null } =
         { total_cost: null, total_revenue: null, profit: null };
 
@@ -1195,7 +1205,13 @@ export default function AdminValidationPage() {
           const updated = { ...p, [field]: value };
           if (field === 'admintargetprice') updated.admin_target_price = value;
           if (field === 'buyingprice') updated.buying_price = value;
-          if (field === 'buyingquantity') updated.buying_quantity = value;
+          if (field === 'buyingquantity') {
+            updated.buying_quantity = value;
+            const tags = (updated.seller_tag || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+            if (tags.length === 1 && tags[0]) {
+              updated.buying_quantities = { [tags[0]]: value };
+            }
+          }
           if (field === 'sellertag') updated.seller_tag = value;
           if (field === 'sellerlink') updated.seller_link = value;
           if (field === 'productlink') updated.product_link = value;
