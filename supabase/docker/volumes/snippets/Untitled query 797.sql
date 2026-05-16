@@ -1,4 +1,4 @@
-SELECT id, asin, seller_tag, buying_quantity, admin_status, journey_number, created_at 
-FROM india_admin_validation 
-WHERE asin = 'B00B4YY1GU' 
-ORDER BY created_at;
+SELECT asin, buying_quantity, pending_quantity, order_id
+FROM india_inbound_tracking 
+WHERE order_id IN ('114-8691233-3976266','114-5468885-2541035','114-1866613-8532205','114-3820521-2324231','114-1935490-6683438','114-5953497-0553814','114-6314430-2211403','114-7662098-5714632')
+ORDER BY order_id;

@@ -500,22 +500,17 @@ export default function InboundTable({ onCountsChange, refreshKey }: InboundTabl
             }
 
             // Push updates to Supabase
-            const editedProduct = products.find(p => p.id === editingCell.id);
-            const siblingIds = editedProduct
-                ? products.filter(p => p.asin === editedProduct.asin).map(p => p.id)
-                : [editingCell.id];
-
-            // Push updates to ALL sibling rows (same ASIN)
+            // Update only the edited row
             const { error } = await supabase
                 .from('india_inbound_tracking')
                 .update(updates)
-                .in('id', siblingIds);
+                .eq('id', editingCell.id);
 
             if (error) throw error;
 
             // Update local state for all siblings
             setProducts(prev => prev.map(p =>
-                siblingIds.includes(p.id) ? { ...p, ...updates } : p
+                p.id === editingCell.id ? { ...p, ...updates } : p
             ));
         } catch (error) {
             console.error('Error saving edit:', error);
