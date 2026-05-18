@@ -91,6 +91,7 @@ export default function CheckingTable({
   const { logActivity, logBatchActivity } = useActivityLogger();
   // 🔴 ADD THIS NEW STATE
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);  // ✅ ADDED
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [restockRollbackItems, setRestockRollbackItems] = useState<any[]>([]);
@@ -306,6 +307,12 @@ export default function CheckingTable({
 
   // Move items to Distribution
   const handleMoveToRestock = async (itemIds: string[]) => {
+    if (itemIds.some(id => processingIds.has(id))) return;
+    setProcessingIds(prev => {
+      const next = new Set(prev);
+      itemIds.forEach(id => next.add(id));
+      return next;
+    });
     try {
       if (itemIds.length === 0) {
         setToast({ message: 'No items selected', type: 'error' });
@@ -534,6 +541,12 @@ export default function CheckingTable({
     } catch (error: any) {
       console.error('Error moving to restock:', error);
       setToast({ message: `Failed to move items: ${error.message}`, type: 'error' });
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        itemIds.forEach(id => next.delete(id));
+        return next;
+      });
     }
   };
 
@@ -1514,7 +1527,7 @@ export default function CheckingTable({
                         >
                           <button
                             onClick={() => handleMoveToRestock([item.id])}
-                            disabled={!anyChecklist}
+                            disabled={!anyChecklist || processingIds.has(item.id)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${anyChecklist
                               ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                               : 'bg-[#1a1a1a] text-gray-500 cursor-not-allowed'
