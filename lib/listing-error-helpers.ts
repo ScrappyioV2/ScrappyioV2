@@ -91,7 +91,7 @@ export async function fetchRestockProducts(
     .in('error_status', ['high_demand', 'low_demand']);
 
   if (search) {
-    query = query.or(`asin.ilike.%${search}%,product_name.ilike.%${search}%`);
+    query = query.or(`asin.ilike.%${search}%,product_name.ilike.%${search}%,sku.ilike.%${search}%`);
   }
 
   return query.order('created_at', { ascending: false }).range(from, to);
@@ -123,7 +123,7 @@ export async function fetchTabProducts(
     .eq('error_status', status);
 
   if (search) {
-    query = query.or(`asin.ilike.%${search}%,product_name.ilike.%${search}%`);
+    query = query.or(`asin.ilike.%${search}%,product_name.ilike.%${search}%,sku.ilike.%${search}%`);
   }
 
   return query.order('created_at', { ascending: false }).range(from, to);

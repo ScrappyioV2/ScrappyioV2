@@ -19,6 +19,7 @@ import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
 type AdminProduct = {
   id: string;
   asin: string;
+  sku?: string | null;
   product_name: string | null;
   product_link: string | null;
   origin_india: boolean | null;
@@ -562,7 +563,8 @@ export default function AdminValidationPage() {
       !searchQuery ||
       product.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.seller_tag?.toLowerCase().includes(searchQuery.toLowerCase());
+      product.seller_tag?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesSearch) return false;
 

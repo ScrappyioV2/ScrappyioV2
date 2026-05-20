@@ -12,6 +12,7 @@ import PurchaseHistoryDialog from '@/components/shared/PurchaseHistoryDialog'
 type PassFileProduct = {
   id: string
   asin: string
+  sku?: string | null
   product_name: string | null  // ✅ Underscore
   brand: string | null
   seller_tag: string | null  // ✅ Underscore
@@ -799,6 +800,7 @@ useEffect(() => {
       p.asin?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||  // ✅ Underscore
       p.funnel?.toLowerCase().includes(searchQuery.toLowerCase())
+      || p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
 
     if (!matchesSearch) return false
 
