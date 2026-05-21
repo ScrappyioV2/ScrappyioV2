@@ -168,6 +168,8 @@ export default function CostechVenturesPage() {
   const [brandReport, setBrandReport] = useState<BrandReport[]>(cachedReport || []);
   const [reportLoading, setReportLoading] = useState(!cachedReport);
   const [reportSearch, setReportSearch] = useState('');
+  const [reportPage, setReportPage] = useState(1);
+  const [reportSort, setReportSort] = useState<'high' | 'low'>('high');
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
 
@@ -271,6 +273,8 @@ export default function CostechVenturesPage() {
       fetchBrandReport();
     }
   }, [activeTab]);
+
+  useEffect(() => { setReportPage(1); }, [reportSearch, reportSort]);
 
   useEffect(() => {
     const channel = supabase
@@ -1295,97 +1299,77 @@ export default function CostechVenturesPage() {
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-6 pb-4 sm:pb-6">
           <div className="bg-[#111111] rounded-2xl border border-white/[0.1] overflow-hidden shadow-xl shadow-black/20">
             {activeTab === 'report' ? (
-              <div className="flex flex-col">
-                {/* Report search bar */}
-                <div className="p-4 border-b border-white/[0.1] bg-[#1a1a1a] flex items-center gap-3">
-                  <div className="relative w-full md:w-80 group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="relative">
                     <input
                       type="text"
                       placeholder="Search brand..."
                       value={reportSearch}
                       onChange={(e) => setReportSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#111111] border border-white/[0.1] rounded-lg text-sm text-gray-100 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                      className="w-64 px-4 py-2.5 rounded-xl bg-[#111111] border border-white/[0.1] text-white text-sm placeholder-gray-500 focus:outline-none focus:border-orange-500/50"
                     />
                   </div>
-                  <div className="text-xs text-gray-400 ml-auto">
-                    Brands: <span className="text-white font-bold">{brandReport.length}</span>
-                  </div>
+                  <select
+                    value={reportSort}
+                    onChange={(e) => setReportSort(e.target.value as 'high' | 'low')}
+                    className="px-3 py-2.5 rounded-xl bg-[#111111] border border-white/[0.1] text-white text-sm focus:outline-none focus:border-orange-500/50"
+                  >
+                    <option value="high">High to Low</option>
+                    <option value="low">Low to High</option>
+                  </select>
+                  <span className="text-gray-400 text-sm">Brands: <span className="text-white font-bold">{brandReport.length}</span></span>
                 </div>
-
-                {reportLoading ? (
-                  <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-4">
-                    <div className="w-10 h-10 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
-                    <span className="text-sm font-medium tracking-wide animate-pulse">LOADING REPORT...</span>
-                  </div>
-                ) : (() => {
-                  const q = reportSearch.trim().toLowerCase();
-                  const filtered = q
-                    ? brandReport.filter(r => r.brand.toLowerCase().includes(q))
+                {(() => {
+                  const filtered = reportSearch
+                    ? brandReport.filter(b => b.brand.toLowerCase().includes(reportSearch.toLowerCase()))
                     : brandReport;
-                  const totals = filtered.reduce(
-                    (acc, r) => ({ total: acc.total + r.total, rs: acc.rs + r.rs, dp: acc.dp + r.dp }),
-                    { total: 0, rs: 0, dp: 0 }
-                  );
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="h-96 flex flex-col items-center justify-center text-gray-500 gap-3">
-                        <Filter className="w-12 h-12 text-gray-500" />
-                        <p className="text-lg font-medium text-gray-400">No brands found</p>
-                        <p className="text-sm text-gray-300">Try adjusting your search</p>
-                      </div>
-                    );
-                  }
+                  const sorted = [...filtered].sort((a, b) => reportSort === 'high' ? b.total - a.total : a.total - b.total);
+                  const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+                  const paginated = sorted.slice((reportPage - 1) * ITEMS_PER_PAGE, reportPage * ITEMS_PER_PAGE);
+                  const totals = filtered.reduce((acc, b) => ({ total: acc.total + b.total, rs: acc.rs + b.rs, dp: acc.dp + b.dp }), { total: 0, rs: 0, dp: 0 });
                   return (
-                    <div className="relative h-[calc(100vh-440px)] overflow-auto">
-                      <table className="w-full border-collapse text-left">
-                        <thead className="sticky top-0 z-10 bg-[#111111] border-b border-white/[0.1] shadow-md">
-                          <tr>
-                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider w-16">#</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Brand</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Total ASINs</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">RS</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">DP</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/[0.06]">
-                          {filtered.map((row, idx) => (
-                            <tr key={row.brand} className="hover:bg-white/[0.03] transition-colors">
-                              <td className="px-6 py-3 text-sm text-gray-500">{idx + 1}</td>
-                              <td className="px-6 py-3 text-sm text-gray-100 font-medium">{row.brand}</td>
-                              <td className="px-6 py-3 text-sm text-white font-bold text-right">{row.total}</td>
-                              <td className="px-6 py-3 text-sm text-right">
-                                <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                                  {row.rs}
-                                </span>
-                              </td>
-                              <td className="px-6 py-3 text-sm text-right">
-                                <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                                  {row.dp}
-                                </span>
-                              </td>
+                    <>
+                      <div className="bg-[#0a0a0a] rounded-2xl border border-white/[0.06] overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-xs font-bold uppercase tracking-wider text-gray-400 border-b border-white/[0.06]">
+                              <th className="px-4 py-3 w-12">#</th>
+                              <th className="px-4 py-3">Brand</th>
+                              <th className="px-4 py-3 text-right">Total ASINs</th>
+                              <th className="px-4 py-3 text-center">RS</th>
+                              <th className="px-4 py-3 text-center">DP</th>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="sticky bottom-0 bg-[#111111] border-t border-white/[0.1]">
-                          <tr>
-                            <td className="px-6 py-3 text-sm font-bold text-gray-400"></td>
-                            <td className="px-6 py-3 text-sm font-bold text-gray-300">Total</td>
-                            <td className="px-6 py-3 text-sm text-white font-bold text-right">{totals.total}</td>
-                            <td className="px-6 py-3 text-sm text-right">
-                              <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                                {totals.rs}
-                              </span>
-                            </td>
-                            <td className="px-6 py-3 text-sm text-right">
-                              <span className="inline-block min-w-[2.5rem] text-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                                {totals.dp}
-                              </span>
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {paginated.map((b, i) => (
+                              <tr key={b.brand} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+                                <td className="px-4 py-3 text-gray-500">{(reportPage - 1) * ITEMS_PER_PAGE + i + 1}</td>
+                                <td className="px-4 py-3 text-white font-medium">{b.brand}</td>
+                                <td className="px-4 py-3 text-right text-gray-300 font-bold">{b.total.toLocaleString()}</td>
+                                <td className="px-4 py-3 text-center"><span className="px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">{b.rs.toLocaleString()}</span></td>
+                                <td className="px-4 py-3 text-center"><span className="px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">{b.dp.toLocaleString()}</span></td>
+                              </tr>
+                            ))}
+                            <tr className="border-t-2 border-white/[0.1] bg-white/[0.02]">
+                              <td className="px-4 py-3"></td>
+                              <td className="px-4 py-3 text-white font-bold">Total</td>
+                              <td className="px-4 py-3 text-right text-white font-bold">{totals.total.toLocaleString()}</td>
+                              <td className="px-4 py-3 text-center"><span className="px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">{totals.rs.toLocaleString()}</span></td>
+                              <td className="px-4 py-3 text-center"><span className="px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">{totals.dp.toLocaleString()}</span></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="px-4 py-3 flex items-center justify-between text-sm text-gray-400">
+                        <span>Showing <span className="font-medium text-white">{sorted.length === 0 ? 0 : (reportPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-white">{Math.min(reportPage * ITEMS_PER_PAGE, sorted.length)}</span> of <span className="font-medium text-white">{sorted.length}</span></span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setReportPage(p => Math.max(1, p - 1))} disabled={reportPage === 1} className="px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] disabled:opacity-30 hover:bg-[#1a1a1a]">Previous</button>
+                          <span className="text-white text-xs">Page {reportPage} of {totalPages}</span>
+                          <button onClick={() => setReportPage(p => Math.min(totalPages, p + 1))} disabled={reportPage === totalPages} className="px-3 py-1.5 rounded-lg bg-[#111111] border border-white/[0.1] disabled:opacity-30 hover:bg-[#1a1a1a]">Next</button>
+                        </div>
+                      </div>
+                    </>
                   );
                 })()}
               </div>
