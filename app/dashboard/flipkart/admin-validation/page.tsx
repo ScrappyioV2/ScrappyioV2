@@ -53,7 +53,7 @@ type AdminProduct = {
   admin_status: string | null;
   admin_notes: string | null;
   created_at: string;
-  admin_confirmed_at?: string | null;
+  confirmed_at?: string | null;
   profit?: number | null;
   total_cost?: number | null;
   total_revenue?: number | null;
@@ -1029,7 +1029,7 @@ export default function AdminValidationPage() {
         // ✅ STEP 1: UPDATE flipkart_purchases (existing workflow preserved)
         const bulkConfirmPayload: Record<string, any> = {
           admin_confirmed: true,
-          admin_confirmed_at: new Date().toISOString(),
+          confirmed_at: new Date().toISOString(),
           admin_target_price: product.admin_target_price,
           buying_price: product.buying_price,
           buying_quantity: product.buying_quantity,
@@ -1115,7 +1115,7 @@ export default function AdminValidationPage() {
                 journey_number: product.journey_number ?? 1,
                 status: 'pending',
                 admin_confirmed: true,
-                admin_confirmed_at: new Date().toISOString(),
+                confirmed_at: new Date().toISOString(),
                 sent_to_admin: true,
                 sent_to_admin_at: new Date().toISOString(),
               })
@@ -1416,7 +1416,7 @@ export default function AdminValidationPage() {
       // 6. Update FINAL Statuses (Once per product)
       const confirmPayload: Record<string, any> = {
         admin_confirmed: true,
-        admin_confirmed_at: new Date().toISOString(),
+        confirmed_at: new Date().toISOString(),
         admin_target_price: product.admin_target_price,
         buying_price: product.buying_price,
         buying_quantity: product.buying_quantity,
@@ -1508,7 +1508,7 @@ export default function AdminValidationPage() {
               journey_number: product.journey_number ?? 1,
               status: 'pending',
               admin_confirmed: true,
-              admin_confirmed_at: new Date().toISOString(),
+              confirmed_at: new Date().toISOString(),
               sent_to_admin: true,
               sent_to_admin_at: new Date().toISOString(),
             })
@@ -1663,7 +1663,7 @@ export default function AdminValidationPage() {
           .from('flipkart_purchases')
           .update({
             admin_confirmed: false,
-            admin_confirmed_at: null,
+            confirmed_at: null,
           })
           .eq('asin', product.asin)
           .eq('seller_tag', product.seller_tag);
@@ -3079,8 +3079,8 @@ export default function AdminValidationPage() {
                       {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
                       {adminStatusFilter === 'confirmed' && (
                         <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
-                          {product.admin_confirmed_at
-                            ? new Date(product.admin_confirmed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          {product.confirmed_at
+                            ? new Date(product.confirmed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                             : '-'}
                         </td>
                       )}
