@@ -61,6 +61,9 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   remark: 120,
 };
 
+let cachedReport: any[] | null = null;
+let reportCacheTimestamp = 0;
+
 export default function MaverickPage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>(() => {
     if (typeof window === 'undefined') return 'high_demand';
@@ -162,8 +165,8 @@ export default function MaverickPage() {
   const [selectedRemark, setSelectedRemark] = useState<string | null>(null);
 
   // Report tab state
-  const [brandReport, setBrandReport] = useState<BrandReport[]>([]);
-  const [reportLoading, setReportLoading] = useState(false);
+  const [brandReport, setBrandReport] = useState<BrandReport[]>(cachedReport || []);
+  const [reportLoading, setReportLoading] = useState(!cachedReport);
   const [reportSearch, setReportSearch] = useState('');
   const [editingRemarkText, setEditingRemarkText] = useState('');
   const [editingRemarkProductId, setEditingRemarkProductId] = useState<string | null>(null);
@@ -251,7 +254,9 @@ export default function MaverickPage() {
         p_seller_id: SELLER_ID,
       });
       if (error) throw error;
-      setBrandReport(data || []);
+      cachedReport = data || [];
+      reportCacheTimestamp = Date.now();
+      setBrandReport(cachedReport);
     } catch (err: any) {
       console.error('Error fetching brand report:', err);
       setToast({ message: `Failed to load report: ${err.message}`, type: 'error' });
@@ -262,6 +267,7 @@ export default function MaverickPage() {
 
   useEffect(() => {
     if (activeTab === 'report') {
+      if (cachedReport && Date.now() - reportCacheTimestamp < 30000) return;
       fetchBrandReport();
     }
   }, [activeTab]);
