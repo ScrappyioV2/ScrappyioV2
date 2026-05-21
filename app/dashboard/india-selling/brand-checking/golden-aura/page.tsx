@@ -246,27 +246,12 @@ export default function GoldenAuraPage() {
   const fetchBrandReport = async () => {
     setReportLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('seller_products')
-        .select('brand, funnel')
-        .eq('marketplace', MARKETPLACE)
-        .eq('seller_id', SELLER_ID)
-        .in('product_status', ['high_demand', 'dropshipping', 'not_approved']);
-
-      if (error) throw error;
-
-      const map = new Map<string, BrandReport>();
-      (data || []).forEach((row: any) => {
-        const brand = (row.brand || 'Unknown').trim() || 'Unknown';
-        const existing = map.get(brand) || { brand, total: 0, rs: 0, dp: 0 };
-        existing.total += 1;
-        if (row.funnel === 'RS') existing.rs += 1;
-        else if (row.funnel === 'DP') existing.dp += 1;
-        map.set(brand, existing);
+      const { data, error } = await supabase.rpc('get_brand_report', {
+        p_marketplace: MARKETPLACE,
+        p_seller_id: SELLER_ID,
       });
-
-      const sorted = Array.from(map.values()).sort((a, b) => b.total - a.total);
-      setBrandReport(sorted);
+      if (error) throw error;
+      setBrandReport(data || []);
     } catch (err: any) {
       console.error('Error fetching brand report:', err);
       setToast({ message: `Failed to load report: ${err.message}`, type: 'error' });

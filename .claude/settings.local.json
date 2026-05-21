@@ -42,7 +42,8 @@
       "PowerShell(taskkill /f /im node.exe)",
       "PowerShell(npm run start -- -H 0.0.0.0)",
       "Bash(node tmp_edit_files.js)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(powershell -NoProfile -Command \"Get-Content 'c:\\\\Project\\\\scrappy-v2\\\\app\\\\dashboard\\\\india-selling\\\\brand-checking\\\\golden-aura\\\\page.tsx' | Measure-Object -Line\")"
     ]
   }
 }
