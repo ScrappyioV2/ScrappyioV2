@@ -51,7 +51,7 @@ type AdminProduct = {
   admin_status: string | null;
   admin_notes: string | null;
   created_at: string;
-  admin_confirmed_at?: string | null;
+  confirmed_at?: string | null;
   profit?: number | null;
   total_cost?: number | null;
   total_revenue?: number | null;
@@ -3081,8 +3081,8 @@ export default function AdminValidationPage() {
                       {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
                       {adminStatusFilter === 'confirmed' && (
                         <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
-                          {product.admin_confirmed_at
-                            ? new Date(product.admin_confirmed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          {product.confirmed_at
+                            ? new Date(product.confirmed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                             : '-'}
                         </td>
                       )}
