@@ -3051,7 +3051,7 @@ export default function AdminValidationPage() {
                       </th>
                     );
                   })}
-                  {adminStatusFilter === 'confirmed' && <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Confirmed Date</th>}
+                  {activeTab === 'confirm' && <th className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Confirmed Date</th>}
                 </tr>
               </thead>
 
@@ -3079,7 +3079,7 @@ export default function AdminValidationPage() {
                         />
                       </td>
                       {columnOrder.filter(k => !hiddenColumns.has(k)).map((col_key) => renderAdminCell(col_key, product))}
-                      {adminStatusFilter === 'confirmed' && (
+                      {activeTab === 'confirm' && (
                         <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
                           {product.confirmed_at
                             ? new Date(product.confirmed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
