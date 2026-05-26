@@ -589,7 +589,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                     // 1) Fetch all rows for this box (ensure we have latest qty + inbound ids)
                     const { data: rows, error: fetchError } = await supabase
                         .from("dropy_inbound_boxes")
-                        .select("id, inbound_tracking_id, asin, quantity_assigned")
+                        .select("id, inbound_tracking_id, asin, quantity_assigned, seller_tag")
                         .eq("box_number", boxNumber);
 
                     if (fetchError) throw fetchError;
@@ -647,6 +647,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                 .update({
                                     assigned_quantity: Math.max(0, (inboundRow.assigned_quantity ?? 0) - totalQty),
                                     pending_quantity: (inboundRow.pending_quantity ?? 0) + totalQty,
+                                    status: 'delivered',
                                 })
                                 .eq("id", inboundRow.id);
                             if (error) console.error("Failed to rollback inbound tracking", error);
@@ -679,7 +680,7 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                                         seller_link: boxRow.seller_link,
                                         pending_quantity: totalQty,
                                         assigned_quantity: 0,
-                                        status: 'tracking',
+                                        status: 'delivered',
                                         moved_at: new Date().toISOString(),
                                     });
                                 if (insertErr) console.error(`Failed to re-create inbound for ${asin}:`, insertErr);

@@ -580,6 +580,7 @@ export default function BoxTrackingTable({ onCountsChange }: BoxTrackingTablePro
                     await supabase.from("india_inbound_tracking").update({
                         assigned_quantity: Math.max(0, (data[0].assigned_quantity ?? 0) - qty),
                         pending_quantity: (data[0].pending_quantity ?? 0) + qty,
+                        status: 'delivered',
                     }).eq("id", data[0].id);
                 }
             }

@@ -1029,7 +1029,6 @@ export default function AdminValidationPage() {
         // ✅ STEP 1: UPDATE flipkart_purchases (existing workflow preserved)
         const bulkConfirmPayload: Record<string, any> = {
           admin_confirmed: true,
-          confirmed_at: new Date().toISOString(),
           admin_target_price: product.admin_target_price,
           buying_price: product.buying_price,
           buying_quantity: product.buying_quantity,
