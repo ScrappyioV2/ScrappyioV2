@@ -1049,23 +1049,14 @@ export default function BoxesTab({ onCountsChange, refreshKey }: BoxesTabProps) 
                 const remaining = originalQty - qty;
                 const currentAssigned = (item as any).assigned_quantity ?? 0;
 
-                if (remaining <= 0) {
-                    // Pending is 0 — delete this seller's row from inbound tracking
-                    const { error: deleteError } = await supabase
-                        .from("dropy_inbound_tracking")
-                        .delete()
-                        .eq("id", item.id);
-                    if (deleteError) console.error("Failed to delete inbound tracking row:", deleteError);
-                } else {
-                    const { error: trackingError } = await supabase
-                        .from("dropy_inbound_tracking")
-                        .update({
-                            assigned_quantity: currentAssigned + qty,
-                            pending_quantity: remaining,
-                        })
-                        .eq("id", item.id);
-                    if (trackingError) console.error("Failed to update inbound tracking:", trackingError);
-                }
+                const { error: trackingError } = await supabase
+                    .from("dropy_inbound_tracking")
+                    .update({
+                        assigned_quantity: currentAssigned + qty,
+                        pending_quantity: Math.max(0, remaining),
+                    })
+                    .eq("id", item.id);
+                if (trackingError) console.error("Failed to update inbound tracking:", trackingError);
             }
 
             if (inserts.length === 0) {
