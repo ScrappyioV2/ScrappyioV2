@@ -359,17 +359,13 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                         journey_number: item.journey_number ?? null,
                     });
 
-                    // Update inbound tracking
-                    const remaining = originalQty - qty;
+                    // Update inbound tracking — NEVER delete, preserve row data
+                    const remaining = Math.max(0, originalQty - qty);
                     const currentAssigned = item.assigned_quantity ?? 0;
-                    if (remaining <= 0) {
-                        await supabase.from("flipkart_inbound_tracking").delete().eq("id", item.id);
-                    } else {
-                        await supabase.from("flipkart_inbound_tracking").update({
-                            assigned_quantity: currentAssigned + qty,
-                            pending_quantity: remaining,
-                        }).eq("id", item.id);
-                    }
+                    await supabase.from("flipkart_inbound_tracking").update({
+                        assigned_quantity: currentAssigned + qty,
+                        pending_quantity: remaining,
+                    }).eq("id", item.id);
                 }
             }
 
@@ -495,14 +491,10 @@ export default function VyaparBoxForm({ mode, editBoxGroup, onSave, onCancel, on
                         if (trackData) {
                             const newPending = Math.max(0, (trackData.pending_quantity || 0) - delta);
                             const newAssigned = Math.max(0, (trackData.assigned_quantity || 0) + delta);
-                            if (newPending <= 0) {
-                                await supabase.from("flipkart_inbound_tracking").delete().eq("id", trackingId);
-                            } else {
-                                await supabase.from("flipkart_inbound_tracking").update({
-                                    assigned_quantity: newAssigned,
-                                    pending_quantity: newPending,
-                                }).eq("id", trackingId);
-                            }
+                            await supabase.from("flipkart_inbound_tracking").update({
+                                assigned_quantity: newAssigned,
+                                pending_quantity: newPending,
+                            }).eq("id", trackingId);
                         }
                     }
                 }
