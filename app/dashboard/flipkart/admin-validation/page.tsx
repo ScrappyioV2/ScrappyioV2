@@ -1114,7 +1114,6 @@ export default function AdminValidationPage() {
                 journey_number: product.journey_number ?? 1,
                 status: 'pending',
                 admin_confirmed: true,
-                confirmed_at: new Date().toISOString(),
                 sent_to_admin: true,
                 sent_to_admin_at: new Date().toISOString(),
               })
@@ -1415,7 +1414,6 @@ export default function AdminValidationPage() {
       // 6. Update FINAL Statuses (Once per product)
       const confirmPayload: Record<string, any> = {
         admin_confirmed: true,
-        confirmed_at: new Date().toISOString(),
         admin_target_price: product.admin_target_price,
         buying_price: product.buying_price,
         buying_quantity: product.buying_quantity,
@@ -1507,7 +1505,6 @@ export default function AdminValidationPage() {
               journey_number: product.journey_number ?? 1,
               status: 'pending',
               admin_confirmed: true,
-              confirmed_at: new Date().toISOString(),
               sent_to_admin: true,
               sent_to_admin_at: new Date().toISOString(),
             })
@@ -1662,7 +1659,6 @@ export default function AdminValidationPage() {
           .from('flipkart_purchases')
           .update({
             admin_confirmed: false,
-            confirmed_at: null,
           })
           .eq('asin', product.asin)
           .eq('seller_tag', product.seller_tag);
