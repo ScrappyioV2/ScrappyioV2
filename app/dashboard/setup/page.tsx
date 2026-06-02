@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
-  Download, Network, Chrome, Copy, Check, Pencil, Save, X, Loader2, Settings,
+  Download, Network, Chrome, Copy, Check, Pencil, Save, X, Loader2, Settings, FileSpreadsheet,
 } from 'lucide-react';
 
 type ConfigMap = {
@@ -260,7 +260,7 @@ pause
               <div className="flex-1 h-px bg-white/10" />
             </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {/* SECTION A — TAILSCALE */}
             <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
               <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
@@ -438,6 +438,58 @@ pause
                 <Step number={5} title="Run">
                   <p className="text-sm text-gray-300">
                     Open Scrappy brand checking page + Amazon Seller Central → Click extension → <span className="text-orange-400 font-semibold">Start</span>.
+                  </p>
+                </Step>
+              </div>
+            </div>
+
+            {/* SECTION C — MR JS EXTENSION */}
+            <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+                <div className="p-2 bg-teal-500/10 rounded-lg border border-teal-500/20">
+                  <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold">Chrome Extension (Mr JS — JungleScout Bot)</h2>
+                  <p className="text-xs text-gray-500">Automates JungleScout CSV collection from seller links</p>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-5">
+                <Step number={1} title="Download Extension">
+                  <a
+                    href="/downloads/mr-js-extension.zip"
+                    download
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Extension
+                  </a>
+                </Step>
+
+                <Step number={2} title="Unzip">
+                  <p className="text-sm text-gray-300">Unzip the downloaded file.</p>
+                </Step>
+
+                <Step number={3} title="Open Chrome Extensions">
+                  <p className="text-sm text-gray-300">
+                    Open Chrome →{' '}
+                    <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
+                      chrome://extensions
+                    </code>{' '}
+                    → Enable <span className="text-orange-400 font-semibold">Developer mode</span>.
+                  </p>
+                </Step>
+
+                <Step number={4} title="Load Unpacked">
+                  <p className="text-sm text-gray-300">
+                    Click <span className="text-orange-400 font-semibold">&apos;Load unpacked&apos;</span> → select the unzipped folder.
+                  </p>
+                </Step>
+
+                <Step number={5} title="Run">
+                  <p className="text-sm text-gray-300">
+                    Open Scrappy Add Seller page → click any profile link to activate the cursor → Click extension → <span className="text-orange-400 font-semibold">Start Mr JS</span>.
                   </p>
                 </Step>
               </div>
