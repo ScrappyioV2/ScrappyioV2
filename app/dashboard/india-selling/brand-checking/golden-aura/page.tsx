@@ -9,7 +9,7 @@ import Toast from '@/components/Toast';
 import RejectModal from '../../../../components/RejectModal';
 import FunnelBadge from '../../../../components/FunnelBadge';
 import BotControlPanel from '@/components/india-selling/BotControlPanel';
-import { generateAmazonLink , ensureAbsoluteUrl } from '@/lib/utils';
+import { generateAmazonLink , ensureAbsoluteUrl, genUUID } from '@/lib/utils';
 
 import {
   Search,
@@ -510,9 +510,7 @@ export default function GoldenAuraPage() {
                   .order('journey_number', { ascending: false })
                   .limit(1);
                 const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
-                const newJID = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
-                  ? crypto.randomUUID()
-                  : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+                const newJID = genUUID();
 
                 const { error: insertErr } = await supabase.from('india_purchases').insert({
                   asin: product.asin,
@@ -547,9 +545,7 @@ export default function GoldenAuraPage() {
                 .order('journey_number', { ascending: false })
                 .limit(1);
               const nextJN = (maxJ?.[0]?.journey_number || 0) + 1;
-              const newJID = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
-                ? crypto.randomUUID()
-                : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+              const newJID = genUUID();
 
               const { error: insertErr } = await supabase.from('india_purchases').insert({
                 asin: product.asin,
@@ -693,7 +689,7 @@ export default function GoldenAuraPage() {
                 funnel: masterRow.funnel,
                 buying_quantities: { [SELLER_CODE]: 0 },
                 buying_quantity: 0,
-                journey_id: crypto.randomUUID(),
+                journey_id: genUUID(),
                 journey_number: nextJN,
                 product_link: masterRow.product_link || null,
                 inr_purchase_link: masterRow.amz_link || null,
