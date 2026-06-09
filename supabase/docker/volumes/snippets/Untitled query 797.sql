@@ -1,3 +1,3 @@
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'india_purchases' AND column_name = 'journey_id';
+SELECT asin, india_link, usa_link
+FROM dropy_validation_main_file
+LIMIT 5;

@@ -2696,9 +2696,9 @@ export default function ValidationPage() {
                             </div>
                         ) : (
                             <div className="flex items-center gap-2">
-                                {(product.india_link || product.asin) ? (
+                                {product.india_link ? (
                                     <>
-                                        <a href={product.asin ? `https://www.amazon.in/dp/${product.asin}?th=1&psc=1` : (product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`)}
+                                        <a href={product.india_link?.startsWith('http') ? product.india_link : `https://${product.india_link}`}
                                             target="_blank" rel="noopener noreferrer"
                                             className="text-orange-500 hover:text-orange-400 hover:underline font-medium whitespace-nowrap text-xs">
                                             View Link
