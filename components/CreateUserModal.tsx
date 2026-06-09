@@ -22,6 +22,7 @@ const MARKETPLACE_OPTIONS = [
     { value: 'uae-selling', label: 'UAE', color: 'text-amber-400', bg: 'bg-amber-500' },
     { value: 'flipkart', label: 'Flipkart', color: 'text-yellow-400', bg: 'bg-yellow-500' },
     { value: 'jio-mart', label: 'JioMart', color: 'text-pink-400', bg: 'bg-pink-500' },
+    { value: 'dropy', label: 'Dropy', color: 'text-orange-400', bg: 'bg-orange-500' },
 ];
 
 // Maps role → which page permission keys to auto-grant
