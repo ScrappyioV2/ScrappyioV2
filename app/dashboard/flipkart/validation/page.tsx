@@ -2869,17 +2869,21 @@ export default function ValidationPage() {
                     </td>
                 );
 
-            case 'judgement':
+            case 'judgement': {
                 if (!visibleColumns.judgement) return null;
+                // In the Pass File, show the actual judgement (PASS). calculated_judgement
+                // can read FAIL for DP products that were legitimately passed, so it must
+                // not drive the badge here. Other tabs keep the live calculated result.
+                const badgeJudgement = activeTab === 'pass_file' ? product.judgement : product.calculated_judgement;
                 return (
                     <td key={col_key} className="p-3 text-sm text-center">
                         <div className="flex flex-col items-center gap-1.5">
-                            {product.calculated_judgement && product.calculated_judgement !== 'PENDING' ? (
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${product.calculated_judgement === 'PASS'
+                            {badgeJudgement && badgeJudgement !== 'PENDING' ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${badgeJudgement === 'PASS'
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                     : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                                     }`}>
-                                    {product.calculated_judgement}
+                                    {badgeJudgement}
                                 </span>
                             ) : (<span className="text-gray-300 text-xs"></span>)}
 
@@ -2897,6 +2901,7 @@ export default function ValidationPage() {
                         </div>
                     </td>
                 );
+            }
 
             case 'remark':
                 if (!visibleColumns.remark) return null;
