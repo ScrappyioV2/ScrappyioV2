@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
-  Download, Network, Chrome, Copy, Check, Pencil, Save, X, Loader2, Settings, FileSpreadsheet,
+  Download, Network, Chrome, Copy, Check, Pencil, Save, X, Loader2, Settings, FileSpreadsheet, CheckCircle2,
 } from 'lucide-react';
 
 type ConfigMap = {
@@ -260,241 +260,292 @@ pause
               <div className="flex-1 h-px bg-white/10" />
             </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {/* SECTION A — TAILSCALE */}
-            <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <Network className="w-4 h-4 text-blue-400" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {/* SECTION A — TAILSCALE */}
+              <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <Network className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold">Tailscale (Network Access)</h2>
+                    <p className="text-xs text-gray-500">Connect this PC to the private Scrappy network</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold">Tailscale (Network Access)</h2>
-                  <p className="text-xs text-gray-500">Connect this PC to the private Scrappy network</p>
-                </div>
-              </div>
 
-              <div className="p-5 space-y-5">
-                {/* Step 1 */}
-                <Step number={1} title="Download Tailscale">
-                  <a
-                    href={config.tailscale_download_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Tailscale
-                  </a>
-                </Step>
+                <div className="p-5 space-y-5">
+                  {/* Step 1 */}
+                  <Step number={1} title="Download Tailscale">
+                    <a
+                      href={config.tailscale_download_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Tailscale
+                    </a>
+                  </Step>
 
-                {/* Step 2 */}
-                <Step number={2} title="Install">
-                  <p className="text-sm text-gray-300">
-                    Double-click the downloaded <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs">.msi</code> file and follow the installer.
-                  </p>
-                </Step>
+                  {/* Step 2 */}
+                  <Step number={2} title="Install">
+                    <p className="text-sm text-gray-300">
+                      Double-click the downloaded <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs">.msi</code> file and follow the installer.
+                    </p>
+                  </Step>
 
-                {/* Step 3 */}
-                <Step number={3} title="Join Network">
-                  <div className="space-y-2">
-                    <div>
-                      <button
-                        onClick={downloadAuthScript}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold rounded-lg transition-colors"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download Join Script
-                      </button>
-                      <p className="text-xs text-gray-500 mt-1.5">Right-click → Run as Administrator</p>
-                    </div>
-
-                    <div className="flex items-stretch gap-2">
-                      <pre className="flex-1 min-w-0 px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs text-emerald-300 font-mono overflow-x-auto whitespace-nowrap">
-                        {tailscaleCommand}
-                      </pre>
-                      <button
-                        onClick={handleCopyCommand}
-                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors border ${
-                          copied
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                            : 'bg-white/5 hover:bg-white/10 text-gray-200 border-white/10'
-                        }`}
-                      >
-                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        {copied ? 'Copied' : 'Copy'}
-                      </button>
-                    </div>
-
-                    {/* Edit auth key */}
-                    {editingKey ? (
-                      <div className="flex items-stretch gap-2">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={draftKey}
-                          onChange={(e) => setDraftKey(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveKey();
-                            if (e.key === 'Escape') {
-                              setDraftKey(config.tailscale_auth_key);
-                              setEditingKey(false);
-                            }
-                          }}
-                          onBlur={handleSaveKey}
-                          placeholder="tskey-auth-..."
-                          className="flex-1 min-w-0 px-3 py-2 bg-black/60 border border-orange-500/40 focus:border-orange-500 rounded-lg text-xs text-gray-100 font-mono outline-none"
-                        />
+                  {/* Step 3 */}
+                  <Step number={3} title="Join Network">
+                    <div className="space-y-2">
+                      <div>
                         <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={handleSaveKey}
-                          disabled={savingKey}
-                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-orange-500 hover:bg-orange-400 text-white transition-colors disabled:opacity-50"
+                          onClick={downloadAuthScript}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold rounded-lg transition-colors"
                         >
-                          {savingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                          Save
+                          <Download className="w-4 h-4" />
+                          Download Join Script
                         </button>
+                        <p className="text-xs text-gray-500 mt-1.5">Right-click → Run as Administrator</p>
+                      </div>
+
+                      <div className="flex items-stretch gap-2">
+                        <pre className="flex-1 min-w-0 px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs text-emerald-300 font-mono overflow-x-auto whitespace-nowrap">
+                          {tailscaleCommand}
+                        </pre>
                         <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setDraftKey(config.tailscale_auth_key);
-                            setEditingKey(false);
-                          }}
-                          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors"
+                          onClick={handleCopyCommand}
+                          className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors border ${copied
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-white/5 hover:bg-white/10 text-gray-200 border-white/10'
+                            }`}
                         >
-                          <X className="w-4 h-4" />
+                          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {copied ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setDraftKey(config.tailscale_auth_key);
-                          setEditingKey(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-orange-400 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        Edit Auth Key
-                      </button>
-                    )}
+
+                      {/* Edit auth key */}
+                      {editingKey ? (
+                        <div className="flex items-stretch gap-2">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={draftKey}
+                            onChange={(e) => setDraftKey(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveKey();
+                              if (e.key === 'Escape') {
+                                setDraftKey(config.tailscale_auth_key);
+                                setEditingKey(false);
+                              }
+                            }}
+                            onBlur={handleSaveKey}
+                            placeholder="tskey-auth-..."
+                            className="flex-1 min-w-0 px-3 py-2 bg-black/60 border border-orange-500/40 focus:border-orange-500 rounded-lg text-xs text-gray-100 font-mono outline-none"
+                          />
+                          <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={handleSaveKey}
+                            disabled={savingKey}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-orange-500 hover:bg-orange-400 text-white transition-colors disabled:opacity-50"
+                          >
+                            {savingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save
+                          </button>
+                          <button
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setDraftKey(config.tailscale_auth_key);
+                              setEditingKey(false);
+                            }}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setDraftKey(config.tailscale_auth_key);
+                            setEditingKey(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-orange-400 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit Auth Key
+                        </button>
+                      )}
+                    </div>
+                  </Step>
+
+                  {/* Step 4 */}
+                  <Step number={4} title="Verify">
+                    <p className="text-sm text-gray-300">
+                      Open CMD and run:{' '}
+                      <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
+                        ping {config.scrappy_server_ip || '<server-ip>'}
+                      </code>
+                    </p>
+                  </Step>
+                </div>
+              </div>
+
+              {/* SECTION B — CHROME EXTENSION */}
+              <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <Chrome className="w-4 h-4 text-purple-400" />
                   </div>
-                </Step>
+                  <div>
+                    <h2 className="text-base font-bold">Chrome Extension (Brand Checking Bot)</h2>
+                    <p className="text-xs text-gray-500">Install the helper extension into Chrome</p>
+                  </div>
+                </div>
 
-                {/* Step 4 */}
-                <Step number={4} title="Verify">
-                  <p className="text-sm text-gray-300">
-                    Open CMD and run:{' '}
-                    <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
-                      ping {config.scrappy_server_ip || '<server-ip>'}
-                    </code>
-                  </p>
-                </Step>
+                <div className="p-5 space-y-5">
+                  <Step number={1} title="Download Extension">
+                    <a
+                      href="/downloads/dropy-validator-extension.zip"
+                      download
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Extension
+                    </a>
+                  </Step>
+
+                  <Step number={2} title="Unzip">
+                    <p className="text-sm text-gray-300">Unzip the downloaded file.</p>
+                  </Step>
+
+                  <Step number={3} title="Open Chrome Extensions">
+                    <p className="text-sm text-gray-300">
+                      Open Chrome →{' '}
+                      <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
+                        chrome://extensions
+                      </code>{' '}
+                      → Enable <span className="text-orange-400 font-semibold">Developer mode</span>.
+                    </p>
+                  </Step>
+
+                  <Step number={4} title="Load Unpacked">
+                    <p className="text-sm text-gray-300">
+                      Click <span className="text-orange-400 font-semibold">&apos;Load unpacked&apos;</span> → select the unzipped folder.
+                    </p>
+                  </Step>
+
+                  <Step number={5} title="Run">
+                    <p className="text-sm text-gray-300">
+                      Open Scrappy brand checking page + Amazon Seller Central → Click extension → <span className="text-orange-400 font-semibold">Start</span>.
+                    </p>
+                  </Step>
+                </div>
+              </div>
+
+              {/* SECTION C — MR JS EXTENSION */}
+              <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+                  <div className="p-2 bg-teal-500/10 rounded-lg border border-teal-500/20">
+                    <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold">Chrome Extension (Mr JS — JungleScout Bot)</h2>
+                    <p className="text-xs text-gray-500">Automates JungleScout CSV collection from seller links</p>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  <Step number={1} title="Download Extension">
+                    <a
+                      href="/downloads/mr-js-extension.zip"
+                      download
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Extension
+                    </a>
+                  </Step>
+
+                  <Step number={2} title="Unzip">
+                    <p className="text-sm text-gray-300">Unzip the downloaded file.</p>
+                  </Step>
+
+                  <Step number={3} title="Open Chrome Extensions">
+                    <p className="text-sm text-gray-300">
+                      Open Chrome →{' '}
+                      <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
+                        chrome://extensions
+                      </code>{' '}
+                      → Enable <span className="text-orange-400 font-semibold">Developer mode</span>.
+                    </p>
+                  </Step>
+
+                  <Step number={4} title="Load Unpacked">
+                    <p className="text-sm text-gray-300">
+                      Click <span className="text-orange-400 font-semibold">&apos;Load unpacked&apos;</span> → select the unzipped folder.
+                    </p>
+                  </Step>
+
+                  <Step number={5} title="Run">
+                    <p className="text-sm text-gray-300">
+                      Open Scrappy Add Seller page → click any profile link to activate the cursor → Click extension → <span className="text-orange-400 font-semibold">Start Mr JS</span>.
+                    </p>
+                  </Step>
+                </div>
+              </div>
+
+              {/* SECTION D — DROPY AUTO-VALIDATOR EXTENSION */}
+              <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold">Chrome Extension (Dropy Auto-Validator)</h2>
+                    <p className="text-xs text-gray-500">Automates the Dropy validation workflow in your browser</p>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  <Step number={1} title="Download Extension">
+                    <a
+                      href="/downloads/dropy-validator-extension.zip"
+                      download
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Extension
+                    </a>
+                  </Step>
+
+                  <Step number={2} title="Unzip">
+                    <p className="text-sm text-gray-300">Unzip the downloaded file.</p>
+                  </Step>
+
+                  <Step number={3} title="Open Chrome Extensions">
+                    <p className="text-sm text-gray-300">
+                      Open Chrome →{' '}
+                      <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
+                        chrome://extensions
+                      </code>{' '}
+                      → Enable <span className="text-orange-400 font-semibold">Developer mode</span>.
+                    </p>
+                  </Step>
+
+                  <Step number={4} title="Load Unpacked">
+                    <p className="text-sm text-gray-300">
+                      Click <span className="text-orange-400 font-semibold">&apos;Load unpacked&apos;</span> → select the unzipped folder.
+                    </p>
+                  </Step>
+
+                  <Step number={5} title="Run">
+                    <p className="text-sm text-gray-300">
+                      Click the extension icon to open the side panel → make sure your LLM tab (Gemini/ChatGPT) is signed in → click <span className="text-orange-400 font-semibold">Start</span> to begin auto-validation.
+                    </p>
+                  </Step>
+                </div>
               </div>
             </div>
-
-            {/* SECTION B — CHROME EXTENSION */}
-            <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                  <Chrome className="w-4 h-4 text-purple-400" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold">Chrome Extension (Brand Checking Bot)</h2>
-                  <p className="text-xs text-gray-500">Install the helper extension into Chrome</p>
-                </div>
-              </div>
-
-              <div className="p-5 space-y-5">
-                <Step number={1} title="Download Extension">
-                  <a
-                    href="/downloads/scrappy-extension.zip"
-                    download
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Extension
-                  </a>
-                </Step>
-
-                <Step number={2} title="Unzip">
-                  <p className="text-sm text-gray-300">Unzip the downloaded file.</p>
-                </Step>
-
-                <Step number={3} title="Open Chrome Extensions">
-                  <p className="text-sm text-gray-300">
-                    Open Chrome →{' '}
-                    <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
-                      chrome://extensions
-                    </code>{' '}
-                    → Enable <span className="text-orange-400 font-semibold">Developer mode</span>.
-                  </p>
-                </Step>
-
-                <Step number={4} title="Load Unpacked">
-                  <p className="text-sm text-gray-300">
-                    Click <span className="text-orange-400 font-semibold">&apos;Load unpacked&apos;</span> → select the unzipped folder.
-                  </p>
-                </Step>
-
-                <Step number={5} title="Run">
-                  <p className="text-sm text-gray-300">
-                    Open Scrappy brand checking page + Amazon Seller Central → Click extension → <span className="text-orange-400 font-semibold">Start</span>.
-                  </p>
-                </Step>
-              </div>
-            </div>
-
-            {/* SECTION C — MR JS EXTENSION */}
-            <div className="bg-[#111111] border border-white/10 rounded-lg overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-                <div className="p-2 bg-teal-500/10 rounded-lg border border-teal-500/20">
-                  <FileSpreadsheet className="w-4 h-4 text-teal-400" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold">Chrome Extension (Mr JS — JungleScout Bot)</h2>
-                  <p className="text-xs text-gray-500">Automates JungleScout CSV collection from seller links</p>
-                </div>
-              </div>
-
-              <div className="p-5 space-y-5">
-                <Step number={1} title="Download Extension">
-                  <a
-                    href="/downloads/mr-js-extension.zip"
-                    download
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold rounded-lg transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Extension
-                  </a>
-                </Step>
-
-                <Step number={2} title="Unzip">
-                  <p className="text-sm text-gray-300">Unzip the downloaded file.</p>
-                </Step>
-
-                <Step number={3} title="Open Chrome Extensions">
-                  <p className="text-sm text-gray-300">
-                    Open Chrome →{' '}
-                    <code className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-emerald-300 font-mono">
-                      chrome://extensions
-                    </code>{' '}
-                    → Enable <span className="text-orange-400 font-semibold">Developer mode</span>.
-                  </p>
-                </Step>
-
-                <Step number={4} title="Load Unpacked">
-                  <p className="text-sm text-gray-300">
-                    Click <span className="text-orange-400 font-semibold">&apos;Load unpacked&apos;</span> → select the unzipped folder.
-                  </p>
-                </Step>
-
-                <Step number={5} title="Run">
-                  <p className="text-sm text-gray-300">
-                    Open Scrappy Add Seller page → click any profile link to activate the cursor → Click extension → <span className="text-orange-400 font-semibold">Start Mr JS</span>.
-                  </p>
-                </Step>
-              </div>
-            </div>
-          </div>
           </>
         )}
       </div>

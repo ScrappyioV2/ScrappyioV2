@@ -45,7 +45,9 @@
       "Bash(echo \"EXIT=$?\")",
       "Bash(powershell -NoProfile -Command \"Get-Content 'c:\\\\Project\\\\scrappy-v2\\\\app\\\\dashboard\\\\india-selling\\\\brand-checking\\\\golden-aura\\\\page.tsx' | Measure-Object -Line\")",
       "Bash(git revert *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git fetch *)",
+      "PowerShell(git push origin main 2>&1)"
     ]
   }
 }
