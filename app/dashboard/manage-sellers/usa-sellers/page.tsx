@@ -410,8 +410,12 @@ export default function UsaSellersPage() {
         .from('usa_distribution_queue')
         .select('*', { count: 'exact', head: true });
 
-      if (countError || !count) {
+      if (countError) {
         toast.error('Failed to get record count', { id: distToastId });
+        return;
+      }
+      if (!count) {
+        toast.success('Nothing to distribute — queue is empty', { id: distToastId });
         return;
       }
 
